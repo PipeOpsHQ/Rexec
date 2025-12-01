@@ -40,6 +40,15 @@ const WS_MAX_RECONNECT = 5;
 const WS_RECONNECT_DELAY = 2000;
 const WS_PING_INTERVAL = 25000;
 
+const REXEC_BANNER = `\x1b[38;5;46m
+  ██████╗ ███████╗██╗  ██╗███████╗ ██████╗
+  ██╔══██╗██╔════╝╚██╗██╔╝██╔════╝██╔════╝
+  ██████╔╝█████╗   ╚███╔╝ █████╗  ██║
+  ██╔══██╗██╔══╝   ██╔██╗ ██╔══╝  ██║
+  ██║  ██║███████╗██╔╝ ██╗███████╗╚██████╗
+  ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚══════╝ ╚═════╝
+\x1b[0m\x1b[38;5;243m  Terminal as a Service · rexec.dev\x1b[0m\r\n`;
+
 // Terminal configuration
 const TERMINAL_OPTIONS = {
   cursorBlink: true,
@@ -164,7 +173,7 @@ function createTerminalStore() {
     // Get current state
     getState,
 
-    // Create a new terminal session
+    // Create a new terminal session (reuses existing session for same container)
     createSession(containerId: string, name: string): string | null {
       const currentState = getState();
 
@@ -182,6 +191,21 @@ function createTerminalStore() {
         return existingSession.id;
       }
 
+      // Create a new tab
+      return this.createNewTab(containerId, name);
+    },
+
+    // Create a new tab (always creates a new session, even for same container)
+    createNewTab(containerId: string, name: string): string | null {
+      const authToken = get(token);
+      if (!authToken) return null;
+
+      // Count existing sessions for this container to number the tab
+      const currentState = getState();
+      const existingCount = Array.from(currentState.sessions.values()).filter(
+        (s) => s.containerId === containerId,
+      ).length;
+
       // Create terminal instance
       const terminal = new Terminal(TERMINAL_OPTIONS);
       const fitAddon = new FitAddon();
@@ -189,10 +213,12 @@ function createTerminalStore() {
       terminal.loadAddon(new WebLinksAddon());
 
       const sessionId = generateSessionId();
+      const tabName =
+        existingCount > 0 ? `${name} (${existingCount + 1})` : name;
       const session: TerminalSession = {
         id: sessionId,
         containerId,
-        name,
+        name: tabName,
         terminal,
         fitAddon,
         ws: null,
@@ -224,6 +250,15 @@ function createTerminalStore() {
       const authToken = get(token);
       if (!authToken) return;
 
+      // Prevent duplicate connections
+      if (
+        session.ws &&
+        (session.ws.readyState === WebSocket.OPEN ||
+          session.ws.readyState === WebSocket.CONNECTING)
+      ) {
+        return;
+      }
+
       // Clear existing timers
       if (session.reconnectTimer) clearTimeout(session.reconnectTimer);
       if (session.pingInterval) clearInterval(session.pingInterval);
@@ -240,8 +275,12 @@ function createTerminalStore() {
           reconnectAttempts: 0,
         }));
 
-        // Write connected message
-        session.terminal.writeln("\x1b[32m⚡ Connected\x1b[0m\r\n");
+        // Write banner and connected message
+        session.terminal.write(REXEC_BANNER);
+        session.terminal.writeln("\x1b[32m⚡ Connected\x1b[0m");
+        session.terminal.writeln(
+          "\x1b[38;5;243m  Type 'help' for tips & shortcuts\x1b[0m\r\n",
+        );
 
         // Send initial resize
         ws.send(
@@ -514,6 +553,14 @@ function createTerminalStore() {
     // Check if container has active session
     hasActiveSession(containerId: string): boolean {
       return !!this.getSessionByContainerId(containerId);
+    },
+
+    // Get the container ID of the active session
+    getActiveContainerId(): string | null {
+      const state = getState();
+      if (!state.activeSessionId) return null;
+      const session = state.sessions.get(state.activeSessionId);
+      return session?.containerId || null;
     },
   };
 }

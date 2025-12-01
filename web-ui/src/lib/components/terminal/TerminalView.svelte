@@ -9,6 +9,10 @@
   } from '$stores/terminal';
   import TerminalPanel from './TerminalPanel.svelte';
 
+  // Get active container ID for new tab functionality
+  $: activeContainerId = $activeSession?.containerId || null;
+  $: activeContainerName = $activeSession?.name?.replace(/\s*\(\d+\)$/, '') || 'Terminal';
+
   // Floating window state
   let floatingWindow: HTMLDivElement;
   let isDragging = false;
@@ -106,6 +110,13 @@
     }
   }
 
+  // Create a new tab for the active container
+  function createNewTab() {
+    if (activeContainerId) {
+      terminal.createNewTab(activeContainerId, activeContainerName);
+    }
+  }
+
   // Window event listeners
   onMount(() => {
     window.addEventListener('mousemove', handleMouseMove);
@@ -156,6 +167,9 @@
           </div>
 
           <div class="floating-actions">
+            <button on:click={createNewTab} title="New Tab" class="new-tab-btn">
+              +
+            </button>
             <button on:click={toggleViewMode} title="Dock Terminal">
               ⬒ Dock
             </button>
@@ -220,6 +234,9 @@
         </div>
 
         <div class="docked-actions">
+          <button class="btn btn-primary btn-sm" on:click={createNewTab} title="New Tab">
+            + New Tab
+          </button>
           <button class="btn btn-secondary btn-sm" on:click={toggleViewMode}>
             ⬔ Float
           </button>
@@ -346,6 +363,19 @@
 
   .floating-actions button:hover {
     color: var(--text);
+  }
+
+  .floating-actions .new-tab-btn {
+    color: var(--accent);
+    font-weight: bold;
+    font-size: 14px;
+    padding: 2px 10px;
+    border: 1px solid var(--accent);
+  }
+
+  .floating-actions .new-tab-btn:hover {
+    background: var(--accent);
+    color: var(--bg);
   }
 
   .floating-body {

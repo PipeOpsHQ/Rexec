@@ -78,6 +78,7 @@ function createAuthStore() {
         const response = await fetch('/api/auth/guest', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: `Guest_${Math.floor(Math.random() * 10000)}` }),
         });
 
         if (!response.ok) {

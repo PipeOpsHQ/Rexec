@@ -38,13 +38,10 @@
 
     if (match && $isAuthenticated) {
       const containerId = match[1];
-      // Fetch container info and connect
+      // Fetch container info and create session - TerminalPanel handles WebSocket
       const result = await containers.getContainer(containerId);
       if (result.success && result.container) {
-        const sessionId = terminal.createSession(containerId, result.container.name);
-        if (sessionId) {
-          terminal.connectWebSocket(sessionId);
-        }
+        terminal.createSession(containerId, result.container.name);
       }
     }
   }
@@ -96,11 +93,8 @@
     const { id, name } = event.detail;
     currentView = 'dashboard';
 
-    // Connect to the new container
-    const sessionId = terminal.createSession(id, name);
-    if (sessionId) {
-      terminal.connectWebSocket(sessionId);
-    }
+    // Create session - TerminalPanel will handle WebSocket connection
+    terminal.createSession(id, name);
   }
 
   // Handle browser navigation
@@ -133,10 +127,8 @@
         <Dashboard
           on:create={goToCreate}
           on:connect={(e) => {
-            const sessionId = terminal.createSession(e.detail.id, e.detail.name);
-            if (sessionId) {
-              terminal.connectWebSocket(sessionId);
-            }
+            // Only create session - TerminalPanel will handle WebSocket connection
+            terminal.createSession(e.detail.id, e.detail.name);
           }}
         />
       {:else if currentView === 'create'}

@@ -13,8 +13,8 @@
       terminal.attachTerminal(session.id, containerElement);
       isAttached = true;
 
-      // Connect WebSocket if not already connected
-      if (!session.ws || session.ws.readyState !== WebSocket.OPEN) {
+      // Connect WebSocket if not already connected or connecting
+      if (!session.ws || (session.ws.readyState !== WebSocket.OPEN && session.ws.readyState !== WebSocket.CONNECTING)) {
         terminal.connectWebSocket(session.id);
       }
     }
