@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 	"time"
 
@@ -43,34 +44,99 @@ type PullProgress struct {
 // Uses custom rexec images if available (with SSH pre-installed), otherwise falls back to base images
 var SupportedImages = map[string]string{
 	// Debian-based
-	"ubuntu":    "ubuntu:22.04",
-	"ubuntu-24": "ubuntu:24.04",
-	"ubuntu-20": "ubuntu:20.04",
-	"debian":    "debian:bookworm",
-	"debian-11": "debian:bullseye",
-	"kali":      "kalilinux/kali-rolling:latest",
-	"parrot":    "parrotsec/core:latest",
+	"ubuntu":     "ubuntu:22.04",
+	"ubuntu-24":  "ubuntu:24.04",
+	"ubuntu-20":  "ubuntu:20.04",
+	"debian":     "debian:bookworm",
+	"debian-11":  "debian:bullseye",
+	"kali":       "kalilinux/kali-rolling:latest",
+	"parrot":     "parrotsec/core:latest",
+	"mint":       "linuxmintd/mint21-amd64:latest",
+	"popos":      "pop-os/pop:22.04",
+	"elementary": "elementary/docker:latest",
+	"zorin":      "zorinos/zorin:latest",
+	"mxlinux":    "mxlinux/mx:latest",
+	"devuan":     "devuan/devuan:daedalus",
+	"antix":      "antix/antix:latest",
+	// Security & Penetration Testing
+	"blackarch":   "blackarchlinux/blackarch:latest",
+	"backbox":     "backbox/backbox:latest",
+	"dracos":      "dracos/dracos:latest",
+	"pentoo":      "pentoo/pentoo:latest",
+	"samurai":     "samurai/samurai-wtf:latest",
+	"kali-purple": "kalilinux/kali-purple:latest",
 	// Red Hat-based
-	"fedora":    "fedora:latest",
-	"fedora-39": "fedora:39",
-	"centos":    "centos:stream9",
-	"rocky":     "rockylinux:9",
-	"alma":      "almalinux:9",
-	"oracle":    "oraclelinux:9",
-	// Other Linux
+	"fedora":     "fedora:latest",
+	"fedora-39":  "fedora:39",
+	"centos":     "centos:stream9",
+	"rocky":      "rockylinux:9",
+	"alma":       "almalinux:9",
+	"oracle":     "oraclelinux:9",
+	"rhel":       "redhat/ubi9:latest",
+	"openeuler":  "openeuler/openeuler:latest",
+	"springdale": "springdale/springdale:latest",
+	"navy":       "navylinux/navy:latest",
+	// Arch-based
+	"archlinux":   "archlinux:latest",
+	"manjaro":     "manjarolinux/base:latest",
+	"endeavouros": "endeavouros/endeavouros:latest",
+	"garuda":      "garudalinux/garuda:latest",
+	"arcolinux":   "arcolinux/arcolinux:latest",
+	"artix":       "artixlinux/artix:latest",
+	// SUSE-based
+	"opensuse":   "opensuse/leap:latest",
+	"tumbleweed": "opensuse/tumbleweed:latest",
+	"sles":       "registry.suse.com/suse/sles:latest",
+	// Independent Distributions
+	"gentoo":    "gentoo/stage3:latest",
+	"void":      "voidlinux/voidlinux:latest",
+	"nixos":     "nixos/nix:latest",
+	"slackware": "vbatts/slackware:latest",
+	"solus":     "solus/solus:latest",
+	"pclinuxos": "pclinuxos/pclinuxos:latest",
+	// Minimal / Embedded
 	"alpine":      "alpine:latest",
 	"alpine-3.18": "alpine:3.18",
-	"archlinux":   "archlinux:latest",
-	"opensuse":    "opensuse/leap:latest",
-	"gentoo":      "gentoo/stage3:latest",
-	"void":        "voidlinux/voidlinux:latest",
-	"nixos":       "nixos/nix:latest",
+	"tinycore":    "tinycore/tinycore:latest",
+	"puppy":       "puppylinux/puppy:latest",
+	"dsl":         "damnsmalllinux/dsl:latest",
+	"busybox":     "busybox:latest",
+	// Container / Cloud Optimized
+	"flatcar":      "flatcar/flatcar:latest",
+	"rancheros":    "rancher/os:latest",
+	"bottlerocket": "bottlerocket/bottlerocket:latest",
+	"talos":        "ghcr.io/siderolabs/talos:latest",
+	"k3os":         "rancher/k3os:latest",
+	// BSD Systems
+	"freebsd":      "freebsd/freebsd:latest",
+	"openbsd":      "openbsd/openbsd:latest",
+	"netbsd":       "netbsd/netbsd:latest",
+	"dragonflybsd": "dragonflybsd/dragonfly:latest",
+	// Special Purpose
+	"qubes":      "qubes/qubes:latest",
+	"tails":      "tails/tails:latest",
+	"whonix":     "whonix/whonix:latest",
+	"raspbian":   "raspbian/raspbian:latest",
+	"ubuntucore": "ubuntu:core22",
+	// Gaming / Desktop
+	"steamos":   "steamos/steamos:latest",
+	"chimeraos": "chimeraos/chimeraos:latest",
+	// Developer / Scientific
+	"ubuntustudio": "ubuntustudio/ubuntustudio:latest",
+	"scientific":   "scientificlinux/sl:latest",
+	// Cloud Provider Specific
+	"amazonlinux":      "amazonlinux:2023",
+	"amazonlinux2":     "amazonlinux:2",
+	"amazonlinux2022":  "amazonlinux:2022",
+	"cos":              "gcr.io/cos-cloud/cos-stable:latest",
+	"azurelinux":       "mcr.microsoft.com/cbl-mariner/base/core:2.0",
+	"oracleautonomous": "oraclelinux:8-slim",
+	"alibabacloud":     "registry.cn-hangzhou.aliyuncs.com/alinux/aliyunlinux3",
+	"ibmcloud":         "icr.io/ibm/ibmcloud-cli:latest",
+	"digitalocean":     "ubuntu:22.04",
 	// Specialized
-	"amazonlinux": "amazonlinux:2023",
-	"clearlinux":  "clearlinux:latest",
-	"photon":      "photon:latest",
-	// Minimal/Distroless for specific use cases
-	"busybox": "busybox:latest",
+	"clearlinux": "clearlinux:latest",
+	"photon":     "photon:latest",
 }
 
 // CustomImages maps to rexec custom images with SSH pre-installed
@@ -103,31 +169,107 @@ func GetImageMetadata() []ImageMetadata {
 		{Name: "ubuntu-20", DisplayName: "Ubuntu 20.04 LTS", Description: "Stable Ubuntu with long-term support", Category: "debian", Tags: []string{"lts", "stable"}, Popular: false},
 		{Name: "debian", DisplayName: "Debian 12 (Bookworm)", Description: "Rock-solid stability with extensive packages", Category: "debian", Tags: []string{"stable", "server"}, Popular: true},
 		{Name: "debian-11", DisplayName: "Debian 11 (Bullseye)", Description: "Previous stable Debian release", Category: "debian", Tags: []string{"oldstable"}, Popular: false},
-		{Name: "kali", DisplayName: "Kali Linux", Description: "Penetration testing and security auditing", Category: "debian", Tags: []string{"security", "pentesting"}, Popular: true},
-		{Name: "parrot", DisplayName: "Parrot Security OS", Description: "Security and privacy focused distribution", Category: "debian", Tags: []string{"security", "privacy"}, Popular: false},
+		{Name: "mint", DisplayName: "Linux Mint", Description: "User-friendly Ubuntu derivative with Cinnamon desktop", Category: "debian", Tags: []string{"desktop", "beginner-friendly"}, Popular: true},
+		{Name: "popos", DisplayName: "Pop!_OS", Description: "System76's developer-focused Ubuntu-based distro", Category: "debian", Tags: []string{"desktop", "developer"}, Popular: true},
+		{Name: "elementary", DisplayName: "elementary OS", Description: "Beautiful and privacy-focused desktop OS", Category: "debian", Tags: []string{"desktop", "beautiful"}, Popular: false},
+		{Name: "zorin", DisplayName: "Zorin OS", Description: "Windows-like interface for easy transition", Category: "debian", Tags: []string{"desktop", "windows-like"}, Popular: false},
+		{Name: "mxlinux", DisplayName: "MX Linux", Description: "Efficient Debian-stable based distro", Category: "debian", Tags: []string{"stable", "efficient"}, Popular: true},
+		{Name: "devuan", DisplayName: "Devuan", Description: "Debian without systemd", Category: "debian", Tags: []string{"init-freedom", "advanced"}, Popular: false},
+		{Name: "antix", DisplayName: "antiX", Description: "Fast, lightweight Debian-based for old computers", Category: "debian", Tags: []string{"lightweight", "fast"}, Popular: false},
+
+		// Security & Penetration Testing
+		{Name: "kali", DisplayName: "Kali Linux", Description: "Penetration testing and security auditing platform", Category: "security", Tags: []string{"pentesting", "security", "hacking"}, Popular: true},
+		{Name: "parrot", DisplayName: "Parrot Security OS", Description: "Security and privacy focused distribution", Category: "security", Tags: []string{"security", "privacy", "pentesting"}, Popular: true},
+		{Name: "blackarch", DisplayName: "BlackArch Linux", Description: "Arch-based pentesting distro with 2500+ tools", Category: "security", Tags: []string{"pentesting", "arch", "advanced"}, Popular: true},
+		{Name: "backbox", DisplayName: "BackBox", Description: "Ubuntu-based security assessment toolkit", Category: "security", Tags: []string{"pentesting", "ubuntu"}, Popular: false},
+		{Name: "dracos", DisplayName: "Dracos Linux", Description: "Arch-based penetration testing OS", Category: "security", Tags: []string{"pentesting", "arch"}, Popular: false},
+		{Name: "pentoo", DisplayName: "Pentoo", Description: "Gentoo-based security-focused distro", Category: "security", Tags: []string{"pentesting", "gentoo"}, Popular: false},
+		{Name: "samurai", DisplayName: "Samurai WTF", Description: "Web penetration testing framework", Category: "security", Tags: []string{"pentesting", "web"}, Popular: false},
+		{Name: "kali-purple", DisplayName: "Kali Purple", Description: "Defensive security operations platform", Category: "security", Tags: []string{"security", "defensive", "soc"}, Popular: false},
 
 		// Red Hat-based
 		{Name: "fedora", DisplayName: "Fedora (Latest)", Description: "Cutting-edge features and technologies", Category: "redhat", Tags: []string{"latest", "developer"}, Popular: true},
 		{Name: "fedora-39", DisplayName: "Fedora 39", Description: "Stable Fedora release", Category: "redhat", Tags: []string{"stable"}, Popular: false},
 		{Name: "centos", DisplayName: "CentOS Stream 9", Description: "Enterprise Linux for development", Category: "redhat", Tags: []string{"enterprise", "rhel"}, Popular: false},
 		{Name: "rocky", DisplayName: "Rocky Linux 9", Description: "Enterprise-grade RHEL-compatible OS", Category: "redhat", Tags: []string{"enterprise", "rhel-compatible"}, Popular: true},
-		{Name: "alma", DisplayName: "AlmaLinux 9", Description: "Community-driven RHEL fork", Category: "redhat", Tags: []string{"enterprise", "rhel-compatible"}, Popular: false},
+		{Name: "alma", DisplayName: "AlmaLinux 9", Description: "Community-driven RHEL fork", Category: "redhat", Tags: []string{"enterprise", "rhel-compatible"}, Popular: true},
 		{Name: "oracle", DisplayName: "Oracle Linux 9", Description: "Oracle's enterprise Linux", Category: "redhat", Tags: []string{"enterprise", "oracle"}, Popular: false},
+		{Name: "rhel", DisplayName: "Red Hat Enterprise Linux (UBI)", Description: "Industry-leading enterprise Linux", Category: "redhat", Tags: []string{"enterprise", "commercial"}, Popular: true},
+		{Name: "openeuler", DisplayName: "openEuler", Description: "Enterprise Linux by Huawei", Category: "redhat", Tags: []string{"enterprise", "china"}, Popular: false},
+		{Name: "springdale", DisplayName: "Springdale Linux", Description: "RHEL rebuild from Princeton", Category: "redhat", Tags: []string{"enterprise", "rhel-compatible"}, Popular: false},
+		{Name: "navy", DisplayName: "Navy Linux", Description: "RHEL-based derivative", Category: "redhat", Tags: []string{"enterprise", "rhel-compatible"}, Popular: false},
 
-		// Other Linux
-		{Name: "alpine", DisplayName: "Alpine Linux", Description: "Lightweight and security-oriented", Category: "other", Tags: []string{"minimal", "docker", "fast"}, Popular: true},
-		{Name: "alpine-3.18", DisplayName: "Alpine 3.18", Description: "Stable Alpine release", Category: "other", Tags: []string{"minimal", "stable"}, Popular: false},
-		{Name: "archlinux", DisplayName: "Arch Linux", Description: "Rolling release with latest packages", Category: "other", Tags: []string{"rolling", "bleeding-edge", "aur"}, Popular: true},
-		{Name: "opensuse", DisplayName: "openSUSE Leap", Description: "Stable enterprise-grade openSUSE", Category: "other", Tags: []string{"enterprise", "zypper"}, Popular: false},
-		{Name: "gentoo", DisplayName: "Gentoo Linux", Description: "Source-based with extreme customization", Category: "other", Tags: []string{"source-based", "advanced"}, Popular: false},
-		{Name: "void", DisplayName: "Void Linux", Description: "Independent distro with runit init", Category: "other", Tags: []string{"independent", "runit"}, Popular: false},
-		{Name: "nixos", DisplayName: "NixOS", Description: "Declarative and reproducible builds", Category: "other", Tags: []string{"declarative", "nix", "reproducible"}, Popular: false},
+		// Arch-based
+		{Name: "archlinux", DisplayName: "Arch Linux", Description: "Rolling release with latest packages and AUR", Category: "arch", Tags: []string{"rolling", "bleeding-edge", "aur"}, Popular: true},
+		{Name: "manjaro", DisplayName: "Manjaro", Description: "User-friendly Arch with easy installation", Category: "arch", Tags: []string{"rolling", "beginner-friendly"}, Popular: true},
+		{Name: "endeavouros", DisplayName: "EndeavourOS", Description: "Near-vanilla Arch with graphical installer", Category: "arch", Tags: []string{"rolling", "arch-like"}, Popular: true},
+		{Name: "garuda", DisplayName: "Garuda Linux", Description: "Gaming-focused Arch with performance tweaks", Category: "arch", Tags: []string{"gaming", "performance", "rolling"}, Popular: false},
+		{Name: "arcolinux", DisplayName: "ArcoLinux", Description: "Educational Arch-based learning platform", Category: "arch", Tags: []string{"educational", "rolling"}, Popular: false},
+		{Name: "artix", DisplayName: "Artix Linux", Description: "Arch without systemd, init freedom", Category: "arch", Tags: []string{"rolling", "init-freedom"}, Popular: false},
+
+		// SUSE-based
+		{Name: "opensuse", DisplayName: "openSUSE Leap", Description: "Stable enterprise-grade openSUSE", Category: "suse", Tags: []string{"enterprise", "stable", "zypper"}, Popular: true},
+		{Name: "tumbleweed", DisplayName: "openSUSE Tumbleweed", Description: "Rolling release openSUSE", Category: "suse", Tags: []string{"rolling", "testing"}, Popular: false},
+		{Name: "sles", DisplayName: "SUSE Linux Enterprise", Description: "Commercial enterprise Linux", Category: "suse", Tags: []string{"enterprise", "commercial"}, Popular: false},
+
+		// Independent Distributions
+		{Name: "gentoo", DisplayName: "Gentoo Linux", Description: "Source-based with extreme customization", Category: "independent", Tags: []string{"source-based", "advanced", "performance"}, Popular: false},
+		{Name: "void", DisplayName: "Void Linux", Description: "Independent distro with runit init system", Category: "independent", Tags: []string{"independent", "runit", "rolling"}, Popular: false},
+		{Name: "nixos", DisplayName: "NixOS", Description: "Declarative configuration and reproducible builds", Category: "independent", Tags: []string{"declarative", "nix", "reproducible"}, Popular: false},
+		{Name: "slackware", DisplayName: "Slackware", Description: "Oldest maintained Linux distro, Unix-like", Category: "independent", Tags: []string{"classic", "stable", "unix-like"}, Popular: false},
+		{Name: "solus", DisplayName: "Solus", Description: "Independent desktop-focused distro", Category: "independent", Tags: []string{"desktop", "modern"}, Popular: false},
+		{Name: "pclinuxos", DisplayName: "PCLinuxOS", Description: "Independent user-friendly distro", Category: "independent", Tags: []string{"desktop", "kde"}, Popular: false},
+
+		// Minimal / Embedded
+		{Name: "alpine", DisplayName: "Alpine Linux", Description: "Lightweight and security-oriented for containers", Category: "minimal", Tags: []string{"minimal", "docker", "security"}, Popular: true},
+		{Name: "alpine-3.18", DisplayName: "Alpine 3.18", Description: "Stable Alpine release", Category: "minimal", Tags: []string{"minimal", "stable"}, Popular: false},
+		{Name: "tinycore", DisplayName: "Tiny Core Linux", Description: "Ultra-minimal distro (11-16MB)", Category: "minimal", Tags: []string{"minimal", "tiny", "embedded"}, Popular: false},
+		{Name: "puppy", DisplayName: "Puppy Linux", Description: "Lightweight, runs entirely in RAM", Category: "minimal", Tags: []string{"lightweight", "ram", "old-hardware"}, Popular: false},
+		{Name: "dsl", DisplayName: "Damn Small Linux", Description: "Extremely small distro for old hardware", Category: "minimal", Tags: []string{"minimal", "tiny", "old-hardware"}, Popular: false},
+		{Name: "busybox", DisplayName: "BusyBox", Description: "Ultra-minimal Unix utilities in single binary", Category: "minimal", Tags: []string{"minimal", "embedded"}, Popular: false},
+
+		// Container / Cloud Optimized
+		{Name: "flatcar", DisplayName: "Flatcar Container Linux", Description: "Container-optimized OS, CoreOS successor", Category: "container", Tags: []string{"containers", "immutable", "cloud"}, Popular: true},
+		{Name: "rancheros", DisplayName: "RancherOS", Description: "Entire OS as Docker containers", Category: "container", Tags: []string{"containers", "docker", "minimal"}, Popular: false},
+		{Name: "bottlerocket", DisplayName: "Bottlerocket", Description: "AWS's minimal container-focused OS", Category: "container", Tags: []string{"containers", "aws", "minimal"}, Popular: true},
+		{Name: "talos", DisplayName: "Talos Linux", Description: "Kubernetes-native, API-managed OS", Category: "container", Tags: []string{"kubernetes", "immutable", "api"}, Popular: true},
+		{Name: "k3os", DisplayName: "k3OS", Description: "Lightweight Kubernetes OS", Category: "container", Tags: []string{"kubernetes", "lightweight"}, Popular: false},
+
+		// BSD Systems
+		{Name: "freebsd", DisplayName: "FreeBSD", Description: "Most popular BSD Unix-like system", Category: "bsd", Tags: []string{"unix", "bsd", "stable"}, Popular: true},
+		{Name: "openbsd", DisplayName: "OpenBSD", Description: "Security-focused BSD system", Category: "bsd", Tags: []string{"unix", "bsd", "security"}, Popular: true},
+		{Name: "netbsd", DisplayName: "NetBSD", Description: "Highly portable BSD system", Category: "bsd", Tags: []string{"unix", "bsd", "portable"}, Popular: false},
+		{Name: "dragonflybsd", DisplayName: "DragonFly BSD", Description: "Fork of FreeBSD focused on SMP", Category: "bsd", Tags: []string{"unix", "bsd", "performance"}, Popular: false},
+
+		// Special Purpose
+		{Name: "qubes", DisplayName: "Qubes OS", Description: "Security-focused with VM isolation", Category: "special", Tags: []string{"security", "isolation", "privacy"}, Popular: false},
+		{Name: "tails", DisplayName: "Tails", Description: "Privacy and anonymity via Tor", Category: "special", Tags: []string{"privacy", "tor", "anonymity"}, Popular: false},
+		{Name: "whonix", DisplayName: "Whonix", Description: "Tor-based anonymous operating system", Category: "special", Tags: []string{"privacy", "tor", "anonymity"}, Popular: false},
+		{Name: "raspbian", DisplayName: "Raspberry Pi OS", Description: "Official OS for Raspberry Pi", Category: "special", Tags: []string{"raspberry-pi", "arm", "iot"}, Popular: false},
+		{Name: "ubuntucore", DisplayName: "Ubuntu Core", Description: "IoT-focused Ubuntu with snaps", Category: "special", Tags: []string{"iot", "snaps", "embedded"}, Popular: false},
+
+		// Gaming / Desktop
+		{Name: "steamos", DisplayName: "SteamOS", Description: "Valve's gaming-focused Linux", Category: "gaming", Tags: []string{"gaming", "steam", "desktop"}, Popular: false},
+		{Name: "chimeraos", DisplayName: "ChimeraOS", Description: "Gaming-focused couch experience", Category: "gaming", Tags: []string{"gaming", "steam", "desktop"}, Popular: false},
+
+		// Developer / Scientific
+		{Name: "ubuntustudio", DisplayName: "Ubuntu Studio", Description: "Multimedia content creation platform", Category: "developer", Tags: []string{"multimedia", "creative", "audio"}, Popular: false},
+		{Name: "scientific", DisplayName: "Scientific Linux", Description: "For scientific computing and research", Category: "developer", Tags: []string{"scientific", "research", "rhel"}, Popular: false},
+
+		// Cloud Provider Specific
+		{Name: "amazonlinux", DisplayName: "Amazon Linux 2023", Description: "Optimized for AWS cloud", Category: "cloud", Tags: []string{"aws", "cloud", "enterprise"}, Popular: true},
+		{Name: "amazonlinux2", DisplayName: "Amazon Linux 2", Description: "Long-term support release for AWS", Category: "cloud", Tags: []string{"aws", "cloud", "lts"}, Popular: true},
+		{Name: "amazonlinux2022", DisplayName: "Amazon Linux 2022", Description: "Previous AWS Linux version", Category: "cloud", Tags: []string{"aws", "cloud"}, Popular: false},
+		{Name: "cos", DisplayName: "Container-Optimized OS", Description: "Google Cloud's optimized OS", Category: "cloud", Tags: []string{"gcp", "google", "container"}, Popular: true},
+		{Name: "azurelinux", DisplayName: "Azure Linux (Mariner)", Description: "Microsoft's internal Linux distro", Category: "cloud", Tags: []string{"azure", "microsoft", "cloud"}, Popular: true},
+		{Name: "oracleautonomous", DisplayName: "Oracle Autonomous Linux", Description: "Autonomous management for Oracle Cloud", Category: "cloud", Tags: []string{"oracle", "cloud", "autonomous"}, Popular: false},
+		{Name: "alibabacloud", DisplayName: "Alibaba Cloud Linux", Description: "Optimized for Alibaba Cloud", Category: "cloud", Tags: []string{"alibaba", "cloud", "china"}, Popular: false},
+		{Name: "ibmcloud", DisplayName: "IBM Cloud CLI", Description: "IBM Cloud tools environment", Category: "cloud", Tags: []string{"ibm", "cloud", "cli"}, Popular: false},
+		{Name: "digitalocean", DisplayName: "DigitalOcean Droplet", Description: "Optimized Ubuntu for DigitalOcean", Category: "cloud", Tags: []string{"digitalocean", "cloud", "ubuntu"}, Popular: true},
 
 		// Specialized
-		{Name: "amazonlinux", DisplayName: "Amazon Linux 2023", Description: "Optimized for AWS", Category: "specialized", Tags: []string{"aws", "cloud"}, Popular: false},
-		{Name: "clearlinux", DisplayName: "Clear Linux", Description: "Intel-optimized performance", Category: "specialized", Tags: []string{"performance", "intel"}, Popular: false},
-		{Name: "photon", DisplayName: "VMware Photon OS", Description: "Optimized for VMware and containers", Category: "specialized", Tags: []string{"vmware", "container"}, Popular: false},
-		{Name: "busybox", DisplayName: "BusyBox", Description: "Ultra-minimal Unix utilities", Category: "specialized", Tags: []string{"minimal", "embedded"}, Popular: false},
+		{Name: "clearlinux", DisplayName: "Clear Linux", Description: "Intel-optimized for performance", Category: "specialized", Tags: []string{"performance", "intel", "cloud"}, Popular: false},
+		{Name: "photon", DisplayName: "VMware Photon OS", Description: "Optimized for VMware and containers", Category: "specialized", Tags: []string{"vmware", "container", "minimal"}, Popular: false},
 	}
 }
 
@@ -225,30 +367,100 @@ func ValidateCustomImage(ctx context.Context, imageName string) error {
 
 // ImageShells maps image types to their default shell
 var ImageShells = map[string]string{
-	"ubuntu":      "/bin/bash",
-	"ubuntu-24":   "/bin/bash",
-	"ubuntu-20":   "/bin/bash",
-	"debian":      "/bin/bash",
-	"debian-11":   "/bin/bash",
-	"kali":        "/bin/bash",
-	"parrot":      "/bin/bash",
-	"fedora":      "/bin/bash",
-	"fedora-39":   "/bin/bash",
-	"centos":      "/bin/bash",
-	"rocky":       "/bin/bash",
-	"alma":        "/bin/bash",
-	"oracle":      "/bin/bash",
+	// Debian-based
+	"ubuntu":     "/bin/bash",
+	"ubuntu-24":  "/bin/bash",
+	"ubuntu-20":  "/bin/bash",
+	"debian":     "/bin/bash",
+	"debian-11":  "/bin/bash",
+	"kali":       "/bin/bash",
+	"parrot":     "/bin/bash",
+	"mint":       "/bin/bash",
+	"popos":      "/bin/bash",
+	"elementary": "/bin/bash",
+	"zorin":      "/bin/bash",
+	"mxlinux":    "/bin/bash",
+	"devuan":     "/bin/bash",
+	"antix":      "/bin/bash",
+	// Security
+	"blackarch":   "/bin/bash",
+	"backbox":     "/bin/bash",
+	"dracos":      "/bin/bash",
+	"pentoo":      "/bin/bash",
+	"samurai":     "/bin/bash",
+	"kali-purple": "/bin/bash",
+	// Red Hat-based
+	"fedora":     "/bin/bash",
+	"fedora-39":  "/bin/bash",
+	"centos":     "/bin/bash",
+	"rocky":      "/bin/bash",
+	"alma":       "/bin/bash",
+	"oracle":     "/bin/bash",
+	"rhel":       "/bin/bash",
+	"openeuler":  "/bin/bash",
+	"springdale": "/bin/bash",
+	"navy":       "/bin/bash",
+	// Arch-based
+	"archlinux":   "/bin/bash",
+	"manjaro":     "/bin/bash",
+	"endeavouros": "/bin/bash",
+	"garuda":      "/bin/bash",
+	"arcolinux":   "/bin/bash",
+	"artix":       "/bin/bash",
+	// SUSE-based
+	"opensuse":   "/bin/bash",
+	"tumbleweed": "/bin/bash",
+	"sles":       "/bin/bash",
+	// Independent
+	"gentoo":    "/bin/bash",
+	"void":      "/bin/bash",
+	"nixos":     "/bin/bash",
+	"slackware": "/bin/bash",
+	"solus":     "/bin/bash",
+	"pclinuxos": "/bin/bash",
+	// Minimal (use sh)
 	"alpine":      "/bin/sh",
 	"alpine-3.18": "/bin/sh",
-	"archlinux":   "/bin/bash",
-	"opensuse":    "/bin/bash",
-	"gentoo":      "/bin/bash",
-	"void":        "/bin/bash",
-	"nixos":       "/bin/bash",
-	"amazonlinux": "/bin/bash",
-	"clearlinux":  "/bin/bash",
-	"photon":      "/bin/bash",
+	"tinycore":    "/bin/sh",
+	"puppy":       "/bin/sh",
+	"dsl":         "/bin/sh",
 	"busybox":     "/bin/sh",
+	// Container optimized
+	"flatcar":      "/bin/bash",
+	"rancheros":    "/bin/bash",
+	"bottlerocket": "/bin/bash",
+	"talos":        "/bin/sh",
+	"k3os":         "/bin/sh",
+	// BSD (use sh as default)
+	"freebsd":      "/bin/sh",
+	"openbsd":      "/bin/sh",
+	"netbsd":       "/bin/sh",
+	"dragonflybsd": "/bin/sh",
+	// Special Purpose
+	"qubes":      "/bin/bash",
+	"tails":      "/bin/bash",
+	"whonix":     "/bin/bash",
+	"raspbian":   "/bin/bash",
+	"ubuntucore": "/bin/bash",
+	// Gaming
+	"steamos":   "/bin/bash",
+	"chimeraos": "/bin/bash",
+	// Developer
+	"ubuntustudio": "/bin/bash",
+	"scientific":   "/bin/bash",
+	// Cloud Provider Specific
+	"amazonlinux":      "/bin/bash",
+	"amazonlinux2":     "/bin/bash",
+	"amazonlinux2022":  "/bin/bash",
+	"cos":              "/bin/bash",
+	"azurelinux":       "/bin/bash",
+	"oracleautonomous": "/bin/bash",
+	"alibabacloud":     "/bin/bash",
+	"ibmcloud":         "/bin/bash",
+	"digitalocean":     "/bin/bash",
+	// Specialized
+	"clearlinux": "/bin/bash",
+	"photon":     "/bin/bash",
 }
 
 // ImageFallbackShells provides fallback shells to try if the primary fails
@@ -947,4 +1159,83 @@ func UserContainerLimit(tier string) int {
 	default: // free (authenticated users)
 		return 2
 	}
+}
+
+// DockerContainerExists checks if a container exists in Docker by its ID
+func (m *Manager) DockerContainerExists(ctx context.Context, dockerID string) bool {
+	_, err := m.client.ContainerInspect(ctx, dockerID)
+	return err == nil
+}
+
+// RecreateContainerConfig holds info needed to recreate a container
+type RecreateContainerConfig struct {
+	UserID        string
+	ContainerName string
+	Image         string // Can be "ubuntu-24" or "custom:image/name"
+	OldDockerID   string
+	Tier          string
+}
+
+// RecreateContainer recreates a container that was removed from Docker
+// It preserves the user's volume data if it still exists
+func (m *Manager) RecreateContainer(ctx context.Context, cfg RecreateContainerConfig) (*ContainerInfo, error) {
+	// Parse image type
+	var imageType, customImage string
+	if strings.HasPrefix(cfg.Image, "custom:") {
+		imageType = "custom"
+		customImage = strings.TrimPrefix(cfg.Image, "custom:")
+	} else {
+		imageType = cfg.Image
+	}
+
+	// Remove old entry from manager's tracking if exists
+	m.mu.Lock()
+	if _, exists := m.containers[cfg.OldDockerID]; exists {
+		delete(m.containers, cfg.OldDockerID)
+		// Remove from user index
+		if dockerIDs, ok := m.userIndex[cfg.UserID]; ok {
+			newIDs := make([]string, 0, len(dockerIDs))
+			for _, id := range dockerIDs {
+				if id != cfg.OldDockerID {
+					newIDs = append(newIDs, id)
+				}
+			}
+			if len(newIDs) > 0 {
+				m.userIndex[cfg.UserID] = newIDs
+			} else {
+				delete(m.userIndex, cfg.UserID)
+			}
+		}
+	}
+	m.mu.Unlock()
+
+	// Build labels
+	labels := map[string]string{
+		"rexec.tier":    cfg.Tier,
+		"rexec.user_id": cfg.UserID,
+	}
+
+	// Create new container using existing method
+	containerCfg := ContainerConfig{
+		UserID:        cfg.UserID,
+		ContainerName: cfg.ContainerName,
+		ImageType:     imageType,
+		CustomImage:   customImage,
+		Labels:        labels,
+	}
+
+	// Apply tier-based resource limits
+	switch cfg.Tier {
+	case "pro":
+		containerCfg.MemoryLimit = 2048 * 1024 * 1024 // 2GB
+		containerCfg.CPULimit = 200000                // 2 CPUs
+	case "enterprise":
+		containerCfg.MemoryLimit = 4096 * 1024 * 1024 // 4GB
+		containerCfg.CPULimit = 400000                // 4 CPUs
+	default: // free/guest
+		containerCfg.MemoryLimit = 512 * 1024 * 1024 // 512MB
+		containerCfg.CPULimit = 100000               // 1 CPU
+	}
+
+	return m.CreateContainer(ctx, containerCfg)
 }

@@ -437,6 +437,8 @@ func (h *ContainerHandler) Delete(c *gin.Context) {
 }
 
 // Start starts a stopped container
+// If the container was removed from Docker but exists in the database,
+// it will be automatically recreated with the same configuration
 func (h *ContainerHandler) Start(c *gin.Context) {
 	userID := c.GetString("userID")
 	dockerID := c.Param("id")
@@ -485,6 +487,46 @@ func (h *ContainerHandler) Start(c *gin.Context) {
 		return
 	}
 
+	// Check if container actually exists in Docker
+	containerExistsInDocker := h.manager.DockerContainerExists(ctx, dockerID)
+
+	if !containerExistsInDocker {
+		// Container was removed from Docker but exists in database
+		// Recreate it with the same configuration
+		recreateCfg := container.RecreateContainerConfig{
+			UserID:        userID,
+			ContainerName: found.Name,
+			Image:         found.Image,
+			OldDockerID:   dockerID,
+			Tier:          tier,
+		}
+
+		newInfo, err := h.manager.RecreateContainer(ctx, recreateCfg)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "failed to recreate container: " + err.Error(),
+				"message": "Container was removed from server and could not be recreated",
+			})
+			return
+		}
+
+		// Update database with new Docker ID
+		h.store.UpdateContainerDockerID(ctx, found.ID, newInfo.ID)
+		h.store.UpdateContainerStatus(ctx, found.ID, "running")
+
+		c.JSON(http.StatusOK, gin.H{
+			"message":     "container recreated and started",
+			"id":          newInfo.ID,
+			"old_id":      dockerID,
+			"name":        found.Name,
+			"status":      "running",
+			"recreated":   true,
+			"volume_kept": true, // Volume data is preserved if it still exists
+		})
+		return
+	}
+
+	// Container exists in Docker, start it normally
 	if err := h.manager.StartContainer(ctx, dockerID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to start container: " + err.Error()})
 		return

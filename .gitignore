@@ -40,9 +40,10 @@ tmp/
 # Air (hot reload)
 .air.toml
 
-# Node modules (if frontend grows)
+# Node modules
 node_modules/
 web/node_modules/
+web-ui/node_modules/
 
 # Build artifacts
 dist/

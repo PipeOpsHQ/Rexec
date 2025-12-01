@@ -1,4 +1,4 @@
-.PHONY: build run dev clean test docker-build docker-run help images
+.PHONY: build run dev clean test docker-build docker-run help images ui ui-dev ui-install
 
 # Variables
 BINARY_NAME=rexec
@@ -12,13 +12,35 @@ GORUN=$(GOCMD) run
 GOTEST=$(GOCMD) test
 GOMOD=$(GOCMD) mod
 
+# Build the web UI
+ui-install:
+	@echo "Installing web UI dependencies..."
+	cd web-ui && npm install
+
+ui: ui-install
+	@echo "Building web UI..."
+	cd web-ui && npm run build
+
+ui-dev:
+	@echo "Starting web UI dev server..."
+	cd web-ui && npm run dev
+
 # Build the binary
 build:
 	@echo "Building $(BINARY_NAME)..."
 	$(GOBUILD) -ldflags "-X main.Version=$(VERSION)" -o bin/$(BINARY_NAME) ./cmd/rexec
 
+# Build everything (UI + Go binary)
+build-all: ui build
+	@echo "Build complete!"
+
 # Run the application
 run: build
+	@echo "Starting $(BINARY_NAME)..."
+	./bin/$(BINARY_NAME)
+
+# Run the application with fresh UI build
+run-all: build-all
 	@echo "Starting $(BINARY_NAME)..."
 	./bin/$(BINARY_NAME)
 
@@ -107,9 +129,14 @@ help:
 	@echo "Rexec - Terminal as a Service"
 	@echo ""
 	@echo "Usage:"
-	@echo "  make build        - Build the binary"
+	@echo "  make build        - Build the Go binary"
+	@echo "  make build-all    - Build UI + Go binary"
 	@echo "  make run          - Build and run the application"
+	@echo "  make run-all      - Build UI + Go and run"
 	@echo "  make dev          - Run with hot reload (requires air)"
+	@echo "  make ui           - Build the Svelte web UI"
+	@echo "  make ui-dev       - Run web UI dev server (port 3000)"
+	@echo "  make ui-install   - Install web UI dependencies"
 	@echo "  make test         - Run tests"
 	@echo "  make clean        - Clean build artifacts"
 	@echo "  make deps         - Download dependencies"

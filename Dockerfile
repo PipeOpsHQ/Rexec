@@ -1,4 +1,21 @@
-# Build stage
+# Node.js build stage for Svelte UI
+FROM node:20-alpine AS ui-builder
+
+WORKDIR /app/web-ui
+
+# Copy package files
+COPY web-ui/package*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy source code
+COPY web-ui/ ./
+
+# Build the Svelte app (outputs to ../web)
+RUN npm run build
+
+# Go build stage
 FROM golang:1.24-alpine AS builder
 
 # Install build dependencies
@@ -46,8 +63,8 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 # Set working directory
 WORKDIR /app
 
-# Copy web directory for frontend
-COPY --from=builder /app/web /app/web
+# Copy built web UI from ui-builder stage
+COPY --from=ui-builder /app/web /app/web
 
 # Expose port
 EXPOSE 8080

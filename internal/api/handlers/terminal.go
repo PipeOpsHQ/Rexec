@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/container"
+	dockerclient "github.com/docker/docker/client"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	mgr "github.com/rexec/rexec/internal/container"
@@ -78,7 +79,12 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 	// Verify user owns this container
 	containerInfo, ok := h.containerManager.GetContainer(dockerID)
 	if !ok {
-		c.JSON(http.StatusNotFound, gin.H{"error": "container not found"})
+		c.JSON(http.StatusNotFound, gin.H{
+			"error":           "container not found",
+			"code":            "container_not_found",
+			"hint":            "Container may need to be recreated. Try starting it.",
+			"action_required": "start",
+		})
 		return
 	}
 
@@ -88,12 +94,36 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 		return
 	}
 
+	// Check if container actually exists in Docker (may have been removed externally)
+	ctx := context.Background()
+	_, err := h.containerManager.GetClient().ContainerInspect(ctx, dockerID)
+	if err != nil {
+		if dockerclient.IsErrNotFound(err) {
+			c.JSON(http.StatusGone, gin.H{
+				"error":           "container was removed from server",
+				"code":            "container_removed",
+				"hint":            "Container was removed from Docker. Click Start to recreate it.",
+				"action_required": "start",
+				"container_id":    dockerID,
+			})
+			return
+		}
+		// Other Docker errors
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error": "failed to verify container status: " + err.Error(),
+			"code":  "docker_error",
+		})
+		return
+	}
+
 	// Check if container is running
 	if containerInfo.Status != "running" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error":  "container is not running",
-			"status": containerInfo.Status,
-			"hint":   "Start the container before connecting to terminal",
+			"error":           "container is not running",
+			"code":            "container_stopped",
+			"status":          containerInfo.Status,
+			"hint":            "Start the container before connecting to terminal",
+			"action_required": "start",
 		})
 		return
 	}
@@ -149,12 +179,52 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 		Data: "Terminal session established",
 	})
 
-	// Start terminal session
-	h.runTerminalSession(session, containerInfo.ImageType)
+	// Start terminal session with auto-restart on exit
+	h.runTerminalSessionWithRestart(session, containerInfo.ImageType)
+}
+
+// runTerminalSessionWithRestart runs the terminal session and restarts the shell if user types 'exit'
+func (h *TerminalHandler) runTerminalSessionWithRestart(session *TerminalSession, imageType string) {
+	maxRestarts := 10 // Prevent infinite restart loops
+	restartCount := 0
+
+	for {
+		select {
+		case <-session.Done:
+			return
+		default:
+		}
+
+		// Check if container is still running
+		if _, ok := h.containerManager.GetContainer(session.ContainerID); !ok {
+			session.SendMessage(TerminalMessage{
+				Type: "error",
+				Data: "Container is no longer available",
+			})
+			return
+		}
+
+		// Run the terminal session
+		shellExited := h.runTerminalSession(session, imageType)
+
+		// If shell exited normally (user typed 'exit'), restart it
+		if shellExited && restartCount < maxRestarts {
+			restartCount++
+			session.SendMessage(TerminalMessage{
+				Type: "output",
+				Data: "\r\n\x1b[33m[Shell exited. Starting new session...]\x1b[0m\r\n\r\n",
+			})
+			continue
+		}
+
+		// Connection closed or too many restarts
+		break
+	}
 }
 
 // runTerminalSession manages the terminal session lifecycle
-func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType string) {
+// Returns true if the shell exited normally (user typed 'exit'), false otherwise
+func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType string) bool {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -179,7 +249,7 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 	execResp, err := client.ContainerExecCreate(ctx, session.ContainerID, execConfig)
 	if err != nil {
 		session.SendError("Failed to create terminal session: " + err.Error())
-		return
+		return false
 	}
 
 	session.ExecID = execResp.ID
@@ -190,7 +260,7 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 	})
 	if err != nil {
 		session.SendError("Failed to attach to terminal: " + err.Error())
-		return
+		return false
 	}
 	defer attachResp.Close()
 
@@ -200,7 +270,7 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 	})
 	if err != nil {
 		session.SendError("Failed to start terminal: " + err.Error())
-		return
+		return false
 	}
 
 	// Handle bidirectional communication
@@ -208,7 +278,9 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 	wg.Add(2)
 
 	// Error channel to capture any errors
+	// shellExitChan signals when shell exits normally (EOF)
 	errChan := make(chan error, 2)
+	shellExitChan := make(chan bool, 1)
 
 	// Container output -> WebSocket
 	go func() {
@@ -227,7 +299,8 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 				n, err := attachResp.Reader.Read(buf)
 				if err != nil {
 					if err == io.EOF {
-						errChan <- err
+						// Shell exited normally (user typed 'exit')
+						shellExitChan <- true
 						return
 					}
 					// Timeout is expected, continue
@@ -320,11 +393,17 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 	// Wait for context cancellation or session done
 	select {
 	case <-ctx.Done():
+		return false
 	case <-session.Done:
+		return false
+	case <-shellExitChan:
+		// Shell exited normally, can restart
+		return true
 	case err := <-errChan:
-		if err != nil && err != io.EOF {
+		if err != nil {
 			log.Printf("Terminal session error: %v", err)
 		}
+		return false
 	}
 }
 

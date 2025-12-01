@@ -1,0 +1,61 @@
+# Git
+.git
+.gitignore
+
+# Binaries
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+rexec
+
+# Test files
+*.test
+*.out
+coverage.html
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+*.tmp
+*.log
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Docker (don't include docker files in context)
+docker/data/
+
+# Node modules (will be installed in build stage)
+web-ui/node_modules/
+web/node_modules/
+node_modules/
+
+# Local data
+/data/
+volumes/
+
+# Go workspace
+go.work
+
+# Air config
+.air.toml
