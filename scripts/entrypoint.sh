@@ -34,6 +34,44 @@ echo "🚀 Rexec Entrypoint"
 #
 # ============================================================================
 
+# Function to write certificate content, handling escaped newlines
+write_cert() {
+    local content="$1"
+    local file="$2"
+
+    # Check if content is empty
+    if [ -z "$content" ]; then
+        echo "  ⚠ Warning: Empty certificate content for $file"
+        return 1
+    fi
+
+    # Method 1: Try printf with escaped newlines (handles \n literals)
+    # This converts literal \n to actual newlines
+    printf '%b' "$content" | sed 's/\\n/\n/g' > "$file"
+
+    # Verify the file looks like a valid PEM
+    if grep -q "BEGIN" "$file" 2>/dev/null; then
+        return 0
+    fi
+
+    # Method 2: If that didn't work, try echo -e (if available)
+    if command -v echo >/dev/null 2>&1; then
+        echo "$content" | sed 's/\\n/\n/g' > "$file"
+        if grep -q "BEGIN" "$file" 2>/dev/null; then
+            return 0
+        fi
+    fi
+
+    # Method 3: Direct write (content might already have real newlines)
+    printf '%s\n' "$content" > "$file"
+    if grep -q "BEGIN" "$file" 2>/dev/null; then
+        return 0
+    fi
+
+    echo "  ⚠ Warning: Certificate may be malformed in $file"
+    return 1
+}
+
 # Setup TLS certificates if provided via environment variables
 if [ -n "$DOCKER_CA_CERT" ] || [ -n "$DOCKER_CLIENT_CERT" ] || [ -n "$DOCKER_CLIENT_KEY" ]; then
     echo "📜 Configuring Docker TLS certificates..."
@@ -45,23 +83,26 @@ if [ -n "$DOCKER_CA_CERT" ] || [ -n "$DOCKER_CLIENT_CERT" ] || [ -n "$DOCKER_CLI
 
     # Write CA certificate
     if [ -n "$DOCKER_CA_CERT" ]; then
-        echo "$DOCKER_CA_CERT" > "$CERT_DIR/ca.pem"
-        chmod 644 "$CERT_DIR/ca.pem"
-        echo "  ✓ CA certificate configured"
+        if write_cert "$DOCKER_CA_CERT" "$CERT_DIR/ca.pem"; then
+            chmod 644 "$CERT_DIR/ca.pem"
+            echo "  ✓ CA certificate configured ($(wc -l < "$CERT_DIR/ca.pem") lines)"
+        fi
     fi
 
     # Write client certificate
     if [ -n "$DOCKER_CLIENT_CERT" ]; then
-        echo "$DOCKER_CLIENT_CERT" > "$CERT_DIR/cert.pem"
-        chmod 644 "$CERT_DIR/cert.pem"
-        echo "  ✓ Client certificate configured"
+        if write_cert "$DOCKER_CLIENT_CERT" "$CERT_DIR/cert.pem"; then
+            chmod 644 "$CERT_DIR/cert.pem"
+            echo "  ✓ Client certificate configured ($(wc -l < "$CERT_DIR/cert.pem") lines)"
+        fi
     fi
 
     # Write client key
     if [ -n "$DOCKER_CLIENT_KEY" ]; then
-        echo "$DOCKER_CLIENT_KEY" > "$CERT_DIR/key.pem"
-        chmod 600 "$CERT_DIR/key.pem"
-        echo "  ✓ Client key configured"
+        if write_cert "$DOCKER_CLIENT_KEY" "$CERT_DIR/key.pem"; then
+            chmod 600 "$CERT_DIR/key.pem"
+            echo "  ✓ Client key configured ($(wc -l < "$CERT_DIR/key.pem") lines)"
+        fi
     fi
 
     # Set cert path if not already set
@@ -74,7 +115,14 @@ if [ -n "$DOCKER_CA_CERT" ] || [ -n "$DOCKER_CLIENT_CERT" ] || [ -n "$DOCKER_CLI
         export DOCKER_TLS_VERIFY=1
     fi
 
+    # Debug: show first and last line of CA cert to verify format
+    if [ -f "$CERT_DIR/ca.pem" ]; then
+        echo "  📄 CA cert starts with: $(head -1 "$CERT_DIR/ca.pem")"
+        echo "  📄 CA cert ends with: $(tail -1 "$CERT_DIR/ca.pem")"
+    fi
+
     echo "✅ Docker TLS configuration complete"
+    echo "   DOCKER_CERT_PATH=$DOCKER_CERT_PATH"
 fi
 
 # Setup SSH for remote Docker connection via SSH
@@ -85,12 +133,11 @@ if [ -n "$SSH_PRIVATE_KEY" ]; then
     mkdir -p "$HOME/.ssh"
     chmod 700 "$HOME/.ssh"
 
-    # Write the private key to id_rsa
-    echo "$SSH_PRIVATE_KEY" > "$HOME/.ssh/id_rsa"
+    # Write the private key, handling escaped newlines
+    write_cert "$SSH_PRIVATE_KEY" "$HOME/.ssh/id_rsa"
     chmod 600 "$HOME/.ssh/id_rsa"
 
     # Configure SSH to disable strict host key checking
-    # This is necessary for connecting to remote hosts without manual intervention
     cat > "$HOME/.ssh/config" <<EOF
 Host *
     StrictHostKeyChecking no
@@ -109,6 +156,7 @@ if [ -n "$DOCKER_HOST" ]; then
     echo "🐳 Docker Host: $DOCKER_HOST"
     if [ -n "$DOCKER_TLS_VERIFY" ] && [ "$DOCKER_TLS_VERIFY" = "1" ]; then
         echo "🔒 TLS verification enabled"
+        echo "   Cert path: ${DOCKER_CERT_PATH:-$HOME/.docker}"
     fi
 else
     echo "🐳 Docker Host: unix:///var/run/docker.sock (default)"
