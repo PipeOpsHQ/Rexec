@@ -8,7 +8,7 @@
   import Header from '$components/Header.svelte';
   import Landing from '$components/Landing.svelte';
   import Dashboard from '$components/Dashboard.svelte';
-  import CreateContainer from '$components/CreateContainer.svelte';
+  import CreateTerminal from '$components/CreateTerminal.svelte';
   import TerminalView from '$components/terminal/TerminalView.svelte';
   import ToastContainer from '$components/ui/ToastContainer.svelte';
 
@@ -140,7 +140,7 @@
           }}
         />
       {:else if currentView === 'create'}
-        <CreateContainer
+        <CreateTerminal
           on:cancel={goToDashboard}
           on:created={onContainerCreated}
         />

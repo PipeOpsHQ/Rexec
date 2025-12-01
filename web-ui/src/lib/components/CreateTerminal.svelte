@@ -111,7 +111,7 @@
 
         if (event.complete && event.container_id) {
           isCreating = false;
-          toast.success(`Container "${name}" created!`);
+          toast.success(`Terminal "${name}" created!`);
           dispatch('created', { id: event.container_id, name });
         }
 
@@ -149,13 +149,13 @@
     <button class="back-btn" on:click={handleCancel} disabled={isCreating}>
       ← Back
     </button>
-    <h1>Create Container</h1>
+    <h1>Create Terminal</h1>
   </div>
 
   {#if isCreating}
     <div class="progress-section">
       <div class="progress-header">
-        <h2>Creating Container</h2>
+        <h2>Creating Terminal</h2>
         <span class="progress-percent">{progress}%</span>
       </div>
 
@@ -174,10 +174,10 @@
     </div>
   {:else}
     <div class="create-form">
-      <!-- Container Name -->
+      <!-- Terminal Name -->
       <div class="form-group">
         <label for="container-name">
-          Container Name
+          Terminal Name
           <span class="optional">(optional)</span>
         </label>
         <input
@@ -255,7 +255,7 @@
           disabled={!isValid}
           on:click={handleCreate}
         >
-          Create Container
+          Create Terminal
         </button>
       </div>
     </div>

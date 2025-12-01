@@ -1,12 +1,16 @@
-import { writable, derived, get } from 'svelte/store';
-import { Terminal } from '@xterm/xterm';
-import { FitAddon } from '@xterm/addon-fit';
-import { WebLinksAddon } from '@xterm/addon-web-links';
-import { token } from './auth';
+import { writable, derived, get } from "svelte/store";
+import { Terminal } from "@xterm/xterm";
+import { FitAddon } from "@xterm/addon-fit";
+import { WebLinksAddon } from "@xterm/addon-web-links";
+import { token } from "./auth";
 
 // Types
-export type SessionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
-export type ViewMode = 'floating' | 'docked';
+export type SessionStatus =
+  | "connecting"
+  | "connected"
+  | "disconnected"
+  | "error";
+export type ViewMode = "floating" | "docked";
 
 export interface TerminalSession {
   id: string;
@@ -36,43 +40,34 @@ const WS_MAX_RECONNECT = 5;
 const WS_RECONNECT_DELAY = 2000;
 const WS_PING_INTERVAL = 25000;
 
-const REXEC_BANNER = `\x1b[38;5;46m
-  ██████╗ ███████╗██╗  ██╗███████╗ ██████╗
-  ██╔══██╗██╔════╝╚██╗██╔╝██╔════╝██╔════╝
-  ██████╔╝█████╗   ╚███╔╝ █████╗  ██║
-  ██╔══██╗██╔══╝   ██╔██╗ ██╔══╝  ██║
-  ██║  ██║███████╗██╔╝ ██╗███████╗╚██████╗
-  ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚══════╝ ╚═════╝
-\x1b[0m\x1b[38;5;243m  Terminal as a Service · rexec.dev\x1b[0m\r\n`;
-
 // Terminal configuration
 const TERMINAL_OPTIONS = {
   cursorBlink: true,
-  cursorStyle: 'bar' as const,
+  cursorStyle: "bar" as const,
   fontSize: 14,
   fontFamily: '"JetBrains Mono", "Fira Code", Menlo, Monaco, monospace',
   theme: {
-    background: '#0a0a0a',
-    foreground: '#e0e0e0',
-    cursor: '#00ff41',
-    cursorAccent: '#0a0a0a',
-    selectionBackground: 'rgba(0, 255, 65, 0.3)',
-    black: '#0a0a0a',
-    red: '#ff003c',
-    green: '#00ff41',
-    yellow: '#fcee0a',
-    blue: '#00a0dc',
-    magenta: '#ff00ff',
-    cyan: '#00ffff',
-    white: '#e0e0e0',
-    brightBlack: '#666666',
-    brightRed: '#ff5555',
-    brightGreen: '#55ff55',
-    brightYellow: '#ffff55',
-    brightBlue: '#5555ff',
-    brightMagenta: '#ff55ff',
-    brightCyan: '#55ffff',
-    brightWhite: '#ffffff',
+    background: "#0a0a0a",
+    foreground: "#e0e0e0",
+    cursor: "#00ff41",
+    cursorAccent: "#0a0a0a",
+    selectionBackground: "rgba(0, 255, 65, 0.3)",
+    black: "#0a0a0a",
+    red: "#ff003c",
+    green: "#00ff41",
+    yellow: "#fcee0a",
+    blue: "#00a0dc",
+    magenta: "#ff00ff",
+    cyan: "#00ffff",
+    white: "#e0e0e0",
+    brightBlack: "#666666",
+    brightRed: "#ff5555",
+    brightGreen: "#55ff55",
+    brightYellow: "#ffff55",
+    brightBlue: "#5555ff",
+    brightMagenta: "#ff55ff",
+    brightCyan: "#55ffff",
+    brightWhite: "#ffffff",
   },
   allowProposedApi: true,
   scrollback: 5000,
@@ -82,7 +77,7 @@ const TERMINAL_OPTIONS = {
 const initialState: TerminalState = {
   sessions: new Map(),
   activeSessionId: null,
-  viewMode: 'floating',
+  viewMode: "floating",
   isMinimized: false,
   floatingPosition: { x: 100, y: 100 },
   floatingSize: { width: 700, height: 500 },
@@ -90,20 +85,21 @@ const initialState: TerminalState = {
 
 // Load persisted preferences
 function loadPreferences(): Partial<TerminalState> {
-  if (typeof window === 'undefined') return {};
+  if (typeof window === "undefined") return {};
 
   try {
-    const saved = localStorage.getItem('rexec_terminal_prefs');
+    const saved = localStorage.getItem("rexec_terminal_prefs");
     if (saved) {
       const prefs = JSON.parse(saved);
       return {
-        viewMode: prefs.viewMode || 'floating',
-        floatingPosition: prefs.floatingPosition || initialState.floatingPosition,
+        viewMode: prefs.viewMode || "floating",
+        floatingPosition:
+          prefs.floatingPosition || initialState.floatingPosition,
         floatingSize: prefs.floatingSize || initialState.floatingSize,
       };
     }
   } catch (e) {
-    console.error('Failed to load terminal preferences:', e);
+    console.error("Failed to load terminal preferences:", e);
   }
 
   return {};
@@ -113,15 +109,15 @@ function loadPreferences(): Partial<TerminalState> {
 function savePreferences(state: TerminalState) {
   try {
     localStorage.setItem(
-      'rexec_terminal_prefs',
+      "rexec_terminal_prefs",
       JSON.stringify({
         viewMode: state.viewMode,
         floatingPosition: state.floatingPosition,
         floatingSize: state.floatingSize,
-      })
+      }),
     );
   } catch (e) {
-    console.error('Failed to save terminal preferences:', e);
+    console.error("Failed to save terminal preferences:", e);
   }
 }
 
@@ -132,7 +128,7 @@ function generateSessionId(): string {
 
 // Get WebSocket URL
 function getWsUrl(): string {
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   return `${protocol}//${window.location.host}`;
 }
 
@@ -151,7 +147,7 @@ function createTerminalStore() {
   // Helper to update a session
   const updateSession = (
     sessionId: string,
-    updater: (session: TerminalSession) => TerminalSession
+    updater: (session: TerminalSession) => TerminalSession,
   ) => {
     update((state) => {
       const session = state.sessions.get(sessionId);
@@ -178,7 +174,7 @@ function createTerminalStore() {
 
       // Check if we already have a session for this container
       const existingSession = Array.from(currentState.sessions.values()).find(
-        (s) => s.containerId === containerId
+        (s) => s.containerId === containerId,
       );
       if (existingSession) {
         // Just activate the existing session
@@ -200,7 +196,7 @@ function createTerminalStore() {
         terminal,
         fitAddon,
         ws: null,
-        status: 'connecting',
+        status: "connecting",
         reconnectAttempts: 0,
         reconnectTimer: null,
         pingInterval: null,
@@ -235,35 +231,31 @@ function createTerminalStore() {
       const wsUrl = `${getWsUrl()}/ws/terminal/${session.containerId}?token=${authToken}`;
       const ws = new WebSocket(wsUrl);
 
-      updateSession(sessionId, (s) => ({ ...s, ws, status: 'connecting' }));
+      updateSession(sessionId, (s) => ({ ...s, ws, status: "connecting" }));
 
       ws.onopen = () => {
         updateSession(sessionId, (s) => ({
           ...s,
-          status: 'connected',
+          status: "connected",
           reconnectAttempts: 0,
         }));
 
-        // Write banner and connected message
-        session.terminal.writeln(REXEC_BANNER);
-        session.terminal.writeln('\x1b[32m⚡ Connected\x1b[0m');
-        session.terminal.writeln(
-          "\x1b[38;5;243m  Type 'help' for tips & shortcuts\x1b[0m\r\n"
-        );
+        // Write connected message
+        session.terminal.writeln("\x1b[32m⚡ Connected\x1b[0m\r\n");
 
         // Send initial resize
         ws.send(
           JSON.stringify({
-            type: 'resize',
+            type: "resize",
             cols: session.terminal.cols,
             rows: session.terminal.rows,
-          })
+          }),
         );
 
         // Setup ping interval
         const pingInterval = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'ping' }));
+            ws.send(JSON.stringify({ type: "ping" }));
           }
         }, WS_PING_INTERVAL);
 
@@ -273,12 +265,12 @@ function createTerminalStore() {
       ws.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data);
-          if (msg.type === 'output') {
+          if (msg.type === "output") {
             session.terminal.write(msg.data);
-          } else if (msg.type === 'error') {
+          } else if (msg.type === "error") {
             session.terminal.writeln(`\r\n\x1b[31mError: ${msg.data}\x1b[0m`);
-          } else if (msg.type === 'ping') {
-            ws.send(JSON.stringify({ type: 'pong' }));
+          } else if (msg.type === "ping") {
+            ws.send(JSON.stringify({ type: "pong" }));
           }
         } catch {
           // Raw data fallback
@@ -287,7 +279,7 @@ function createTerminalStore() {
       };
 
       ws.onclose = () => {
-        updateSession(sessionId, (s) => ({ ...s, status: 'disconnected' }));
+        updateSession(sessionId, (s) => ({ ...s, status: "disconnected" }));
 
         const currentSession = getState().sessions.get(sessionId);
         if (!currentSession) return;
@@ -299,12 +291,12 @@ function createTerminalStore() {
         if (currentSession.reconnectAttempts < WS_MAX_RECONNECT) {
           updateSession(sessionId, (s) => ({
             ...s,
-            status: 'connecting',
+            status: "connecting",
             reconnectAttempts: s.reconnectAttempts + 1,
           }));
 
           session.terminal.writeln(
-            `\r\n\x1b[33mReconnecting (${currentSession.reconnectAttempts + 1}/${WS_MAX_RECONNECT})...\x1b[0m`
+            `\r\n\x1b[33mReconnecting (${currentSession.reconnectAttempts + 1}/${WS_MAX_RECONNECT})...\x1b[0m`,
           );
 
           const timer = setTimeout(() => {
@@ -314,19 +306,19 @@ function createTerminalStore() {
           updateSession(sessionId, (s) => ({ ...s, reconnectTimer: timer }));
         } else {
           session.terminal.writeln(
-            '\r\n\x1b[31mConnection lost. Click reconnect to try again.\x1b[0m'
+            "\r\n\x1b[31mConnection lost. Click reconnect to try again.\x1b[0m",
           );
         }
       };
 
       ws.onerror = () => {
-        session.terminal.writeln('\r\n\x1b[31mWebSocket error\x1b[0m');
+        session.terminal.writeln("\r\n\x1b[31mWebSocket error\x1b[0m");
       };
 
       // Handle terminal input
       session.terminal.onData((data) => {
         if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'input', data }));
+          ws.send(JSON.stringify({ type: "input", data }));
         }
       });
     },
@@ -357,7 +349,8 @@ function createTerminalStore() {
         let newActiveId: string | null = null;
         if (state.activeSessionId === sessionId) {
           const remaining = Array.from(state.sessions.keys());
-          newActiveId = remaining.length > 0 ? remaining[remaining.length - 1] : null;
+          newActiveId =
+            remaining.length > 0 ? remaining[remaining.length - 1] : null;
         } else {
           newActiveId = state.activeSessionId;
         }
@@ -392,7 +385,7 @@ function createTerminalStore() {
     // Toggle view mode
     toggleViewMode() {
       const state = getState();
-      this.setViewMode(state.viewMode === 'floating' ? 'docked' : 'floating');
+      this.setViewMode(state.viewMode === "floating" ? "docked" : "floating");
     },
 
     // Minimize
@@ -434,14 +427,14 @@ function createTerminalStore() {
           if (session.ws?.readyState === WebSocket.OPEN) {
             session.ws.send(
               JSON.stringify({
-                type: 'resize',
+                type: "resize",
                 cols: session.terminal.cols,
                 rows: session.terminal.rows,
-              })
+              }),
             );
           }
         } catch (e) {
-          console.error('Failed to fit terminal:', e);
+          console.error("Failed to fit terminal:", e);
         }
       });
     },
@@ -458,14 +451,14 @@ function createTerminalStore() {
         if (session.ws?.readyState === WebSocket.OPEN) {
           session.ws.send(
             JSON.stringify({
-              type: 'resize',
+              type: "resize",
               cols: session.terminal.cols,
               rows: session.terminal.rows,
-            })
+            }),
           );
         }
       } catch (e) {
-        console.error('Failed to fit terminal:', e);
+        console.error("Failed to fit terminal:", e);
       }
     },
 
@@ -486,8 +479,10 @@ function createTerminalStore() {
         updateSession(sessionId, (s) => ({ ...s, resizeObserver }));
       }
 
-      // Initial fit
+      // Multiple fit attempts to ensure proper sizing
       setTimeout(() => this.fitSession(sessionId), 50);
+      setTimeout(() => this.fitSession(sessionId), 150);
+      setTimeout(() => this.fitSession(sessionId), 300);
     },
 
     // Write to terminal
@@ -512,7 +507,7 @@ function createTerminalStore() {
     getSessionByContainerId(containerId: string): TerminalSession | undefined {
       const state = getState();
       return Array.from(state.sessions.values()).find(
-        (s) => s.containerId === containerId
+        (s) => s.containerId === containerId,
       );
     },
 
@@ -530,25 +525,25 @@ export const terminal = createTerminalStore();
 export const activeSession = derived(terminal, ($terminal) =>
   $terminal.activeSessionId
     ? $terminal.sessions.get($terminal.activeSessionId)
-    : null
+    : null,
 );
 
 export const sessionCount = derived(
   terminal,
-  ($terminal) => $terminal.sessions.size
+  ($terminal) => $terminal.sessions.size,
 );
 
 export const hasSessions = derived(
   terminal,
-  ($terminal) => $terminal.sessions.size > 0
+  ($terminal) => $terminal.sessions.size > 0,
 );
 
 export const isFloating = derived(
   terminal,
-  ($terminal) => $terminal.viewMode === 'floating'
+  ($terminal) => $terminal.viewMode === "floating",
 );
 
 export const isDocked = derived(
   terminal,
-  ($terminal) => $terminal.viewMode === 'docked'
+  ($terminal) => $terminal.viewMode === "docked",
 );

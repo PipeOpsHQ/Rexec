@@ -18,10 +18,10 @@
     if (result.success) {
       toast.update(toastId, `${container.name} started`, 'success');
       if (result.recreated) {
-        toast.info('Container was recreated. Your data volume was preserved.');
+        toast.info('Terminal was recreated. Your data volume was preserved.');
       }
     } else {
-      toast.update(toastId, result.error || 'Failed to start container', 'error');
+      toast.update(toastId, result.error || 'Failed to start terminal', 'error');
     }
   }
 
@@ -32,12 +32,12 @@
     if (result.success) {
       toast.update(toastId, `${container.name} stopped`, 'success');
     } else {
-      toast.update(toastId, result.error || 'Failed to stop container', 'error');
+      toast.update(toastId, result.error || 'Failed to stop terminal', 'error');
     }
   }
 
   async function handleDelete(container: Container) {
-    if (!confirm(`Delete container "${container.name}"? This cannot be undone.`)) {
+    if (!confirm(`Delete terminal "${container.name}"? This cannot be undone.`)) {
       return;
     }
 
@@ -47,7 +47,7 @@
     if (result.success) {
       toast.update(toastId, `${container.name} deleted`, 'success');
     } else {
-      toast.update(toastId, result.error || 'Failed to delete container', 'error');
+      toast.update(toastId, result.error || 'Failed to delete terminal', 'error');
     }
   }
 
@@ -93,7 +93,7 @@
 <div class="dashboard">
   <div class="dashboard-header">
     <div class="dashboard-title">
-      <h1>Containers</h1>
+      <h1>Terminals</h1>
       <span class="count-badge">
         {containerList.length} / {containerLimit}
       </span>
@@ -107,7 +107,7 @@
         on:click={() => dispatch('create')}
         disabled={containerList.length >= containerLimit}
       >
-        + New Container
+        + New Terminal
       </button>
     </div>
   </div>
@@ -115,15 +115,15 @@
   {#if isLoading && containerList.length === 0}
     <div class="loading-state">
       <div class="spinner"></div>
-      <p>Loading containers...</p>
+      <p>Loading terminals...</p>
     </div>
   {:else if containerList.length === 0}
     <div class="empty-state">
       <div class="empty-icon">📦</div>
-      <h2>No Containers Yet</h2>
-      <p>Create your first container to get started with a Linux terminal in seconds.</p>
+      <h2>No Terminals Yet</h2>
+      <p>Create your first terminal to get started with a Linux environment in seconds.</p>
       <button class="btn btn-primary btn-lg" on:click={() => dispatch('create')}>
-        + Create Container
+        + Create Terminal
       </button>
     </div>
   {:else}

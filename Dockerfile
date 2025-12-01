@@ -3,11 +3,11 @@ FROM node:20-alpine AS ui-builder
 
 WORKDIR /app/web-ui
 
-# Copy package files
-COPY web-ui/package*.json ./
+# Copy package files and install dependencies
+COPY web-ui/package.json ./
 
 # Install dependencies
-RUN npm ci
+RUN npm install
 
 # Copy source code
 COPY web-ui/ ./
