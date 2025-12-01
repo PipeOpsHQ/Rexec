@@ -25,10 +25,10 @@ This removes the need for a separate remote Docker host or mounting the host's D
 
 ## Building the Image
 
-This method uses a special Dockerfile: `Dockerfile.standalone`.
+This method uses the default Dockerfile: `Dockerfile`.
 
 ```bash
-docker build -f Dockerfile.standalone -t rexec-standalone .
+docker build -t rexec-standalone .
 ```
 
 ## Running Locally
@@ -49,7 +49,7 @@ For a complete local environment with PostgreSQL and Redis, use the provided com
 
 ```bash
 cd docker
-docker compose -f docker-compose.standalone.yml up --build
+docker compose up --build
 ```
 
 ## Deploying to PaaS (Railway, Fly.io, etc.)
@@ -60,7 +60,7 @@ Many modern PaaS providers support running Docker-in-Docker (DinD).
 
 1.  **New Project** -> **GitHub Repo**.
 2.  **Settings** -> **Build**:
-    - Set **Dockerfile Path** to `Dockerfile.standalone`.
+    - Set **Dockerfile Path** to `Dockerfile`.
 3.  **Variables**:
     - `DATABASE_URL`: Connect to a Postgres service.
     - `JWT_SECRET`: Random string.
@@ -76,7 +76,7 @@ Fly.io supports this natively via their Firecracker microVMs.
 2.  Update the `[build]` section:
     ```toml
     [build]
-      dockerfile = "Dockerfile.standalone"
+      dockerfile = "Dockerfile"
     ```
 3.  Deploy.
 

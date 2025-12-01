@@ -1,28 +1,21 @@
 version: "3.8"
 
 services:
-  # Rexec API Server (serves both API and frontend static files)
-  rexec-api:
+  # Rexec Standalone (API + Rootless Docker in one container)
+  rexec-standalone:
     build:
       context: ../
       dockerfile: Dockerfile
-    user: root
+    # Privileged mode is required for Docker-in-Docker (DinD) to function correctly
     privileged: true
     ports:
       - "8080:8080"
     environment:
       - PORT=8080
-      - JWT_SECRET=${JWT_SECRET:-rexec-dev-secret-change-in-production}
+      - JWT_SECRET=${JWT_SECRET:-rexec-standalone-secret-change-me}
       - DATABASE_URL=postgres://rexec:${POSTGRES_PASSWORD:-rexec_dev_password}@postgres:5432/rexec?sslmode=disable
       - REDIS_URL=redis://redis:6379
-      - VOLUME_PATH=/data/volumes
-      - WEB_DIR=/app/web
-      - PIPEOPS_OAUTH_BASE_URL=${PIPEOPS_OAUTH_BASE_URL:-https://staging.pipeops.sh}
-      - PIPEOPS_CLIENT_ID=${PIPEOPS_CLIENT_ID:-pipeops_public_client}
-      - PIPEOPS_REDIRECT_URI=${PIPEOPS_REDIRECT_URI:-http://localhost:8080/api/auth/callback}
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - rexec-volumes:/data/volumes
+      # Note: DOCKER_HOST is already set to the internal rootless socket in the Dockerfile
     depends_on:
       postgres:
         condition: service_healthy
@@ -32,23 +25,18 @@ services:
     networks:
       - rexec-network
 
-  # Redis for session management and caching
+  # Redis for session management
   redis:
     image: redis:7-alpine
-    ports:
-      - "6380:6379"
     volumes:
       - redis-data:/data
-    command: redis-server --appendonly yes
     restart: unless-stopped
     networks:
       - rexec-network
 
-  # PostgreSQL for user data (optional, for production)
+  # PostgreSQL for user data
   postgres:
     image: postgres:16-alpine
-    ports:
-      - "5433:5432"
     environment:
       - POSTGRES_USER=rexec
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-rexec_dev_password}
@@ -66,11 +54,7 @@ services:
 
 volumes:
   redis-data:
-    driver: local
   postgres-data:
-    driver: local
-  rexec-volumes:
-    driver: local
 
 networks:
   rexec-network:

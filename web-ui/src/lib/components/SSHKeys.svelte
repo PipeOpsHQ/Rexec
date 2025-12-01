@@ -2,6 +2,7 @@
   import { createEventDispatcher, onMount } from 'svelte';
   import { toast } from '$stores/toast';
   import { api } from '$utils/api';
+  import { isGuest, auth } from '$stores/auth';
 
   const dispatch = createEventDispatcher<{
     back: void;
@@ -113,8 +114,13 @@
       <p class="section-description">
         SSH keys allow you to connect to your terminals securely without a password.
       </p>
-      <button class="btn btn-primary" on:click={openModal}>
-        + Add SSH Key
+      <button
+        class="btn btn-primary"
+        on:click={openModal}
+        disabled={$isGuest}
+        title={$isGuest ? 'Sign in with PipeOps to add SSH keys' : ''}
+      >
+        {#if $isGuest}🔒{/if} Add SSH Key
       </button>
     </div>
 
@@ -122,6 +128,15 @@
       <div class="loading-state">
         <div class="spinner"></div>
         <p>Loading SSH keys...</p>
+      </div>
+    {:else if $isGuest}
+      <div class="guest-state">
+        <div class="guest-icon">🔒</div>
+        <h2>SSH Keys Locked</h2>
+        <p>Sign in with PipeOps to manage your SSH keys and enable secure passwordless access to your terminals.</p>
+        <button class="btn btn-primary" on:click={() => auth.getOAuthUrl().then(url => url && (window.location.href = url))}>
+          Sign in with PipeOps
+        </button>
       </div>
     {:else if keys.length === 0}
       <div class="empty-state">
@@ -319,7 +334,8 @@
   }
 
   /* Empty State */
-  .empty-state {
+  .empty-state,
+  .guest-state {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -329,21 +345,33 @@
     background: var(--bg-card);
   }
 
-  .empty-icon {
+  .empty-icon,
+  .guest-icon {
     font-size: 48px;
     margin-bottom: 16px;
   }
 
-  .empty-state h2 {
+  .empty-state h2,
+  .guest-state h2 {
     font-size: 18px;
     margin-bottom: 8px;
     text-transform: uppercase;
   }
 
-  .empty-state p {
+  .empty-state p,
+  .guest-state p {
     color: var(--text-muted);
     max-width: 400px;
     margin-bottom: 24px;
+  }
+
+  .guest-state {
+    border-color: var(--warning);
+    background: rgba(255, 200, 0, 0.05);
+  }
+
+  .guest-icon {
+    opacity: 0.7;
   }
 
   /* Keys List */

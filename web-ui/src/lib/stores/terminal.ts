@@ -24,6 +24,8 @@ export interface TerminalSession {
   reconnectTimer: ReturnType<typeof setTimeout> | null;
   pingInterval: ReturnType<typeof setInterval> | null;
   resizeObserver: ResizeObserver | null;
+  isSettingUp: boolean;
+  setupMessage: string;
 }
 
 export interface TerminalState {
@@ -189,6 +191,8 @@ function createTerminalStore() {
       if (existingSession) {
         // Just activate the existing session
         update((state) => ({ ...state, activeSessionId: existingSession.id }));
+        // Update URL to reflect active terminal
+        this.updateUrl(containerId);
         return existingSession.id;
       }
 
@@ -228,6 +232,8 @@ function createTerminalStore() {
         reconnectTimer: null,
         pingInterval: null,
         resizeObserver: null,
+        isSettingUp: false,
+        setupMessage: "",
       };
 
       update((state) => {
@@ -239,7 +245,25 @@ function createTerminalStore() {
         };
       });
 
+      // Update URL to reflect active terminal
+      this.updateUrl(containerId);
+
       return sessionId;
+    },
+
+    // Update browser URL for terminal routing
+    updateUrl(containerId: string) {
+      const newUrl = `/${containerId}`;
+      if (window.location.pathname !== newUrl) {
+        window.history.pushState({ containerId }, "", newUrl);
+      }
+    },
+
+    // Clear URL when no terminals are active
+    clearUrl() {
+      if (window.location.pathname !== "/") {
+        window.history.pushState({}, "", "/");
+      }
     },
 
     // Connect WebSocket for a session
@@ -310,11 +334,64 @@ function createTerminalStore() {
         try {
           const msg = JSON.parse(event.data);
           if (msg.type === "output") {
-            session.terminal.write(msg.data);
+            // Check for setup/installation indicators
+            const data = msg.data as string;
+            const setupPatterns = [
+              /installing/i,
+              /setting up/i,
+              /configuring/i,
+              /downloading/i,
+              /unpacking/i,
+              /processing/i,
+              /apt.*get/i,
+              /apk.*add/i,
+              /yum.*install/i,
+              /dnf.*install/i,
+            ];
+
+            const isSetupActivity = setupPatterns.some((pattern) =>
+              pattern.test(data),
+            );
+            if (isSetupActivity) {
+              // Extract a short message from the output
+              const lines = data.split("\n").filter((l) => l.trim());
+              const lastLine = lines[lines.length - 1] || "";
+              const setupMsg =
+                lastLine.slice(0, 50) + (lastLine.length > 50 ? "..." : "");
+              updateSession(sessionId, (s) => ({
+                ...s,
+                isSettingUp: true,
+                setupMessage: setupMsg,
+              }));
+
+              // Clear setup state after inactivity
+              setTimeout(() => {
+                updateSession(sessionId, (s) => ({
+                  ...s,
+                  isSettingUp: false,
+                  setupMessage: "",
+                }));
+              }, 3000);
+            }
+
+            session.terminal.write(data);
           } else if (msg.type === "error") {
             session.terminal.writeln(`\r\n\x1b[31mError: ${msg.data}\x1b[0m`);
           } else if (msg.type === "ping") {
             ws.send(JSON.stringify({ type: "pong" }));
+          } else if (msg.type === "setup") {
+            // Explicit setup message from backend
+            updateSession(sessionId, (s) => ({
+              ...s,
+              isSettingUp: true,
+              setupMessage: msg.message || "Setting up environment...",
+            }));
+          } else if (msg.type === "setup_complete") {
+            updateSession(sessionId, (s) => ({
+              ...s,
+              isSettingUp: false,
+              setupMessage: "",
+            }));
           }
         } catch {
           // Raw data fallback
@@ -399,6 +476,16 @@ function createTerminalStore() {
           newActiveId = state.activeSessionId;
         }
 
+        // Update URL based on remaining sessions
+        if (newActiveId) {
+          const newSession = state.sessions.get(newActiveId);
+          if (newSession) {
+            this.updateUrl(newSession.containerId);
+          }
+        } else {
+          this.clearUrl();
+        }
+
         return {
           ...state,
           activeSessionId: newActiveId,
@@ -410,10 +497,16 @@ function createTerminalStore() {
     closeAllSessions() {
       const state = getState();
       state.sessions.forEach((_, id) => this.closeSession(id));
+      this.clearUrl();
     },
 
     // Set active session
     setActiveSession(sessionId: string) {
+      const state = getState();
+      const session = state.sessions.get(sessionId);
+      if (session) {
+        this.updateUrl(session.containerId);
+      }
       update((state) => ({ ...state, activeSessionId: sessionId }));
     },
 

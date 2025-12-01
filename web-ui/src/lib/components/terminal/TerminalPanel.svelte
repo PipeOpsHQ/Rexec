@@ -1,66 +1,65 @@
 <script lang="ts">
-  import { onMount, onDestroy, afterUpdate } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { terminal, type TerminalSession } from '$stores/terminal';
 
   export let session: TerminalSession;
 
   let containerElement: HTMLDivElement;
-  let currentContainerId: string | null = null;
+  let attachedToContainer: HTMLDivElement | null = null;
 
-  // Re-attach terminal when container element changes or becomes available
-  function attachIfNeeded() {
-    if (!containerElement || !session) return;
+  // Synchronously check and attach terminal if needed
+  function ensureAttached() {
+    if (!containerElement || !session?.terminal) return;
 
-    // Check if terminal needs to be attached to this container
-    const terminalParent = session.terminal?.element?.parentElement;
+    // Only reattach if the container has changed
+    if (attachedToContainer === containerElement) return;
 
-    if (terminalParent !== containerElement) {
-      // Terminal is not attached to this container, re-attach it
-      // First, clear the container
-      containerElement.innerHTML = '';
+    // Clear container and attach terminal
+    containerElement.innerHTML = '';
 
-      // Re-open terminal in this container
-      if (session.terminal) {
-        session.terminal.open(containerElement);
+    try {
+      session.terminal.open(containerElement);
+      attachedToContainer = containerElement;
 
-        // Fit after re-attachment
-        setTimeout(() => {
+      // Fit and focus after attachment
+      requestAnimationFrame(() => {
+        if (session?.terminal && containerElement) {
           terminal.fitSession(session.id);
-        }, 50);
-      }
-
-      currentContainerId = session.id;
+          session.terminal.focus();
+        }
+      });
+    } catch (e) {
+      console.error('Failed to attach terminal:', e);
     }
   }
 
   onMount(() => {
     if (containerElement && session) {
-      // Check if terminal is already initialized
       if (session.terminal?.element) {
-        // Re-attach to this container
-        attachIfNeeded();
+        // Terminal already exists, reattach to new container
+        ensureAttached();
       } else {
-        // First time attachment
+        // First time - let the store create and attach the terminal
         terminal.attachTerminal(session.id, containerElement);
+        attachedToContainer = containerElement;
       }
 
-      // Connect WebSocket if not already connected or connecting
+      // Connect WebSocket if not already connected
       if (!session.ws || (session.ws.readyState !== WebSocket.OPEN && session.ws.readyState !== WebSocket.CONNECTING)) {
         terminal.connectWebSocket(session.id);
       }
     }
   });
 
-  // Re-attach after DOM updates (handles dock/float switching)
-  afterUpdate(() => {
-    attachIfNeeded();
+  onDestroy(() => {
+    // Don't dispose terminal - it's managed by the store
+    attachedToContainer = null;
   });
 
-  onDestroy(() => {
-    // Don't dispose terminal here - it's managed by the store
-    // Just clean up local references
-    currentContainerId = null;
-  });
+  // Use reactive statement to handle container changes (dock/float switch)
+  $: if (containerElement && session?.terminal && attachedToContainer !== containerElement) {
+    ensureAttached();
+  }
 
   // Actions
   function handleReconnect() {
@@ -102,6 +101,8 @@
   $: isConnected = status === 'connected';
   $: isConnecting = status === 'connecting';
   $: isDisconnected = status === 'disconnected' || status === 'error';
+  $: isSettingUp = session?.isSettingUp || false;
+  $: setupMessage = session?.setupMessage || '';
 </script>
 
 <div class="terminal-panel-wrapper">
@@ -113,6 +114,12 @@
         <span class="status-indicator"></span>
         {status}
       </span>
+      {#if isSettingUp}
+        <span class="setup-indicator">
+          <span class="setup-spinner"></span>
+          Installing...
+        </span>
+      {/if}
     </div>
 
     <div class="toolbar-actions">
@@ -138,6 +145,7 @@
     class="terminal-container"
     bind:this={containerElement}
     on:click={handleContainerClick}
+    on:keydown={() => {}}
     role="textbox"
     tabindex="0"
   ></div>
@@ -157,6 +165,16 @@
       <button class="reconnect-btn" on:click={handleReconnect}>
         ↻ Reconnect
       </button>
+    </div>
+  {/if}
+
+  {#if isSettingUp}
+    <div class="setup-overlay">
+      <div class="setup-content">
+        <div class="setup-spinner-large"></div>
+        <span class="setup-title">Installing packages...</span>
+        <span class="setup-detail">{setupMessage}</span>
+      </div>
     </div>
   {/if}
 </div>
@@ -365,5 +383,76 @@
     50% {
       opacity: 0.5;
     }
+  }
+
+  /* Setup Indicator */
+  .setup-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    background: rgba(0, 200, 255, 0.1);
+    border: 1px solid var(--cyan, #00c8ff);
+    color: var(--cyan, #00c8ff);
+    animation: fadeIn 0.2s ease;
+  }
+
+  .setup-spinner {
+    width: 8px;
+    height: 8px;
+    border: 1.5px solid rgba(0, 200, 255, 0.3);
+    border-top-color: var(--cyan, #00c8ff);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+
+  /* Setup Overlay */
+  .setup-overlay {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    z-index: 10;
+    animation: fadeIn 0.2s ease;
+  }
+
+  .setup-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    background: rgba(0, 200, 255, 0.1);
+    border: 1px solid var(--cyan, #00c8ff);
+    backdrop-filter: blur(4px);
+  }
+
+  .setup-spinner-large {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(0, 200, 255, 0.3);
+    border-top-color: var(--cyan, #00c8ff);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+
+  .setup-title {
+    font-size: 12px;
+    color: var(--cyan, #00c8ff);
+    font-weight: 500;
+  }
+
+  .setup-detail {
+    font-size: 11px;
+    color: var(--text-muted);
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 </style>

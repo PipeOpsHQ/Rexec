@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import { containers, type Container } from '$stores/containers';
+  import { containers, isCreating, creatingContainer, type Container } from '$stores/containers';
   import { terminal } from '$stores/terminal';
   import { toast } from '$stores/toast';
   import { formatRelativeTime } from '$utils/api';
@@ -88,6 +88,10 @@
   $: containerList = $containers.containers;
   $: isLoading = $containers.isLoading;
   $: containerLimit = $containers.limit;
+  $: currentlyCreating = $isCreating;
+  $: creatingInfo = $creatingContainer;
+  // Count creating as part of limit
+  $: effectiveCount = containerList.length + (currentlyCreating ? 1 : 0);
 </script>
 
 <div class="dashboard">
@@ -95,7 +99,7 @@
     <div class="dashboard-title">
       <h1>Terminals</h1>
       <span class="count-badge">
-        {containerList.length} / {containerLimit}
+        {effectiveCount} / {containerLimit}
       </span>
     </div>
     <div class="dashboard-actions">
@@ -105,9 +109,13 @@
       <button
         class="btn btn-primary"
         on:click={() => dispatch('create')}
-        disabled={containerList.length >= containerLimit}
+        disabled={effectiveCount >= containerLimit || currentlyCreating}
       >
-        + New Terminal
+        {#if currentlyCreating}
+          Creating...
+        {:else}
+          + New Terminal
+        {/if}
       </button>
     </div>
   </div>
@@ -128,6 +136,32 @@
     </div>
   {:else}
     <div class="containers-grid">
+      {#if currentlyCreating && creatingInfo}
+        <div class="container-card creating-card">
+          <div class="container-header">
+            <span class="container-icon">⏳</span>
+            <div class="container-info">
+              <h3 class="container-name">{creatingInfo.name || 'New Terminal'}</h3>
+              <span class="container-image">{creatingInfo.image}</span>
+            </div>
+            <span class="container-status status-creating">
+              <span class="status-dot"></span>
+              creating
+            </span>
+          </div>
+
+          <div class="creating-progress">
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: {creatingInfo.progress}%"></div>
+            </div>
+            <div class="progress-info">
+              <span class="progress-stage">{creatingInfo.stage}</span>
+              <span class="progress-percent">{creatingInfo.progress}%</span>
+            </div>
+            <p class="progress-message">{creatingInfo.message}</p>
+          </div>
+        </div>
+      {/if}
       {#each containerList as container (container.id)}
         <div class="container-card" class:active={hasActiveSession(container.id)}>
           <div class="container-header">
@@ -396,6 +430,58 @@
   .status-creating .status-dot {
     background: var(--yellow);
     animation: pulse 1s infinite;
+  }
+
+  /* Creating Card */
+  .creating-card {
+    border-color: var(--yellow);
+    background: rgba(255, 200, 0, 0.05);
+  }
+
+  .creating-progress {
+    padding: 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+  }
+
+  .creating-progress .progress-bar {
+    height: 4px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    margin-bottom: 8px;
+    overflow: hidden;
+  }
+
+  .creating-progress .progress-fill {
+    height: 100%;
+    background: var(--yellow);
+    transition: width 0.3s ease;
+  }
+
+  .creating-progress .progress-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+
+  .creating-progress .progress-stage {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--yellow);
+  }
+
+  .creating-progress .progress-percent {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .creating-progress .progress-message {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .container-meta {

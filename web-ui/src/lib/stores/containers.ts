@@ -1,5 +1,5 @@
-import { writable, derived, get } from 'svelte/store';
-import { token } from './auth';
+import { writable, derived, get } from "svelte/store";
+import { token } from "./auth";
 
 // Types
 export interface Container {
@@ -8,11 +8,19 @@ export interface Container {
   user_id: string;
   name: string;
   image: string;
-  status: 'running' | 'stopped' | 'creating' | 'error';
+  status: "running" | "stopped" | "creating" | "error";
   created_at: string;
   last_used_at?: string;
   idle_seconds?: number;
   ip_address?: string;
+}
+
+export interface CreatingContainer {
+  name: string;
+  image: string;
+  progress: number;
+  message: string;
+  stage: string;
 }
 
 export interface ContainersState {
@@ -20,6 +28,7 @@ export interface ContainersState {
   isLoading: boolean;
   error: string | null;
   limit: number;
+  creating: CreatingContainer | null;
 }
 
 // Initial state
@@ -28,6 +37,7 @@ const initialState: ContainersState = {
   isLoading: false,
   error: null,
   limit: 2,
+  creating: null,
 };
 
 // Helper to get auth token
@@ -38,18 +48,18 @@ function getToken(): string | null {
 // Helper for API calls
 async function apiCall<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<{ data?: T; error?: string; status: number }> {
   const authToken = getToken();
   if (!authToken) {
-    return { error: 'Not authenticated', status: 401 };
+    return { error: "Not authenticated", status: 401 };
   }
 
   try {
     const response = await fetch(endpoint, {
       ...options,
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         Authorization: `Bearer ${authToken}`,
         ...options.headers,
       },
@@ -67,7 +77,7 @@ async function apiCall<T>(
     return { data, status: response.status };
   } catch (e) {
     return {
-      error: e instanceof Error ? e.message : 'Network error',
+      error: e instanceof Error ? e.message : "Network error",
       status: 0,
     };
   }
@@ -93,7 +103,7 @@ function createContainersStore() {
         containers: Container[];
         count: number;
         limit: number;
-      }>('/api/containers');
+      }>("/api/containers");
 
       if (error) {
         update((state) => ({ ...state, isLoading: false, error }));
@@ -123,7 +133,7 @@ function createContainersStore() {
       update((state) => ({
         ...state,
         containers: state.containers.map((c) =>
-          c.id === id ? { ...c, ...data } : c
+          c.id === id ? { ...c, ...data } : c,
         ),
       }));
 
@@ -135,14 +145,17 @@ function createContainersStore() {
       update((state) => ({ ...state, isLoading: true, error: null }));
 
       const body: Record<string, string> = { name, image };
-      if (image === 'custom' && customImage) {
+      if (image === "custom" && customImage) {
         body.custom_image = customImage;
       }
 
-      const { data, error, status } = await apiCall<Container>('/api/containers', {
-        method: 'POST',
-        body: JSON.stringify(body),
-      });
+      const { data, error, status } = await apiCall<Container>(
+        "/api/containers",
+        {
+          method: "POST",
+          body: JSON.stringify(body),
+        },
+      );
 
       if (error) {
         update((state) => ({ ...state, isLoading: false, error }));
@@ -167,30 +180,43 @@ function createContainersStore() {
       customImage?: string,
       onProgress?: (event: ProgressEvent) => void,
       onComplete?: (container: Container) => void,
-      onError?: (error: string) => void
+      onError?: (error: string) => void,
     ) {
       const authToken = getToken();
       if (!authToken) {
-        onError?.('Not authenticated');
+        onError?.("Not authenticated");
         return;
       }
 
       const body: Record<string, string> = { name, image };
-      if (image === 'custom' && customImage) {
+      if (image === "custom" && customImage) {
         body.custom_image = customImage;
       }
 
-      fetch('/api/containers/stream', {
-        method: 'POST',
+      // Set creating state
+      update((state) => ({
+        ...state,
+        creating: {
+          name,
+          image,
+          progress: 0,
+          message: "Starting...",
+          stage: "initializing",
+        },
+      }));
+
+      fetch("/api/containers/stream", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify(body),
       })
         .then((response) => {
           if (!response.ok) {
-            throw new Error('Failed to create container');
+            update((state) => ({ ...state, creating: null }));
+            throw new Error("Failed to create container");
           }
 
           const reader = response.body?.getReader();
@@ -201,33 +227,49 @@ function createContainersStore() {
               if (done) return;
 
               const text = decoder.decode(value);
-              const lines = text.split('\n');
+              const lines = text.split("\n");
 
               for (const line of lines) {
-                if (line.startsWith('data: ')) {
+                if (line.startsWith("data: ")) {
                   try {
                     const event = JSON.parse(line.slice(6)) as ProgressEvent;
+
+                    // Update creating state with progress
+                    update((state) => ({
+                      ...state,
+                      creating: state.creating
+                        ? {
+                            ...state.creating,
+                            progress: event.progress || 0,
+                            message: event.message || "",
+                            stage: event.stage || "",
+                          }
+                        : null,
+                    }));
+
                     onProgress?.(event);
 
                     if (event.complete && event.container_id) {
                       const container: Container = {
                         id: event.container_id,
-                        user_id: '',
+                        user_id: "",
                         name,
                         image,
-                        status: 'running',
+                        status: "running",
                         created_at: new Date().toISOString(),
                       };
 
                       update((state) => ({
                         ...state,
                         containers: [container, ...state.containers],
+                        creating: null,
                       }));
 
                       onComplete?.(container);
                     }
 
                     if (event.error) {
+                      update((state) => ({ ...state, creating: null }));
                       onError?.(event.error);
                     }
                   } catch {
@@ -243,7 +285,10 @@ function createContainersStore() {
           read();
         })
         .catch((e) => {
-          onError?.(e instanceof Error ? e.message : 'Failed to create container');
+          update((state) => ({ ...state, creating: null }));
+          onError?.(
+            e instanceof Error ? e.message : "Failed to create container",
+          );
         });
     },
 
@@ -252,20 +297,21 @@ function createContainersStore() {
       update((state) => ({
         ...state,
         containers: state.containers.map((c) =>
-          c.id === id ? { ...c, status: 'creating' as const } : c
+          c.id === id ? { ...c, status: "creating" as const } : c,
         ),
       }));
 
-      const { data, error } = await apiCall<{ id: string; status: string; recreated?: boolean }>(
-        `/api/containers/${id}/start`,
-        { method: 'POST' }
-      );
+      const { data, error } = await apiCall<{
+        id: string;
+        status: string;
+        recreated?: boolean;
+      }>(`/api/containers/${id}/start`, { method: "POST" });
 
       if (error) {
         update((state) => ({
           ...state,
           containers: state.containers.map((c) =>
-            c.id === id ? { ...c, status: 'stopped' as const } : c
+            c.id === id ? { ...c, status: "stopped" as const } : c,
           ),
         }));
         return { success: false, error };
@@ -276,7 +322,7 @@ function createContainersStore() {
         update((state) => ({
           ...state,
           containers: state.containers.map((c) =>
-            c.id === id ? { ...c, id: data.id, status: 'running' as const } : c
+            c.id === id ? { ...c, id: data.id, status: "running" as const } : c,
           ),
         }));
         return { success: true, newId: data.id, recreated: true };
@@ -285,7 +331,7 @@ function createContainersStore() {
       update((state) => ({
         ...state,
         containers: state.containers.map((c) =>
-          c.id === id ? { ...c, status: 'running' as const } : c
+          c.id === id ? { ...c, status: "running" as const } : c,
         ),
       }));
 
@@ -297,19 +343,19 @@ function createContainersStore() {
       update((state) => ({
         ...state,
         containers: state.containers.map((c) =>
-          c.id === id ? { ...c, status: 'creating' as const } : c
+          c.id === id ? { ...c, status: "creating" as const } : c,
         ),
       }));
 
       const { error } = await apiCall(`/api/containers/${id}/stop`, {
-        method: 'POST',
+        method: "POST",
       });
 
       if (error) {
         update((state) => ({
           ...state,
           containers: state.containers.map((c) =>
-            c.id === id ? { ...c, status: 'running' as const } : c
+            c.id === id ? { ...c, status: "running" as const } : c,
           ),
         }));
         return { success: false, error };
@@ -318,7 +364,7 @@ function createContainersStore() {
       update((state) => ({
         ...state,
         containers: state.containers.map((c) =>
-          c.id === id ? { ...c, status: 'stopped' as const } : c
+          c.id === id ? { ...c, status: "stopped" as const } : c,
         ),
       }));
 
@@ -328,7 +374,7 @@ function createContainersStore() {
     // Delete a container
     async deleteContainer(id: string) {
       const { error } = await apiCall(`/api/containers/${id}`, {
-        method: 'DELETE',
+        method: "DELETE",
       });
 
       if (error) {
@@ -344,11 +390,11 @@ function createContainersStore() {
     },
 
     // Update container status locally
-    updateStatus(id: string, status: Container['status']) {
+    updateStatus(id: string, status: Container["status"]) {
       update((state) => ({
         ...state,
         containers: state.containers.map((c) =>
-          c.id === id ? { ...c, status } : c
+          c.id === id ? { ...c, status } : c,
         ),
       }));
     },
@@ -371,19 +417,29 @@ export const containers = createContainersStore();
 
 // Derived stores
 export const runningContainers = derived(containers, ($containers) =>
-  $containers.containers.filter((c) => c.status === 'running')
+  $containers.containers.filter((c) => c.status === "running"),
 );
 
 export const stoppedContainers = derived(containers, ($containers) =>
-  $containers.containers.filter((c) => c.status === 'stopped')
+  $containers.containers.filter((c) => c.status === "stopped"),
 );
 
 export const containerCount = derived(
   containers,
-  ($containers) => $containers.containers.length
+  ($containers) => $containers.containers.length,
 );
 
 export const isAtLimit = derived(
   containers,
-  ($containers) => $containers.containers.length >= $containers.limit
+  ($containers) => $containers.containers.length >= $containers.limit,
+);
+
+export const isCreating = derived(
+  containers,
+  ($containers) => $containers.creating !== null,
+);
+
+export const creatingContainer = derived(
+  containers,
+  ($containers) => $containers.creating,
 );

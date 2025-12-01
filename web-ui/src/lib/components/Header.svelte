@@ -86,23 +86,39 @@
 
             <div class="user-menu-divider"></div>
 
-            {#if $isGuest}
-              <button class="user-menu-item accent" on:click={handleOAuthLogin}>
-                <span>🔗</span>
-                Sign in with PipeOps
-              </button>
-            {:else}
+            {#if !$isGuest}
               <button class="user-menu-item" on:click={() => { showUserMenu = false; dispatch('home'); }}>
                 <span>📊</span>
                 Dashboard
               </button>
-              <button class="user-menu-item" on:click={() => { showUserMenu = false; dispatch('settings'); }}>
-                <span>⚙️</span>
-                Settings
-              </button>
-              <button class="user-menu-item" on:click={() => { showUserMenu = false; dispatch('sshkeys'); }}>
-                <span>🔑</span>
-                SSH Keys
+            {/if}
+            <button
+              class="user-menu-item"
+              class:disabled={$isGuest}
+              disabled={$isGuest}
+              title={$isGuest ? 'Sign in with PipeOps to access Settings' : ''}
+              on:click={() => { if (!$isGuest) { showUserMenu = false; dispatch('settings'); } }}
+            >
+              <span>⚙️</span>
+              Settings
+              {#if $isGuest}<span class="lock-icon">🔒</span>{/if}
+            </button>
+            <button
+              class="user-menu-item"
+              class:disabled={$isGuest}
+              disabled={$isGuest}
+              title={$isGuest ? 'Sign in with PipeOps to manage SSH Keys' : ''}
+              on:click={() => { if (!$isGuest) { showUserMenu = false; dispatch('sshkeys'); } }}
+            >
+              <span>🔑</span>
+              SSH Keys
+              {#if $isGuest}<span class="lock-icon">🔒</span>{/if}
+            </button>
+            {#if $isGuest}
+              <div class="user-menu-divider"></div>
+              <button class="user-menu-item accent" on:click={handleOAuthLogin}>
+                <span>🔗</span>
+                Sign in with PipeOps
               </button>
             {/if}
 
@@ -314,6 +330,23 @@
 
   .user-menu-item.danger:hover {
     background: rgba(255, 0, 60, 0.1);
+  }
+
+  .user-menu-item.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    color: var(--text-muted);
+  }
+
+  .user-menu-item.disabled:hover {
+    background: none;
+    color: var(--text-muted);
+  }
+
+  .lock-icon {
+    margin-left: auto;
+    font-size: 10px;
+    opacity: 0.7;
   }
 
   @keyframes fadeIn {

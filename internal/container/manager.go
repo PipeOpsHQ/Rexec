@@ -672,7 +672,11 @@ func (m *Manager) pullImageWithProgressInternal(ctx context.Context, imageName s
 		// Build detail message
 		detail := progress.Status
 		if progress.ID != "" {
-			detail = fmt.Sprintf("%s: %s", progress.ID[:12], progress.Status)
+			idDisplay := progress.ID
+			if len(idDisplay) > 12 {
+				idDisplay = idDisplay[:12]
+			}
+			detail = fmt.Sprintf("%s: %s", idDisplay, progress.Status)
 			if progress.Progress != "" {
 				detail = fmt.Sprintf("%s %s", detail, progress.Progress)
 			}

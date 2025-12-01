@@ -1,5 +1,5 @@
-# Node.js build stage for Svelte UI
-FROM node:20-alpine AS ui-builder
+# Frontend build stage
+FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app/web-ui
 
@@ -9,7 +9,7 @@ COPY web-ui/package.json ./
 # Install dependencies
 RUN npm install
 
-# Copy source code
+# Copy source files
 COPY web-ui/ ./
 
 # Build the Svelte app (outputs to ../web)
@@ -33,49 +33,57 @@ RUN go mod download
 # Copy source code
 COPY . .
 
+# Copy built frontend from frontend-builder
+COPY --from=frontend-builder /app/web ./web
+
 # Build the binary
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o rexec ./cmd/rexec
 
-# Runtime stage
-FROM alpine:3.19
+# Runtime stage - using Docker-in-Docker Rootless
+# This image contains the necessary binaries and configuration to run Docker
+# without root privileges inside the container.
+FROM docker:27-dind-rootless
+
+# Switch to root temporarily to setup directories and install deps
+USER root
 
 # Install runtime dependencies
 RUN apk add --no-cache \
     ca-certificates \
     tzdata \
-    docker-cli \
-    openssh-client
+    git \
+    bash
 
-# Create non-root user
-RUN adduser -D -g '' rexec
-
-# Create necessary directories
-RUN mkdir -p /var/lib/rexec/volumes && \
-    chown -R rexec:rexec /var/lib/rexec
+# Create application directory
+WORKDIR /app
 
 # Copy binary from builder
 COPY --from=builder /app/rexec /usr/local/bin/rexec
 
-# Copy entrypoint script
-COPY --from=builder /app/scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
+# Copy web directory for frontend
+COPY --from=builder /app/web /app/web
 
-# Set working directory
-WORKDIR /app
+# Copy standalone startup script
+COPY scripts/start-standalone.sh /usr/local/bin/start-standalone.sh
+RUN chmod +x /usr/local/bin/start-standalone.sh
 
-# Copy built web UI from ui-builder stage
-COPY --from=ui-builder /app/web /app/web
+# Create volume directory and ensure permissions for the rootless user (UID 1000)
+RUN mkdir -p /var/lib/rexec/volumes && \
+    mkdir -p /run/user/1000 && \
+    chown -R rootless:rootless /var/lib/rexec && \
+    chown -R rootless:rootless /app && \
+    chown -R rootless:rootless /run/user/1000
 
-# Expose port
+# Switch back to the unprivileged user provided by the base image
+USER rootless
+
+# Expose the API port
 EXPOSE 8080
 
-# Switch to non-root user
-USER rexec
+# Set environment variables
+ENV PORT=8080
+# Point the client to the rootless socket location
+ENV DOCKER_HOST=unix:///run/user/1000/docker.sock
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
-
-# Run the application
-ENTRYPOINT ["entrypoint.sh"]
-CMD ["rexec"]
+# Use the standalone startup script
+ENTRYPOINT ["start-standalone.sh"]
