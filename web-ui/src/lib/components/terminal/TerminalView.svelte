@@ -83,23 +83,45 @@
     const roles = [
         {
             id: "standard",
-            name: "Standard",
-            icon: "🛠️",
-            desc: "Basic tools (git, curl, vim)",
+            name: "The Minimalist",
+            icon: "🧘",
+            desc: "I use Arch btw. Just give me a shell.",
         },
-        { id: "node", name: "Node.js", icon: "🟢", desc: "Node.js, npm, yarn" },
+        {
+            id: "node",
+            name: "10x JS Ninja",
+            icon: "🚀",
+            desc: "Ship fast, break things, npm install everything.",
+        },
         {
             id: "python",
-            name: "Python",
-            icon: "🐍",
-            desc: "Python 3, pip, venv",
+            name: "Data Wizard",
+            icon: "🧙‍♂️",
+            desc: "Import antigravity. I speak in list comprehensions.",
         },
-        { id: "go", name: "Go", icon: "🐹", desc: "Go environment" },
+        {
+            id: "go",
+            name: "The Gopher",
+            icon: "🐹",
+            desc: "If err != nil { panic(err) }. Simplicity is key.",
+        },
+        {
+            id: "neovim",
+            name: "Neovim God",
+            icon: "⌨️",
+            desc: "My config is longer than your code. Mouse? What mouse?",
+        },
         {
             id: "devops",
-            name: "DevOps",
+            name: "YAML Herder",
             icon: "☸️",
-            desc: "Docker, kubectl, terraform",
+            desc: "I don't write code, I write config. Prod is my playground.",
+        },
+        {
+            id: "overemployed",
+            name: "The Overemployed",
+            icon: "💼",
+            desc: "Working 4 remote jobs. Need max efficiency.",
         },
     ];
 
@@ -241,7 +263,6 @@
 
     function closeCreatePanel() {
         if (!isCreating) {
-            showCreatePanel = false;
             showCreatePanel = false;
             selectedImage = "";
             customImage = "";
@@ -477,9 +498,7 @@
                         {/each}
                         <button
                             class="new-tab-btn"
-                            on:click={() => {
-                                showCreatePanel = true;
-                            }}
+                            on:click={openCreatePanel}
                             title="New Terminal"
                         >
                             + New
@@ -532,64 +551,74 @@
                                     <div class="spinner"></div>
                                 </div>
                             {:else}
-                                <div class="os-grid">
-                                    {#each images as image (image.name)}
-                                        <button
-                                            class="os-card"
-                                            on:click={() =>
-                                                selectAndCreate(image.name)}
-                                        >
-                                            <span class="os-icon"
-                                                >{getIcon(image.name)}</span
+                                <div class="create-panel-content">
+                                    <!-- Role Selection -->
+                                    <div class="create-section">
+                                        <h4>Environment</h4>
+                                        <div class="role-grid">
+                                            {#each roles as role}
+                                                <button
+                                                    class="role-card"
+                                                    class:selected={selectedRole ===
+                                                        role.id}
+                                                    on:click={() =>
+                                                        (selectedRole =
+                                                            role.id)}
+                                                    title={role.desc}
+                                                >
+                                                    <span class="role-icon"
+                                                        >{role.icon}</span
+                                                    >
+                                                    <span class="role-name"
+                                                        >{role.name}</span
+                                                    >
+                                                </button>
+                                            {/each}
+                                        </div>
+                                        <p class="role-desc">
+                                            {roles.find(
+                                                (r) => r.id === selectedRole,
+                                            )?.desc}
+                                        </p>
+                                    </div>
+
+                                    <!-- OS Selection -->
+                                    <div class="create-section">
+                                        <h4>Operating System</h4>
+                                        <div class="os-grid">
+                                            {#each images as image (image.name)}
+                                                <button
+                                                    class="os-card"
+                                                    on:click={() =>
+                                                        selectAndCreate(
+                                                            image.name,
+                                                        )}
+                                                >
+                                                    <span class="os-icon"
+                                                        >{getIcon(
+                                                            image.name,
+                                                        )}</span
+                                                    >
+                                                    <span class="os-name"
+                                                        >{image.display_name ||
+                                                            image.name}</span
+                                                    >
+                                                </button>
+                                            {/each}
+                                            <button
+                                                class="os-card"
+                                                on:click={() =>
+                                                    selectAndCreate("custom")}
                                             >
-                                            <span class="os-name"
-                                                >{image.display_name ||
-                                                    image.name}</span
-                                            >
-                                        </button>
-                                    {/each}
-                                    <button
-                                        class="os-card"
-                                        on:click={() =>
-                                            selectAndCreate("custom")}
-                                    >
-                                        <span class="os-icon">📦</span>
-                                        <span class="os-name">Custom</span>
-                                    </button>
+                                                <span class="os-icon">📦</span>
+                                                <span class="os-name"
+                                                    >Custom</span
+                                                >
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             {/if}
-                        </div>
-
-                        <div
-                            class="role-selection"
-                            style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border);"
-                        >
-                            <div
-                                class="create-panel-header"
-                                style="border: none; margin-bottom: 8px; padding: 0;"
-                            >
-                                <h3>Select Role</h3>
-                            </div>
-                            <div class="os-grid">
-                                {#each roles as role}
-                                    <button
-                                        class="os-card"
-                                        class:selected={selectedRole ===
-                                            role.id}
-                                        on:click={() =>
-                                            (selectedRole = role.id)}
-                                        title={role.desc}
-                                    >
-                                        <span class="os-icon">{role.icon}</span>
-                                        <span class="os-name">{role.name}</span>
-                                    </button>
-                                {/each}
-                            </div>
-                            <p
-                                style="font-size: 11px; color: var(--text-muted); margin-top: 8px; font-family: var(--font-mono);"
-                            >
-                                {roles.find((r) => r.id === selectedRole)?.desc}
-                            </p>
                         </div>
                     {:else}
                         {#each sessions as [id, session] (`float-${viewModeKey}-${id}`)}
@@ -693,7 +722,7 @@
                     <!-- Inline Create Panel for Docked Mode -->
                     <div class="create-panel docked-create">
                         <div class="create-panel-header">
-                            <h3>Select Operating System</h3>
+                            <h3>New Terminal</h3>
                             {#if !isCreating}
                                 <button
                                     class="close-create"
@@ -724,34 +753,72 @@
                                 <div class="spinner"></div>
                             </div>
                         {:else}
-                            <div class="os-grid docked-grid">
-                                {#each images as image (image.name)}
-                                    <button
-                                        class="os-card"
-                                        on:click={() =>
-                                            selectAndCreate(image.name)}
-                                    >
-                                        <span class="os-icon"
-                                            >{getIcon(image.name)}</span
-                                        >
-                                        <span class="os-name"
-                                            >{image.display_name ||
-                                                image.name}</span
-                                        >
-                                        {#if image.popular}
-                                            <span class="popular-badge"
-                                                >Popular</span
+                            <div class="create-panel-content docked-content">
+                                <!-- Role Selection -->
+                                <div class="create-section">
+                                    <h4>Environment</h4>
+                                    <div class="role-grid">
+                                        {#each roles as role}
+                                            <button
+                                                class="role-card"
+                                                class:selected={selectedRole ===
+                                                    role.id}
+                                                on:click={() =>
+                                                    (selectedRole = role.id)}
+                                                title={role.desc}
                                             >
-                                        {/if}
-                                    </button>
-                                {/each}
-                                <button
-                                    class="os-card"
-                                    on:click={() => selectAndCreate("custom")}
-                                >
-                                    <span class="os-icon">📦</span>
-                                    <span class="os-name">Custom Image</span>
-                                </button>
+                                                <span class="role-icon"
+                                                    >{role.icon}</span
+                                                >
+                                                <span class="role-name"
+                                                    >{role.name}</span
+                                                >
+                                            </button>
+                                        {/each}
+                                    </div>
+                                    <p class="role-desc">
+                                        {roles.find(
+                                            (r) => r.id === selectedRole,
+                                        )?.desc}
+                                    </p>
+                                </div>
+
+                                <!-- OS Selection -->
+                                <div class="create-section">
+                                    <h4>Operating System</h4>
+                                    <div class="os-grid docked-grid">
+                                        {#each images as image (image.name)}
+                                            <button
+                                                class="os-card"
+                                                on:click={() =>
+                                                    selectAndCreate(image.name)}
+                                            >
+                                                <span class="os-icon"
+                                                    >{getIcon(image.name)}</span
+                                                >
+                                                <span class="os-name"
+                                                    >{image.display_name ||
+                                                        image.name}</span
+                                                >
+                                                {#if image.popular}
+                                                    <span class="popular-badge"
+                                                        >Popular</span
+                                                    >
+                                                {/if}
+                                            </button>
+                                        {/each}
+                                        <button
+                                            class="os-card"
+                                            on:click={() =>
+                                                selectAndCreate("custom")}
+                                        >
+                                            <span class="os-icon">📦</span>
+                                            <span class="os-name"
+                                                >Custom Image</span
+                                            >
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         {/if}
                     </div>
@@ -1124,6 +1191,91 @@
     .close-create:hover {
         border-color: var(--red);
         color: var(--red);
+    }
+
+    /* Create Panel Content */
+    .create-panel-content {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        padding: 16px;
+        overflow-y: auto;
+        max-height: 100%;
+    }
+
+    .create-panel-content.docked-content {
+        max-width: 900px;
+        margin: 0 auto;
+        width: 100%;
+    }
+
+    .create-section {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .create-section h4 {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin: 0;
+        font-family: var(--font-mono);
+    }
+
+    .role-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        gap: 8px;
+    }
+
+    .role-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        padding: 12px 8px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        cursor: pointer;
+        transition: all 0.15s;
+        font-family: var(--font-mono);
+    }
+
+    .role-card:hover {
+        border-color: var(--accent);
+        background: var(--accent-dim);
+    }
+
+    .role-card.selected {
+        border-color: var(--accent);
+        background: rgba(0, 255, 65, 0.1);
+        box-shadow: 0 0 10px rgba(0, 255, 65, 0.2);
+    }
+
+    .role-icon {
+        font-size: 24px;
+    }
+
+    .role-name {
+        font-size: 10px;
+        color: var(--text);
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+    }
+
+    .role-desc {
+        font-size: 11px;
+        color: var(--text-muted);
+        font-family: var(--font-mono);
+        font-style: italic;
+        margin: 4px 0 0 0;
+        min-height: 16px;
     }
 
     .os-grid {
