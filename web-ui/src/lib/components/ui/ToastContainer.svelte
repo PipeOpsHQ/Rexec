@@ -43,7 +43,7 @@
 <style>
     .toast-container {
         position: fixed;
-        top: 70px;
+        top: 120px;
         right: 20px;
         z-index: 900; /* Below modals (1000+) but above most UI */
         display: flex;

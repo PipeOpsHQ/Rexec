@@ -79,6 +79,29 @@
         custom: "📦",
     };
 
+    // Role to preferred OS mapping
+    const roleToOS: Record<string, string> = {
+        standard: "alpine", // Minimalist loves lightweight
+        node: "ubuntu", // Best Node.js support
+        python: "ubuntu", // Best Python/data science support
+        go: "alpine", // Go's preferred container OS
+        neovim: "arch", // Power users love Arch
+        devops: "alpine", // Container standard
+        overemployed: "alpine", // Fast startup
+    };
+
+    // Auto-select OS when role changes
+    $: if (selectedRole && roleToOS[selectedRole]) {
+        const preferredOS = roleToOS[selectedRole];
+        // Only auto-select if images are loaded and the preferred OS exists
+        if (
+            images.length > 0 &&
+            images.some((img) => img.name === preferredOS)
+        ) {
+            selectedImage = preferredOS;
+        }
+    }
+
     // Available roles
     const roles = [
         {
