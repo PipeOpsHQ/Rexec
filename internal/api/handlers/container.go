@@ -83,9 +83,6 @@ func (h *ContainerHandler) List(c *gin.Context) {
 
 	ctx := context.Background()
 
-	// Get resource limits for user's tier
-	limits := models.TierLimits(tier)
-
 	// Get containers from database
 	records, err := h.store.GetContainersByUserID(ctx, userID)
 	if err != nil {
@@ -110,6 +107,17 @@ func (h *ContainerHandler) List(c *gin.Context) {
 			}
 		}
 
+		// Use stored resources from database (with fallback to tier limits for old containers)
+		memoryMB := record.MemoryMB
+		cpuShares := record.CPUShares
+		diskMB := record.DiskMB
+		if memoryMB == 0 {
+			limits := models.TierLimits(tier)
+			memoryMB = limits.MemoryMB
+			cpuShares = limits.CPUShares
+			diskMB = limits.DiskMB
+		}
+
 		containers = append(containers, gin.H{
 			"id":           record.DockerID,
 			"db_id":        record.ID,
@@ -121,9 +129,9 @@ func (h *ContainerHandler) List(c *gin.Context) {
 			"last_used_at": record.LastUsedAt,
 			"idle_seconds": idleTime,
 			"resources": gin.H{
-				"memory_mb":  limits.MemoryMB,
-				"cpu_shares": limits.CPUShares,
-				"disk_mb":    limits.DiskMB,
+				"memory_mb":  memoryMB,
+				"cpu_shares": cpuShares,
+				"disk_mb":    diskMB,
 			},
 		})
 	}
@@ -234,6 +242,9 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 		imageName = "custom:" + req.CustomImage
 	}
 
+	// Calculate resource limits first (with trial customization)
+	limits := models.ValidateTrialResources(&req, tier)
+
 	// Create a pending record in database first (async creation)
 	record := &storage.ContainerRecord{
 		ID:         uuid.New().String(),
@@ -243,6 +254,9 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 		Status:     "creating",
 		DockerID:   "", // Will be set when container is created
 		VolumeName: "rexec-" + userID + "-" + containerName,
+		MemoryMB:   limits.MemoryMB,
+		CPUShares:  limits.CPUShares,
+		DiskMB:     limits.DiskMB,
 		CreatedAt:  time.Now(),
 		LastUsedAt: time.Now(),
 	}
@@ -271,8 +285,7 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 		cfg.Labels["rexec.expires_at"] = time.Now().Add(GuestMaxContainerDuration).Format(time.RFC3339)
 	}
 
-	// Apply tier-based resource limits (with trial customization)
-	limits := models.ValidateTrialResources(&req, tier)
+	// Apply resource limits to container config
 	cfg.MemoryLimit = limits.MemoryMB * 1024 * 1024 // Convert MB to bytes
 	cfg.CPULimit = limits.CPUShares * 1000          // Convert to CPU quota
 
@@ -1127,7 +1140,7 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 		storedImageName = "custom:" + req.CustomImage
 	}
 
-	// Store in database
+	// Store in database with resource limits
 	record := &storage.ContainerRecord{
 		ID:         uuid.New().String(),
 		UserID:     userID,
@@ -1136,6 +1149,9 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 		Status:     info.Status,
 		DockerID:   info.ID,
 		VolumeName: "rexec-" + userID + "-" + containerName,
+		MemoryMB:   limits.MemoryMB,
+		CPUShares:  limits.CPUShares,
+		DiskMB:     limits.DiskMB,
 		CreatedAt:  time.Now(),
 		LastUsedAt: time.Now(),
 	}

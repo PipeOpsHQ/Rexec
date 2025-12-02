@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/docker/docker/api/types/container"
 	dockerclient "github.com/docker/docker/client"
@@ -17,8 +18,8 @@ import (
 )
 
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:  4096,
-	WriteBufferSize: 4096,
+	ReadBufferSize:  16384,
+	WriteBufferSize: 16384,
 	CheckOrigin: func(r *http.Request) bool {
 		// In production, you should validate the origin
 		return true
@@ -306,7 +307,8 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 	// Container output -> WebSocket
 	go func() {
 		defer wg.Done()
-		buf := make([]byte, 4096)
+		// Larger buffer for TUI applications that output complex escape sequences
+		buf := make([]byte, 16384)
 		for {
 			select {
 			case <-session.Done:
@@ -334,7 +336,7 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 				if n > 0 {
 					if err := session.SendMessage(TerminalMessage{
 						Type: "output",
-						Data: string(buf[:n]),
+						Data: sanitizeUTF8(buf[:n]),
 					}); err != nil {
 						errChan <- err
 						return
@@ -632,4 +634,27 @@ func (h *TerminalHandler) GetContainerSessionCount(containerID string) int {
 		}
 	}
 	return count
+}
+
+// sanitizeUTF8 ensures the byte slice is valid UTF-8, replacing invalid sequences
+// while preserving terminal escape sequences (which are valid ASCII/UTF-8)
+func sanitizeUTF8(data []byte) string {
+	if utf8.Valid(data) {
+		return string(data)
+	}
+
+	// Build a valid UTF-8 string, replacing invalid bytes
+	result := make([]byte, 0, len(data))
+	for len(data) > 0 {
+		r, size := utf8.DecodeRune(data)
+		if r == utf8.RuneError && size == 1 {
+			// Invalid byte - replace with replacement character or skip
+			// For terminal output, we'll just skip invalid bytes to avoid display issues
+			data = data[1:]
+			continue
+		}
+		result = append(result, data[:size]...)
+		data = data[size:]
+	}
+	return string(result)
 }
