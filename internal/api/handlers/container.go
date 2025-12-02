@@ -435,6 +435,12 @@ func (h *ContainerHandler) Delete(c *gin.Context) {
 		log.Printf("Warning: failed to stop container %s: %v", dockerID, err)
 	}
 
+	// Remove from manager's tracking (so it doesn't count toward limits)
+	if err := h.manager.RemoveContainer(ctx, dockerID); err != nil {
+		// Log but continue - container might already be removed from Docker
+		log.Printf("Warning: failed to remove container %s from Docker: %v", dockerID, err)
+	}
+
 	// Soft delete in database (sets deleted_at timestamp)
 	if err := h.store.DeleteContainer(ctx, found.ID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete container record"})

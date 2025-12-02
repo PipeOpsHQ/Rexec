@@ -1004,6 +1004,45 @@ func (m *Manager) GetClient() *client.Client {
 	return m.client
 }
 
+// RemoveFromTracking removes a container from the manager's in-memory tracking
+// without touching Docker (used by reconciler when container is already gone)
+func (m *Manager) RemoveFromTracking(dockerID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	info, ok := m.containers[dockerID]
+	if !ok {
+		return
+	}
+
+	delete(m.containers, dockerID)
+
+	// Remove from user index
+	if dockerIDs, exists := m.userIndex[info.UserID]; exists {
+		newIDs := make([]string, 0, len(dockerIDs)-1)
+		for _, id := range dockerIDs {
+			if id != dockerID {
+				newIDs = append(newIDs, id)
+			}
+		}
+		if len(newIDs) > 0 {
+			m.userIndex[info.UserID] = newIDs
+		} else {
+			delete(m.userIndex, info.UserID)
+		}
+	}
+}
+
+// UpdateContainerStatus updates the status of a container in memory
+func (m *Manager) UpdateContainerStatus(dockerID string, status string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if info, ok := m.containers[dockerID]; ok {
+		info.Status = status
+	}
+}
+
 // GetIdleContainers returns containers that have been idle for longer than the threshold
 func (m *Manager) GetIdleContainers(threshold time.Duration) []*ContainerInfo {
 	m.mu.RLock()

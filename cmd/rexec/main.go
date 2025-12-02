@@ -99,6 +99,15 @@ func main() {
 		defer cleanupService.Stop()
 	}
 
+	// Start reconciler service to sync DB state with Docker
+	reconcilerService := container.NewReconcilerService(
+		containerManager,
+		store,
+		5*time.Minute, // Check every 5 minutes
+	)
+	reconcilerService.Start()
+	defer reconcilerService.Stop()
+
 	// Initialize billing service
 	var billingService *billing.Service
 	if os.Getenv("STRIPE_SECRET_KEY") != "" {
