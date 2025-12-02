@@ -234,10 +234,14 @@
             customImage = input.trim();
         }
 
+        // Start creation - set state first for immediate UI feedback
         isCreating = true;
         progress = 0;
         progressMessage = "Starting...";
         progressStage = "initializing";
+
+        // Defer heavy work to next tick to allow UI to update
+        await new Promise((resolve) => setTimeout(resolve, 0));
 
         const name = generateName();
         const image = selectedImage;

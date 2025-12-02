@@ -200,7 +200,7 @@
     }
 
     // Handle image selection and creation
-    function selectAndCreate(imageName: string) {
+    async function selectAndCreate(imageName: string) {
         if (isCreating) return;
 
         selectedImage = imageName;
@@ -217,11 +217,14 @@
             customImage = input.trim();
         }
 
-        // Start creation
+        // Start creation - set state first for immediate UI feedback
         isCreating = true;
         progress = 0;
         progressMessage = "Starting...";
         progressStage = "initializing";
+
+        // Defer heavy work to next tick to allow UI to update
+        await new Promise((resolve) => setTimeout(resolve, 0));
 
         const name = containerName.trim() || generateName();
         const image = selectedImage;

@@ -26,6 +26,10 @@ export interface TerminalSession {
   resizeObserver: ResizeObserver | null;
   isSettingUp: boolean;
   setupMessage: string;
+  // Detached window state (when popped out as separate floating window)
+  isDetached: boolean;
+  detachedPosition: { x: number; y: number };
+  detachedSize: { width: number; height: number };
 }
 
 export interface TerminalState {
@@ -261,6 +265,9 @@ function createTerminalStore() {
         resizeObserver: null,
         isSettingUp: false,
         setupMessage: "",
+        isDetached: false,
+        detachedPosition: { x: 150, y: 150 },
+        detachedSize: { width: 600, height: 400 },
       };
 
       update((state) => {
@@ -746,6 +753,76 @@ function createTerminalStore() {
       if (!state.activeSessionId) return null;
       const session = state.sessions.get(state.activeSessionId);
       return session?.containerId || null;
+    },
+
+    // Detach a session into its own floating window
+    detachSession(sessionId: string, x?: number, y?: number) {
+      const state = getState();
+      const session = state.sessions.get(sessionId);
+      if (!session || session.isDetached) return;
+
+      // Calculate position (use provided coords or offset from main window)
+      const posX = x ?? state.floatingPosition.x + 50;
+      const posY = y ?? state.floatingPosition.y + 50;
+
+      updateSession(sessionId, (s) => ({
+        ...s,
+        isDetached: true,
+        detachedPosition: { x: posX, y: posY },
+        detachedSize: { width: 600, height: 400 },
+      }));
+
+      // If this was the active session, switch to another non-detached session
+      if (state.activeSessionId === sessionId) {
+        const remaining = Array.from(state.sessions.values()).filter(
+          (s) => s.id !== sessionId && !s.isDetached,
+        );
+        update((s) => ({
+          ...s,
+          activeSessionId: remaining.length > 0 ? remaining[0].id : null,
+        }));
+      }
+
+      // Fit the terminal after detaching
+      setTimeout(() => this.fitSession(sessionId), 100);
+    },
+
+    // Attach a detached session back to the main terminal panel
+    attachSession(sessionId: string) {
+      const state = getState();
+      const session = state.sessions.get(sessionId);
+      if (!session || !session.isDetached) return;
+
+      updateSession(sessionId, (s) => ({
+        ...s,
+        isDetached: false,
+      }));
+
+      // Make it the active session
+      update((s) => ({
+        ...s,
+        activeSessionId: sessionId,
+        isMinimized: false,
+      }));
+
+      // Fit the terminal after attaching
+      setTimeout(() => this.fitSession(sessionId), 100);
+    },
+
+    // Update detached window position
+    setDetachedPosition(sessionId: string, x: number, y: number) {
+      updateSession(sessionId, (s) => ({
+        ...s,
+        detachedPosition: { x, y },
+      }));
+    },
+
+    // Update detached window size
+    setDetachedSize(sessionId: string, width: number, height: number) {
+      updateSession(sessionId, (s) => ({
+        ...s,
+        detachedSize: { width, height },
+      }));
     },
   };
 }

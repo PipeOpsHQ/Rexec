@@ -255,6 +255,11 @@ func main() {
 		router.StaticFile("/", indexFile)
 		router.Static("/assets", filepath.Join(webDir, "assets"))
 		router.StaticFile("/favicon.ico", filepath.Join(webDir, "favicon.ico"))
+		router.StaticFile("/favicon.svg", filepath.Join(webDir, "favicon.svg"))
+		router.StaticFile("/manifest.json", filepath.Join(webDir, "manifest.json"))
+		router.StaticFile("/robots.txt", filepath.Join(webDir, "robots.txt"))
+		router.StaticFile("/sitemap.xml", filepath.Join(webDir, "sitemap.xml"))
+		router.StaticFile("/og-image.svg", filepath.Join(webDir, "og-image.svg"))
 
 		// Terminal URL routes - serve index.html for SPA routing
 		router.GET("/terminal/:id", func(c *gin.Context) {
