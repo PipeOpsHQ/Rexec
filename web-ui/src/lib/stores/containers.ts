@@ -110,8 +110,10 @@ function createContainersStore() {
     },
 
     // Fetch all containers
-    async fetchContainers() {
-      update((state) => ({ ...state, isLoading: true, error: null }));
+    async fetchContainers(silent = false) {
+      if (!silent) {
+        update((state) => ({ ...state, isLoading: true, error: null }));
+      }
 
       const { data, error } = await apiCall<{
         containers: Container[];
@@ -120,7 +122,7 @@ function createContainersStore() {
       }>("/api/containers");
 
       if (error) {
-        update((state) => ({ ...state, isLoading: false, error }));
+        update((state) => ({ ...state, isLoading: false, error: silent ? state.error : error }));
         return { success: false, error };
       }
 
@@ -923,9 +925,9 @@ export function startAutoRefresh() {
   refreshInterval = setInterval(() => {
     const currentToken = get(token);
     if (currentToken) {
-      containers.fetchContainers();
+      containers.fetchContainers(true); // Silent refresh - no loading indicator
     }
-  }, 5000);
+  }, 30000); // Poll every 30 seconds instead of 5
 }
 
 export function stopAutoRefresh() {
