@@ -324,7 +324,6 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 func (h *ContainerHandler) createContainerAsync(recordID string, cfg container.ContainerConfig, imageType string, customImage string, role string, isGuest bool) {
 	ctx := context.Background()
 	userID := cfg.UserID
-	tier := cfg.Labels["rexec.tier"]
 
 	// Pull image if needed
 	var pullErr error
@@ -376,7 +375,16 @@ func (h *ContainerHandler) createContainerAsync(recordID string, cfg container.C
 		if imageType == "custom" {
 			imageName = "custom:" + customImage
 		}
-		limits := models.TierLimits(tier)
+		// Get actual resources from the database record
+		record, err := h.store.GetContainerByID(ctx, recordID)
+		memoryMB := int64(512)
+		cpuShares := int64(512)
+		diskMB := int64(2048)
+		if err == nil && record != nil {
+			memoryMB = record.MemoryMB
+			cpuShares = record.CPUShares
+			diskMB = record.DiskMB
+		}
 		h.eventsHub.NotifyContainerCreated(userID, gin.H{
 			"id":         info.ID,
 			"db_id":      recordID,
@@ -387,9 +395,9 @@ func (h *ContainerHandler) createContainerAsync(recordID string, cfg container.C
 			"created_at": info.CreatedAt,
 			"ip_address": info.IPAddress,
 			"resources": gin.H{
-				"memory_mb":  limits.MemoryMB,
-				"cpu_shares": limits.CPUShares,
-				"disk_mb":    limits.DiskMB,
+				"memory_mb":  memoryMB,
+				"cpu_shares": cpuShares,
+				"disk_mb":    diskMB,
 			},
 		})
 	}
@@ -663,9 +671,8 @@ func (h *ContainerHandler) Start(c *gin.Context) {
 	// Update status in database
 	h.store.UpdateContainerStatus(ctx, found.ID, "running")
 
-	// Notify via WebSocket with full container data
+	// Notify via WebSocket with full container data - use actual record resources
 	if h.eventsHub != nil {
-		limits := models.TierLimits(tier)
 		h.eventsHub.NotifyContainerStarted(userID, gin.H{
 			"id":       dockerID,
 			"db_id":    found.ID,
@@ -673,9 +680,9 @@ func (h *ContainerHandler) Start(c *gin.Context) {
 			"image":    found.Image,
 			"status":   "running",
 			"resources": gin.H{
-				"memory_mb":  limits.MemoryMB,
-				"cpu_shares": limits.CPUShares,
-				"disk_mb":    limits.DiskMB,
+				"memory_mb":  found.MemoryMB,
+				"cpu_shares": found.CPUShares,
+				"disk_mb":    found.DiskMB,
 			},
 		})
 	}
@@ -728,10 +735,8 @@ func (h *ContainerHandler) Stop(c *gin.Context) {
 	// Update status in database
 	h.store.UpdateContainerStatus(ctx, found.ID, "stopped")
 
-	// Notify via WebSocket with full container data
-	tier := c.GetString("tier")
+	// Notify via WebSocket with full container data - use actual record resources
 	if h.eventsHub != nil {
-		limits := models.TierLimits(tier)
 		h.eventsHub.NotifyContainerStopped(userID, gin.H{
 			"id":       dockerID,
 			"db_id":    found.ID,
@@ -739,9 +744,9 @@ func (h *ContainerHandler) Stop(c *gin.Context) {
 			"image":    found.Image,
 			"status":   "stopped",
 			"resources": gin.H{
-				"memory_mb":  limits.MemoryMB,
-				"cpu_shares": limits.CPUShares,
-				"disk_mb":    limits.DiskMB,
+				"memory_mb":  found.MemoryMB,
+				"cpu_shares": found.CPUShares,
+				"disk_mb":    found.DiskMB,
 			},
 		})
 	}
@@ -1263,9 +1268,8 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 		response["session_limit_seconds"] = int(GuestMaxContainerDuration.Seconds())
 	}
 
-	// Notify via WebSocket
+	// Notify via WebSocket - use the actual validated limits, not tier defaults
 	if h.eventsHub != nil {
-		limits := models.TierLimits(tier)
 		h.eventsHub.NotifyContainerCreated(userID, gin.H{
 			"id":         info.ID,
 			"db_id":      record.ID,
@@ -1276,9 +1280,9 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 			"created_at": info.CreatedAt,
 			"ip_address": info.IPAddress,
 			"resources": gin.H{
-				"memory_mb":  limits.MemoryMB,
-				"cpu_shares": limits.CPUShares,
-				"disk_mb":    limits.DiskMB,
+				"memory_mb":  record.MemoryMB,
+				"cpu_shares": record.CPUShares,
+				"disk_mb":    record.DiskMB,
 			},
 		})
 	}
