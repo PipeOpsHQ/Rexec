@@ -24,15 +24,28 @@
     let cpuShares = 512;
     let diskMB = 2048;
     
-    // Trial limits
+    // Trial limits - allow more memory than CPU
     const resourceLimits = {
         minMemory: 256,
-        maxMemory: 1024,
+        maxMemory: 2048,  // Allow up to 2GB for trial
         minCPU: 256,
         maxCPU: 1024,
         minDisk: 1024,
-        maxDisk: 4096
+        maxDisk: 8192
     };
+
+    // Slider event handlers
+    function handleMemoryChange(e: Event) {
+        memoryMB = parseInt((e.target as HTMLInputElement).value);
+    }
+
+    function handleCpuChange(e: Event) {
+        cpuShares = parseInt((e.target as HTMLInputElement).value);
+    }
+
+    function handleDiskChange(e: Event) {
+        diskMB = parseInt((e.target as HTMLInputElement).value);
+    }
 
     const progressSteps = [
         { id: "validating", label: "Validating" },
@@ -286,7 +299,8 @@
                             </label>
                             <input 
                                 type="range" 
-                                bind:value={memoryMB}
+                                value={memoryMB}
+                                on:input={handleMemoryChange}
                                 min={resourceLimits.minMemory}
                                 max={resourceLimits.maxMemory}
                                 step="128"
@@ -304,7 +318,8 @@
                             </label>
                             <input 
                                 type="range" 
-                                bind:value={cpuShares}
+                                value={cpuShares}
+                                on:input={handleCpuChange}
                                 min={resourceLimits.minCPU}
                                 max={resourceLimits.maxCPU}
                                 step="128"
@@ -322,7 +337,8 @@
                             </label>
                             <input 
                                 type="range" 
-                                bind:value={diskMB}
+                                value={diskMB}
+                                on:input={handleDiskChange}
                                 min={resourceLimits.minDisk}
                                 max={resourceLimits.maxDisk}
                                 step="256"

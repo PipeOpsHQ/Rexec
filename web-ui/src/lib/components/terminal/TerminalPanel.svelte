@@ -336,12 +336,22 @@
         background: #111;
         border-bottom: 1px solid var(--border);
         flex-shrink: 0;
+        gap: 8px;
+        overflow-x: auto;
+        /* Hide scrollbar but allow scrolling */
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    .terminal-toolbar::-webkit-scrollbar {
+        display: none;
     }
 
     .toolbar-left {
         display: flex;
         align-items: center;
         gap: 12px;
+        flex-shrink: 0;
     }
 
     .terminal-name {
@@ -418,6 +428,7 @@
     .toolbar-actions {
         display: flex;
         gap: 4px;
+        flex-shrink: 0;
     }
 
     .toolbar-btn {
@@ -658,6 +669,45 @@
         }
         to {
             opacity: 1;
+        }
+    }
+
+    /* Mobile responsive toolbar */
+    @media (max-width: 768px) {
+        .terminal-toolbar {
+            padding: 8px 10px;
+            gap: 10px;
+        }
+
+        .toolbar-left {
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .terminal-name {
+            max-width: 100px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .terminal-stats {
+            padding: 2px 6px;
+            font-size: 9px;
+        }
+
+        .toolbar-btn {
+            padding: 6px 10px;
+            font-size: 10px;
+        }
+
+        .toolbar-btn span:not(.toolbar-icon) {
+            display: none;
+        }
+
+        .toolbar-icon {
+            width: 14px;
+            height: 14px;
         }
     }
 </style>
