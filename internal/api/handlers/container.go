@@ -54,8 +54,9 @@ func generateContainerName() string {
 
 // ContainerHandler handles container-related HTTP requests
 type ContainerHandler struct {
-	manager *container.Manager
-	store   *storage.PostgresStore
+	manager   *container.Manager
+	store     *storage.PostgresStore
+	eventsHub *ContainerEventsHub
 }
 
 // NewContainerHandler creates a new container handler
@@ -64,6 +65,11 @@ func NewContainerHandler(manager *container.Manager, store *storage.PostgresStor
 		manager: manager,
 		store:   store,
 	}
+}
+
+// SetEventsHub sets the events hub for real-time notifications
+func (h *ContainerHandler) SetEventsHub(hub *ContainerEventsHub) {
+	h.eventsHub = hub
 }
 
 // List returns all containers for the authenticated user
