@@ -15,12 +15,12 @@ export interface Container {
   name: string;
   image: string;
   status:
-    | "running"
-    | "stopped"
-    | "creating"
-    | "starting"
-    | "stopping"
-    | "error";
+  | "running"
+  | "stopped"
+  | "creating"
+  | "starting"
+  | "stopping"
+  | "error";
   created_at: string;
   last_used_at?: string;
   idle_seconds?: number;
@@ -102,6 +102,7 @@ function createContainersStore() {
 
   return {
     subscribe,
+    update, // Expose update for WebSocket handler
 
     // Reset store
     reset() {
@@ -247,8 +248,8 @@ function createContainersStore() {
             // Not SSE - likely Cloudflare blocking. Fall back to polling.
             console.warn(
               "SSE not available (got " +
-                contentType +
-                "), falling back to polling",
+              contentType +
+              "), falling back to polling",
             );
             // Use the polling fallback
             this.createContainerFallback(
@@ -266,7 +267,7 @@ function createContainersStore() {
             const errorData = await response.json().catch(() => ({}));
             throw new Error(
               errorData.error ||
-                `Request failed with status ${response.status}`,
+              `Request failed with status ${response.status}`,
             );
           }
 
@@ -295,11 +296,11 @@ function createContainersStore() {
                     ...state,
                     creating: state.creating
                       ? {
-                          ...state.creating,
-                          progress: event.progress || state.creating.progress,
-                          message: event.message || state.creating.message,
-                          stage: event.stage || state.creating.stage,
-                        }
+                        ...state.creating,
+                        progress: event.progress || state.creating.progress,
+                        message: event.message || state.creating.message,
+                        stage: event.stage || state.creating.stage,
+                      }
                       : null,
                   }));
 
@@ -515,11 +516,11 @@ function createContainersStore() {
           ...state,
           creating: state.creating
             ? {
-                ...state.creating,
-                progress: 20,
-                message: "Pulling image and creating container...",
-                stage: "creating",
-              }
+              ...state.creating,
+              progress: 20,
+              message: "Pulling image and creating container...",
+              stage: "creating",
+            }
             : null,
         }));
 
@@ -570,14 +571,14 @@ function createContainersStore() {
               ...state,
               creating: state.creating
                 ? {
-                    ...state.creating,
-                    progress,
-                    message:
-                      status === "creating"
-                        ? "Still creating..."
-                        : `Status: ${status}`,
-                    stage: status,
-                  }
+                  ...state.creating,
+                  progress,
+                  message:
+                    status === "creating"
+                      ? "Still creating..."
+                      : `Status: ${status}`,
+                  stage: status,
+                }
                 : null,
             }));
 
@@ -913,28 +914,23 @@ function handleContainerEvent(event: {
 let refreshInterval: ReturnType<typeof setInterval> | null = null;
 
 export function startAutoRefresh() {
-  // Try WebSocket first
-  startContainerEvents();
-  
-  // Fallback to polling if WebSocket fails after a delay
-  setTimeout(() => {
-    if (!eventsSocket || eventsSocket.readyState !== WebSocket.OPEN) {
-      console.log("[ContainerEvents] WebSocket not available, falling back to polling");
-      if (refreshInterval) return;
-      
-      refreshInterval = setInterval(() => {
-        const currentToken = get(token);
-        if (currentToken) {
-          containers.fetchContainers();
-        }
-      }, 5000);
+  // Temporarily disable WebSocket due to initialization issues
+  // TODO: Re-enable after fixing event handler setup
+  console.log("[ContainerEvents] Using polling mode");
+
+  if (refreshInterval) return;
+
+  refreshInterval = setInterval(() => {
+    const currentToken = get(token);
+    if (currentToken) {
+      containers.fetchContainers();
     }
-  }, 2000);
+  }, 5000);
 }
 
 export function stopAutoRefresh() {
   stopContainerEvents();
-  
+
   if (refreshInterval) {
     clearInterval(refreshInterval);
     refreshInterval = null;
