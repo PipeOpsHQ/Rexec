@@ -873,7 +873,7 @@ function handleContainerEvent(event: {
       break;
 
     case "created":
-      // New container created
+      // New container created - also clear creating state
       containers.update((state) => ({
         ...state,
         containers: [
@@ -882,18 +882,19 @@ function handleContainerEvent(event: {
             (c) => c.id !== containerData.id && c.db_id !== containerData.id
           ),
         ],
+        creating: null, // Clear creating state
       }));
       break;
 
     case "started":
     case "stopped":
     case "updated":
-      // Container status changed
+      // Container status changed - merge all data
       containers.update((state) => ({
         ...state,
         containers: state.containers.map((c) =>
-          c.id === containerData.id
-            ? { ...c, status: containerData.status }
+          c.id === containerData.id || c.db_id === containerData.id
+            ? { ...c, ...containerData }
             : c
         ),
       }));
@@ -903,7 +904,9 @@ function handleContainerEvent(event: {
       // Container deleted
       containers.update((state) => ({
         ...state,
-        containers: state.containers.filter((c) => c.id !== containerData.id),
+        containers: state.containers.filter(
+          (c) => c.id !== containerData.id && c.db_id !== containerData.id
+        ),
       }));
       break;
 

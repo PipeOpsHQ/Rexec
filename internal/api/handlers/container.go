@@ -305,6 +305,8 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 // createContainerAsync handles the actual container creation in the background
 func (h *ContainerHandler) createContainerAsync(recordID string, cfg container.ContainerConfig, imageType string, customImage string, role string, isGuest bool) {
 	ctx := context.Background()
+	userID := cfg.UserID
+	tier := cfg.Labels["rexec.tier"]
 
 	// Pull image if needed
 	var pullErr error
@@ -318,6 +320,14 @@ func (h *ContainerHandler) createContainerAsync(recordID string, cfg container.C
 		// Update record with error status
 		h.store.UpdateContainerStatus(ctx, recordID, "error")
 		h.store.UpdateContainerError(ctx, recordID, "failed to pull image: "+pullErr.Error())
+		// Notify via WebSocket
+		if h.eventsHub != nil {
+			h.eventsHub.NotifyContainerUpdated(userID, gin.H{
+				"id":     recordID,
+				"status": "error",
+				"error":  "failed to pull image: " + pullErr.Error(),
+			})
+		}
 		return
 	}
 
@@ -326,12 +336,45 @@ func (h *ContainerHandler) createContainerAsync(recordID string, cfg container.C
 	if err != nil {
 		h.store.UpdateContainerStatus(ctx, recordID, "error")
 		h.store.UpdateContainerError(ctx, recordID, "failed to create container: "+err.Error())
+		// Notify via WebSocket
+		if h.eventsHub != nil {
+			h.eventsHub.NotifyContainerUpdated(userID, gin.H{
+				"id":     recordID,
+				"status": "error",
+				"error":  "failed to create container: " + err.Error(),
+			})
+		}
 		return
 	}
 
 	// Update the record with Docker container info
 	h.store.UpdateContainerDockerID(ctx, recordID, info.ID)
 	h.store.UpdateContainerStatus(ctx, recordID, info.Status)
+
+	// Notify via WebSocket that container is ready
+	if h.eventsHub != nil {
+		// Determine the image name for response
+		imageName := imageType
+		if imageType == "custom" {
+			imageName = "custom:" + customImage
+		}
+		limits := models.TierLimits(tier)
+		h.eventsHub.NotifyContainerCreated(userID, gin.H{
+			"id":         info.ID,
+			"db_id":      recordID,
+			"user_id":    userID,
+			"name":       cfg.ContainerName,
+			"image":      imageName,
+			"status":     info.Status,
+			"created_at": info.CreatedAt,
+			"ip_address": info.IPAddress,
+			"resources": gin.H{
+				"memory_mb":  limits.MemoryMB,
+				"cpu_shares": limits.CPUShares,
+				"disk_mb":    limits.DiskMB,
+			},
+		})
+	}
 }
 
 // Get returns a specific container
