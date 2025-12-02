@@ -118,6 +118,7 @@ setopt HIST_SAVE_NO_DUPS
 setopt SHARE_HISTORY
 setopt APPEND_HISTORY
 setopt INC_APPEND_HISTORY
+setopt PROMPT_SUBST # Enable command substitution in prompt
 
 # Completion settings
 autoload -Uz compinit
