@@ -770,6 +770,31 @@ export interface ProgressEvent {
 // Export the store
 export const containers = createContainersStore();
 
+// Auto-refresh interval (in milliseconds)
+const REFRESH_INTERVAL = 5000; // 5 seconds
+let refreshInterval: ReturnType<typeof setInterval> | null = null;
+
+// Start auto-refresh polling
+export function startAutoRefresh() {
+  if (refreshInterval) return; // Already running
+  
+  refreshInterval = setInterval(() => {
+    // Only refresh if we have a token (user is logged in)
+    const currentToken = get(token);
+    if (currentToken) {
+      containers.fetchContainers();
+    }
+  }, REFRESH_INTERVAL);
+}
+
+// Stop auto-refresh polling
+export function stopAutoRefresh() {
+  if (refreshInterval) {
+    clearInterval(refreshInterval);
+    refreshInterval = null;
+  }
+}
+
 // Derived stores
 export const runningContainers = derived(containers, ($containers) =>
   $containers.containers.filter((c) => c.status === "running"),

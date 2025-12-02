@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { auth, isAuthenticated } from "$stores/auth";
-    import { containers } from "$stores/containers";
+    import { containers, startAutoRefresh, stopAutoRefresh } from "$stores/containers";
     import { terminal, hasSessions } from "$stores/terminal";
     import { toast } from "$stores/toast";
 
@@ -193,6 +193,7 @@
                     await auth.fetchProfile();
                     currentView = "dashboard";
                     await containers.fetchContainers();
+                    startAutoRefresh(); // Start polling for container updates
                     await handleTerminalUrl();
                 } else {
                     console.log("[App] Token invalid, logging out");
@@ -207,6 +208,7 @@
         // Cleanup on destroy
         return () => {
             window.removeEventListener("message", handleOAuthMessage);
+            stopAutoRefresh(); // Stop polling when component unmounts
         };
     });
 
@@ -214,12 +216,14 @@
     $: if (isInitialized && $isAuthenticated && currentView === "landing") {
         currentView = "dashboard";
         containers.fetchContainers();
+        startAutoRefresh(); // Start polling when authenticated
     }
 
     $: if (isInitialized && !$isAuthenticated && currentView !== "landing") {
         currentView = "landing";
         containers.reset();
         terminal.closeAllSessionsForce();
+        stopAutoRefresh(); // Stop polling when logged out
     }
 
     // Navigation functions
