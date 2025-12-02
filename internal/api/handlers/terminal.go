@@ -185,6 +185,27 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 
 // runTerminalSessionWithRestart runs the terminal session and restarts the shell if user types 'exit'
 func (h *TerminalHandler) runTerminalSessionWithRestart(session *TerminalSession, imageType string) {
+	// Start stats streaming
+	statsCtx, statsCancel := context.WithCancel(context.Background())
+	defer statsCancel()
+
+	go func() {
+		statsCh := make(chan mgr.ContainerStats)
+		go func() {
+			if err := h.containerManager.StreamContainerStats(statsCtx, session.ContainerID, statsCh); err != nil {
+				log.Printf("Stats streaming ended: %v", err)
+			}
+		}()
+
+		for stats := range statsCh {
+			statsData, _ := json.Marshal(stats)
+			session.SendMessage(TerminalMessage{
+				Type: "stats",
+				Data: string(statsData),
+			})
+		}
+	}()
+
 	maxRestarts := 10 // Prevent infinite restart loops
 	restartCount := 0
 

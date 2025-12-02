@@ -1226,3 +1226,77 @@ func (m *Manager) RecreateContainer(ctx context.Context, cfg RecreateContainerCo
 
 	return m.CreateContainer(ctx, containerCfg)
 }
+
+// ContainerStats represents simplified container resource usage
+type ContainerStats struct {
+	CPUPercent  float64 `json:"cpu_percent"`
+	Memory      float64 `json:"memory"`       // in bytes
+	MemoryLimit float64 `json:"memory_limit"` // in bytes
+}
+
+// StreamContainerStats streams container stats to the provided channel
+func (m *Manager) StreamContainerStats(ctx context.Context, containerID string, statsCh chan<- ContainerStats) error {
+	stats, err := m.client.ContainerStats(ctx, containerID, true)
+	if err != nil {
+		return err
+	}
+	defer stats.Body.Close()
+
+	decoder := json.NewDecoder(stats.Body)
+	var previousCPU uint64
+	var previousSystem uint64
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+			var v *container.StatsResponse
+			if err := decoder.Decode(&v); err != nil {
+				if err == io.EOF {
+					return nil
+				}
+				return err
+			}
+
+			// Calculate CPU percent
+			// Based on: https://github.com/docker/cli/blob/master/cli/command/container/stats_helpers.go
+			var cpuPercent = 0.0
+			previousCPU = v.PreCPUStats.CPUUsage.TotalUsage
+			previousSystem = v.PreCPUStats.SystemUsage
+
+			// If PreCPUStats is empty (first reading), use the values from the struct if available
+			// Docker API sometimes returns 0 for PreCPUStats on the first read
+			if previousCPU == 0 && previousSystem == 0 {
+				// We can't calculate CPU usage without a delta, so skip this reading
+				// or just send 0.
+			} else {
+				cpuDelta := float64(v.CPUStats.CPUUsage.TotalUsage) - float64(previousCPU)
+				systemDelta := float64(v.CPUStats.SystemUsage) - float64(previousSystem)
+
+				if systemDelta > 0.0 && cpuDelta > 0.0 {
+					cpuPercent = (cpuDelta / systemDelta) * float64(len(v.CPUStats.CPUUsage.PercpuUsage)) * 100.0
+				}
+			}
+
+			// Calculate Memory usage
+			// On cgroup v1, Cache is included in Usage, so we subtract it
+			// On cgroup v2, it might be different, but for simplicity we use Usage - Stats["cache"]
+			memUsage := float64(v.MemoryStats.Usage)
+			if v.MemoryStats.Stats != nil {
+				if cache, ok := v.MemoryStats.Stats["cache"]; ok {
+					memUsage -= float64(cache)
+				} else if inactiveFile, ok := v.MemoryStats.Stats["inactive_file"]; ok {
+					// cgroup v2
+					memUsage -= float64(inactiveFile)
+				}
+			}
+
+			statsCh <- ContainerStats{
+				CPUPercent:  cpuPercent,
+				Memory:      memUsage,
+				MemoryLimit: float64(v.MemoryStats.Limit),
+			}
+		}
+	}
+}
