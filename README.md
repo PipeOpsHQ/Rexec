@@ -9,7 +9,7 @@ Rexec gives “10x” engineers an instantly-available, network-isolated Linux t
 - **Container lifecycle on demand** – Create, start, stop, and delete per-user sandboxes powered by Docker.
 - **First-class terminal UX** – Real-time streams over WebSockets with `xterm.js`, JetBrains Mono typography, and macOS-style chrome.
 - **Persistent developer context** – Named volumes mounted at `/home/user` so work survives restarts.
-- **Security-aware defaults** – JWT auth, rate limiting, no-new-privileges Docker profiles, and optional Redis-backed sessions.
+- **Security-aware defaults** – JWT auth, rate limiting, no-new-privileges Docker profiles.
 - **Payments built in** – Stripe subscriptions, checkout, and customer portal flows wired into the API.
 - **Ops visibility** – Health checks, stats endpoints, container cleanup workers, and structured logging.
 
@@ -18,7 +18,7 @@ Rexec gives “10x” engineers an instantly-available, network-isolated Linux t
 ## Architecture at a Glance
 
 ```
-[Browser UI] ←→ [Gin API] ←→ [PostgreSQL | Redis]
+[Browser UI] ←→ [Gin API] ←→ [PostgreSQL]
       │                       │
       └── WebSocket / REST ───┤
                               ↓
@@ -32,7 +32,7 @@ Rexec gives “10x” engineers an instantly-available, network-isolated Linux t
 | Frontend    | HTML/CSS/JS, `xterm.js`, Inter + JetBrains Mono fonts |
 | API         | Go 1.22+, Gin, JWT, custom middleware                 |
 | Workers     | Container cleanup service, Stripe webhook handler     |
-| Persistence | PostgreSQL (users/containers), Redis (sessions/cache) |
+| Persistence | PostgreSQL (users/containers) |
 | Billing     | Stripe SDK (`stripe-go`)                              |
 | Containers  | Docker SDK with Ubuntu/Debian/Alpine/Fedora images    |
 
@@ -65,7 +65,7 @@ cd docker
 docker compose up --build
 ```
 
-This spins up the API, Redis, and PostgreSQL with volumes persisted via Docker.
+This spins up the API and PostgreSQL with volumes persisted via Docker.
 
 ---
 
@@ -75,7 +75,7 @@ This spins up the API, Redis, and PostgreSQL with volumes persisted via Docker.
 | ------------------------- | --------------------------------------------------------------- |
 | `PORT`                    | `8080` – API listen port                                        |
 | `DATABASE_URL`            | `postgres://rexec:rexec@localhost:5432/rexec?sslmode=disable`   |
-| `REDIS_URL`               | `redis://localhost:6379` (optional but enables sticky sessions) |
+
 | `JWT_SECRET`              | **Required** – used for signing auth tokens                     |
 | `STRIPE_SECRET_KEY`       | Enables billing endpoints when set                              |
 | `STRIPE_WEBHOOK_SECRET`   | Required for webhook verification                               |

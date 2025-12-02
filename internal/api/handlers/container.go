@@ -466,6 +466,11 @@ func (h *ContainerHandler) Delete(c *gin.Context) {
 		return
 	}
 
+	// Notify via WebSocket
+	if h.eventsHub != nil {
+		h.eventsHub.NotifyContainerDeleted(userID, dockerID)
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "container deleted",
 		"id":      dockerID,
@@ -572,6 +577,15 @@ func (h *ContainerHandler) Start(c *gin.Context) {
 	// Update status in database
 	h.store.UpdateContainerStatus(ctx, found.ID, "running")
 
+	// Notify via WebSocket
+	if h.eventsHub != nil {
+		h.eventsHub.NotifyContainerStarted(userID, gin.H{
+			"id":     dockerID,
+			"name":   found.Name,
+			"status": "running",
+		})
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "container started",
 		"id":      dockerID,
@@ -619,6 +633,15 @@ func (h *ContainerHandler) Stop(c *gin.Context) {
 
 	// Update status in database
 	h.store.UpdateContainerStatus(ctx, found.ID, "stopped")
+
+	// Notify via WebSocket
+	if h.eventsHub != nil {
+		h.eventsHub.NotifyContainerStopped(userID, gin.H{
+			"id":     dockerID,
+			"name":   found.Name,
+			"status": "stopped",
+		})
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "container stopped",
@@ -994,6 +1017,26 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 		response["guest"] = true
 		response["expires_at"] = time.Now().Add(GuestMaxContainerDuration).Format(time.RFC3339)
 		response["session_limit_seconds"] = int(GuestMaxContainerDuration.Seconds())
+	}
+
+	// Notify via WebSocket
+	if h.eventsHub != nil {
+		limits := models.TierLimits(tier)
+		h.eventsHub.NotifyContainerCreated(userID, gin.H{
+			"id":         info.ID,
+			"db_id":      record.ID,
+			"user_id":    info.UserID,
+			"name":       containerName,
+			"image":      storedImageName,
+			"status":     info.Status,
+			"created_at": info.CreatedAt,
+			"ip_address": info.IPAddress,
+			"resources": gin.H{
+				"memory_mb":  limits.MemoryMB,
+				"cpu_shares": limits.CPUShares,
+				"disk_mb":    limits.DiskMB,
+			},
+		})
 	}
 
 	responseJSON, _ := json.Marshal(response)

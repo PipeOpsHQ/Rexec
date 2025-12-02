@@ -21,11 +21,10 @@
 #   DOCKER_CLIENT_KEY  - Client private key content (PEM format)
 #
 # For SSH connections:
-#   SSH_PRIVATE_KEY    - SSH private key content for authentication
-#
-# Database:
+#   PORT               - HTTP port (default: 8080)
+#   GIN_MODE           - Gin mode: debug or release (default: release)
 #   DATABASE_URL       - PostgreSQL connection string
-#   REDIS_URL          - Redis connection string (optional)
+#   JWT_SECRET         - Secret for signing JWT tokens
 
 # Frontend build stage
 FROM node:20-alpine AS frontend-builder

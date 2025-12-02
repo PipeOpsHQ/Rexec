@@ -7,7 +7,7 @@ This guide explains how to deploy Rexec with a remote Docker daemon. This is the
 ```
 [ Rexec Container ]  ----(TLS/TCP)---->  [ Docker Host VM ]
       │                                        │
-      └─> [PostgreSQL / Redis]                 └─> [User Containers]
+      └─> [PostgreSQL]                 └─> [User Containers]
 ```
 
 ## When to use this?
@@ -21,7 +21,7 @@ This guide explains how to deploy Rexec with a remote Docker daemon. This is the
 
 - A Linux VM for the Docker host (Hetzner, DigitalOcean, Linode, Fly.io, etc.)
 - A PostgreSQL database
-- Redis (optional, recommended)
+
 
 ## Step 1: Set Up the Docker Host
 
@@ -93,7 +93,7 @@ Make sure to set the environment variables in `docker-compose.yml` or a `.env` f
 
 | Variable            | Default | Description                           |
 | ------------------- | ------- | ------------------------------------- |
-| `REDIS_URL`         | -       | Redis connection string (recommended) |
+
 | `PORT`              | `8080`  | API server port                       |
 | `GIN_MODE`          | -       | Set to `release` for production       |
 | `STRIPE_SECRET_KEY` | -       | For billing features                  |
@@ -182,6 +182,6 @@ sudo journalctl -u docker -f
 | Docker Host VM | Fly.io           | ~$7        |
 | Rexec API      | Railway/PipeOps  | ~$5-10     |
 | PostgreSQL     | Railway/Supabase | $0-5       |
-| Redis          | Upstash          | $0-5       |
+
 
 **Total: ~$15-25/month** for a basic setup

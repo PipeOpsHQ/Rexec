@@ -770,25 +770,158 @@ export interface ProgressEvent {
 // Export the store
 export const containers = createContainersStore();
 
-// Auto-refresh interval (in milliseconds)
-const REFRESH_INTERVAL = 5000; // 5 seconds
-let refreshInterval: ReturnType<typeof setInterval> | null = null;
+// WebSocket connection for real-time updates
+let eventsSocket: WebSocket | null = null;
+let reconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 5;
+const RECONNECT_DELAY = 3000;
 
-// Start auto-refresh polling
-export function startAutoRefresh() {
-  if (refreshInterval) return; // Already running
-  
-  refreshInterval = setInterval(() => {
-    // Only refresh if we have a token (user is logged in)
-    const currentToken = get(token);
-    if (currentToken) {
-      containers.fetchContainers();
-    }
-  }, REFRESH_INTERVAL);
+// Get WebSocket URL
+function getWebSocketUrl(): string {
+  const currentToken = get(token);
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const host = window.location.host;
+  return `${protocol}//${host}/api/containers/events?token=${currentToken}`;
 }
 
-// Stop auto-refresh polling
+// Start WebSocket connection for real-time container updates
+export function startContainerEvents() {
+  if (eventsSocket?.readyState === WebSocket.OPEN) return;
+
+  const currentToken = get(token);
+  if (!currentToken) return;
+
+  try {
+    eventsSocket = new WebSocket(getWebSocketUrl());
+
+    eventsSocket.onopen = () => {
+      console.log("[ContainerEvents] WebSocket connected");
+      reconnectAttempts = 0;
+    };
+
+    eventsSocket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        handleContainerEvent(data);
+      } catch (e) {
+        console.error("[ContainerEvents] Failed to parse message:", e);
+      }
+    };
+
+    eventsSocket.onclose = (event) => {
+      console.log("[ContainerEvents] WebSocket closed:", event.code);
+      eventsSocket = null;
+
+      // Attempt to reconnect if not intentionally closed
+      if (event.code !== 1000 && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+        reconnectAttempts++;
+        console.log(`[ContainerEvents] Reconnecting (attempt ${reconnectAttempts})...`);
+        setTimeout(startContainerEvents, RECONNECT_DELAY);
+      }
+    };
+
+    eventsSocket.onerror = (error) => {
+      console.error("[ContainerEvents] WebSocket error:", error);
+    };
+  } catch (e) {
+    console.error("[ContainerEvents] Failed to create WebSocket:", e);
+  }
+}
+
+// Stop WebSocket connection
+export function stopContainerEvents() {
+  if (eventsSocket) {
+    eventsSocket.close(1000, "User logged out");
+    eventsSocket = null;
+  }
+  reconnectAttempts = 0;
+}
+
+// Handle incoming container events
+function handleContainerEvent(event: {
+  type: string;
+  container: any;
+  timestamp: string;
+}) {
+  const { type, container: containerData } = event;
+
+  switch (type) {
+    case "list":
+      // Full container list received
+      containers.update((state) => ({
+        ...state,
+        containers: containerData.containers || [],
+        limit: containerData.limit || 2,
+        isLoading: false,
+      }));
+      break;
+
+    case "created":
+      // New container created
+      containers.update((state) => ({
+        ...state,
+        containers: [
+          containerData,
+          ...state.containers.filter(
+            (c) => c.id !== containerData.id && c.db_id !== containerData.id
+          ),
+        ],
+      }));
+      break;
+
+    case "started":
+    case "stopped":
+    case "updated":
+      // Container status changed
+      containers.update((state) => ({
+        ...state,
+        containers: state.containers.map((c) =>
+          c.id === containerData.id
+            ? { ...c, status: containerData.status }
+            : c
+        ),
+      }));
+      break;
+
+    case "deleted":
+      // Container deleted
+      containers.update((state) => ({
+        ...state,
+        containers: state.containers.filter((c) => c.id !== containerData.id),
+      }));
+      break;
+
+    default:
+      console.log("[ContainerEvents] Unknown event type:", type);
+  }
+}
+
+// Legacy polling functions (kept for fallback)
+let refreshInterval: ReturnType<typeof setInterval> | null = null;
+
+export function startAutoRefresh() {
+  // Try WebSocket first
+  startContainerEvents();
+  
+  // Fallback to polling if WebSocket fails after a delay
+  setTimeout(() => {
+    if (!eventsSocket || eventsSocket.readyState !== WebSocket.OPEN) {
+      console.log("[ContainerEvents] WebSocket not available, falling back to polling");
+      if (refreshInterval) return;
+      
+      refreshInterval = setInterval(() => {
+        const currentToken = get(token);
+        if (currentToken) {
+          containers.fetchContainers();
+        }
+      }, 5000);
+    }
+  }, 2000);
+}
+
 export function stopAutoRefresh() {
+  stopContainerEvents();
+  
   if (refreshInterval) {
     clearInterval(refreshInterval);
     refreshInterval = null;

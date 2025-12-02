@@ -41,22 +41,6 @@ func main() {
 	defer store.Close()
 	log.Println("✅ Connected to PostgreSQL")
 
-	// Initialize Redis store (optional)
-	var redisStore *storage.RedisStore
-	redisURL := os.Getenv("REDIS_URL")
-	if redisURL == "" {
-		redisURL = "redis://localhost:6379"
-	}
-
-	redisStore, err = storage.NewRedisStore(redisURL)
-	if err != nil {
-		log.Printf("⚠️  Redis not available (sessions will be stateless): %v", err)
-		redisStore = nil
-	} else {
-		defer redisStore.Close()
-		log.Println("✅ Connected to Redis")
-	}
-
 	// Initialize container manager
 	containerManager, err := container.NewManager()
 	if err != nil {
@@ -120,6 +104,8 @@ func main() {
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(store)
 	containerHandler := handlers.NewContainerHandler(containerManager, store)
+	containerEventsHub := handlers.NewContainerEventsHub(containerManager, store)
+	containerHandler.SetEventsHub(containerEventsHub)
 	terminalHandler := handlers.NewTerminalHandler(containerManager)
 	fileHandler := handlers.NewFileHandler(containerManager, store)
 	sshHandler := handlers.NewSSHHandler(store, containerManager)
@@ -153,17 +139,6 @@ func main() {
 			"docker":             "connected",
 			"containers_total":   stats.Total,
 			"containers_running": stats.Running,
-		}
-
-		// Check Redis
-		if redisStore != nil {
-			if err := redisStore.Ping(context.Background()); err == nil {
-				health["redis"] = "connected"
-			} else {
-				health["redis"] = "disconnected"
-			}
-		} else {
-			health["redis"] = "not configured"
 		}
 
 		c.JSON(200, health)
@@ -228,6 +203,9 @@ func main() {
 			ssh.GET("/status/:containerId", sshHandler.CheckSSHStatus)
 			ssh.POST("/install/:containerId", sshHandler.InstallSSH)
 		}
+
+		// WebSocket for real-time container events
+		api.GET("/containers/events", containerEventsHub.HandleWebSocket)
 
 		// Billing endpoints (if enabled)
 		if billingHandler != nil {
