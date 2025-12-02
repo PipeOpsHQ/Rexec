@@ -1,20 +1,14 @@
 <script lang="ts">
-    import { onMount, onDestroy, tick } from "svelte";
-    import {
-        terminal,
-        activeSession,
-        sessionCount,
-        isFloating,
-    } from "$stores/terminal";
+    import { onMount, onDestroy, tick, createEventDispatcher } from "svelte";
+    import { terminal, sessionCount, isFloating } from "$stores/terminal";
     import TerminalPanel from "./TerminalPanel.svelte";
+
+    const dispatch = createEventDispatcher<{
+        create: void;
+    }>();
 
     // Track view mode changes to force terminal re-render
     let viewModeKey = 0;
-
-    // Get active container ID for new tab functionality
-    $: activeContainerId = $activeSession?.containerId || null;
-    $: activeContainerName =
-        $activeSession?.name?.replace(/\s*\(\d+\)$/, "") || "Terminal";
 
     // Floating window state
     let isDragging = false;
@@ -88,9 +82,11 @@
         terminal.toggleViewMode();
         // Increment key to force re-render of terminal panels
         viewModeKey++;
-        // Wait for DOM update then fit terminals
+        // Wait for DOM update then fit terminals with multiple attempts
         await tick();
         setTimeout(() => terminal.fitAll(), 100);
+        setTimeout(() => terminal.fitAll(), 300);
+        setTimeout(() => terminal.fitAll(), 500);
     }
 
     function minimize() {
@@ -126,11 +122,9 @@
         }
     }
 
-    // Create a new tab for the active container
-    function createNewTab() {
-        if (activeContainerId) {
-            terminal.createNewTab(activeContainerId, activeContainerName);
-        }
+    // Open create terminal view to create a new terminal
+    function createNewTerminal() {
+        dispatch("create");
     }
 
     // Window event listeners
@@ -189,8 +183,8 @@
 
                     <div class="floating-actions">
                         <button
-                            on:click={createNewTab}
-                            title="New Tab"
+                            on:click={createNewTerminal}
+                            title="New Terminal"
                             class="new-tab-btn"
                         >
                             +
@@ -272,10 +266,9 @@
                 <div class="docked-actions">
                     <button
                         class="btn btn-primary btn-sm"
-                        on:click={createNewTab}
-                        title="New Tab"
+                        on:click={createNewTerminal}
                     >
-                        + New Tab
+                        + New Terminal
                     </button>
                     <button
                         class="btn btn-secondary btn-sm"

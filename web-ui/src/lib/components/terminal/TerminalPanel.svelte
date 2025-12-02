@@ -18,26 +18,11 @@
         // Wait for DOM to be ready
         await tick();
 
-        // Clear container before reattaching
-        containerElement.innerHTML = "";
-
         try {
-            // Check if terminal is already attached somewhere else
-            if (session.terminal.element?.parentElement) {
-                // Detach from previous parent first
-                session.terminal.element.parentElement.innerHTML = "";
-            }
-
-            session.terminal.open(containerElement);
+            // Use the store's reattachTerminal method which properly handles
+            // ResizeObserver cleanup and setup for the new container
+            terminal.reattachTerminal(session.id, containerElement);
             attachedToContainer = containerElement;
-
-            // Fit and focus after attachment with a small delay
-            setTimeout(() => {
-                if (session?.terminal && containerElement) {
-                    terminal.fitSession(session.id);
-                    session.terminal.focus();
-                }
-            }, 50);
         } catch (e) {
             console.error("Failed to attach terminal:", e);
             // Try to recover by recreating attachment
@@ -49,7 +34,8 @@
         if (containerElement && session) {
             if (session.terminal?.element) {
                 // Terminal already exists, reattach to new container
-                await ensureAttached();
+                terminal.reattachTerminal(session.id, containerElement);
+                attachedToContainer = containerElement;
             } else {
                 // First time - let the store create and attach the terminal
                 terminal.attachTerminal(session.id, containerElement);
@@ -64,13 +50,6 @@
             ) {
                 terminal.connectWebSocket(session.id);
             }
-
-            // Fit terminal after mount
-            setTimeout(() => {
-                if (session?.terminal) {
-                    terminal.fitSession(session.id);
-                }
-            }, 100);
         }
     });
 
@@ -348,6 +327,8 @@
     .terminal-container {
         flex: 1;
         width: 100%;
+        height: 0;
+        min-height: 100px;
         overflow: hidden;
         padding: 8px;
     }
@@ -367,6 +348,7 @@
 
     .terminal-container :global(.xterm-screen) {
         height: 100% !important;
+        width: 100% !important;
     }
 
     /* Connection Overlay */

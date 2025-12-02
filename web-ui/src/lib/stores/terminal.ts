@@ -653,6 +653,9 @@ function createTerminalStore() {
       // Re-open terminal in new container
       session.terminal.open(element);
 
+      // Force a refresh to ensure proper rendering after reattachment
+      session.terminal.refresh(0, session.terminal.rows - 1);
+
       // Setup new resize observer
       if (window.ResizeObserver) {
         const resizeObserver = new ResizeObserver(() => {
@@ -662,12 +665,14 @@ function createTerminalStore() {
         updateSession(sessionId, (s) => ({ ...s, resizeObserver }));
       }
 
-      // Fit and focus
+      // Multiple fit attempts to ensure proper sizing after view mode switch
       setTimeout(() => {
         this.fitSession(sessionId);
         session.terminal.focus();
       }, 50);
       setTimeout(() => this.fitSession(sessionId), 150);
+      setTimeout(() => this.fitSession(sessionId), 300);
+      setTimeout(() => this.fitSession(sessionId), 500);
     },
 
     // Write to terminal

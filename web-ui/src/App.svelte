@@ -264,7 +264,7 @@
 
         <!-- Terminal overlay (floating or docked) -->
         {#if $hasSessions}
-            <TerminalView />
+            <TerminalView on:create={goToCreate} />
         {/if}
 
         <!-- Toast notifications -->
