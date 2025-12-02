@@ -347,6 +347,15 @@
                                 </button>
                             </button>
                         {/each}
+                        <button
+                            class="new-tab-btn"
+                            on:click={() => {
+                                showCreatePanel = true;
+                            }}
+                            title="New Terminal"
+                        >
+                            + New
+                        </button>
                     </div>
 
                     <div class="floating-actions">

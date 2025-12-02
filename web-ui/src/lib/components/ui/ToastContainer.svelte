@@ -49,7 +49,7 @@
     position: fixed;
     top: 20px;
     right: 20px;
-    z-index: 10000;
+    z-index: 900; /* Below modals (1000+) but above most UI */
     display: flex;
     flex-direction: column;
     gap: 8px;
