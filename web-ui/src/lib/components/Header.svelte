@@ -569,4 +569,102 @@
             transform: translateY(0);
         }
     }
+
+    /* Mobile responsive styles */
+    @media (max-width: 768px) {
+        .header {
+            padding: 10px 12px;
+        }
+
+        .logo-text {
+            display: none;
+        }
+
+        .nav-actions {
+            gap: 8px;
+        }
+
+        .terminal-status {
+            padding: 3px 8px;
+            font-size: 10px;
+        }
+
+        .user-badge {
+            padding: 4px 8px;
+            gap: 6px;
+        }
+
+        .user-name {
+            display: none;
+        }
+
+        .guest-badge {
+            font-size: 8px;
+            padding: 1px 3px;
+        }
+
+        .countdown-badge {
+            font-size: 9px;
+            padding: 1px 4px;
+        }
+
+        .dropdown-arrow {
+            display: none;
+        }
+
+        .user-menu {
+            right: -8px;
+            min-width: 200px;
+        }
+
+        .btn-sm {
+            padding: 6px 10px;
+            font-size: 11px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .header {
+            padding: 8px 10px;
+        }
+
+        .logo-icon {
+            width: 22px;
+            height: 22px;
+            font-size: 12px;
+        }
+
+        .terminal-status {
+            display: none;
+        }
+
+        .user-badge {
+            padding: 3px 6px;
+            gap: 4px;
+        }
+
+        .user-avatar {
+            width: 18px;
+            height: 18px;
+            font-size: 9px;
+        }
+
+        .guest-badge {
+            font-size: 7px;
+        }
+
+        .countdown-badge {
+            font-size: 8px;
+            padding: 1px 3px;
+        }
+
+        .user-menu {
+            position: fixed;
+            left: 10px;
+            right: 10px;
+            top: 50px;
+            min-width: auto;
+            width: calc(100% - 20px);
+        }
+    }
 </style>
