@@ -108,6 +108,12 @@ func (s *PostgresStore) migrate() error {
 				ALTER TABLE users ADD COLUMN pipeops_id VARCHAR(255);
 			END IF;
 		END $$`,
+		`DO $$ BEGIN
+			IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+				WHERE table_name='containers' AND column_name='deleted_at') THEN
+				ALTER TABLE containers ADD COLUMN deleted_at TIMESTAMP WITH TIME ZONE;
+			END IF;
+		END $$`,
 	}
 
 	for _, query := range addColumns {
@@ -456,11 +462,11 @@ func (s *PostgresStore) CreateContainer(ctx context.Context, container *Containe
 	return err
 }
 
-// GetContainersByUserID retrieves all containers for a user
+// GetContainersByUserID retrieves all non-deleted containers for a user
 func (s *PostgresStore) GetContainersByUserID(ctx context.Context, userID string) ([]*ContainerRecord, error) {
 	query := `
 		SELECT id, user_id, name, image, status, docker_id, volume_name, created_at, last_used_at
-		FROM containers WHERE user_id = $1
+		FROM containers WHERE user_id = $1 AND deleted_at IS NULL
 		ORDER BY created_at DESC
 	`
 	rows, err := s.db.QueryContext(ctx, query, userID)
@@ -491,12 +497,12 @@ func (s *PostgresStore) GetContainersByUserID(ctx context.Context, userID string
 	return containers, nil
 }
 
-// GetContainerByID retrieves a container by ID
+// GetContainerByID retrieves a non-deleted container by ID
 func (s *PostgresStore) GetContainerByID(ctx context.Context, id string) (*ContainerRecord, error) {
 	var c ContainerRecord
 	query := `
 		SELECT id, user_id, name, image, status, docker_id, volume_name, created_at, last_used_at
-		FROM containers WHERE id = $1
+		FROM containers WHERE id = $1 AND deleted_at IS NULL
 	`
 	row := s.db.QueryRowContext(ctx, query, id)
 	err := row.Scan(
@@ -519,12 +525,12 @@ func (s *PostgresStore) GetContainerByID(ctx context.Context, id string) (*Conta
 	return &c, nil
 }
 
-// GetContainerByUserAndDockerID retrieves a container by user ID and docker ID
+// GetContainerByUserAndDockerID retrieves a non-deleted container by user ID and docker ID
 func (s *PostgresStore) GetContainerByUserAndDockerID(ctx context.Context, userID, dockerID string) (*ContainerRecord, error) {
 	var c ContainerRecord
 	query := `
 		SELECT id, user_id, name, image, status, docker_id, volume_name, created_at, last_used_at
-		FROM containers WHERE user_id = $1 AND docker_id = $2
+		FROM containers WHERE user_id = $1 AND docker_id = $2 AND deleted_at IS NULL
 	`
 	row := s.db.QueryRowContext(ctx, query, userID, dockerID)
 	err := row.Scan(
@@ -547,9 +553,9 @@ func (s *PostgresStore) GetContainerByUserAndDockerID(ctx context.Context, userI
 	return &c, nil
 }
 
-// UpdateContainerStatus updates a container's status
+// UpdateContainerStatus updates a container's status (only for non-deleted containers)
 func (s *PostgresStore) UpdateContainerStatus(ctx context.Context, id, status string) error {
-	query := `UPDATE containers SET status = $2, last_used_at = $3 WHERE id = $1`
+	query := `UPDATE containers SET status = $2, last_used_at = $3 WHERE id = $1 AND deleted_at IS NULL`
 	_, err := s.db.ExecContext(ctx, query, id, status, time.Now())
 	return err
 }
@@ -575,9 +581,23 @@ func (s *PostgresStore) UpdateContainerError(ctx context.Context, id, errorMsg s
 	return nil
 }
 
-// DeleteContainer deletes a container record
+// DeleteContainer soft deletes a container record by setting deleted_at
 func (s *PostgresStore) DeleteContainer(ctx context.Context, id string) error {
+	query := `UPDATE containers SET deleted_at = CURRENT_TIMESTAMP, status = 'stopped' WHERE id = $1`
+	_, err := s.db.ExecContext(ctx, query, id)
+	return err
+}
+
+// HardDeleteContainer permanently deletes a container record (for cleanup)
+func (s *PostgresStore) HardDeleteContainer(ctx context.Context, id string) error {
 	query := `DELETE FROM containers WHERE id = $1`
+	_, err := s.db.ExecContext(ctx, query, id)
+	return err
+}
+
+// RestoreContainer restores a soft-deleted container
+func (s *PostgresStore) RestoreContainer(ctx context.Context, id string) error {
+	query := `UPDATE containers SET deleted_at = NULL WHERE id = $1`
 	_, err := s.db.ExecContext(ctx, query, id)
 	return err
 }

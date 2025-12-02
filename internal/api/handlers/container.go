@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math/rand"
 	"net/http"
 	"strings"
@@ -395,7 +396,7 @@ func (h *ContainerHandler) Get(c *gin.Context) {
 	})
 }
 
-// Delete removes a container
+// Delete soft-deletes a container (stops it but doesn't remove)
 func (h *ContainerHandler) Delete(c *gin.Context) {
 	userID := c.GetString("userID")
 	dockerID := c.Param("id")
@@ -428,17 +429,13 @@ func (h *ContainerHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	// Remove from Docker
-	if err := h.manager.RemoveContainer(ctx, dockerID); err != nil {
-		// Log but continue - container might already be removed
-		// Only fail if it's not a "not found" error
-		if _, ok := h.manager.GetContainer(dockerID); ok {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to remove container: " + err.Error()})
-			return
-		}
+	// Stop the container (soft delete - don't remove from Docker)
+	if err := h.manager.StopContainer(ctx, dockerID); err != nil {
+		// Log but continue - container might already be stopped
+		log.Printf("Warning: failed to stop container %s: %v", dockerID, err)
 	}
 
-	// Remove from database
+	// Soft delete in database (sets deleted_at timestamp)
 	if err := h.store.DeleteContainer(ctx, found.ID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete container record"})
 		return

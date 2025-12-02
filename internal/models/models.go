@@ -30,6 +30,7 @@ type Container struct {
 	DockerID   string            `json:"docker_id,omitempty"` // Actual Docker container ID
 	CreatedAt  time.Time         `json:"created_at"`
 	LastUsedAt time.Time         `json:"last_used_at"`
+	DeletedAt  *time.Time        `json:"deleted_at,omitempty"` // Soft delete timestamp
 }
 
 // ContainerStatus represents the state of a container
