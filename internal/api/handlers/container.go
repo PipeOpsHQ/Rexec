@@ -259,7 +259,7 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 	cfg.CPULimit = limits.CPUShares * 1000          // Convert to CPU quota
 
 	// Start async container creation (pull image + create container)
-	go h.createContainerAsync(record.ID, cfg, req.Image, req.CustomImage, isGuest || tier == "guest")
+	go h.createContainerAsync(record.ID, cfg, req.Image, req.CustomImage, req.Role, isGuest || tier == "guest")
 
 	// Return immediately with "creating" status
 	response := gin.H{
@@ -285,7 +285,7 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 }
 
 // createContainerAsync handles the actual container creation in the background
-func (h *ContainerHandler) createContainerAsync(recordID string, cfg container.ContainerConfig, imageType, customImage string, isGuest bool) {
+func (h *ContainerHandler) createContainerAsync(recordID string, cfg container.ContainerConfig, imageType string, customImage string, role string, isGuest bool) {
 	ctx := context.Background()
 
 	// Pull image if needed
@@ -911,9 +911,43 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 		sendEvent(container.ProgressEvent{
 			Stage:    "configuring",
 			Message:  "Enhanced shell configured successfully",
-			Progress: 98,
+			Progress: 95,
 			Detail:   "zsh with oh-my-zsh ready",
 		})
+	}
+
+	// Stage 6: Setup Role (if specified)
+	if req.Role != "" && req.Role != "standard" {
+		sendEvent(container.ProgressEvent{
+			Stage:    "configuring",
+			Message:  fmt.Sprintf("Setting up %s environment...", req.Role),
+			Progress: 96,
+			Detail:   "Installing role-specific tools",
+		})
+
+		roleResult, roleErr := container.SetupRole(ctx, h.manager.GetClient(), info.ID, req.Role)
+		if roleErr != nil {
+			sendEvent(container.ProgressEvent{
+				Stage:    "configuring",
+				Message:  fmt.Sprintf("Role setup failed: %v", roleErr),
+				Progress: 97,
+				Detail:   roleErr.Error(),
+			})
+		} else if !roleResult.Success {
+			sendEvent(container.ProgressEvent{
+				Stage:    "configuring",
+				Message:  fmt.Sprintf("Role setup incomplete: %s", roleResult.Message),
+				Progress: 97,
+				Detail:   roleResult.Output,
+			})
+		} else {
+			sendEvent(container.ProgressEvent{
+				Stage:    "configuring",
+				Message:  fmt.Sprintf("Role %s configured successfully", req.Role),
+				Progress: 98,
+				Detail:   "Tools installed",
+			})
+		}
 	}
 
 	// Stage 6: Ready

@@ -99,6 +99,42 @@ func AvailableImages() []ImageInfo {
 			Description: "Latest Fedora with DNF package manager",
 			Tags:        []string{"latest"},
 		},
+		{
+			Name:        "centos",
+			DisplayName: "CentOS Stream 9",
+			Description: "Enterprise-grade Linux distribution",
+			Tags:        []string{"stream9"},
+		},
+		{
+			Name:        "rocky",
+			DisplayName: "Rocky Linux 9",
+			Description: "Enterprise Linux, CentOS replacement",
+			Tags:        []string{"9"},
+		},
+		{
+			Name:        "alma",
+			DisplayName: "AlmaLinux 9",
+			Description: "Enterprise-grade RHEL fork",
+			Tags:        []string{"9"},
+		},
+		{
+			Name:        "arch",
+			DisplayName: "Arch Linux",
+			Description: "Rolling release, bleeding edge",
+			Tags:        []string{"latest"},
+		},
+		{
+			Name:        "kali",
+			DisplayName: "Kali Linux",
+			Description: "Security and penetration testing",
+			Tags:        []string{"latest"},
+		},
+		{
+			Name:        "parrot",
+			DisplayName: "Parrot OS",
+			Description: "Security, development, and privacy",
+			Tags:        []string{"latest"},
+		},
 	}
 }
 
@@ -141,6 +177,7 @@ type CreateContainerRequest struct {
 	Name        string `json:"name"`                     // Optional - auto-generated if empty
 	Image       string `json:"image" binding:"required"` // Image type (ubuntu, debian, etc.) or "custom"
 	CustomImage string `json:"custom_image,omitempty"`   // Required when Image is "custom"
+	Role        string `json:"role,omitempty"`           // Optional role (node, python, etc.)
 }
 
 // ResizeRequest represents a terminal resize request

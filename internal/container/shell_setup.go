@@ -443,3 +443,66 @@ func GetContainerShell(ctx context.Context, cli *client.Client, containerID stri
 
 	return "/bin/sh"
 }
+
+// SetupRole installs tools for a specific role
+func SetupRole(ctx context.Context, cli *client.Client, containerID string, roleID string) (*SetupShellResponse, error) {
+	script, err := GenerateRoleScript(roleID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create exec configuration
+	execConfig := container.ExecOptions{
+		Cmd:          []string{"/bin/sh", "-c", script},
+		AttachStdout: true,
+		AttachStderr: true,
+		Tty:          false,
+	}
+
+	execResp, err := cli.ContainerExecCreate(ctx, containerID, execConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create exec: %w", err)
+	}
+
+	// Start exec
+	attachResp, err := cli.ContainerExecAttach(ctx, execResp.ID, container.ExecStartOptions{
+		Tty: false,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to attach exec: %w", err)
+	}
+	defer attachResp.Close()
+
+	// Read output
+	var output strings.Builder
+	buf := make([]byte, 4096)
+	for {
+		n, err := attachResp.Reader.Read(buf)
+		if n > 0 {
+			output.Write(buf[:n])
+		}
+		if err != nil {
+			break
+		}
+	}
+
+	// Check exit code
+	inspect, err := cli.ContainerExecInspect(ctx, execResp.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to inspect exec: %w", err)
+	}
+
+	if inspect.ExitCode != 0 {
+		return &SetupShellResponse{
+			Success: false,
+			Message: fmt.Sprintf("Role setup failed for %s", roleID),
+			Output:  output.String(),
+		}, nil
+	}
+
+	return &SetupShellResponse{
+		Success: true,
+		Message: fmt.Sprintf("Role setup complete for %s", roleID),
+		Output:  output.String(),
+	}, nil
+}

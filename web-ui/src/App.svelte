@@ -126,6 +126,28 @@
     // Handle URL-based terminal routing
     async function handleTerminalUrl() {
         const path = window.location.pathname;
+        const params = new URLSearchParams(window.location.search);
+
+        // Check for popped-out terminal window (?terminal=containerId&name=containerName)
+        const terminalParam = params.get("terminal");
+        const nameParam = params.get("name");
+
+        if (terminalParam && $isAuthenticated) {
+            // Clear URL params
+            window.history.replaceState({}, "", window.location.pathname);
+
+            // This is a popped-out terminal window
+            const containerId = terminalParam;
+            const containerName = nameParam || "Terminal";
+
+            // Set to docked mode for full-screen terminal experience
+            terminal.setViewMode("docked");
+            terminal.createSession(containerId, containerName);
+            currentView = "dashboard";
+            return;
+        }
+
+        // Handle path-based routing (/terminal/containerId)
         const match = path.match(
             /^\/(?:terminal\/)?([a-f0-9]{64}|[a-f0-9-]{36})$/i,
         );

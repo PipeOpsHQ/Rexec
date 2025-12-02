@@ -14,6 +14,11 @@
     let isResizing = false;
     let dragOffset = { x: 0, y: 0 };
 
+    // Tab drag-out state
+    let draggingTabId: string | null = null;
+    let tabDragStart: { x: number; y: number } | null = null;
+    let isDraggingTab = false;
+
     // Get state from store
     $: isMinimized = $terminal.isMinimized;
     $: floatingPosition = $terminal.floatingPosition;
@@ -26,6 +31,7 @@
     let selectedImage = "";
     let customImage = "";
     let isCreating = false;
+    let selectedRole = "standard"; // Default role
     let progress = 0;
     let progressMessage = "";
     let progressStage = "";
@@ -44,13 +50,58 @@
         alpine: "🔵",
         fedora: "🔵",
         centos: "🟣",
-        rocky: "🟣",
+        rocky: "🟢",
         alma: "🟣",
         arch: "🔷",
         kali: "🐉",
         parrot: "🦜",
+        mint: "🌿",
+        elementary: "🪶",
+        devuan: "🔘",
+        blackarch: "🖤",
+        manjaro: "🟩",
+        opensuse: "🦎",
+        tumbleweed: "🌀",
+        gentoo: "🗿",
+        void: "⬛",
+        nixos: "❄️",
+        slackware: "📦",
+        busybox: "📦",
+        amazonlinux: "🟧",
+        oracle: "🔶",
+        rhel: "🎩",
+        openeuler: "🔵",
+        clearlinux: "💎",
+        photon: "☀️",
+        raspberrypi: "🍓",
+        scientific: "🔬",
+        rancheros: "🐄",
         custom: "📦",
     };
+
+    // Available roles
+    const roles = [
+        {
+            id: "standard",
+            name: "Standard",
+            icon: "🛠️",
+            desc: "Basic tools (git, curl, vim)",
+        },
+        { id: "node", name: "Node.js", icon: "🟢", desc: "Node.js, npm, yarn" },
+        {
+            id: "python",
+            name: "Python",
+            icon: "🐍",
+            desc: "Python 3, pip, venv",
+        },
+        { id: "go", name: "Go", icon: "🐹", desc: "Go environment" },
+        {
+            id: "devops",
+            name: "DevOps",
+            icon: "☸️",
+            desc: "Docker, kubectl, terraform",
+        },
+    ];
 
     function getIcon(imageName: string): string {
         const lower = imageName.toLowerCase();
@@ -67,7 +118,7 @@
         const { data, error } = await api.get<{
             images?: typeof images;
             popular?: typeof images;
-        }>("/api/images");
+        }>("/api/images?all=true");
 
         if (data) {
             images = data.images || data.popular || [];
@@ -151,6 +202,7 @@
             name,
             image,
             custom,
+            selectedRole,
             // onProgress
             (event: ProgressEvent) => {
                 progress = event.progress || 0;
@@ -190,8 +242,10 @@
     function closeCreatePanel() {
         if (!isCreating) {
             showCreatePanel = false;
+            showCreatePanel = false;
             selectedImage = "";
             customImage = "";
+            selectedRole = "standard";
         }
     }
 
@@ -295,15 +349,83 @@
         }
     }
 
+    // Tab drag-out handlers for popping terminal to new window
+    function handleTabDragStart(event: MouseEvent, sessionId: string) {
+        if (event.button !== 0) return; // Only left click
+
+        draggingTabId = sessionId;
+        tabDragStart = { x: event.clientX, y: event.clientY };
+        isDraggingTab = false;
+
+        event.preventDefault();
+    }
+
+    function handleTabDragMove(event: MouseEvent) {
+        if (!draggingTabId || !tabDragStart) return;
+
+        const dx = Math.abs(event.clientX - tabDragStart.x);
+        const dy = Math.abs(event.clientY - tabDragStart.y);
+
+        // Consider it a drag if moved more than 20px
+        if (dx > 20 || dy > 20) {
+            isDraggingTab = true;
+        }
+    }
+
+    function handleTabDragEnd(event: MouseEvent) {
+        if (draggingTabId && isDraggingTab) {
+            // Pop the terminal out to a new browser window
+            popOutTerminal(draggingTabId, event.clientX, event.clientY);
+        }
+
+        draggingTabId = null;
+        tabDragStart = null;
+        isDraggingTab = false;
+    }
+
+    function popOutTerminal(sessionId: string, x: number, y: number) {
+        const session = $terminal.sessions.get(sessionId);
+        if (!session) return;
+
+        // Get container info
+        const containerId = session.containerId;
+        const containerName = session.containerName;
+
+        // Calculate window position (offset from cursor)
+        const windowWidth = 800;
+        const windowHeight = 600;
+        const left = Math.max(0, x - 50);
+        const top = Math.max(0, y - 30);
+
+        // Open new window with the terminal
+        const newWindow = window.open(
+            `${window.location.origin}?terminal=${containerId}&name=${encodeURIComponent(containerName)}`,
+            `terminal_${containerId}`,
+            `width=${windowWidth},height=${windowHeight},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no`,
+        );
+
+        if (newWindow) {
+            // Close the session in current window
+            terminal.closeSession(sessionId);
+            toast.success(`Popped out "${containerName}" to new window`);
+        } else {
+            toast.error("Failed to open new window. Check popup blocker.");
+        }
+    }
+
     // Window event listeners
     onMount(() => {
         window.addEventListener("mousemove", handleMouseMove);
         window.addEventListener("mouseup", handleMouseUp);
+        window.addEventListener("mousemove", handleTabDragMove);
+        window.addEventListener("mouseup", handleTabDragEnd);
     });
 
     onDestroy(() => {
         window.removeEventListener("mousemove", handleMouseMove);
         window.removeEventListener("mouseup", handleMouseUp);
+        window.removeEventListener("mousemove", handleTabDragMove);
+        window.removeEventListener("mouseup", handleTabDragEnd);
     });
 </script>
 
@@ -329,14 +451,20 @@
                             <button
                                 class="floating-tab"
                                 class:active={id === activeId}
+                                class:dragging={draggingTabId === id &&
+                                    isDraggingTab}
                                 on:click={() => setActive(id)}
+                                on:mousedown={(e) => handleTabDragStart(e, id)}
+                                title="Drag out to pop to new window"
                             >
                                 <span
                                     class="status-dot {getStatusClass(
                                         session.status,
                                     )}"
                                 ></span>
-                                <span class="tab-name">{session.name}</span>
+                                <span class="tab-name"
+                                    >{session.containerName}</span
+                                >
                                 <button
                                     class="tab-close"
                                     on:click|stopPropagation={() =>
@@ -359,13 +487,6 @@
                     </div>
 
                     <div class="floating-actions">
-                        <button
-                            on:click={openCreatePanel}
-                            title="New Terminal"
-                            class="new-tab-btn"
-                        >
-                            +
-                        </button>
                         <button on:click={toggleViewMode} title="Dock Terminal">
                             ⬒ Dock
                         </button>
@@ -438,6 +559,38 @@
                                 </div>
                             {/if}
                         </div>
+
+                        <div
+                            class="role-selection"
+                            style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border);"
+                        >
+                            <div
+                                class="create-panel-header"
+                                style="border: none; margin-bottom: 8px; padding: 0;"
+                            >
+                                <h3>Select Role</h3>
+                            </div>
+                            <div class="os-grid">
+                                {#each roles as role}
+                                    <button
+                                        class="os-card"
+                                        class:selected={selectedRole ===
+                                            role.id}
+                                        on:click={() =>
+                                            (selectedRole = role.id)}
+                                        title={role.desc}
+                                    >
+                                        <span class="os-icon">{role.icon}</span>
+                                        <span class="os-name">{role.name}</span>
+                                    </button>
+                                {/each}
+                            </div>
+                            <p
+                                style="font-size: 11px; color: var(--text-muted); margin-top: 8px; font-family: var(--font-mono);"
+                            >
+                                {roles.find((r) => r.id === selectedRole)?.desc}
+                            </p>
+                        </div>
                     {:else}
                         {#each sessions as [id, session] (`float-${viewModeKey}-${id}`)}
                             <div
@@ -484,14 +637,19 @@
                         <button
                             class="docked-tab"
                             class:active={id === activeId}
+                            class:dragging={draggingTabId === id &&
+                                isDraggingTab}
                             on:click={() => setActive(id)}
+                            on:mousedown={(e) => handleTabDragStart(e, id)}
+                            title="Drag out to pop to new window"
                         >
                             <span
                                 class="status-dot {getStatusClass(
                                     session.status,
                                 )}"
                             ></span>
-                            <span class="tab-name">{session.name}</span>
+                            <span class="tab-name">{session.containerName}</span
+                            >
                             <button
                                 class="tab-close"
                                 on:click|stopPropagation={() =>
@@ -696,6 +854,18 @@
         color: var(--accent);
     }
 
+    .floating-tab.dragging,
+    .docked-tab.dragging {
+        opacity: 0.5;
+        transform: scale(0.95);
+        cursor: grabbing;
+    }
+
+    .floating-tab:not(.dragging),
+    .docked-tab:not(.dragging) {
+        cursor: grab;
+    }
+
     .floating-actions {
         display: flex;
         gap: 4px;
@@ -715,19 +885,6 @@
 
     .floating-actions button:hover {
         color: var(--text);
-    }
-
-    .floating-actions .new-tab-btn {
-        color: var(--accent);
-        font-weight: bold;
-        font-size: 14px;
-        padding: 2px 10px;
-        border: 1px solid var(--accent);
-    }
-
-    .floating-actions .new-tab-btn:hover {
-        background: var(--accent);
-        color: var(--bg);
     }
 
     .floating-body {
@@ -1009,6 +1166,12 @@
     .os-card:hover {
         border-color: var(--accent);
         background: var(--accent-dim);
+    }
+
+    .os-card.selected {
+        border-color: var(--accent);
+        background: rgba(0, 217, 255, 0.1);
+        box-shadow: 0 0 10px rgba(0, 217, 255, 0.2);
     }
 
     .os-icon {
