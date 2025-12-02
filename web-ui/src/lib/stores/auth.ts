@@ -260,7 +260,8 @@ function createAuthStore() {
 
       try {
         const user = JSON.parse(userJson) as User;
-        if (user.isGuest && user.expiresAt) {
+        // Check both isGuest flag and tier === "guest" for backwards compatibility
+        if ((user.isGuest || user.tier === "guest") && user.expiresAt) {
           const now = Math.floor(Date.now() / 1000);
           return now >= user.expiresAt;
         }
@@ -273,12 +274,38 @@ function createAuthStore() {
     // Check if token is valid
     async validateToken() {
       const token = localStorage.getItem("rexec_token");
-      if (!token) return false;
+      if (!token) {
+        console.log("[Auth] No token found in localStorage");
+        return false;
+      }
 
       // Check if guest session has expired locally first
       if (this.isSessionExpired()) {
+        console.log("[Auth] Session expired locally");
         this.logout();
         return false;
+      }
+
+      // Check local session validity for guests first
+      const userJson = localStorage.getItem("rexec_user");
+      let isGuestWithValidLocalSession = false;
+      if (userJson) {
+        try {
+          const user = JSON.parse(userJson) as User;
+          if ((user.isGuest || user.tier === "guest") && user.expiresAt) {
+            const now = Math.floor(Date.now() / 1000);
+            isGuestWithValidLocalSession = now < user.expiresAt;
+            console.log("[Auth] Guest session check:", {
+              isGuest: user.isGuest,
+              tier: user.tier,
+              expiresAt: user.expiresAt,
+              now,
+              isValid: isGuestWithValidLocalSession,
+            });
+          }
+        } catch {
+          // Ignore parse errors
+        }
       }
 
       try {
@@ -287,38 +314,33 @@ function createAuthStore() {
         });
 
         if (response.ok) {
+          console.log("[Auth] Token validated via API");
           return true;
         }
 
-        // For guests, don't immediately log out on 401 - check local expiration
-        const userJson = localStorage.getItem("rexec_user");
-        if (userJson) {
-          const user = JSON.parse(userJson) as User;
-          if (user.isGuest && user.expiresAt) {
-            const now = Math.floor(Date.now() / 1000);
-            // If session hasn't expired locally, keep the user logged in
-            // This handles temporary network issues
-            if (now < user.expiresAt) {
-              return true;
-            }
-          }
+        console.log("[Auth] API returned non-OK status:", response.status);
+
+        // For guests with valid local session, don't log out on API errors
+        // This handles 401 (expired JWT), 502 (backend down), etc.
+        if (isGuestWithValidLocalSession) {
+          console.log(
+            "[Auth] Guest has valid local session, keeping logged in despite API error",
+          );
+          return true;
         }
 
         return false;
-      } catch {
-        // On network error, check local session validity for guests
-        const userJson = localStorage.getItem("rexec_user");
-        if (userJson) {
-          try {
-            const user = JSON.parse(userJson) as User;
-            if (user.isGuest && user.expiresAt) {
-              const now = Math.floor(Date.now() / 1000);
-              return now < user.expiresAt;
-            }
-          } catch {
-            // Ignore parse errors
-          }
+      } catch (e) {
+        console.log("[Auth] Network error during validation:", e);
+
+        // On network error, keep guests logged in if local session is valid
+        if (isGuestWithValidLocalSession) {
+          console.log(
+            "[Auth] Guest has valid local session, keeping logged in despite network error",
+          );
+          return true;
         }
+
         return false;
       }
     },
@@ -330,7 +352,10 @@ export const auth = createAuthStore();
 
 // Derived stores for convenience
 export const isAuthenticated = derived(auth, ($auth) => !!$auth.token);
-export const isGuest = derived(auth, ($auth) => $auth.user?.isGuest ?? false);
+export const isGuest = derived(
+  auth,
+  ($auth) => $auth.user?.isGuest || $auth.user?.tier === "guest" || false,
+);
 export const userTier = derived(auth, ($auth) => $auth.user?.tier ?? "guest");
 export const token = derived(auth, ($auth) => $auth.token);
 export const sessionExpiresAt = derived(

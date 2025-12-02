@@ -20,6 +20,7 @@
     let showUserMenu = false;
     let timeRemaining = "";
     let countdownInterval: ReturnType<typeof setInterval> | null = null;
+    let isOAuthLoading = false;
 
     function updateCountdown() {
         if (!$sessionExpiresAt) {
@@ -80,9 +81,22 @@
     }
 
     async function handleOAuthLogin() {
-        const url = await auth.getOAuthUrl();
-        if (url) {
-            window.location.href = url;
+        if (isOAuthLoading) return;
+
+        isOAuthLoading = true;
+        try {
+            const url = await auth.getOAuthUrl();
+            if (url) {
+                window.location.href = url;
+            } else {
+                toast.error(
+                    "Unable to connect to PipeOps. Please try again later.",
+                );
+                isOAuthLoading = false;
+            }
+        } catch (e) {
+            toast.error("Failed to connect to PipeOps. Please try again.");
+            isOAuthLoading = false;
         }
     }
 
@@ -222,9 +236,15 @@
                             <button
                                 class="user-menu-item accent"
                                 on:click={handleOAuthLogin}
+                                disabled={isOAuthLoading}
                             >
-                                <span>🔗</span>
-                                Sign in with PipeOps
+                                {#if isOAuthLoading}
+                                    <span class="btn-spinner-sm"></span>
+                                    Connecting...
+                                {:else}
+                                    <span>🔗</span>
+                                    Sign in with PipeOps
+                                {/if}
                             </button>
                         {/if}
 
@@ -247,14 +267,47 @@
             >
                 Try as Guest
             </button>
-            <button class="btn btn-primary btn-sm" on:click={handleOAuthLogin}>
-                Sign in with PipeOps
+            <button
+                class="btn btn-primary btn-sm"
+                on:click={handleOAuthLogin}
+                disabled={isOAuthLoading}
+            >
+                {#if isOAuthLoading}
+                    <span class="btn-spinner-sm"></span>
+                    Connecting...
+                {:else}
+                    Sign in with PipeOps
+                {/if}
             </button>
         {/if}
     </nav>
 </header>
 
 <style>
+    .btn-spinner-sm {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border: 2px solid transparent;
+        border-top-color: currentColor;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-right: 6px;
+        vertical-align: middle;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .btn:disabled,
+    .user-menu-item:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+
     .header {
         display: flex;
         justify-content: space-between;
