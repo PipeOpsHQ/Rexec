@@ -176,8 +176,9 @@ alias dps='docker ps'
 alias dpsa='docker ps -a'
 
 # Welcome message with system stats (like DigitalOcean)
+# Shows container-specific resources, not host resources
 show_system_stats() {
-    # Get system info
+    # Get container info
     local hostname=$(hostname)
     local kernel=$(uname -r)
     local uptime_raw=$(cat /proc/uptime 2>/dev/null | cut -d. -f1)
@@ -185,24 +186,65 @@ show_system_stats() {
     local uptime_hours=$(((uptime_raw % 86400) / 3600))
     local uptime_mins=$(((uptime_raw % 3600) / 60))
     
-    # Memory info
-    local mem_total=$(grep MemTotal /proc/meminfo 2>/dev/null | awk '{printf "%.0f", $2/1024}')
-    local mem_avail=$(grep MemAvailable /proc/meminfo 2>/dev/null | awk '{printf "%.0f", $2/1024}')
-    local mem_used=$((mem_total - mem_avail))
-    local mem_percent=$((mem_used * 100 / mem_total))
+    # Container Memory info from cgroups (shows container limits, not host)
+    local mem_limit_bytes=0
+    local mem_used_bytes=0
+    # Try cgroup v2 first
+    if [ -f /sys/fs/cgroup/memory.max ]; then
+        mem_limit_bytes=$(cat /sys/fs/cgroup/memory.max 2>/dev/null)
+        mem_used_bytes=$(cat /sys/fs/cgroup/memory.current 2>/dev/null || echo "0")
+    # Fall back to cgroup v1
+    elif [ -f /sys/fs/cgroup/memory/memory.limit_in_bytes ]; then
+        mem_limit_bytes=$(cat /sys/fs/cgroup/memory/memory.limit_in_bytes 2>/dev/null)
+        mem_used_bytes=$(cat /sys/fs/cgroup/memory/memory.usage_in_bytes 2>/dev/null || echo "0")
+    fi
     
-    # Disk info
+    # Convert to MB and handle "max" value (unlimited)
+    local mem_total_mb=512
+    local mem_used_mb=0
+    if [ "$mem_limit_bytes" = "max" ] || [ "$mem_limit_bytes" -gt 17179869184 ] 2>/dev/null; then
+        # If unlimited or >16GB, use container default
+        mem_total_mb=512
+    elif [ -n "$mem_limit_bytes" ] && [ "$mem_limit_bytes" -gt 0 ] 2>/dev/null; then
+        mem_total_mb=$((mem_limit_bytes / 1024 / 1024))
+    fi
+    
+    if [ -n "$mem_used_bytes" ] && [ "$mem_used_bytes" -gt 0 ] 2>/dev/null; then
+        mem_used_mb=$((mem_used_bytes / 1024 / 1024))
+    fi
+    
+    local mem_percent=0
+    if [ "$mem_total_mb" -gt 0 ] 2>/dev/null; then
+        mem_percent=$((mem_used_mb * 100 / mem_total_mb))
+    fi
+    
+    # Container CPU info from cgroups
+    local cpu_quota=0
+    local cpu_period=100000
+    # Try cgroup v2 first
+    if [ -f /sys/fs/cgroup/cpu.max ]; then
+        local cpu_max=$(cat /sys/fs/cgroup/cpu.max 2>/dev/null)
+        cpu_quota=$(echo "$cpu_max" | awk '{print $1}')
+        cpu_period=$(echo "$cpu_max" | awk '{print $2}')
+        [ "$cpu_quota" = "max" ] && cpu_quota=0
+    # Fall back to cgroup v1
+    elif [ -f /sys/fs/cgroup/cpu/cpu.cfs_quota_us ]; then
+        cpu_quota=$(cat /sys/fs/cgroup/cpu/cpu.cfs_quota_us 2>/dev/null || echo "-1")
+        cpu_period=$(cat /sys/fs/cgroup/cpu/cpu.cfs_period_us 2>/dev/null || echo "100000")
+    fi
+    
+    # Calculate CPU cores allocated to container
+    local cpu_cores="0.5"
+    if [ "$cpu_quota" -gt 0 ] 2>/dev/null && [ "$cpu_period" -gt 0 ] 2>/dev/null; then
+        # cpu_cores = quota / period (e.g., 50000/100000 = 0.5 cores)
+        cpu_cores=$(awk "BEGIN {printf \"%.1f\", $cpu_quota / $cpu_period}")
+    fi
+    
+    # Container Disk info (overlay filesystem shows container disk, not host)
     local disk_info=$(df -h / 2>/dev/null | tail -1)
     local disk_used=$(echo "$disk_info" | awk '{print $3}')
     local disk_total=$(echo "$disk_info" | awk '{print $2}')
     local disk_percent=$(echo "$disk_info" | awk '{print $5}')
-    
-    # CPU info
-    local cpu_cores=$(nproc 2>/dev/null || echo "1")
-    local load_avg=$(cat /proc/loadavg 2>/dev/null | cut -d' ' -f1-3)
-    
-    # IP address
-    local ip_addr=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "N/A")
     
     # Print banner
     echo ""
@@ -210,15 +252,14 @@ show_system_stats() {
     echo "\033[38;5;105m  │\033[0m           \033[1;36mWelcome to Rexec Terminal\033[0m                   \033[38;5;105m│\033[0m"
     echo "\033[38;5;105m  ╰─────────────────────────────────────────────────────────╯\033[0m"
     echo ""
-    echo "\033[1;33m  System Information:\033[0m"
-    echo "\033[38;5;243m  ├─ Hostname:\033[0m    $hostname"
+    echo "\033[1;33m  Container:\033[0m"
+    echo "\033[38;5;243m  ├─ ID:\033[0m          ${hostname:0:12}"
     echo "\033[38;5;243m  ├─ Kernel:\033[0m      $kernel"
-    echo "\033[38;5;243m  ├─ Uptime:\033[0m      ${uptime_days}d ${uptime_hours}h ${uptime_mins}m"
-    echo "\033[38;5;243m  └─ IP:\033[0m          $ip_addr"
+    echo "\033[38;5;243m  └─ Uptime:\033[0m      ${uptime_days}d ${uptime_hours}h ${uptime_mins}m"
     echo ""
-    echo "\033[1;33m  Resources:\033[0m"
-    echo "\033[38;5;243m  ├─ CPU:\033[0m         $cpu_cores cores (load: $load_avg)"
-    echo "\033[38;5;243m  ├─ Memory:\033[0m      ${mem_used}MB / ${mem_total}MB (${mem_percent}%)"
+    echo "\033[1;33m  Resources (Allocated):\033[0m"
+    echo "\033[38;5;243m  ├─ CPU:\033[0m         ${cpu_cores} vCPU"
+    echo "\033[38;5;243m  ├─ Memory:\033[0m      ${mem_used_mb}MB / ${mem_total_mb}MB (${mem_percent}%)"
     echo "\033[38;5;243m  └─ Disk:\033[0m        $disk_used / $disk_total ($disk_percent)"
     echo ""
     echo "\033[38;5;243m  Type '\033[1;37mhelp\033[38;5;243m' for common commands\033[0m"

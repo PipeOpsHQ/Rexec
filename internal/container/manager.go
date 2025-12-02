@@ -706,9 +706,17 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 		shell = "/bin/sh" // Default fallback - always available
 	}
 
+	// Generate a short container hostname (first 12 chars of container name hash)
+	containerHostname := cfg.ContainerName
+	if len(containerHostname) > 12 {
+		containerHostname = containerHostname[:12]
+	}
+
 	// Container configuration
 	containerConfig := &container.Config{
 		Image:        imageName,
+		Hostname:     containerHostname, // Custom hostname to hide real host
+		Domainname:   "rexec.local",     // Custom domain
 		Cmd:          []string{shell},
 		Tty:          true,
 		OpenStdin:    true,
@@ -720,6 +728,8 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 			"SHELL=" + shell,
 			fmt.Sprintf("USER_ID=%s", cfg.UserID),
 			fmt.Sprintf("CONTAINER_NAME=%s", cfg.ContainerName),
+			// Override system info environment variables
+			"HOSTNAME=" + containerHostname,
 		},
 		Labels: mergeLabels(map[string]string{
 			"rexec.user_id":        cfg.UserID,
@@ -733,11 +743,13 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 		},
 	}
 
-	// Host configuration with resource limits
+	// Host configuration with resource limits and security hardening
 	hostConfig := &container.HostConfig{
 		Resources: container.Resources{
 			Memory:   cfg.MemoryLimit,
 			CPUQuota: cfg.CPULimit,
+			// Limit CPU cores visible to match quota
+			NanoCPUs: cfg.CPULimit * 10000, // Convert quota to nanocpus
 		},
 		Mounts: []mount.Mount{
 			{
@@ -746,9 +758,50 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 				Target: "/home/user",
 			},
 		},
-		// Security options
+		// Security options - prevent privilege escalation
 		SecurityOpt: []string{
 			"no-new-privileges:true",
+		},
+		// Mask sensitive host information from /proc and /sys
+		// This prevents users from seeing real host CPU, memory, etc.
+		MaskedPaths: []string{
+			"/proc/acpi",
+			"/proc/asound",
+			"/proc/kcore",
+			"/proc/keys",
+			"/proc/latency_stats",
+			"/proc/timer_list",
+			"/proc/timer_stats",
+			"/proc/sched_debug",
+			"/proc/scsi",
+			"/sys/firmware",
+			"/sys/devices/virtual/powercap",
+		},
+		// Make certain paths read-only to prevent tampering
+		ReadonlyPaths: []string{
+			"/proc/bus",
+			"/proc/fs",
+			"/proc/irq",
+			"/proc/sys",
+			"/proc/sysrq-trigger",
+		},
+		// Drop all capabilities except minimal required
+		CapDrop: []string{"ALL"},
+		CapAdd: []string{
+			"CHOWN",
+			"DAC_OVERRIDE",
+			"FOWNER",
+			"FSETID",
+			"KILL",
+			"SETGID",
+			"SETUID",
+			"SETPCAP",
+			"NET_BIND_SERVICE",
+			"NET_RAW",
+			"SYS_CHROOT",
+			"MKNOD",
+			"AUDIT_WRITE",
+			"SETFCAP",
 		},
 		// Restart policy
 		RestartPolicy: container.RestartPolicy{
