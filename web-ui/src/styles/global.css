@@ -68,7 +68,13 @@ body::after {
     opacity: 0.15;
 }
 
-/* Scrollbar */
+/* Scrollbar - Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #333 var(--bg);
+}
+
+/* Scrollbar - WebKit (Chrome, Safari, Edge) */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
