@@ -280,7 +280,7 @@
             on:guest={openGuestModal}
         />
 
-        <main class="main">
+        <main class="main" class:has-terminal={$hasSessions}>
             {#if currentView === "landing"}
                 <Landing on:guest={openGuestModal} />
             {:else if currentView === "dashboard"}
@@ -397,6 +397,16 @@
         margin: 0 auto;
         padding: 20px;
         width: 100%;
+    }
+
+    .main.has-terminal {
+        padding-bottom: calc(45vh + 20px);
+    }
+
+    @media (max-width: 768px) {
+        .main.has-terminal {
+            padding-bottom: 20px;
+        }
     }
 
     .loading-screen {
