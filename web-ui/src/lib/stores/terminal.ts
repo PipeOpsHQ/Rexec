@@ -147,7 +147,7 @@ function getWsUrl(): string {
 // Create the store
 function createTerminalStore() {
   const state: TerminalState = { ...initialState, ...loadPreferences() };
-  const { subscribe, set, update } = writable<TerminalState>(state);
+  const { subscribe, update } = writable<TerminalState>(state);
 
   // Helper to get current state
   const getState = (): TerminalState => {
@@ -164,9 +164,12 @@ function createTerminalStore() {
     update((state) => {
       const session = state.sessions.get(sessionId);
       if (session) {
-        state.sessions.set(sessionId, updater(session));
+        // Create a new Map to ensure Svelte reactivity
+        const newSessions = new Map(state.sessions);
+        newSessions.set(sessionId, updater(session));
+        return { ...state, sessions: newSessions };
       }
-      return { ...state };
+      return state;
     });
   };
 
@@ -237,9 +240,12 @@ function createTerminalStore() {
       };
 
       update((state) => {
-        state.sessions.set(sessionId, session);
+        // Create a new Map to ensure Svelte reactivity
+        const newSessions = new Map(state.sessions);
+        newSessions.set(sessionId, session);
         return {
           ...state,
+          sessions: newSessions,
           activeSessionId: sessionId,
           isMinimized: false,
         };
@@ -464,12 +470,14 @@ function createTerminalStore() {
       if (session.terminal) session.terminal.dispose();
 
       update((state) => {
-        state.sessions.delete(sessionId);
+        // Create a new Map to ensure Svelte reactivity
+        const newSessions = new Map(state.sessions);
+        newSessions.delete(sessionId);
 
         // Set new active session if needed
         let newActiveId: string | null = null;
         if (state.activeSessionId === sessionId) {
-          const remaining = Array.from(state.sessions.keys());
+          const remaining = Array.from(newSessions.keys());
           newActiveId =
             remaining.length > 0 ? remaining[remaining.length - 1] : null;
         } else {
@@ -478,7 +486,7 @@ function createTerminalStore() {
 
         // Update URL based on remaining sessions
         if (newActiveId) {
-          const newSession = state.sessions.get(newActiveId);
+          const newSession = newSessions.get(newActiveId);
           if (newSession) {
             this.updateUrl(newSession.containerId);
           }
@@ -488,6 +496,7 @@ function createTerminalStore() {
 
         return {
           ...state,
+          sessions: newSessions,
           activeSessionId: newActiveId,
         };
       });

@@ -221,14 +221,20 @@ function createContainersStore() {
 
           const reader = response.body?.getReader();
           const decoder = new TextDecoder();
+          let buffer = ""; // Buffer to handle chunked SSE data
+          let completed = false; // Prevent duplicate completion callbacks
 
-          function read() {
-            reader?.read().then(({ done, value }) => {
-              if (done) return;
+          function processEvents(text: string) {
+            buffer += text;
 
-              const text = decoder.decode(value);
-              const lines = text.split("\n");
+            // Split on double newline (SSE event separator)
+            const parts = buffer.split("\n\n");
 
+            // Keep the last part in buffer (might be incomplete)
+            buffer = parts.pop() || "";
+
+            for (const part of parts) {
+              const lines = part.split("\n");
               for (const line of lines) {
                 if (line.startsWith("data: ")) {
                   try {
@@ -249,7 +255,8 @@ function createContainersStore() {
 
                     onProgress?.(event);
 
-                    if (event.complete && event.container_id) {
+                    if (event.complete && event.container_id && !completed) {
+                      completed = true;
                       const container: Container = {
                         id: event.container_id,
                         user_id: "",
@@ -268,7 +275,8 @@ function createContainersStore() {
                       onComplete?.(container);
                     }
 
-                    if (event.error) {
+                    if (event.error && !completed) {
+                      completed = true;
                       update((state) => ({ ...state, creating: null }));
                       onError?.(event.error);
                     }
@@ -277,9 +285,33 @@ function createContainersStore() {
                   }
                 }
               }
+            }
+          }
 
-              read();
-            });
+          function read() {
+            reader
+              ?.read()
+              .then(({ done, value }) => {
+                if (done) {
+                  // Process any remaining buffered data
+                  if (buffer.trim()) {
+                    processEvents("\n\n");
+                  }
+                  return;
+                }
+
+                const text = decoder.decode(value, { stream: true });
+                processEvents(text);
+
+                read();
+              })
+              .catch((e) => {
+                if (!completed) {
+                  completed = true;
+                  update((state) => ({ ...state, creating: null }));
+                  onError?.(e instanceof Error ? e.message : "Stream error");
+                }
+              });
           }
 
           read();

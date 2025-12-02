@@ -103,26 +103,22 @@
       name,
       image,
       custom,
-      // onProgress
+      // onProgress - updates UI during creation
       (event: ProgressEvent) => {
         progress = event.progress || 0;
         progressMessage = event.message || '';
         progressStage = event.stage || '';
 
-        if (event.complete && event.container_id) {
-          isCreating = false;
-          toast.success(`Terminal "${name}" created!`);
-          dispatch('created', { id: event.container_id, name });
-        }
-
+        // Show error toast if there's an error in progress
         if (event.error) {
           isCreating = false;
           toast.error(event.error);
         }
       },
-      // onComplete
+      // onComplete - called when container is fully created
       (container) => {
         isCreating = false;
+        toast.success(`Terminal "${container.name}" created!`);
         dispatch('created', { id: container.id, name: container.name });
       },
       // onError
