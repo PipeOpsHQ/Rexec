@@ -49,72 +49,63 @@ echo ""
 #
 # ============================================================================
 
-# Function to write certificate content, handling various formats:
-# - Proper PEM with newlines
-# - Single line with spaces instead of newlines (common in PaaS env vars)
-# - Single line with literal \n
-write_cert() {
+# Function to write PEM certificate content
+# Handles the case where PaaS platforms replace newlines with spaces
+write_pem() {
     local content="$1"
     local file="$2"
     local desc="$3"
 
     # Check if content is empty
     if [ -z "$content" ]; then
-        echo "  ⚠ Warning: Empty certificate content for $desc"
+        echo "  ⚠ Warning: Empty content for $desc"
         return 1
     fi
 
-    # Detect format and convert to proper PEM
-    # Check if it's already multi-line (has actual newlines)
-    line_count=$(printf '%s' "$content" | wc -l)
+    # Check if content already has proper newlines (more than 2 lines)
+    local line_count
+    line_count=$(printf '%s\n' "$content" | wc -l)
 
-    if [ "$line_count" -gt 1 ]; then
+    if [ "$line_count" -gt 5 ]; then
         # Already has newlines, write directly
         printf '%s\n' "$content" > "$file"
-    elif echo "$content" | grep -q '\\n'; then
-        # Has literal \n sequences, convert them
-        printf '%s' "$content" | sed 's/\\n/\n/g' > "$file"
-    elif echo "$content" | grep -q ' '; then
-        # Single line with spaces (PaaS replaced newlines with spaces)
-        # This is the tricky case - we need to reconstruct the PEM format
-
-        # Extract the BEGIN and END markers and the base64 content
-        # Format: -----BEGIN CERTIFICATE----- BASE64DATA -----END CERTIFICATE-----
-
-        # Use awk to properly format the certificate
-        printf '%s' "$content" | awk '
-        {
-            # Replace spaces between BEGIN/END markers with newlines
-            # First, handle the BEGIN line
-            gsub(/-----BEGIN [A-Z ]+----- /, "-----BEGIN CERTIFICATE-----\n")
-            gsub(/ -----END [A-Z ]+-----/, "\n-----END CERTIFICATE-----")
-
-            # Now split the base64 content into 64-char lines
-            # Remove the markers temporarily
-            if (match($0, /-----BEGIN [A-Z ]+-----/)) {
-                start = RSTART
-                end = RSTART + RLENGTH
-            }
-
-            # Just print with newlines restored
-            gsub(/ /, "\n")
-            print
-        }' > "$file"
-
-        # Simpler approach: replace all spaces with newlines, then fix the markers
-        printf '%s' "$content" | tr ' ' '\n' > "$file"
     else
-        # No spaces, no \n - might be malformed or very short
-        printf '%s\n' "$content" > "$file"
+        # Content is on a single line with spaces instead of newlines
+        # We need to carefully reconstruct the PEM format
+
+        # Strategy: Use sed to:
+        # 1. Add newline after "-----BEGIN XXXXX-----"
+        # 2. Add newline before "-----END XXXXX-----"
+        # 3. Split the base64 content (replace spaces with newlines, but not in markers)
+
+        printf '%s' "$content" | sed -E '
+            # Add newline after BEGIN marker
+            s/(-----BEGIN [A-Z ]+-----) /\1\n/g
+            # Add newline before END marker
+            s/ (-----END [A-Z ]+-----)/\n\1/g
+        ' | awk '
+        {
+            # For lines that are not BEGIN or END markers, split on spaces
+            if (/^-----BEGIN/ || /^-----END/) {
+                print
+            } else {
+                # Replace spaces with newlines for base64 content
+                gsub(/ /, "\n")
+                print
+            }
+        }' > "$file"
     fi
 
     # Verify the file has proper PEM structure
-    if grep -q "BEGIN" "$file" && grep -q "END" "$file"; then
-        local lines=$(wc -l < "$file")
+    if grep -q "^-----BEGIN" "$file" && grep -q "^-----END" "$file"; then
+        local lines
+        lines=$(wc -l < "$file")
         echo "  ✓ $desc configured ($lines lines)"
         return 0
     else
         echo "  ⚠ Warning: $desc may be malformed"
+        echo "    First line: $(head -1 "$file")"
+        echo "    Last line: $(tail -1 "$file")"
         return 1
     fi
 }
@@ -130,19 +121,19 @@ if [ -n "$DOCKER_CA_CERT" ] || [ -n "$DOCKER_CLIENT_CERT" ] || [ -n "$DOCKER_CLI
 
     # Write CA certificate
     if [ -n "$DOCKER_CA_CERT" ]; then
-        write_cert "$DOCKER_CA_CERT" "$CERT_DIR/ca.pem" "CA certificate"
+        write_pem "$DOCKER_CA_CERT" "$CERT_DIR/ca.pem" "CA certificate"
         chmod 644 "$CERT_DIR/ca.pem"
     fi
 
     # Write client certificate
     if [ -n "$DOCKER_CLIENT_CERT" ]; then
-        write_cert "$DOCKER_CLIENT_CERT" "$CERT_DIR/cert.pem" "Client certificate"
+        write_pem "$DOCKER_CLIENT_CERT" "$CERT_DIR/cert.pem" "Client certificate"
         chmod 644 "$CERT_DIR/cert.pem"
     fi
 
     # Write client key
     if [ -n "$DOCKER_CLIENT_KEY" ]; then
-        write_cert "$DOCKER_CLIENT_KEY" "$CERT_DIR/key.pem" "Client key"
+        write_pem "$DOCKER_CLIENT_KEY" "$CERT_DIR/key.pem" "Client key"
         chmod 600 "$CERT_DIR/key.pem"
     fi
 
@@ -161,7 +152,6 @@ if [ -n "$DOCKER_CA_CERT" ] || [ -n "$DOCKER_CLIENT_CERT" ] || [ -n "$DOCKER_CLI
         echo "  📄 CA cert preview:"
         echo "      First line: $(head -1 "$CERT_DIR/ca.pem")"
         echo "      Last line:  $(tail -1 "$CERT_DIR/ca.pem")"
-        echo "      Total lines: $(wc -l < "$CERT_DIR/ca.pem")"
     fi
 
     echo "✅ Docker TLS configuration complete"
@@ -177,7 +167,7 @@ if [ -n "$SSH_PRIVATE_KEY" ]; then
     chmod 700 "$HOME/.ssh"
 
     # Write the private key, handling escaped newlines
-    write_cert "$SSH_PRIVATE_KEY" "$HOME/.ssh/id_rsa" "SSH private key"
+    write_pem "$SSH_PRIVATE_KEY" "$HOME/.ssh/id_rsa" "SSH private key"
     chmod 600 "$HOME/.ssh/id_rsa"
 
     # Configure SSH to disable strict host key checking
