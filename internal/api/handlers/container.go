@@ -608,20 +608,33 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 		return
 	}
 
-	// Set SSE headers
+	// Set SSE headers - include multiple anti-buffering headers for various proxies
 	c.Header("Content-Type", "text/event-stream")
-	c.Header("Cache-Control", "no-cache")
+	c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
 	c.Header("Connection", "keep-alive")
-	c.Header("X-Accel-Buffering", "no")
+	c.Header("X-Accel-Buffering", "no")           // nginx
+	c.Header("X-Content-Type-Options", "nosniff") // Prevents content sniffing
+	c.Header("Transfer-Encoding", "chunked")      // Force chunked encoding
 
-	// Helper to send SSE events
+	// Flush headers immediately
+	c.Writer.WriteHeader(200)
+	c.Writer.Flush()
+
+	// Helper to send SSE events with padding to bypass proxy buffering
 	sendEvent := func(event container.ProgressEvent) {
 		data, _ := json.Marshal(event)
+		// Add padding comment to ensure minimum chunk size (some proxies buffer small chunks)
+		padding := ": padding " + strings.Repeat(".", 256) + "\n"
+		c.Writer.Write([]byte(padding))
 		c.Writer.Write([]byte("data: " + string(data) + "\n\n"))
 		c.Writer.Flush()
 	}
 
 	ctx := context.Background()
+
+	// Send initial comment to establish connection (helps with proxy buffering)
+	c.Writer.Write([]byte(": stream connected\n\n"))
+	c.Writer.Flush()
 
 	// Stage 1: Validating
 	sendEvent(container.ProgressEvent{

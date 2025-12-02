@@ -173,7 +173,7 @@ function createContainersStore() {
       return { success: true, container: data };
     },
 
-    // Create container with progress (SSE)
+    // Create container with progress (SSE with fallback to regular endpoint)
     createContainerWithProgress(
       name: string,
       image: string,
@@ -205,6 +205,26 @@ function createContainersStore() {
         },
       }));
 
+      let sseWorking = false;
+      let completed = false;
+
+      // Fallback to regular endpoint if SSE doesn't send data within 5 seconds
+      const fallbackTimeout = setTimeout(() => {
+        if (!sseWorking && !completed) {
+          console.log(
+            "[SSE] No data received, falling back to regular endpoint",
+          );
+          this.createContainerFallback(
+            name,
+            image,
+            customImage,
+            onProgress,
+            onComplete,
+            onError,
+          );
+        }
+      }, 5000);
+
       fetch("/api/containers/stream", {
         method: "POST",
         headers: {
@@ -222,9 +242,15 @@ function createContainersStore() {
           const reader = response.body?.getReader();
           const decoder = new TextDecoder();
           let buffer = ""; // Buffer to handle chunked SSE data
-          let completed = false; // Prevent duplicate completion callbacks
 
           function processLine(line: string) {
+            // Mark SSE as working when we receive any data
+            if (!sseWorking) {
+              sseWorking = true;
+              clearTimeout(fallbackTimeout);
+              console.log("[SSE] Stream is working");
+            }
+
             if (!line.startsWith("data: ")) {
               console.debug("[SSE] Skipping non-data line:", line.slice(0, 50));
               return;
@@ -355,17 +381,119 @@ function createContainersStore() {
         })
         .catch((e) => {
           console.error("[SSE] Fetch error:", e);
-          // This catch is for fetch errors (network, CORS, etc.)
-          // The 'completed' variable is scoped inside .then(), so we can't check it here
-          // Instead, we check if we're still in "creating" state
-          update((state) => {
-            if (state.creating) {
-              onError?.("Failed to create container");
-              return { ...state, creating: null };
-            }
-            return state;
-          });
+          clearTimeout(fallbackTimeout);
+          // If SSE never worked, try fallback
+          if (!sseWorking && !completed) {
+            console.log("[SSE] Fetch failed, trying fallback endpoint");
+            this.createContainerFallback(
+              name,
+              image,
+              customImage,
+              onProgress,
+              onComplete,
+              onError,
+            );
+          } else if (!completed) {
+            update((state) => {
+              if (state.creating) {
+                onError?.("Failed to create container");
+                return { ...state, creating: null };
+              }
+              return state;
+            });
+          }
         });
+    },
+
+    // Fallback container creation without SSE (for platforms that don't support streaming)
+    async createContainerFallback(
+      name: string,
+      image: string,
+      customImage?: string,
+      onProgress?: (event: ProgressEvent) => void,
+      onComplete?: (container: Container) => void,
+      onError?: (error: string) => void,
+    ) {
+      const authToken = getToken();
+      if (!authToken) {
+        onError?.("Not authenticated");
+        return;
+      }
+
+      // Update progress to show we're using fallback
+      update((state) => ({
+        ...state,
+        creating: state.creating
+          ? {
+              ...state.creating,
+              progress: 10,
+              message: "Creating container...",
+              stage: "creating",
+            }
+          : null,
+      }));
+
+      onProgress?.({
+        stage: "creating",
+        message: "Creating container (this may take a moment)...",
+        progress: 10,
+      });
+
+      const body: Record<string, string> = { name, image };
+      if (image === "custom" && customImage) {
+        body.custom_image = customImage;
+      }
+
+      try {
+        const response = await fetch("/api/containers", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify(body),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          update((state) => ({ ...state, creating: null }));
+          onError?.(data.error || "Failed to create container");
+          return;
+        }
+
+        const container: Container = {
+          id: data.id,
+          db_id: data.db_id,
+          user_id: data.user_id,
+          name: data.name,
+          image: data.image,
+          status: data.status || "running",
+          created_at: data.created_at,
+          ip_address: data.ip_address,
+        };
+
+        update((state) => ({
+          ...state,
+          containers: [container, ...state.containers],
+          creating: null,
+        }));
+
+        onProgress?.({
+          stage: "ready",
+          message: "Terminal ready!",
+          progress: 100,
+          complete: true,
+          container_id: container.id,
+        });
+
+        onComplete?.(container);
+      } catch (e) {
+        update((state) => ({ ...state, creating: null }));
+        onError?.(
+          e instanceof Error ? e.message : "Failed to create container",
+        );
+      }
     },
 
     // Start a container
