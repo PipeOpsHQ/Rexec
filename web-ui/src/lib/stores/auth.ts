@@ -90,11 +90,13 @@ function createAuthStore() {
         }
 
         const data = await response.json();
+        // API returns nested response: { token: "...", user: {...}, guest: true, ... }
+        const userData = data.user || data;
         const user: User = {
-          id: data.user_id,
-          email: email,
-          name: data.name || "Guest User",
-          tier: "guest",
+          id: userData.id || data.user_id,
+          email: userData.email || email,
+          name: userData.username || userData.name || "Guest User",
+          tier: userData.tier || "guest",
           isGuest: true,
         };
 
@@ -137,12 +139,14 @@ function createAuthStore() {
         }
 
         const data = await response.json();
+        // API returns nested response: { token: "...", user: {...} }
+        const userData = data.user || data;
         const user: User = {
-          id: data.user_id,
-          email: data.email || "",
-          name: data.name || data.email || "User",
-          avatar: data.avatar,
-          tier: data.tier || "free",
+          id: userData.id || data.user_id,
+          email: userData.email || "",
+          name: userData.username || userData.name || userData.email || "User",
+          avatar: userData.avatar,
+          tier: userData.tier || "free",
           isGuest: false,
         };
 
@@ -176,13 +180,15 @@ function createAuthStore() {
         }
 
         const data = await response.json();
+        // API returns nested response: { user: {...}, stats: {...}, limits: {...} }
+        const userData = data.user || data;
         const user: User = {
-          id: data.id,
-          email: data.email || "",
-          name: data.name || data.email || "User",
-          avatar: data.avatar,
-          tier: data.tier || "free",
-          isGuest: data.is_guest || false,
+          id: userData.id,
+          email: userData.email || "",
+          name: userData.username || userData.name || userData.email || "User",
+          avatar: userData.avatar,
+          tier: userData.tier || "free",
+          isGuest: userData.tier === "guest",
         };
 
         update((state) => ({

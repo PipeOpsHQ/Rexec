@@ -18,6 +18,7 @@
   // App state
   let currentView: 'landing' | 'dashboard' | 'create' | 'settings' | 'sshkeys' = 'landing';
   let isLoading = true;
+  let isInitialized = false; // Prevents reactive statements from firing before token validation
 
   // Guest email modal state
   let showGuestModal = false;
@@ -116,15 +117,16 @@
     }
 
     isLoading = false;
+    isInitialized = true; // Mark as initialized after token validation
   });
 
-  // React to auth changes
-  $: if ($isAuthenticated && currentView === 'landing') {
+  // React to auth changes (only after initialization to prevent race conditions)
+  $: if (isInitialized && $isAuthenticated && currentView === 'landing') {
     currentView = 'dashboard';
     containers.fetchContainers();
   }
 
-  $: if (!$isAuthenticated && currentView !== 'landing') {
+  $: if (isInitialized && !$isAuthenticated && currentView !== 'landing') {
     currentView = 'landing';
     containers.reset();
     terminal.closeAllSessions();
