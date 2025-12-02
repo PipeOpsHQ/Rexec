@@ -744,12 +744,14 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 	}
 
 	// Host configuration with resource limits and security hardening
+	// Use NanoCPUs for CPU limiting (1 CPU = 1e9 nanocpus)
+	// CPULimit is in millicores (500 = 0.5 CPU), convert to nanocpus
+	nanoCPUs := cfg.CPULimit * 1000000 // millicores to nanocpus (500 -> 500000000 = 0.5 CPU)
+	
 	hostConfig := &container.HostConfig{
 		Resources: container.Resources{
 			Memory:   cfg.MemoryLimit,
-			CPUQuota: cfg.CPULimit,
-			// Limit CPU cores visible to match quota
-			NanoCPUs: cfg.CPULimit * 10000, // Convert quota to nanocpus
+			NanoCPUs: nanoCPUs,
 		},
 		Mounts: []mount.Mount{
 			{

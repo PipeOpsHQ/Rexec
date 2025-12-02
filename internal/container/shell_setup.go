@@ -178,9 +178,13 @@ alias dpsa='docker ps -a'
 # Welcome message with system stats (like DigitalOcean)
 # Shows container-specific resources, not host resources
 show_system_stats() {
-    # Get container info
+    # Get container info (hide kernel to prevent host info leak)
     local hostname=$(hostname)
-    local kernel=$(uname -r)
+    local os_name="Linux"
+    # Try to get container OS info instead of kernel
+    if [ -f /etc/os-release ]; then
+        os_name=$(grep -E "^PRETTY_NAME=" /etc/os-release | cut -d'"' -f2 | head -1)
+    fi
     local uptime_raw=$(cat /proc/uptime 2>/dev/null | cut -d. -f1)
     local uptime_days=$((uptime_raw / 86400))
     local uptime_hours=$(((uptime_raw % 86400) / 3600))
@@ -240,11 +244,10 @@ show_system_stats() {
         cpu_cores=$(awk "BEGIN {printf \"%.1f\", $cpu_quota / $cpu_period}")
     fi
     
-    # Container Disk info (overlay filesystem shows container disk, not host)
-    local disk_info=$(df -h / 2>/dev/null | tail -1)
-    local disk_used=$(echo "$disk_info" | awk '{print $3}')
-    local disk_total=$(echo "$disk_info" | awk '{print $2}')
-    local disk_percent=$(echo "$disk_info" | awk '{print $5}')
+    # Container Disk info - use allocated quota, not actual host disk
+    # Note: We don't show actual disk usage as it would expose host info
+    # Instead show the allocated storage limit from environment or default
+    local disk_quota="${REXEC_DISK_QUOTA:-2G}"
     
     # Print banner
     echo ""
@@ -254,13 +257,12 @@ show_system_stats() {
     echo ""
     echo "\033[1;33m  Container:\033[0m"
     echo "\033[38;5;243m  ├─ ID:\033[0m          ${hostname:0:12}"
-    echo "\033[38;5;243m  ├─ Kernel:\033[0m      $kernel"
+    echo "\033[38;5;243m  ├─ OS:\033[0m          $os_name"
     echo "\033[38;5;243m  └─ Uptime:\033[0m      ${uptime_days}d ${uptime_hours}h ${uptime_mins}m"
     echo ""
     echo "\033[1;33m  Resources (Allocated):\033[0m"
     echo "\033[38;5;243m  ├─ CPU:\033[0m         ${cpu_cores} vCPU"
-    echo "\033[38;5;243m  ├─ Memory:\033[0m      ${mem_used_mb}MB / ${mem_total_mb}MB (${mem_percent}%)"
-    echo "\033[38;5;243m  └─ Disk:\033[0m        $disk_used / $disk_total ($disk_percent)"
+    echo "\033[38;5;243m  └─ Memory:\033[0m      ${mem_used_mb}MB / ${mem_total_mb}MB (${mem_percent}%)"
     echo ""
     echo "\033[38;5;243m  Type '\033[1;37mhelp\033[38;5;243m' for common commands\033[0m"
     echo ""
