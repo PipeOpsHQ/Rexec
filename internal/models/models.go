@@ -105,6 +105,13 @@ func AvailableImages() []ImageInfo {
 // TierLimits returns resource limits based on user tier
 func TierLimits(tier string) ResourceLimits {
 	switch tier {
+	case "trial", "guest", "free": // Unified 60-day trial
+		return ResourceLimits{
+			CPUShares: 512,
+			MemoryMB:  512,
+			DiskMB:    2048, // Increased from 512-1024 for better trial experience
+			NetworkMB: 10,
+		}
 	case "pro":
 		return ResourceLimits{
 			CPUShares: 2048,
@@ -119,19 +126,11 @@ func TierLimits(tier string) ResourceLimits {
 			DiskMB:    51200,
 			NetworkMB: 500,
 		}
-	case "guest":
-		// Guest tier - limited resources, 1-hour session max
-		return ResourceLimits{
-			CPUShares: 256,
-			MemoryMB:  256,
-			DiskMB:    512,
-			NetworkMB: 5,
-		}
-	default: // free tier (authenticated users)
+	default: // Default to trial tier
 		return ResourceLimits{
 			CPUShares: 512,
 			MemoryMB:  512,
-			DiskMB:    1024,
+			DiskMB:    2048,
 			NetworkMB: 10,
 		}
 	}

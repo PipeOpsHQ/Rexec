@@ -131,19 +131,8 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 		return
 	}
 
-	// Guest users have additional restrictions
-	if isGuest || tier == "guest" {
-		// Check if guest already has a container
-		existingRecords, err := h.store.GetContainersByUserID(context.Background(), userID)
-		if err == nil && len(existingRecords) > 0 {
-			c.JSON(http.StatusForbidden, gin.H{
-				"error":   "guest users can only have one container at a time",
-				"message": "Sign in with PipeOps to create more containers",
-				"upgrade": true,
-			})
-			return
-		}
-	}
+	// Note: Container limits are now unified for trial/guest/free users (5 containers)
+	// The standard container limit check below will apply to all tiers equally
 
 	var req models.CreateContainerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -684,19 +673,7 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 		Progress: 5,
 	})
 
-	// Guest user restrictions
-	if isGuest || tier == "guest" {
-		existingRecords, err := h.store.GetContainersByUserID(ctx, userID)
-		if err == nil && len(existingRecords) > 0 {
-			sendEvent(container.ProgressEvent{
-				Stage:    "validating",
-				Message:  "Guest users can only have one container",
-				Error:    "guest users can only have one container at a time",
-				Complete: true,
-			})
-			return
-		}
-	}
+	// Note: Container limits now unified for all trial users (5 containers)
 
 	// Handle custom image validation
 	if req.Image == "custom" {
