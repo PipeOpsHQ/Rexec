@@ -148,34 +148,43 @@
         progressMessage = "Starting...";
         progressStage = "validating";
 
+        // Generate a unique name for the container
+        const containerName = `${selectedImage}-${Date.now().toString(36)}`;
+
         function handleProgress(event: ProgressEvent) {
             progress = event.progress;
             progressMessage = event.message;
             progressStage = event.stage;
         }
 
-        try {
-            const result = await containers.createContainerWithProgress(
-                selectedImage,
-                selectedRole,
-                handleProgress
-            );
+        function handleComplete(container: { id: string; name: string }) {
+            dispatch("created", { id: container.id, name: container.name });
+            isCreating = false;
+            progress = 0;
+            progressMessage = "";
+            progressStage = "";
+        }
 
-            if (result.success && result.id && result.name) {
-                dispatch("created", { id: result.id, name: result.name });
-            } else {
-                progressMessage = result.error || "Failed to create terminal";
-            }
-        } catch (error) {
-            progressMessage = "An error occurred";
-        } finally {
+        function handleError(error: string) {
+            progressMessage = error || "Failed to create terminal";
             setTimeout(() => {
                 isCreating = false;
                 progress = 0;
                 progressMessage = "";
                 progressStage = "";
-            }, 500);
+            }, 2000);
         }
+
+        // Call with correct parameters: name, image, customImage, role, onProgress, onComplete, onError
+        containers.createContainerWithProgress(
+            containerName,
+            selectedImage,
+            undefined,  // customImage
+            selectedRole,
+            handleProgress,
+            handleComplete,
+            handleError
+        );
     }
 </script>
 
