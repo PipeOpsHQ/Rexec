@@ -88,7 +88,7 @@
         }
     }
 
-    // Handle OAuth callback
+    // Handle OAuth callback (from URL params when redirected back)
     async function handleOAuthCallback() {
         const params = new URLSearchParams(window.location.search);
         const code = params.get("code");
@@ -99,7 +99,27 @@
                 // Clear URL params
                 window.history.replaceState({}, "", window.location.pathname);
                 currentView = "dashboard";
+                await containers.fetchContainers();
+                toast.success("Successfully signed in!");
             }
+        }
+    }
+
+    // Handle OAuth postMessage from popup window
+    function handleOAuthMessage(event: MessageEvent) {
+        // Verify origin
+        if (event.origin !== window.location.origin) return;
+
+        if (event.data?.type === "oauth_success" && event.data?.data) {
+            const { token, user } = event.data.data;
+            if (token && user) {
+                auth.login(token, user);
+                currentView = "dashboard";
+                containers.fetchContainers();
+                toast.success(`Welcome, ${user.username || user.email}!`);
+            }
+        } else if (event.data?.type === "oauth_error") {
+            toast.error(event.data.message || "Authentication failed");
         }
     }
 
@@ -121,25 +141,36 @@
     }
 
     // Initialize app
-    onMount(async () => {
-        // Check for OAuth callback
-        await handleOAuthCallback();
+    onMount(() => {
+        // Listen for OAuth messages from popup window
+        window.addEventListener("message", handleOAuthMessage);
 
-        // Validate existing token
-        if ($auth.token) {
-            const isValid = await auth.validateToken();
-            if (isValid) {
-                await auth.fetchProfile();
-                currentView = "dashboard";
-                await containers.fetchContainers();
-                await handleTerminalUrl();
-            } else {
-                auth.logout();
+        // Run async initialization
+        (async () => {
+            // Check for OAuth callback
+            await handleOAuthCallback();
+
+            // Validate existing token
+            if ($auth.token) {
+                const isValid = await auth.validateToken();
+                if (isValid) {
+                    await auth.fetchProfile();
+                    currentView = "dashboard";
+                    await containers.fetchContainers();
+                    await handleTerminalUrl();
+                } else {
+                    auth.logout();
+                }
             }
-        }
 
-        isLoading = false;
-        isInitialized = true; // Mark as initialized after token validation
+            isLoading = false;
+            isInitialized = true; // Mark as initialized after token validation
+        })();
+
+        // Cleanup on destroy
+        return () => {
+            window.removeEventListener("message", handleOAuthMessage);
+        };
     });
 
     // React to auth changes (only after initialization to prevent race conditions)

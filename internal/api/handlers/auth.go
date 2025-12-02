@@ -618,8 +618,19 @@ func cleanupOldStates() {
 	}
 }
 
+// getAppURL returns the app URL for redirects (from env or default)
+func getAppURL() string {
+	appURL := os.Getenv("REXEC_APP_URL")
+	if appURL == "" {
+		appURL = "/"
+	}
+	return appURL
+}
+
 // renderOAuthSuccessPage returns HTML that sends token to parent window
 func renderOAuthSuccessPage(token string, user *models.User) string {
+	appURL := getAppURL()
+
 	return `<!DOCTYPE html>
 <html>
 <head>
@@ -659,16 +670,23 @@ func renderOAuthSuccessPage(token string, user *models.User) string {
             token: "` + token + `",
             user: ` + userToJSON(user) + `
         };
+        const appURL = "` + appURL + `";
 
         // Try to communicate with opener/parent window
         if (window.opener) {
             window.opener.postMessage({ type: 'oauth_success', data: authData }, window.location.origin);
             setTimeout(() => window.close(), 1000);
         } else {
-            // Fallback: store in localStorage and redirect
+            // Store in localStorage and redirect to app URL
             localStorage.setItem('rexec_token', authData.token);
             localStorage.setItem('rexec_user', JSON.stringify(authData.user));
-            window.location.href = '/';
+
+            // Redirect to configured app URL
+            if (appURL.startsWith('http')) {
+                window.location.href = appURL;
+            } else {
+                window.location.href = window.location.origin + appURL;
+            }
         }
     </script>
 </body>
@@ -677,6 +695,8 @@ func renderOAuthSuccessPage(token string, user *models.User) string {
 
 // renderOAuthErrorPage returns HTML for OAuth errors
 func renderOAuthErrorPage(errorCode, errorDesc string) string {
+	appURL := getAppURL()
+
 	return `<!DOCTYPE html>
 <html>
 <head>
@@ -720,7 +740,7 @@ func renderOAuthErrorPage(errorCode, errorDesc string) string {
         <div class="icon">✕</div>
         <h1>Authentication Failed</h1>
         <p>` + errorDesc + `</p>
-        <a href="/" class="btn">Return to Rexec</a>
+        <a href="` + appURL + `" class="btn">Return to Rexec</a>
     </div>
     <script>
         if (window.opener) {
