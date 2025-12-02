@@ -2,6 +2,12 @@ import { writable, derived, get } from "svelte/store";
 import { token } from "./auth";
 
 // Types
+export interface ContainerResources {
+  memory_mb: number;
+  cpu_shares: number;
+  disk_mb: number;
+}
+
 export interface Container {
   id: string;
   db_id?: string;
@@ -19,6 +25,7 @@ export interface Container {
   last_used_at?: string;
   idle_seconds?: number;
   ip_address?: string;
+  resources?: ContainerResources;
 }
 
 export interface CreatingContainer {

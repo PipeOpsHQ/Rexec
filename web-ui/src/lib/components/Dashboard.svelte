@@ -6,7 +6,7 @@
         creatingContainer,
         type Container,
     } from "$stores/containers";
-    import { terminal } from "$stores/terminal";
+    import { terminal, connectedContainerIds } from "$stores/terminal";
     import { toast } from "$stores/toast";
     import { formatRelativeTime } from "$utils/api";
     import ConfirmModal from "./ConfirmModal.svelte";
@@ -22,6 +22,11 @@
     // Confirm modal state
     let showDeleteConfirm = false;
     let containerToDelete: Container | null = null;
+
+    // Check if container has active terminal connection
+    function isConnected(containerId: string): boolean {
+        return $connectedContainerIds.has(containerId);
+    }
 
     function isDeleting(id: string): boolean {
         return deletingIds.has(id);
@@ -319,6 +324,7 @@
                 <div
                     class="container-card"
                     class:active={hasActiveSession(container.id)}
+                    class:connected={isConnected(container.id)}
                     class:deleting={isDeleting(container.id)}
                 >
                     {#if isDeleting(container.id)}
@@ -327,6 +333,12 @@
                                 <div class="spinner"></div>
                                 <span>Deleting...</span>
                             </div>
+                        </div>
+                    {/if}
+                    {#if isConnected(container.id)}
+                        <div class="connected-badge">
+                            <span class="connected-dot"></span>
+                            Connected
                         </div>
                     {/if}
                     <div class="container-header">
@@ -742,6 +754,43 @@
     .container-card.active {
         border-color: var(--accent);
         box-shadow: 0 0 10px var(--accent-dim);
+    }
+
+    .container-card.connected {
+        border-color: #00d9ff;
+        box-shadow: 0 0 8px rgba(0, 217, 255, 0.3);
+    }
+
+    .connected-badge {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 8px;
+        background: rgba(0, 217, 255, 0.15);
+        border: 1px solid rgba(0, 217, 255, 0.4);
+        border-radius: 4px;
+        font-size: 10px;
+        font-family: var(--font-mono);
+        color: #00d9ff;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        z-index: 5;
+    }
+
+    .connected-dot {
+        width: 6px;
+        height: 6px;
+        background: #00d9ff;
+        border-radius: 50%;
+        animation: pulse-connected 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse-connected {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.4; }
     }
 
     .container-card.deleting {

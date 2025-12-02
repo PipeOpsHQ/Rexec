@@ -97,7 +97,10 @@ func (r *ReconcilerService) reconcile() {
 		dockerState[dc.ID] = dc.State
 	}
 
-	var reconciled, removed, updated int
+	var reconciled, removed, updated, stuckStopped int
+
+	// Timeout for containers stuck in transitional states
+	const stuckContainerTimeout = 5 * time.Minute
 
 	for _, dbContainer := range dbContainers {
 		if dbContainer.DockerID == "" {
@@ -135,6 +138,39 @@ func (r *ReconcilerService) reconcile() {
 		// Map Docker state to our status
 		newStatus := mapDockerState(dockerStatus)
 
+		// Check if container is stuck in transitional state (starting/restarting)
+		if newStatus == "starting" || dockerStatus == "restarting" {
+			timeSinceUpdate := time.Since(dbContainer.LastUsedAt)
+			if timeSinceUpdate > stuckContainerTimeout {
+				// Container has been stuck in starting/restarting for too long
+				log.Printf("🔄 Reconciler: container %s stuck in '%s' state for %v, stopping it",
+					dbContainer.DockerID[:12], dockerStatus, timeSinceUpdate.Round(time.Second))
+
+				// Try to stop the container
+				stopCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+				if err := r.dockerClient.ContainerStop(stopCtx, dbContainer.DockerID, container.StopOptions{}); err != nil {
+					log.Printf("🔄 Reconciler: failed to stop stuck container %s: %v", dbContainer.DockerID[:12], err)
+					// Force remove if stop fails
+					if err := r.dockerClient.ContainerRemove(stopCtx, dbContainer.DockerID, container.RemoveOptions{Force: true}); err != nil {
+						log.Printf("🔄 Reconciler: failed to force remove stuck container %s: %v", dbContainer.DockerID[:12], err)
+					}
+				}
+				cancel()
+
+				// Mark as stopped in database
+				newStatus = "stopped"
+				if err := r.store.UpdateContainerStatus(ctx, dbContainer.ID, newStatus); err != nil {
+					log.Printf("🔄 Reconciler: failed to update status for stuck container %s: %v", dbContainer.ID, err)
+				} else {
+					stuckStopped++
+				}
+
+				// Update in-memory state
+				r.manager.UpdateContainerStatus(dbContainer.DockerID, newStatus)
+				continue
+			}
+		}
+
 		// Update if status differs
 		if dbContainer.Status != newStatus {
 			if err := r.store.UpdateContainerStatus(ctx, dbContainer.ID, newStatus); err != nil {
@@ -150,9 +186,9 @@ func (r *ReconcilerService) reconcile() {
 		reconciled++
 	}
 
-	if removed > 0 || updated > 0 {
-		log.Printf("🔄 Reconciler: checked %d containers, removed %d orphaned, updated %d statuses",
-			reconciled+removed, removed, updated)
+	if removed > 0 || updated > 0 || stuckStopped > 0 {
+		log.Printf("🔄 Reconciler: checked %d containers, removed %d orphaned, updated %d statuses, stopped %d stuck containers",
+			reconciled+removed, removed, updated, stuckStopped)
 	}
 }
 

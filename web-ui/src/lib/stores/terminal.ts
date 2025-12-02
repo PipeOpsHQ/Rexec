@@ -921,6 +921,29 @@ export const hasSessions = derived(
   ($terminal) => $terminal.sessions.size > 0,
 );
 
+// Get set of container IDs that have active (connected) terminal sessions
+export const connectedContainerIds = derived(terminal, ($terminal) => {
+  const connected = new Set<string>();
+  $terminal.sessions.forEach((session) => {
+    if (session.status === "connected" || session.status === "connecting") {
+      connected.add(session.containerId);
+    }
+  });
+  return connected;
+});
+
+// Check if a specific container has an active terminal connection
+export function isContainerConnected(containerId: string): boolean {
+  const state = get(terminal);
+  for (const session of state.sessions.values()) {
+    if (session.containerId === containerId && 
+        (session.status === "connected" || session.status === "connecting")) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export const isFloating = derived(
   terminal,
   ($terminal) => $terminal.viewMode === "floating",

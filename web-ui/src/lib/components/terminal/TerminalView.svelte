@@ -1479,7 +1479,7 @@
     .create-panel {
         position: absolute;
         inset: 0;
-        background: #0a0a0a;
+        background: #0d0d0d;
         display: flex;
         flex-direction: column;
         padding: 16px;
@@ -1500,7 +1500,7 @@
         font-size: 14px;
         text-transform: uppercase;
         letter-spacing: 1px;
-        color: var(--text);
+        color: var(--accent);
     }
 
     .close-create {
@@ -1542,9 +1542,9 @@
     }
 
     .create-section h4 {
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
-        color: var(--text-muted);
+        color: var(--accent);
         text-transform: uppercase;
         letter-spacing: 0.5px;
         margin: 0;
@@ -1563,8 +1563,8 @@
         align-items: center;
         gap: 6px;
         padding: 12px 8px;
-        background: var(--bg-card);
-        border: 1px solid var(--border);
+        background: #1a1a1a;
+        border: 1px solid #333;
         cursor: pointer;
         transition: all 0.15s;
         font-family: var(--font-mono);
@@ -1572,22 +1572,23 @@
 
     .role-card:hover {
         border-color: var(--accent);
-        background: var(--accent-dim);
+        background: rgba(0, 255, 65, 0.1);
     }
 
     .role-card.selected {
         border-color: var(--accent);
-        background: rgba(0, 255, 65, 0.1);
+        background: rgba(0, 255, 65, 0.15);
         box-shadow: 0 0 10px rgba(0, 255, 65, 0.2);
     }
 
     .role-icon {
-        font-size: 24px;
+        font-size: 28px;
+        filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.3));
     }
 
     .role-name {
-        font-size: 10px;
-        color: var(--text);
+        font-size: 11px;
+        color: #e0e0e0;
         text-align: center;
         white-space: nowrap;
         overflow: hidden;
@@ -1874,8 +1875,8 @@
         align-items: center;
         gap: 6px;
         padding: 12px 8px;
-        background: var(--bg-card);
-        border: 1px solid var(--border);
+        background: #1a1a1a;
+        border: 1px solid #333;
         cursor: pointer;
         transition: all 0.15s;
         font-family: var(--font-mono);
@@ -1883,23 +1884,24 @@
     }
 
     .os-card:hover {
-        border-color: var(--accent);
-        background: var(--accent-dim);
+        border-color: #00d9ff;
+        background: rgba(0, 217, 255, 0.1);
     }
 
     .os-card.selected {
-        border-color: var(--accent);
-        background: rgba(0, 217, 255, 0.1);
+        border-color: #00d9ff;
+        background: rgba(0, 217, 255, 0.15);
         box-shadow: 0 0 10px rgba(0, 217, 255, 0.2);
     }
 
     .os-icon {
-        font-size: 24px;
+        font-size: 28px;
+        filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.3));
     }
 
     .os-name {
-        font-size: 10px;
-        color: var(--text);
+        font-size: 11px;
+        color: #e0e0e0;
         text-align: center;
         white-space: nowrap;
         overflow: hidden;

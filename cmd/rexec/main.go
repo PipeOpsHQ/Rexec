@@ -248,6 +248,10 @@ func main() {
 		router.StaticFile("/sitemap.xml", filepath.Join(webDir, "sitemap.xml"))
 		router.StaticFile("/og-image.svg", filepath.Join(webDir, "og-image.svg"))
 
+		// Apple touch icons - serve favicon for these requests
+		router.StaticFile("/apple-touch-icon.png", filepath.Join(webDir, "favicon.svg"))
+		router.StaticFile("/apple-touch-icon-precomposed.png", filepath.Join(webDir, "favicon.svg"))
+
 		// Terminal URL routes - serve index.html for SPA routing
 		router.GET("/terminal/:id", func(c *gin.Context) {
 			c.File(indexFile)
