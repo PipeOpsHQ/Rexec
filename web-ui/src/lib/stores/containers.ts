@@ -173,8 +173,7 @@ function createContainersStore() {
       return { success: true, container: data };
     },
 
-    // Create container with progress
-    // Uses regular endpoint since SSE doesn't work well with Cloudflare/PipeOps proxies
+    // Create container with SSE progress streaming
     createContainerWithProgress(
       name: string,
       image: string,
@@ -183,15 +182,181 @@ function createContainersStore() {
       onComplete?: (container: Container) => void,
       onError?: (error: string) => void,
     ) {
-      // Use the regular (non-SSE) endpoint directly since SSE is blocked by Cloudflare
-      this.createContainerFallback(
-        name,
-        image,
-        customImage,
-        onProgress,
-        onComplete,
-        onError,
-      );
+      const authToken = getToken();
+      if (!authToken) {
+        onError?.("Not authenticated");
+        return;
+      }
+
+      // Set creating state
+      update((state) => ({
+        ...state,
+        creating: {
+          name,
+          image,
+          progress: 0,
+          message: "Connecting...",
+          stage: "initializing",
+        },
+      }));
+
+      const body: Record<string, string> = { name, image };
+      if (image === "custom" && customImage) {
+        body.custom_image = customImage;
+      }
+
+      // Use SSE endpoint for streaming progress
+      fetch("/api/containers/stream", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify(body),
+      })
+        .then(async (response) => {
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(
+              errorData.error ||
+                `Request failed with status ${response.status}`,
+            );
+          }
+
+          const reader = response.body?.getReader();
+          const decoder = new TextDecoder();
+
+          if (!reader) {
+            throw new Error("No response body");
+          }
+
+          let buffer = "";
+
+          const processEvents = () => {
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || ""; // Keep incomplete line in buffer
+
+            for (const line of lines) {
+              if (line.startsWith("data: ")) {
+                try {
+                  const event: ProgressEvent = JSON.parse(line.slice(6));
+
+                  // Update store state
+                  update((state) => ({
+                    ...state,
+                    creating: state.creating
+                      ? {
+                          ...state.creating,
+                          progress: event.progress || state.creating.progress,
+                          message: event.message || state.creating.message,
+                          stage: event.stage || state.creating.stage,
+                        }
+                      : null,
+                  }));
+
+                  // Call progress callback
+                  onProgress?.(event);
+
+                  // Handle completion
+                  if (event.complete) {
+                    if (event.error) {
+                      update((state) => ({ ...state, creating: null }));
+                      onError?.(event.error);
+                    } else if (event.container_id) {
+                      // Fetch the created container details
+                      fetch(`/api/containers/${event.container_id}`, {
+                        headers: {
+                          Authorization: `Bearer ${authToken}`,
+                        },
+                      })
+                        .then((res) => res.json())
+                        .then((containerData) => {
+                          const container: Container = {
+                            id:
+                              containerData.id ||
+                              containerData.docker_id ||
+                              event.container_id!,
+                            db_id: containerData.db_id || event.container_id,
+                            user_id: containerData.user_id,
+                            name: containerData.name || name,
+                            image: containerData.image || image,
+                            status: "running",
+                            created_at:
+                              containerData.created_at ||
+                              new Date().toISOString(),
+                            ip_address: containerData.ip_address,
+                          };
+
+                          update((state) => ({
+                            ...state,
+                            containers: [container, ...state.containers],
+                            creating: null,
+                          }));
+
+                          onComplete?.(container);
+                        })
+                        .catch(() => {
+                          // Even if fetch fails, container was created
+                          const container: Container = {
+                            id: event.container_id!,
+                            db_id: event.container_id,
+                            user_id: "",
+                            name,
+                            image,
+                            status: "running",
+                            created_at: new Date().toISOString(),
+                          };
+
+                          update((state) => ({
+                            ...state,
+                            containers: [container, ...state.containers],
+                            creating: null,
+                          }));
+
+                          onComplete?.(container);
+                        });
+                    }
+                  }
+                } catch {
+                  // Ignore parse errors for malformed SSE
+                }
+              }
+            }
+          };
+
+          const read = async (): Promise<void> => {
+            try {
+              const { done, value } = await reader.read();
+
+              if (done) {
+                // Process any remaining buffer
+                if (buffer) {
+                  buffer += "\n";
+                  processEvents();
+                }
+                return;
+              }
+
+              buffer += decoder.decode(value, { stream: true });
+              processEvents();
+
+              return read();
+            } catch (e) {
+              if (e instanceof Error && e.name !== "AbortError") {
+                update((state) => ({ ...state, creating: null }));
+                onError?.(e.message);
+              }
+            }
+          };
+
+          return read();
+        })
+        .catch((e) => {
+          update((state) => ({ ...state, creating: null }));
+          onError?.(
+            e instanceof Error ? e.message : "Failed to create container",
+          );
+        });
     },
 
     // Container creation with polling for async backend
