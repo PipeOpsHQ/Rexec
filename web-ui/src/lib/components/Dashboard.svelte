@@ -846,6 +846,7 @@
     }
 
     .container-card {
+        position: relative;
         background: var(--bg-card);
         border: 1px solid var(--border);
         padding: 16px;
@@ -1231,22 +1232,6 @@
 
     .flex-1 {
         flex: 1;
-    }
-
-    .connected-badge {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-        padding: 6px 12px;
-        font-size: 11px;
-        font-family: var(--font-mono);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        color: var(--accent);
-        background: rgba(0, 255, 65, 0.1);
-        border: 1px solid var(--accent);
-        border-radius: 0;
     }
 
     .spinner-sm {
