@@ -271,8 +271,8 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 		cfg.Labels["rexec.expires_at"] = time.Now().Add(GuestMaxContainerDuration).Format(time.RFC3339)
 	}
 
-	// Apply tier-based resource limits
-	limits := models.TierLimits(tier)
+	// Apply tier-based resource limits (with trial customization)
+	limits := models.ValidateTrialResources(&req, tier)
 	cfg.MemoryLimit = limits.MemoryMB * 1024 * 1024 // Convert MB to bytes
 	cfg.CPULimit = limits.CPUShares * 1000          // Convert to CPU quota
 
@@ -290,6 +290,11 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 		"created_at": record.CreatedAt,
 		"async":      true,
 		"message":    "Container is being created. This may take a moment if the image needs to be pulled.",
+		"resources": gin.H{
+			"memory_mb":  limits.MemoryMB,
+			"cpu_shares": limits.CPUShares,
+			"disk_mb":    limits.DiskMB,
+		},
 	}
 
 	// Add guest session info
@@ -937,7 +942,7 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 		cfg.Labels["rexec.expires_at"] = time.Now().Add(GuestMaxContainerDuration).Format(time.RFC3339)
 	}
 
-	limits := models.TierLimits(tier)
+	limits := models.ValidateTrialResources(&req, tier)
 	cfg.MemoryLimit = limits.MemoryMB * 1024 * 1024
 	cfg.CPULimit = limits.CPUShares * 1000
 
@@ -1077,6 +1082,11 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 		"status":     info.Status,
 		"created_at": info.CreatedAt,
 		"ip_address": info.IPAddress,
+		"resources": map[string]interface{}{
+			"memory_mb":  limits.MemoryMB,
+			"cpu_shares": limits.CPUShares,
+			"disk_mb":    limits.DiskMB,
+		},
 	}
 
 	if isGuest || tier == "guest" {

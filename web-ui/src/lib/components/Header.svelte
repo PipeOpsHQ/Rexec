@@ -123,9 +123,6 @@
     <button class="logo" on:click={() => dispatch("home")}>
         <span class="logo-icon">R</span>
         <span class="logo-text">Rexec</span>
-        {#if $sessionCount > 0}
-            <span class="session-badge">{$sessionCount}</span>
-        {/if}
     </button>
 
     <nav class="nav-actions">
@@ -354,13 +351,7 @@
         color: var(--accent);
     }
 
-    .session-badge {
-        background: var(--accent);
-        color: var(--bg);
-        font-size: 10px;
-        padding: 2px 6px;
-        font-weight: 600;
-    }
+
 
     .nav-actions {
         display: flex;

@@ -341,6 +341,7 @@ function createContainersStore() {
                               containerData.created_at ||
                               new Date().toISOString(),
                             ip_address: containerData.ip_address,
+                            resources: containerData.resources,
                           };
 
                           update((state) => ({
@@ -352,7 +353,15 @@ function createContainersStore() {
                           onComplete?.(container);
                         })
                         .catch(() => {
-                          // Even if fetch fails, container was created
+                          // Even if fetch fails, container was created - try to parse resources from detail
+                          let resources: ContainerResources | undefined;
+                          try {
+                            if (event.detail) {
+                              const detailData = JSON.parse(event.detail);
+                              resources = detailData.resources;
+                            }
+                          } catch { /* ignore parse errors */ }
+                          
                           const container: Container = {
                             id: event.container_id!,
                             db_id: event.container_id,
@@ -361,6 +370,7 @@ function createContainersStore() {
                             image,
                             status: "running",
                             created_at: new Date().toISOString(),
+                            resources,
                           };
 
                           update((state) => ({
@@ -596,6 +606,7 @@ function createContainersStore() {
                 created_at:
                   containerData.created_at || new Date().toISOString(),
                 ip_address: containerData.ip_address,
+                resources: containerData.resources,
               };
 
               update((state) => ({

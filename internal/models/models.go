@@ -104,6 +104,81 @@ type CreateContainerRequest struct {
 	Image       string `json:"image" binding:"required"` // Image type (ubuntu, debian, etc.) or "custom"
 	CustomImage string `json:"custom_image,omitempty"`   // Required when Image is "custom"
 	Role        string `json:"role,omitempty"`           // Optional role (node, python, etc.)
+	// Trial resource customization (within limits)
+	MemoryMB  int64 `json:"memory_mb,omitempty"`  // Optional: custom memory (256-1024 MB for trial)
+	CPUShares int64 `json:"cpu_shares,omitempty"` // Optional: custom CPU shares (256-1024 for trial)
+	DiskMB    int64 `json:"disk_mb,omitempty"`    // Optional: custom disk (1024-4096 MB for trial)
+}
+
+// TrialResourceLimits defines the min/max resource limits for trial users
+type TrialResourceLimits struct {
+	MinMemoryMB  int64
+	MaxMemoryMB  int64
+	MinCPUShares int64
+	MaxCPUShares int64
+	MinDiskMB    int64
+	MaxDiskMB    int64
+}
+
+// GetTrialResourceLimits returns the allowed resource customization range for trial users
+func GetTrialResourceLimits() TrialResourceLimits {
+	return TrialResourceLimits{
+		MinMemoryMB:  256,
+		MaxMemoryMB:  1024,
+		MinCPUShares: 256,
+		MaxCPUShares: 1024,
+		MinDiskMB:    1024,
+		MaxDiskMB:    4096,
+	}
+}
+
+// ValidateTrialResources validates and clamps resource requests for trial users
+func ValidateTrialResources(req *CreateContainerRequest, tier string) ResourceLimits {
+	defaults := TierLimits(tier)
+	limits := GetTrialResourceLimits()
+	
+	// Only trial/guest/free can customize within limits
+	if tier != "trial" && tier != "guest" && tier != "free" {
+		// Pro/Enterprise get their defaults (or could be expanded later)
+		return defaults
+	}
+	
+	result := defaults
+	
+	// Validate and clamp memory
+	if req.MemoryMB > 0 {
+		if req.MemoryMB < limits.MinMemoryMB {
+			result.MemoryMB = limits.MinMemoryMB
+		} else if req.MemoryMB > limits.MaxMemoryMB {
+			result.MemoryMB = limits.MaxMemoryMB
+		} else {
+			result.MemoryMB = req.MemoryMB
+		}
+	}
+	
+	// Validate and clamp CPU shares
+	if req.CPUShares > 0 {
+		if req.CPUShares < limits.MinCPUShares {
+			result.CPUShares = limits.MinCPUShares
+		} else if req.CPUShares > limits.MaxCPUShares {
+			result.CPUShares = limits.MaxCPUShares
+		} else {
+			result.CPUShares = req.CPUShares
+		}
+	}
+	
+	// Validate and clamp disk
+	if req.DiskMB > 0 {
+		if req.DiskMB < limits.MinDiskMB {
+			result.DiskMB = limits.MinDiskMB
+		} else if req.DiskMB > limits.MaxDiskMB {
+			result.DiskMB = limits.MaxDiskMB
+		} else {
+			result.DiskMB = req.DiskMB
+		}
+	}
+	
+	return result
 }
 
 // ResizeRequest represents a terminal resize request
