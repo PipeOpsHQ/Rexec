@@ -26,6 +26,12 @@ export interface TerminalSession {
   resizeObserver: ResizeObserver | null;
   isSettingUp: boolean;
   setupMessage: string;
+  // Stats
+  stats: {
+    cpu: number;
+    memory: number;
+    memoryLimit: number;
+  };
   // Detached window state (when popped out as separate floating window)
   isDetached: boolean;
   detachedPosition: { x: number; y: number };
@@ -268,6 +274,11 @@ function createTerminalStore() {
         resizeObserver: null,
         isSettingUp: false,
         setupMessage: "",
+        stats: {
+          cpu: 0,
+          memory: 0,
+          memoryLimit: 0,
+        },
         isDetached: false,
         detachedPosition: { x: 150, y: 150 },
         detachedSize: { width: 600, height: 400 },
@@ -433,6 +444,21 @@ function createTerminalStore() {
               isSettingUp: false,
               setupMessage: "",
             }));
+          } else if (msg.type === "stats") {
+            // Handle stats updates
+            try {
+              const statsData = JSON.parse(msg.data);
+              updateSession(sessionId, (s) => ({
+                ...s,
+                stats: {
+                  cpu: statsData.cpu_percent || 0,
+                  memory: statsData.memory || 0,
+                  memoryLimit: statsData.memory_limit || 0,
+                },
+              }));
+            } catch (e) {
+              console.error("Failed to parse stats:", e);
+            }
           }
         } catch {
           // Raw data fallback

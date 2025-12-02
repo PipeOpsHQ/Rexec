@@ -5,10 +5,7 @@
     import { toast } from "$stores/toast";
     import { api } from "$utils/api";
     import TerminalPanel from "./TerminalPanel.svelte";
-    import ConfirmModal from "../ConfirmModal.svelte";
-
-    // Confirm modal state
-    let showCloseAllConfirm = false;
+    import PlatformIcon from "../icons/PlatformIcon.svelte";
 
     // Track view mode changes to force terminal re-render
     let viewModeKey = 0;
@@ -44,12 +41,12 @@
 
     // Progress steps for visual display
     const progressSteps = [
-        { id: "validating", label: "Validating", icon: "✓" },
-        { id: "pulling", label: "Pulling Image", icon: "📦" },
-        { id: "creating", label: "Creating Container", icon: "🔧" },
-        { id: "starting", label: "Starting", icon: "🚀" },
-        { id: "configuring", label: "Configuring", icon: "⚙️" },
-        { id: "ready", label: "Ready", icon: "✨" },
+        { id: "validating", label: "Validating" },
+        { id: "pulling", label: "Pulling Image" },
+        { id: "creating", label: "Creating Container" },
+        { id: "starting", label: "Starting" },
+        { id: "configuring", label: "Configuring" },
+        { id: "ready", label: "Ready" },
     ];
 
     // Get step status
@@ -73,41 +70,7 @@
         popular?: boolean;
     }> = [];
 
-    // Image icons
-    const imageIcons: Record<string, string> = {
-        ubuntu: "🟠",
-        debian: "🔴",
-        alpine: "🔵",
-        fedora: "🔵",
-        centos: "🟣",
-        rocky: "🟢",
-        alma: "🟣",
-        arch: "🔷",
-        kali: "🐉",
-        parrot: "🦜",
-        mint: "🌿",
-        elementary: "🪶",
-        devuan: "🔘",
-        blackarch: "🖤",
-        manjaro: "🟩",
-        opensuse: "🦎",
-        tumbleweed: "🌀",
-        gentoo: "🗿",
-        void: "⬛",
-        nixos: "❄️",
-        slackware: "📦",
-        busybox: "📦",
-        amazonlinux: "🟧",
-        oracle: "🔶",
-        rhel: "🎩",
-        openeuler: "🔵",
-        clearlinux: "💎",
-        photon: "☀️",
-        raspberrypi: "🍓",
-        scientific: "🔬",
-        rancheros: "🐄",
-        custom: "📦",
-    };
+
 
     // Role to preferred OS mapping
     const roleToOS: Record<string, string> = {
@@ -137,7 +100,6 @@
         {
             id: "standard",
             name: "The Minimalist",
-            icon: "🧘",
             desc: "I use Arch btw. Just give me a shell.",
             tools: ["bash", "git", "curl", "vim"],
             recommendedOS: "Alpine",
@@ -146,7 +108,6 @@
         {
             id: "node",
             name: "10x JS Ninja",
-            icon: "🚀",
             desc: "Ship fast, break things, npm install everything.",
             tools: ["node", "npm", "yarn", "pnpm", "git"],
             recommendedOS: "Ubuntu",
@@ -155,7 +116,6 @@
         {
             id: "python",
             name: "Data Wizard",
-            icon: "🧙‍♂️",
             desc: "Import antigravity. I speak in list comprehensions.",
             tools: ["python3", "pip", "jupyter", "pandas", "numpy"],
             recommendedOS: "Ubuntu",
@@ -164,7 +124,6 @@
         {
             id: "go",
             name: "The Gopher",
-            icon: "🐹",
             desc: "If err != nil { panic(err) }. Simplicity is key.",
             tools: ["go", "git", "make", "delve"],
             recommendedOS: "Alpine",
@@ -173,7 +132,6 @@
         {
             id: "neovim",
             name: "Neovim God",
-            icon: "⌨️",
             desc: "My config is longer than your code. Mouse? What mouse?",
             tools: ["neovim", "tmux", "fzf", "ripgrep", "lazygit"],
             recommendedOS: "Arch",
@@ -182,7 +140,6 @@
         {
             id: "devops",
             name: "YAML Herder",
-            icon: "☸️",
             desc: "I don't write code, I write config. Prod is my playground.",
             tools: ["kubectl", "docker", "terraform", "helm", "aws-cli"],
             recommendedOS: "Alpine",
@@ -191,7 +148,6 @@
         {
             id: "overemployed",
             name: "The Overemployed",
-            icon: "💼",
             desc: "Working 4 remote jobs. Need max efficiency.",
             tools: ["tmux", "git", "ssh", "docker", "zsh"],
             recommendedOS: "Alpine",
@@ -202,13 +158,7 @@
     // Get current selected role details
     $: currentRole = roles.find((r) => r.id === selectedRole);
 
-    function getIcon(imageName: string): string {
-        const lower = imageName.toLowerCase();
-        for (const [key, icon] of Object.entries(imageIcons)) {
-            if (lower.includes(key)) return icon;
-        }
-        return "🐧";
-    }
+
 
     // Load available images when create panel opens
     async function loadImages() {
@@ -478,14 +428,6 @@
         terminal.restore();
     }
 
-    function closeAll() {
-        showCloseAllConfirm = true;
-    }
-
-    function confirmCloseAll() {
-        terminal.closeAllSessions();
-    }
-
     function closeSession(sessionId: string) {
         terminal.closeSession(sessionId);
     }
@@ -638,16 +580,6 @@
     });
 </script>
 
-<ConfirmModal
-    bind:show={showCloseAllConfirm}
-    title="Close All Terminals"
-    message="Are you sure you want to close all docked terminals? Detached windows will remain open."
-    confirmText="Close All"
-    cancelText="Cancel"
-    variant="warning"
-    on:confirm={confirmCloseAll}
-/>
-
 {#if $sessionCount > 0}
     {#if $isFloating}
         <!-- Floating Terminal -->
@@ -711,7 +643,6 @@
                             ⬒
                         </button>
                         <button on:click={minimize} title="Minimize">−</button>
-                        <button on:click={closeAll} title="Close All">×</button>
                     </div>
                 </div>
 
@@ -750,9 +681,7 @@
                                                     step.id,
                                                 )}"
                                             >
-                                                <span class="step-icon"
-                                                    >{step.icon}</span
-                                                >
+                                                <span class="step-indicator"></span>
                                                 <span class="step-label"
                                                     >{step.label}</span
                                                 >
@@ -795,9 +724,7 @@
                                                             role.id)}
                                                     title={role.desc}
                                                 >
-                                                    <span class="role-icon"
-                                                        >{role.icon}</span
-                                                    >
+                                                    <PlatformIcon platform={role.id} size={24} />
                                                     <span class="role-name"
                                                         >{role.name}</span
                                                     >
@@ -807,9 +734,9 @@
                                         {#if currentRole}
                                             <div class="role-info-compact">
                                                 <div class="role-header-row">
-                                                    <span class="role-icon-sm">{currentRole.icon}</span>
+                                                    <PlatformIcon platform={currentRole.id} size={16} />
                                                     <span class="role-name-sm">{currentRole.name}</span>
-                                                    <span class="role-os-badge">📦 {currentRole.recommendedOS}</span>
+                                                    <span class="role-os-badge"><PlatformIcon platform={currentRole.recommendedOS.toLowerCase()} size={16} /> {currentRole.recommendedOS}</span>
                                                 </div>
                                                 <div class="role-tools">
                                                     {#each currentRole.tools as tool}
@@ -832,11 +759,7 @@
                                                             image.name,
                                                         )}
                                                 >
-                                                    <span class="os-icon"
-                                                        >{getIcon(
-                                                            image.name,
-                                                        )}</span
-                                                    >
+                                                    <PlatformIcon platform={image.name} size={24} />
                                                     <span class="os-name"
                                                         >{image.display_name ||
                                                             image.name}</span
@@ -848,7 +771,7 @@
                                                 on:click={() =>
                                                     selectAndCreate("custom")}
                                             >
-                                                <span class="os-icon">📦</span>
+                                                <PlatformIcon platform="custom" size={24} />
                                                 <span class="os-name"
                                                     >Custom</span
                                                 >
@@ -967,13 +890,6 @@
                         >
                             −
                         </button>
-                        <button
-                            class="btn btn-danger btn-sm"
-                            on:click={closeAll}
-                            title="Close All"
-                        >
-                            ×
-                        </button>
                     </div>
                 </div>
 
@@ -1060,9 +976,7 @@
                                                             role.id)}
                                                     title={role.desc}
                                                 >
-                                                    <span class="role-icon"
-                                                        >{role.icon}</span
-                                                    >
+                                                    <PlatformIcon platform={role.id} size={24} />
                                                     <span class="role-name"
                                                         >{role.name}</span
                                                     >
@@ -1072,9 +986,9 @@
                                         {#if currentRole}
                                             <div class="role-info-compact">
                                                 <div class="role-header-row">
-                                                    <span class="role-icon-sm">{currentRole.icon}</span>
+                                                    <PlatformIcon platform={currentRole.id} size={16} />
                                                     <span class="role-name-sm">{currentRole.name}</span>
-                                                    <span class="role-os-badge">📦 {currentRole.recommendedOS}</span>
+                                                    <span class="role-os-badge"><PlatformIcon platform={currentRole.recommendedOS.toLowerCase()} size={16} /> {currentRole.recommendedOS}</span>
                                                 </div>
                                                 <div class="role-tools">
                                                     {#each currentRole.tools as tool}
@@ -1097,11 +1011,7 @@
                                                             image.name,
                                                         )}
                                                 >
-                                                    <span class="os-icon"
-                                                        >{getIcon(
-                                                            image.name,
-                                                        )}</span
-                                                    >
+                                                    <PlatformIcon platform={image.name} size={24} />
                                                     <span class="os-name"
                                                         >{image.display_name ||
                                                             image.name}</span
@@ -1119,7 +1029,7 @@
                                                 on:click={() =>
                                                     selectAndCreate("custom")}
                                             >
-                                                <span class="os-icon">📦</span>
+                                                <PlatformIcon platform="custom" size={24} />
                                                 <span class="os-name"
                                                     >Custom Image</span
                                                 >
@@ -2120,8 +2030,24 @@
         color: var(--green);
     }
 
-    .progress-step-inline .step-icon {
-        font-size: 10px;
+    .progress-step-inline .step-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border:2px solid var(--border);
+        background: transparent;
+        flex-shrink: 0;
+    }
+
+    .progress-step-inline.active .step-indicator {
+        border-color: var(--accent);
+        background: var(--accent);
+        animation: pulse 1s infinite;
+    }
+
+    .progress-step-inline.completed .step-indicator {
+        border-color: var(--green);
+        background: var(--green);
     }
 
     .progress-step-inline .step-label {

@@ -127,7 +127,6 @@
 </script>
 
 <div class="terminal-panel-wrapper">
-    <!-- Toolbar -->
     <div class="terminal-toolbar">
         <div class="toolbar-left">
             <span class="terminal-name">{session.name}</span>
@@ -140,6 +139,17 @@
                 <span class="status-indicator"></span>
                 {status}
             </span>
+            {#if isConnected && (session.stats.cpu > 0 || session.stats.memory > 0)}
+                <span class="terminal-stats">
+                    <span class="stat-item" title="CPU Usage">
+                        CPU: {session.stats.cpu.toFixed(1)}%
+                    </span>
+                    <span class="stat-divider">|</span>
+                    <span class="stat-item" title="Memory Usage">
+                        MEM: {(session.stats.memory / 1024 / 1024).toFixed(0)}MB
+                    </span>
+                </span>
+            {/if}
             {#if isSettingUp}
                 <span class="setup-indicator">
                     <span class="setup-spinner"></span>
@@ -382,6 +392,27 @@
 
     .terminal-status.disconnected .status-indicator {
         background: var(--red);
+    }
+
+    .terminal-stats {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 10px;
+        text-transform: uppercase;
+        padding: 2px 8px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+        font-family: var(--font-mono);
+    }
+
+    .stat-item {
+        white-space: nowrap;
+    }
+
+    .stat-divider {
+        opacity: 0.5;
     }
 
     .toolbar-actions {
