@@ -9,6 +9,7 @@
     import { terminal } from "$stores/terminal";
     import { toast } from "$stores/toast";
     import { formatRelativeTime } from "$utils/api";
+    import ConfirmModal from "./ConfirmModal.svelte";
 
     const dispatch = createEventDispatcher<{
         create: void;
@@ -17,6 +18,10 @@
 
     // Track containers being deleted
     let deletingIds: Set<string> = new Set();
+
+    // Confirm modal state
+    let showDeleteConfirm = false;
+    let containerToDelete: Container | null = null;
 
     function isDeleting(id: string): boolean {
         return deletingIds.has(id);
@@ -58,14 +63,16 @@
         }
     }
 
-    async function handleDelete(container: Container) {
-        if (
-            !confirm(
-                `Delete terminal "${container.name}"? This cannot be undone.`,
-            )
-        ) {
-            return;
-        }
+    function handleDelete(container: Container) {
+        containerToDelete = container;
+        showDeleteConfirm = true;
+    }
+
+    async function confirmDelete() {
+        if (!containerToDelete) return;
+
+        const container = containerToDelete;
+        containerToDelete = null;
 
         // Mark as deleting
         deletingIds.add(container.id);
@@ -87,6 +94,10 @@
                 "error",
             );
         }
+    }
+
+    function cancelDelete() {
+        containerToDelete = null;
     }
 
     function handleConnect(container: Container) {
@@ -140,6 +151,19 @@
     // Count creating as part of limit
     $: effectiveCount = containerList.length + (currentlyCreating ? 1 : 0);
 </script>
+
+<ConfirmModal
+    bind:show={showDeleteConfirm}
+    title="Delete Terminal"
+    message={containerToDelete
+        ? `Are you sure you want to delete "${containerToDelete.name}"? This action cannot be undone and all data will be lost.`
+        : ""}
+    confirmText="Delete"
+    cancelText="Cancel"
+    variant="danger"
+    on:confirm={confirmDelete}
+    on:cancel={cancelDelete}
+/>
 
 <div class="dashboard">
     <div class="dashboard-header">

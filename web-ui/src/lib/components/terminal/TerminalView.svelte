@@ -5,6 +5,10 @@
     import { toast } from "$stores/toast";
     import { api } from "$utils/api";
     import TerminalPanel from "./TerminalPanel.svelte";
+    import ConfirmModal from "../ConfirmModal.svelte";
+
+    // Confirm modal state
+    let showCloseAllConfirm = false;
 
     // Track view mode changes to force terminal re-render
     let viewModeKey = 0;
@@ -476,13 +480,11 @@
     }
 
     function closeAll() {
-        if (
-            confirm(
-                "Close all docked terminals? (Detached windows will remain open)",
-            )
-        ) {
-            terminal.closeAllSessions();
-        }
+        showCloseAllConfirm = true;
+    }
+
+    function confirmCloseAll() {
+        terminal.closeAllSessions();
     }
 
     function closeSession(sessionId: string) {
@@ -636,6 +638,16 @@
         window.removeEventListener("mouseup", handleDetachedMouseUp);
     });
 </script>
+
+<ConfirmModal
+    bind:show={showCloseAllConfirm}
+    title="Close All Terminals"
+    message="Are you sure you want to close all docked terminals? Detached windows will remain open."
+    confirmText="Close All"
+    cancelText="Cancel"
+    variant="warning"
+    on:confirm={confirmCloseAll}
+/>
 
 {#if $sessionCount > 0}
     {#if $isFloating}

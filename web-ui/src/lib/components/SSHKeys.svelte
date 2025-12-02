@@ -3,6 +3,7 @@
     import { toast } from "$stores/toast";
     import { api } from "$utils/api";
     import { isGuest, auth } from "$stores/auth";
+    import ConfirmModal from "./ConfirmModal.svelte";
 
     const dispatch = createEventDispatcher<{
         back: void;
@@ -83,10 +84,19 @@
     }
 
     // Delete SSH key
-    async function deleteKey(id: string, name: string) {
-        if (!confirm(`Delete SSH key "${name}"? This cannot be undone.`)) {
-            return;
-        }
+    let showDeleteConfirm = false;
+    let keyToDelete: { id: string; name: string } | null = null;
+
+    function deleteKey(id: string, name: string) {
+        keyToDelete = { id, name };
+        showDeleteConfirm = true;
+    }
+
+    async function confirmDeleteKey() {
+        if (!keyToDelete) return;
+
+        const { id } = keyToDelete;
+        keyToDelete = null;
 
         const { error } = await api.delete(`/api/ssh-keys/${id}`);
 
@@ -96,6 +106,10 @@
         } else {
             toast.error(error || "Failed to delete SSH key");
         }
+    }
+
+    function cancelDeleteKey() {
+        keyToDelete = null;
     }
 
     // Modal helpers
@@ -123,6 +137,19 @@
 
     onMount(loadKeys);
 </script>
+
+<ConfirmModal
+    bind:show={showDeleteConfirm}
+    title="Delete SSH Key"
+    message={keyToDelete
+        ? `Are you sure you want to delete "${keyToDelete.name}"? This action cannot be undone.`
+        : ""}
+    confirmText="Delete"
+    cancelText="Cancel"
+    variant="danger"
+    on:confirm={confirmDeleteKey}
+    on:cancel={cancelDeleteKey}
+/>
 
 <div class="ssh-keys">
     <div class="ssh-keys-header">
