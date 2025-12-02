@@ -56,6 +56,68 @@
         { id: "ready", label: "Ready" },
     ];
 
+    // Hacker-style log messages
+    let logMessages: Array<{ text: string; type: 'info' | 'success' | 'cmd' | 'data' }> = [];
+    let logContainer: HTMLDivElement;
+    
+    const stageLogMessages: Record<string, Array<{ text: string; type: 'info' | 'success' | 'cmd' | 'data' }>> = {
+        validating: [
+            { text: '$ rexec init --validate', type: 'cmd' },
+            { text: '[SYS] Authenticating session...', type: 'info' },
+            { text: '[AUTH] Token verified ✓', type: 'success' },
+            { text: '[QUOTA] Checking resource allocation...', type: 'info' },
+        ],
+        pulling: [
+            { text: '$ docker pull registry.rexec.io/base', type: 'cmd' },
+            { text: '[NET] Connecting to registry...', type: 'info' },
+            { text: '[PULL] Downloading layers...', type: 'data' },
+            { text: '[CACHE] Layer sha256:a3ed... cached', type: 'info' },
+            { text: '[PULL] Extracting filesystem...', type: 'data' },
+        ],
+        creating: [
+            { text: '$ rexec container create --secure', type: 'cmd' },
+            { text: '[DOCKER] Allocating container ID...', type: 'info' },
+            { text: '[NET] Configuring network namespace...', type: 'info' },
+            { text: '[FS] Mounting overlay filesystem...', type: 'data' },
+            { text: '[SEC] Applying seccomp profile...', type: 'info' },
+        ],
+        starting: [
+            { text: '$ rexec container start', type: 'cmd' },
+            { text: '[INIT] Starting container process...', type: 'info' },
+            { text: '[PID] Process spawned: 1', type: 'data' },
+            { text: '[TTY] Allocating pseudo-terminal...', type: 'info' },
+            { text: '[WS] WebSocket channel ready', type: 'success' },
+        ],
+        configuring: [
+            { text: '$ rexec setup --role ${role}', type: 'cmd' },
+            { text: '[PKG] Updating package index...', type: 'info' },
+            { text: '[INSTALL] Installing development tools...', type: 'data' },
+            { text: '[CONFIG] Writing shell configuration...', type: 'info' },
+            { text: '[ENV] Setting environment variables...', type: 'data' },
+        ],
+        ready: [
+            { text: '[SYS] Container ready ✓', type: 'success' },
+            { text: '[WS] Terminal connection established', type: 'success' },
+            { text: '$ echo "Welcome to Rexec"', type: 'cmd' },
+        ],
+    };
+    
+    let prevStage = '';
+    $: if (progressStage && progressStage !== prevStage) {
+        prevStage = progressStage;
+        const newLogs = stageLogMessages[progressStage] || [];
+        // Add logs with slight delay for effect
+        newLogs.forEach((log, i) => {
+            setTimeout(() => {
+                logMessages = [...logMessages, log];
+                // Auto-scroll to bottom
+                if (logContainer) {
+                    logContainer.scrollTop = logContainer.scrollHeight;
+                }
+            }, i * 150);
+        });
+    }
+
     function getStepStatus(stepId: string): "pending" | "active" | "completed" {
         const stepOrder = progressSteps.map((s) => s.id);
         const currentIndex = stepOrder.indexOf(progressStage);
@@ -192,16 +254,21 @@
             progress = 0;
             progressMessage = "";
             progressStage = "";
+            logMessages = [];
+            prevStage = '';
         }
 
         function handleError(error: string) {
+            logMessages = [...logMessages, { text: `[ERROR] ${error}`, type: 'info' as const }];
             progressMessage = error || "Failed to create terminal";
             setTimeout(() => {
                 isCreating = false;
                 progress = 0;
                 progressMessage = "";
                 progressStage = "";
-            }, 2000);
+                logMessages = [];
+                prevStage = '';
+            }, 3000);
         }
 
         // Call with correct parameters: name, image, customImage, role, onProgress, onComplete, onError, resources
@@ -221,24 +288,47 @@
 <div class="inline-create" class:compact>
     {#if isCreating}
         <div class="create-progress">
-            <div class="progress-header">
-                <span class="progress-percent">{displayProgress}%</span>
-            </div>
-            <div class="progress-bar">
-                <div class="progress-fill" style="width: {displayProgress}%"></div>
-            </div>
-            <p class="progress-message">{progressMessage}</p>
-            {#if currentRole && progressStage === "configuring"}
-                <div class="installing-tools">
-                    <p class="installing-label">Installing {currentRole.name} tools:</p>
-                    <div class="tools-installing">
-                        {#each currentRole.tools as tool}
-                            <span class="tool-badge-installing">{tool}</span>
-                        {/each}
-                    </div>
+            <!-- Hacker-style terminal header -->
+            <div class="hacker-header">
+                <div class="terminal-title">
+                    <span class="blink">▌</span> REXEC INIT SEQUENCE
                 </div>
-            {/if}
-            <div class="spinner"></div>
+                <div class="progress-stats">
+                    <span class="stat">[{displayProgress}%]</span>
+                    <span class="stage">{progressStage.toUpperCase()}</span>
+                </div>
+            </div>
+            
+            <!-- Progress bar styled as loading bar -->
+            <div class="hacker-progress">
+                <div class="progress-track">
+                    {#each Array(20) as _, i}
+                        <span class="progress-block" class:filled={i < displayProgress / 5}>█</span>
+                    {/each}
+                </div>
+            </div>
+            
+            <!-- Hacker log display -->
+            <div class="hacker-logs" bind:this={logContainer}>
+                {#each logMessages as log, i}
+                    <div class="log-line" class:cmd={log.type === 'cmd'} class:success={log.type === 'success'} class:data={log.type === 'data'}>
+                        <span class="log-prefix">{log.type === 'cmd' ? '' : '>'}</span>
+                        <span class="log-text">{log.text}</span>
+                        {#if i === logMessages.length - 1}
+                            <span class="cursor">_</span>
+                        {/if}
+                    </div>
+                {/each}
+            </div>
+            
+            <!-- Current stage indicator -->
+            <div class="stage-indicator">
+                {#each progressSteps as step}
+                    <div class="step" class:active={progressStage === step.id} class:completed={getStepStatus(step.id) === 'completed'}>
+                        <span class="step-dot">{getStepStatus(step.id) === 'completed' ? '●' : getStepStatus(step.id) === 'active' ? '◉' : '○'}</span>
+                    </div>
+                {/each}
+            </div>
         </div>
     {:else}
         <div class="create-content">
@@ -397,89 +487,176 @@
         padding: 12px;
     }
 
-    /* Progress */
+    /* Progress - Hacker Style */
     .create-progress {
         display: flex;
         flex-direction: column;
-        align-items: center;
-        justify-content: center;
         gap: 12px;
-        padding: 24px;
-        text-align: center;
-    }
-
-    .progress-header {
-        font-size: 24px;
-        font-weight: 600;
-        color: var(--accent);
+        padding: 16px;
+        background: #000;
+        border: 1px solid #00ff41;
+        border-radius: 4px;
         font-family: var(--font-mono);
+        box-shadow: 0 0 20px rgba(0, 255, 65, 0.1), inset 0 0 40px rgba(0, 255, 65, 0.02);
     }
 
-    .progress-bar {
-        width: 100%;
-        max-width: 300px;
-        height: 4px;
-        background: var(--bg-tertiary);
-        border-radius: 2px;
-        overflow: hidden;
-    }
-
-    .progress-fill {
-        height: 100%;
-        background: var(--accent);
-        transition: width 0.3s ease;
-    }
-
-    .progress-message {
-        color: var(--text-muted);
-        font-size: 13px;
-        margin: 0;
-    }
-
-    .installing-tools {
-        margin-top: 8px;
-    }
-
-    .installing-label {
-        font-size: 11px;
-        color: var(--text-muted);
-        margin-bottom: 6px;
-    }
-
-    .tools-installing {
+    .hacker-header {
         display: flex;
-        flex-wrap: wrap;
-        gap: 4px;
-        justify-content: center;
+        justify-content: space-between;
+        align-items: center;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(0, 255, 65, 0.3);
     }
 
-    .tool-badge-installing {
-        padding: 2px 6px;
-        background: rgba(0, 255, 65, 0.1);
-        border: 1px solid rgba(0, 255, 65, 0.3);
-        border-radius: 3px;
+    .terminal-title {
+        font-size: 12px;
+        color: #00ff41;
+        font-weight: 600;
+        letter-spacing: 2px;
+        text-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+    }
+
+    .blink {
+        animation: blink-cursor 1s step-end infinite;
+    }
+
+    @keyframes blink-cursor {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0; }
+    }
+
+    .progress-stats {
+        display: flex;
+        gap: 12px;
+        font-size: 11px;
+    }
+
+    .progress-stats .stat {
+        color: #00ff41;
+        font-weight: 600;
+    }
+
+    .progress-stats .stage {
+        color: #0af;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .hacker-progress {
+        padding: 4px 0;
+    }
+
+    .progress-track {
+        display: flex;
         font-size: 10px;
-        color: var(--accent);
-        font-family: var(--font-mono);
-        animation: pulse 1s infinite;
+        letter-spacing: 1px;
     }
 
-    @keyframes pulse {
+    .progress-block {
+        color: #333;
+        transition: color 0.15s ease;
+    }
+
+    .progress-block.filled {
+        color: #00ff41;
+        text-shadow: 0 0 5px rgba(0, 255, 65, 0.8);
+    }
+
+    .hacker-logs {
+        height: 180px;
+        overflow-y: auto;
+        background: rgba(0, 0, 0, 0.5);
+        border: 1px solid #222;
+        border-radius: 2px;
+        padding: 8px;
+        scrollbar-width: thin;
+        scrollbar-color: #00ff41 #111;
+    }
+
+    .hacker-logs::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .hacker-logs::-webkit-scrollbar-track {
+        background: #111;
+    }
+
+    .hacker-logs::-webkit-scrollbar-thumb {
+        background: #00ff41;
+        border-radius: 2px;
+    }
+
+    .log-line {
+        display: flex;
+        gap: 6px;
+        font-size: 11px;
+        line-height: 1.6;
+        color: #888;
+        animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateX(-5px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+
+    .log-line.cmd {
+        color: #fff;
+        font-weight: 500;
+    }
+
+    .log-line.success {
+        color: #00ff41;
+    }
+
+    .log-line.data {
+        color: #0af;
+    }
+
+    .log-prefix {
+        color: #555;
+        user-select: none;
+    }
+
+    .log-line.cmd .log-prefix {
+        color: #00ff41;
+    }
+
+    .cursor {
+        animation: blink-cursor 0.7s step-end infinite;
+        color: #00ff41;
+    }
+
+    .stage-indicator {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        padding-top: 8px;
+        border-top: 1px solid rgba(0, 255, 65, 0.2);
+    }
+
+    .step {
+        transition: all 0.2s ease;
+    }
+
+    .step-dot {
+        font-size: 8px;
+        color: #333;
+    }
+
+    .step.active .step-dot {
+        color: #00ff41;
+        text-shadow: 0 0 8px rgba(0, 255, 65, 0.8);
+        animation: pulse-dot 1s ease infinite;
+    }
+
+    .step.completed .step-dot {
+        color: #00ff41;
+    }
+
+    @keyframes pulse-dot {
         0%, 100% { opacity: 1; }
         50% { opacity: 0.5; }
-    }
-
-    .spinner {
-        width: 24px;
-        height: 24px;
-        border: 2px solid var(--border);
-        border-top-color: var(--accent);
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-    }
-
-    @keyframes spin {
-        to { transform: rotate(360deg); }
     }
 
     /* Content */
