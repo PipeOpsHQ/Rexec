@@ -89,6 +89,15 @@
     });
   }
 
+  function handleCopyLink() {
+    const url = `${window.location.origin}/terminal/${session.containerId}`;
+    navigator.clipboard.writeText(url).then(() => {
+      toast.success('Terminal link copied to clipboard');
+    }).catch(() => {
+      toast.error('Failed to copy link');
+    });
+  }
+
   // Focus terminal when clicking on container
   function handleContainerClick() {
     if (session.terminal) {
@@ -128,6 +137,9 @@
           ↻ Reconnect
         </button>
       {/if}
+      <button class="toolbar-btn" on:click={handleCopyLink} title="Copy Terminal Link">
+        🔗 Copy Link
+      </button>
       <button class="toolbar-btn" on:click={handleCopy} title="Copy Selection">
         📋 Copy
       </button>
