@@ -239,11 +239,35 @@
                 selectedImage = "";
                 customImage = "";
 
+                // Debug logging
+                console.log(
+                    "[TerminalView] Container creation complete:",
+                    container,
+                );
+
                 // Defensive checks for container object
-                const containerName = container?.name || name;
-                const containerId = container?.id || container?.db_id;
+                if (!container) {
+                    console.error(
+                        "[TerminalView] Container object is null/undefined",
+                    );
+                    toast.error("Container creation failed. Please try again.");
+                    return;
+                }
+
+                const containerName =
+                    container.name || name || `Terminal-${Date.now()}`;
+                const containerId = container.id || container.db_id;
+
+                console.log("[TerminalView] Creating session with:", {
+                    containerId,
+                    containerName,
+                });
 
                 if (!containerId) {
+                    console.error(
+                        "[TerminalView] No container ID found in:",
+                        container,
+                    );
                     toast.error(
                         "Container created but ID not found. Please refresh.",
                     );
@@ -251,20 +275,34 @@
                 }
 
                 toast.success(`Terminal "${containerName}" created!`);
-                // Create session and connect
-                terminal.createSession(containerId, containerName);
+
+                // Add a small delay to ensure container is fully ready
+                // before attempting WebSocket connection
+                setTimeout(() => {
+                    console.log("[TerminalView] Creating session after delay");
+                    terminal.createSession(containerId, containerName);
+                }, 1000);
             },
             // onError
             (error) => {
+                console.error(
+                    "[TerminalView] Container creation error:",
+                    error,
+                );
                 isCreating = false;
                 showCreatePanel = false;
                 // Ensure error is a string
-                const errorMsg =
-                    typeof error === "string"
-                        ? error
-                        : error?.message ||
-                          error?.error ||
-                          "Failed to create terminal";
+                let errorMsg = "Failed to create terminal";
+                if (typeof error === "string" && error.trim()) {
+                    errorMsg = error;
+                } else if (error && typeof error === "object") {
+                    errorMsg =
+                        error.message || error.error || JSON.stringify(error);
+                }
+                // Avoid showing 'undefined' or empty messages
+                if (!errorMsg || errorMsg === "undefined") {
+                    errorMsg = "Failed to create terminal. Please try again.";
+                }
                 toast.error(errorMsg);
             },
         );

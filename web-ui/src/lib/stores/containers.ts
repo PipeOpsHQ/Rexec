@@ -579,11 +579,12 @@ function createContainersStore() {
               const container: Container = {
                 id: containerData.id || containerData.docker_id || containerId,
                 db_id: containerData.db_id || containerId,
-                user_id: containerData.user_id,
-                name: containerData.name,
-                image: containerData.image,
+                user_id: containerData.user_id || "",
+                name: containerData.name || name,
+                image: containerData.image || image,
                 status: "running",
-                created_at: containerData.created_at,
+                created_at:
+                  containerData.created_at || new Date().toISOString(),
                 ip_address: containerData.ip_address,
               };
 

@@ -183,6 +183,18 @@ function createTerminalStore() {
     createSession(containerId: string, name: string): string | null {
       const currentState = getState();
 
+      // Validate inputs
+      if (!containerId) {
+        console.error("createSession: containerId is required");
+        return null;
+      }
+
+      // Ensure name is a valid string
+      const sessionName =
+        name && typeof name === "string"
+          ? name
+          : `Terminal-${containerId.slice(0, 8)}`;
+
       // Check for guest limit (max 3 sessions)
       const authToken = get(token);
       if (!authToken) return null;
@@ -200,13 +212,25 @@ function createTerminalStore() {
       }
 
       // Create a new tab
-      return this.createNewTab(containerId, name);
+      return this.createNewTab(containerId, sessionName);
     },
 
     // Create a new tab (always creates a new session, even for same container)
     createNewTab(containerId: string, name: string): string | null {
       const authToken = get(token);
       if (!authToken) return null;
+
+      // Validate inputs
+      if (!containerId) {
+        console.error("createNewTab: containerId is required");
+        return null;
+      }
+
+      // Ensure name is a valid string
+      const validName =
+        name && typeof name === "string"
+          ? name
+          : `Terminal-${containerId.slice(0, 8)}`;
 
       // Count existing sessions for this container to number the tab
       const currentState = getState();
@@ -222,7 +246,7 @@ function createTerminalStore() {
 
       const sessionId = generateSessionId();
       const tabName =
-        existingCount > 0 ? `${name} (${existingCount + 1})` : name;
+        existingCount > 0 ? `${validName} (${existingCount + 1})` : validName;
       const session: TerminalSession = {
         id: sessionId,
         containerId,

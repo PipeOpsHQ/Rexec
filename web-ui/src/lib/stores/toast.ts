@@ -1,7 +1,7 @@
-import { writable, derived } from 'svelte/store';
+import { writable, derived } from "svelte/store";
 
 // Types
-export type ToastType = 'success' | 'error' | 'warning' | 'info' | 'loading';
+export type ToastType = "success" | "error" | "warning" | "info" | "loading";
 
 export interface Toast {
   id: string;
@@ -38,10 +38,14 @@ function createToastStore() {
     // Show a toast
     show(
       message: string,
-      type: ToastType = 'info',
-      options: { duration?: number; dismissible?: boolean; id?: string } = {}
+      type: ToastType = "info",
+      options: { duration?: number; dismissible?: boolean; id?: string } = {},
     ): string {
-      const { duration = type === 'loading' ? 0 : 5000, dismissible = true, id = generateId() } = options;
+      const {
+        duration = type === "loading" ? 0 : 5000,
+        dismissible = true,
+        id = generateId(),
+      } = options;
 
       // Remove existing toast with same ID
       this.dismiss(id);
@@ -72,23 +76,52 @@ function createToastStore() {
 
     // Convenience methods
     success(message: string, options?: { duration?: number; id?: string }) {
-      return this.show(message, 'success', options);
+      const safeMessage = this.sanitizeMessage(message, "Operation successful");
+      return this.show(safeMessage, "success", options);
     },
 
     error(message: string, options?: { duration?: number; id?: string }) {
-      return this.show(message, 'error', { duration: 8000, ...options });
+      const safeMessage = this.sanitizeMessage(message, "An error occurred");
+      return this.show(safeMessage, "error", { duration: 8000, ...options });
     },
 
     warning(message: string, options?: { duration?: number; id?: string }) {
-      return this.show(message, 'warning', options);
+      const safeMessage = this.sanitizeMessage(message, "Warning");
+      return this.show(safeMessage, "warning", options);
     },
 
     info(message: string, options?: { duration?: number; id?: string }) {
-      return this.show(message, 'info', options);
+      const safeMessage = this.sanitizeMessage(message, "Info");
+      return this.show(safeMessage, "info", options);
+    },
+
+    // Helper to ensure message is never undefined/null/empty
+    sanitizeMessage(message: unknown, fallback: string): string {
+      if (
+        typeof message === "string" &&
+        message.trim() &&
+        message !== "undefined"
+      ) {
+        return message;
+      }
+      if (message && typeof message === "object") {
+        const obj = message as Record<string, unknown>;
+        if (typeof obj.message === "string" && obj.message.trim()) {
+          return obj.message;
+        }
+        if (typeof obj.error === "string" && obj.error.trim()) {
+          return obj.error;
+        }
+      }
+      return fallback;
     },
 
     loading(message: string, options?: { id?: string }) {
-      return this.show(message, 'loading', { duration: 0, dismissible: false, ...options });
+      return this.show(message, "loading", {
+        duration: 0,
+        dismissible: false,
+        ...options,
+      });
     },
 
     // Dismiss a toast
@@ -127,7 +160,9 @@ function createToastStore() {
       update((state) => ({
         ...state,
         toasts: state.toasts.map((t) =>
-          t.id === id ? { ...t, message, type, duration, dismissible: true } : t
+          t.id === id
+            ? { ...t, message, type, duration, dismissible: true }
+            : t,
         ),
       }));
 
@@ -147,22 +182,24 @@ function createToastStore() {
         loading: string;
         success: string | ((data: T) => string);
         error: string | ((err: Error) => string);
-      }
+      },
     ): Promise<T> {
       const id = this.loading(messages.loading);
 
       try {
         const result = await promise;
         const successMessage =
-          typeof messages.success === 'function' ? messages.success(result) : messages.success;
-        this.update(id, successMessage, 'success');
+          typeof messages.success === "function"
+            ? messages.success(result)
+            : messages.success;
+        this.update(id, successMessage, "success");
         return result;
       } catch (err) {
         const errorMessage =
-          typeof messages.error === 'function'
+          typeof messages.error === "function"
             ? messages.error(err as Error)
             : messages.error;
-        this.update(id, errorMessage, 'error', 8000);
+        this.update(id, errorMessage, "error", 8000);
         throw err;
       }
     },
