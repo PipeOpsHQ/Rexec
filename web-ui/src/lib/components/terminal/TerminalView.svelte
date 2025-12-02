@@ -10,6 +10,14 @@
     // Track view mode changes to force terminal re-render
     let viewModeKey = 0;
 
+    // Mobile detection
+    let isMobile = false;
+    $: {
+        if (typeof window !== 'undefined') {
+            isMobile = window.innerWidth < 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        }
+    }
+
     // Floating window state
     let isDragging = false;
     let isResizing = false;
@@ -408,18 +416,19 @@
         isResizing = true;
     }
 
-    // Actions
-    async function toggleViewMode() {
-        terminal.toggleViewMode();
-        // Increment key to force re-render of terminal panels
+    // Toggle between floating and docked
+    function toggleView() {
+        // Don't allow floating on mobile
+        if (isMobile && !$isFloating) {
+            toast.add("Floating mode not available on mobile", "info");
+            return;
+        }
+        terminal.toggleFloating();
+        // Increment key to force re-render
         viewModeKey++;
-        // Wait for DOM update then fit terminals with multiple attempts
-        await tick();
-        setTimeout(() => terminal.fitAll(), 100);
-        setTimeout(() => terminal.fitAll(), 300);
-        setTimeout(() => terminal.fitAll(), 500);
+        // Wait a tick then fit all terminals
+        tick().then(() => terminal.fitAll());
     }
-
     function minimize() {
         terminal.minimize();
     }
@@ -562,12 +571,37 @@
 
     // Window event listeners
     onMount(() => {
+        // Listen for container deletions
+        window.addEventListener("container-deleted", handleContainerDeleted);
+
+        // Force docked mode on mobile
+        if (isMobile && $isFloating) {
+            terminal.toggleFloating();
+        }
+
+        // Re-check mobile on window resize
+        const handleResize = () => {
+            const wasMobile = isMobile;
+            isMobile = window.innerWidth < 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+            // If switched to mobile while floating, go to docked
+            if (isMobile && !wasMobile && $isFloating) {
+                terminal.toggleFloating();
+                toast.add("Switched to docked mode for mobile", "info");
+            }
+        };
+        window.addEventListener('resize', handleResize);
+
         window.addEventListener("mousemove", handleMouseMove);
         window.addEventListener("mouseup", handleMouseUp);
         window.addEventListener("mousemove", handleTabDragMove);
         window.addEventListener("mouseup", handleTabDragEnd);
         window.addEventListener("mousemove", handleDetachedMouseMove);
         window.addEventListener("mouseup", handleDetachedMouseUp);
+
+        return () => {
+            window.removeEventListener('resize', handleResize);
+        };
     });
 
     onDestroy(() => {
@@ -643,8 +677,8 @@
                             ⬒
                         </button>
                         <button on:click={minimize} title="Minimize">−</button>
-                        <button 
-                            on:click={() => activeId && closeSession(activeId)} 
+                        <button
+                            on:click={() => activeId && closeSession(activeId)}
                             title="Close Current Terminal"
                             disabled={!activeId}
                         >×</button>

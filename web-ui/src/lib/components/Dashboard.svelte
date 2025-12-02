@@ -4,6 +4,7 @@
         containers,
         isCreating,
         creatingContainer,
+        wsConnected,
         type Container,
     } from "$stores/containers";
     import { terminal, connectedContainerIds } from "$stores/terminal";
@@ -179,6 +180,12 @@
             </span>
         </div>
         <div class="dashboard-actions">
+            {#if $wsConnected}
+                <span class="live-indicator">
+                    <span class="live-dot"></span>
+                    Live
+                </span>
+            {/if}
             <button
                 class="btn btn-secondary btn-sm"
                 on:click={() => containers.fetchContainers()}
@@ -731,6 +738,41 @@
         color: var(--text-muted);
         max-width: 400px;
         margin-bottom: 24px;
+    }
+
+    /* Live indicator */
+    .live-indicator {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        background: rgba(0, 255, 65, 0.1);
+        border: 1px solid rgba(0, 255, 65, 0.3);
+        border-radius: 4px;
+        font-size: 11px;
+        font-family: var(--font-mono);
+        color: var(--accent);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .live-dot {
+        width: 8px;
+        height: 8px;
+        background: var(--accent);
+        border-radius: 50%;
+        animation: pulse-live 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse-live {
+        0%, 100% { 
+            opacity: 1; 
+            box-shadow: 0 0 0 0 rgba(0, 255, 65, 0.4);
+        }
+        50% { 
+            opacity: 0.6; 
+            box-shadow: 0 0 0 4px rgba(0, 255, 65, 0);
+        }
     }
 
     /* Containers Grid */

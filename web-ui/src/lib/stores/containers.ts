@@ -791,6 +791,9 @@ function getWebSocketUrl(): string {
   return `${protocol}//${host}/api/containers/events?token=${currentToken}`;
 }
 
+// WebSocket connection status
+export const wsConnected = writable(false);
+
 // Start WebSocket connection for real-time container updates
 export function startContainerEvents() {
   if (eventsSocket?.readyState === WebSocket.OPEN) return;
@@ -804,6 +807,7 @@ export function startContainerEvents() {
     eventsSocket.onopen = () => {
       console.log("[ContainerEvents] WebSocket connected");
       reconnectAttempts = 0;
+      wsConnected.set(true);
     };
 
     eventsSocket.onmessage = (event) => {
@@ -818,6 +822,7 @@ export function startContainerEvents() {
     eventsSocket.onclose = (event) => {
       console.log("[ContainerEvents] WebSocket closed:", event.code);
       eventsSocket = null;
+      wsConnected.set(false);
 
       // Attempt to reconnect if not intentionally closed
       if (event.code !== 1000 && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
@@ -829,6 +834,7 @@ export function startContainerEvents() {
 
     eventsSocket.onerror = (error) => {
       console.error("[ContainerEvents] WebSocket error:", error);
+      wsConnected.set(false);
     };
   } catch (e) {
     console.error("[ContainerEvents] Failed to create WebSocket:", e);
