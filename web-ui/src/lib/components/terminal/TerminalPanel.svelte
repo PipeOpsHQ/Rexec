@@ -178,7 +178,7 @@
                             d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"
                         />
                     </svg>
-                    Reconnect
+                    <span class="btn-text">Reconnect</span>
                 </button>
             {/if}
             <button
@@ -198,7 +198,7 @@
                         d="M6.586 4.672A3 3 0 0 0 7.414 9.5l.775-.776a2 2 0 0 1-.896-3.346L9.12 3.55a2 2 0 1 1 2.83 2.83l-.793.792c.112.42.155.855.128 1.287l1.372-1.372a3 3 0 1 0-4.243-4.243L6.586 4.672z"
                     />
                 </svg>
-                Link
+                <span class="btn-text">Link</span>
             </button>
             <button
                 class="toolbar-btn"
@@ -217,7 +217,7 @@
                         d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"
                     />
                 </svg>
-                Copy
+                <span class="btn-text">Copy</span>
             </button>
             <button class="toolbar-btn" on:click={handlePaste} title="Paste">
                 <svg
@@ -232,7 +232,7 @@
                         d="M10 .5a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5.5.5 0 0 1-.5.5.5.5 0 0 0-.5.5V2a.5.5 0 0 0 .5.5h5A.5.5 0 0 0 11 2v-.5a.5.5 0 0 0-.5-.5.5.5 0 0 1-.5-.5z"
                     />
                 </svg>
-                Paste
+                <span class="btn-text">Paste</span>
             </button>
             <button
                 class="toolbar-btn"
@@ -252,7 +252,7 @@
                         d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"
                     />
                 </svg>
-                Clear
+                <span class="btn-text">Clear</span>
             </button>
         </div>
     </div>
@@ -701,7 +701,7 @@
             font-size: 10px;
         }
 
-        .toolbar-btn span:not(.toolbar-icon) {
+        .toolbar-btn .btn-text {
             display: none;
         }
 
