@@ -244,17 +244,72 @@ function createAuthStore() {
       set(initialState);
     },
 
+    // Check if guest session has expired
+    isSessionExpired(): boolean {
+      const userJson = localStorage.getItem("rexec_user");
+      if (!userJson) return false;
+
+      try {
+        const user = JSON.parse(userJson) as User;
+        if (user.isGuest && user.expiresAt) {
+          const now = Math.floor(Date.now() / 1000);
+          return now >= user.expiresAt;
+        }
+      } catch {
+        // Ignore parse errors
+      }
+      return false;
+    },
+
     // Check if token is valid
     async validateToken() {
       const token = localStorage.getItem("rexec_token");
       if (!token) return false;
 
+      // Check if guest session has expired locally first
+      if (this.isSessionExpired()) {
+        this.logout();
+        return false;
+      }
+
       try {
         const response = await fetch("/api/profile", {
           headers: { Authorization: `Bearer ${token}` },
         });
-        return response.ok;
+
+        if (response.ok) {
+          return true;
+        }
+
+        // For guests, don't immediately log out on 401 - check local expiration
+        const userJson = localStorage.getItem("rexec_user");
+        if (userJson) {
+          const user = JSON.parse(userJson) as User;
+          if (user.isGuest && user.expiresAt) {
+            const now = Math.floor(Date.now() / 1000);
+            // If session hasn't expired locally, keep the user logged in
+            // This handles temporary network issues
+            if (now < user.expiresAt) {
+              return true;
+            }
+          }
+        }
+
+        return false;
       } catch {
+        // On network error, check local session validity for guests
+        const userJson = localStorage.getItem("rexec_user");
+        if (userJson) {
+          try {
+            const user = JSON.parse(userJson) as User;
+            if (user.isGuest && user.expiresAt) {
+              const now = Math.floor(Date.now() / 1000);
+              return now < user.expiresAt;
+            }
+          } catch {
+            // Ignore parse errors
+          }
+        }
         return false;
       }
     },
@@ -273,3 +328,18 @@ export const sessionExpiresAt = derived(
   auth,
   ($auth) => $auth.user?.expiresAt ?? null,
 );
+
+// Check if guest session is expired
+export const isSessionExpired = derived(auth, ($auth) => {
+  if (!$auth.user?.isGuest || !$auth.user?.expiresAt) return false;
+  const now = Math.floor(Date.now() / 1000);
+  return now >= $auth.user.expiresAt;
+});
+
+// Time remaining in seconds for guest session
+export const sessionTimeRemaining = derived(auth, ($auth) => {
+  if (!$auth.user?.isGuest || !$auth.user?.expiresAt) return null;
+  const now = Math.floor(Date.now() / 1000);
+  const remaining = $auth.user.expiresAt - now;
+  return remaining > 0 ? remaining : 0;
+});
