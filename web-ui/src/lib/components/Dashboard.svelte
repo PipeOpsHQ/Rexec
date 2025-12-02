@@ -45,7 +45,7 @@
         return loadingStates[id] || null;
     }
 
-    function isLoading(id: string): boolean {
+    function isContainerLoading(id: string): boolean {
         return !!loadingStates[id];
     }
 
@@ -346,12 +346,12 @@
                     class="container-card"
                     class:active={hasActiveSession(container.id)}
                     class:connected={isConnected(container.id)}
-                    class:loading={isLoading(container.id)}
+                    class:loading={isContainerLoading(container.id)}
                     class:deleting={getLoadingState(container.id) === 'deleting'}
                     class:starting={getLoadingState(container.id) === 'starting'}
                     class:stopping={getLoadingState(container.id) === 'stopping'}
                 >
-                    {#if isLoading(container.id)}
+                    {#if isContainerLoading(container.id)}
                         <div class="loading-overlay">
                             <div class="loading-content">
                                 <div class="spinner"></div>
@@ -547,7 +547,7 @@
                                 <button
                                     class="btn btn-secondary btn-sm flex-1"
                                     on:click={() => handleStop(container)}
-                                    disabled={isLoading(container.id)}
+                                    disabled={isContainerLoading(container.id)}
                                 >
                                     <svg
                                         class="icon"
@@ -568,7 +568,7 @@
                                 <button
                                     class="btn btn-danger btn-sm flex-1"
                                     on:click={() => handleDelete(container)}
-                                    disabled={isLoading(container.id)}
+                                    disabled={isContainerLoading(container.id)}
                                 >
                                     <svg
                                         class="icon"
@@ -589,7 +589,7 @@
                                 <button
                                     class="btn btn-primary btn-sm flex-1"
                                     on:click={() => handleStart(container)}
-                                    disabled={isLoading(container.id)}
+                                    disabled={isContainerLoading(container.id)}
                                 >
                                     <svg
                                         class="icon"
@@ -605,7 +605,7 @@
                                 <button
                                     class="btn btn-danger btn-sm flex-1"
                                     on:click={() => handleDelete(container)}
-                                    disabled={isLoading(container.id)}
+                                    disabled={isContainerLoading(container.id)}
                                 >
                                     <svg
                                         class="icon"
@@ -626,7 +626,7 @@
                                 <button
                                     class="btn btn-danger btn-sm flex-1"
                                     on:click={() => handleDelete(container)}
-                                    disabled={isLoading(container.id)}
+                                    disabled={isContainerLoading(container.id)}
                                 >
                                     <svg
                                         class="icon"
