@@ -1396,7 +1396,10 @@
         class="detached-window"
         style="left: {session.detachedPosition.x}px; top: {session
             .detachedPosition.y}px; width: {session.detachedSize
-            .width}px; height: {session.detachedSize.height}px;"
+            .width}px; height: {session.detachedSize.height}px; z-index: {session.detachedZIndex};"
+        on:mousedown={() => terminal.bringToFront(id)}
+        role="dialog"
+        tabindex="-1"
     >
         <div
             class="detached-header"
@@ -2371,7 +2374,6 @@
         border: 1px solid var(--border);
         border-radius: 8px;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-        z-index: 1001;
         pointer-events: auto;
         overflow: hidden;
     }

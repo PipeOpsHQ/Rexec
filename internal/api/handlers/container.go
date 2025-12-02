@@ -203,16 +203,13 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 	}
 
 	// Check if container name already exists for this user
-	existingRecords, err := h.store.GetContainersByUserID(ctx, userID)
-	if err == nil {
-		for _, record := range existingRecords {
-			if record.Name == containerName {
-				c.JSON(http.StatusConflict, gin.H{
-					"error": "container with this name already exists",
-					"name":  containerName,
-				})
-				return
-			}
+	for _, record := range existingContainers {
+		if record.Name == containerName {
+			c.JSON(http.StatusConflict, gin.H{
+				"error": "container with this name already exists",
+				"name":  containerName,
+			})
+			return
 		}
 	}
 
@@ -751,16 +748,14 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 	}
 
 	// Check duplicate name
-	if err == nil {
-		for _, record := range existingRecords {
-			if record.Name == containerName {
-				sendEvent(container.ProgressEvent{
-					Stage:    "validating",
-					Error:    "container with this name already exists",
-					Complete: true,
-				})
-				return
-			}
+	for _, record := range existingRecords {
+		if record.Name == containerName {
+			sendEvent(container.ProgressEvent{
+				Stage:    "validating",
+				Error:    "container with this name already exists",
+				Complete: true,
+			})
+			return
 		}
 	}
 

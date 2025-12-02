@@ -30,6 +30,7 @@ export interface TerminalSession {
   isDetached: boolean;
   detachedPosition: { x: number; y: number };
   detachedSize: { width: number; height: number };
+  detachedZIndex: number;
 }
 
 export interface TerminalState {
@@ -39,6 +40,7 @@ export interface TerminalState {
   isMinimized: boolean;
   floatingPosition: { x: number; y: number };
   floatingSize: { width: number; height: number };
+  topZIndex: number; // Track highest z-index for detached windows
 }
 
 // Constants
@@ -97,6 +99,7 @@ const initialState: TerminalState = {
   isMinimized: false,
   floatingPosition: { x: 100, y: 100 },
   floatingSize: { width: 700, height: 500 },
+  topZIndex: 1000,
 };
 
 // Load persisted preferences
@@ -268,6 +271,7 @@ function createTerminalStore() {
         isDetached: false,
         detachedPosition: { x: 150, y: 150 },
         detachedSize: { width: 600, height: 400 },
+        detachedZIndex: 1000,
       };
 
       update((state) => {
@@ -786,11 +790,17 @@ function createTerminalStore() {
       const posX = x ?? state.floatingPosition.x + 50;
       const posY = y ?? state.floatingPosition.y + 50;
 
+      // Assign a new highest z-index
+      const newZIndex = state.topZIndex + 1;
+
+      update((s) => ({ ...s, topZIndex: newZIndex }));
+
       updateSession(sessionId, (s) => ({
         ...s,
         isDetached: true,
         detachedPosition: { x: posX, y: posY },
         detachedSize: { width: 600, height: 400 },
+        detachedZIndex: newZIndex,
       }));
 
       // If this was the active session, switch to another non-detached session
@@ -806,6 +816,23 @@ function createTerminalStore() {
 
       // Fit the terminal after detaching
       setTimeout(() => this.fitSession(sessionId), 100);
+    },
+
+    // Bring a detached window to front
+    bringToFront(sessionId: string) {
+      const state = getState();
+      const session = state.sessions.get(sessionId);
+      if (!session || !session.isDetached) return;
+
+      // Only update if not already on top
+      if (session.detachedZIndex < state.topZIndex) {
+        const newZIndex = state.topZIndex + 1;
+        update((s) => ({ ...s, topZIndex: newZIndex }));
+        updateSession(sessionId, (s) => ({
+          ...s,
+          detachedZIndex: newZIndex,
+        }));
+      }
     },
 
     // Attach a detached session back to the main terminal panel
