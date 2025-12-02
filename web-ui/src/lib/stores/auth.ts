@@ -127,9 +127,18 @@ function createAuthStore() {
     async getOAuthUrl() {
       try {
         const response = await fetch("/api/auth/oauth/url");
-        if (!response.ok) throw new Error("Failed to get OAuth URL");
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(
+            "OAuth URL request failed:",
+            response.status,
+            errorText,
+          );
+          throw new Error("Failed to get OAuth URL");
+        }
         const data = await response.json();
-        return data.url;
+        // Backend returns auth_url
+        return data.auth_url || data.url;
       } catch (e) {
         console.error("Failed to get OAuth URL:", e);
         return null;

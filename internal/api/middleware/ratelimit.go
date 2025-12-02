@@ -126,25 +126,25 @@ func (rl *RateLimiter) Middleware() gin.HandlerFunc {
 // Default rate limiters for different endpoints
 
 // APIRateLimiter returns a rate limiter for general API requests
-// 100 requests per minute
+// 500 requests per minute
 func APIRateLimiter() *RateLimiter {
-	return NewRateLimiter(100, 1*time.Minute)
+	return NewRateLimiter(500, 1*time.Minute)
 }
 
 // AuthRateLimiter returns a stricter rate limiter for auth endpoints
-// 10 requests per minute (prevents brute force)
+// 60 requests per minute (prevents brute force)
 func AuthRateLimiter() *RateLimiter {
-	return NewRateLimiter(10, 1*time.Minute)
+	return NewRateLimiter(60, 1*time.Minute)
 }
 
 // WebSocketRateLimiter returns a rate limiter for WebSocket connections
-// 20 connections per minute
+// 100 connections per minute
 func WebSocketRateLimiter() *RateLimiter {
-	return NewRateLimiter(20, 1*time.Minute)
+	return NewRateLimiter(100, 1*time.Minute)
 }
 
 // ContainerRateLimiter returns a rate limiter for container operations
-// 30 operations per minute
+// 120 operations per minute
 func ContainerRateLimiter() *RateLimiter {
-	return NewRateLimiter(30, 1*time.Minute)
+	return NewRateLimiter(120, 1*time.Minute)
 }
