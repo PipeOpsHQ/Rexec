@@ -140,7 +140,7 @@
         createContainer();
     }
 
-    function createContainer() {
+    async function createContainer() {
         if (!selectedImage || isCreating) return;
 
         isCreating = true;
@@ -154,39 +154,28 @@
             progressStage = event.stage;
         }
 
-        function handleComplete(container: any) {
-            // Reset UI and dispatch event
-            isCreating = false;
-            progress = 0;
-            progressMessage = "";
-            progressStage = "";
-            dispatch("created", { id: container.id, name: container.name });
-        }
+        try {
+            const result = await containers.createContainerWithProgress(
+                selectedImage,
+                selectedRole,
+                handleProgress
+            );
 
-        function handleError(error: string) {
-            progressMessage = error || "Failed to create terminal";
-            // Keep showing error for a moment, then reset
+            if (result.success && result.id && result.name) {
+                dispatch("created", { id: result.id, name: result.name });
+            } else {
+                progressMessage = result.error || "Failed to create terminal";
+            }
+        } catch (error) {
+            progressMessage = "An error occurred";
+        } finally {
             setTimeout(() => {
                 isCreating = false;
                 progress = 0;
                 progressMessage = "";
                 progressStage = "";
-            }, 3000);
+            }, 500);
         }
-
-        // Generate a unique name
-        const terminalName = `terminal-${Date.now().toString(36)}`;
-        
-        // Note: createContainerWithProgress is fire-and-forget with callbacks
-        containers.createContainerWithProgress(
-            terminalName,
-            selectedImage,
-            undefined, // customImage
-            selectedRole,
-            handleProgress,
-            handleComplete,
-            handleError
-        );
     }
 </script>
 
@@ -199,17 +188,6 @@
             <div class="progress-bar">
                 <div class="progress-fill" style="width: {displayProgress}%"></div>
             </div>
-            
-            <!-- Step Indicators -->
-            <div class="progress-steps">
-                {#each progressSteps as step}
-                    <div class="progress-step {getStepStatus(step.id)}">
-                        <span class="step-dot"></span>
-                        <span class="step-label">{step.label}</span>
-                    </div>
-                {/each}
-            </div>
-            
             <p class="progress-message">{progressMessage}</p>
             {#if currentRole && progressStage === "configuring"}
                 <div class="installing-tools">
@@ -225,44 +203,32 @@
         </div>
     {:else}
         <div class="create-content">
-            <!-- Header -->
-            <div class="create-hero">
-                <div class="hero-icon">
-                    <span class="terminal-prompt">$</span>
-                </div>
-                <h2 class="hero-title">Spin up a new terminal</h2>
-                <p class="hero-subtitle">Choose your environment, pick an OS, and you're in.</p>
-            </div>
-
             <!-- Role Selection -->
             <div class="create-section">
-                <div class="section-header">
-                    <span class="section-number">01</span>
-                    <h4>Pick your stack</h4>
-                </div>
+                <h4>Environment</h4>
                 <div class="role-grid">
                     {#each roles as role}
                         <button
                             class="role-card"
                             class:selected={selectedRole === role.id}
                             on:click={() => (selectedRole = role.id)}
+                            title={role.desc}
                         >
-                            <div class="role-icon-wrap">
-                                <PlatformIcon platform={role.id} size={28} />
-                            </div>
-                            <div class="role-content">
-                                <span class="role-name">{role.name}</span>
-                                <span class="role-desc">{role.desc}</span>
-                            </div>
-                            {#if selectedRole === role.id}
-                                <span class="role-check">✓</span>
-                            {/if}
+                            <PlatformIcon platform={role.id} size={28} />
+                            <span class="role-name">{role.name}</span>
                         </button>
                     {/each}
                 </div>
                 {#if currentRole}
-                    <div class="role-preview">
-                        <div class="preview-label">Pre-installed tools:</div>
+                    <div class="role-info">
+                        <div class="role-header-row">
+                            <PlatformIcon platform={currentRole.id} size={18} />
+                            <span class="role-name-sm">{currentRole.name}</span>
+                            <span class="role-os-badge">
+                                <PlatformIcon platform={currentRole.recommendedOS.toLowerCase()} size={14} />
+                                {currentRole.recommendedOS}
+                            </span>
+                        </div>
                         <div class="role-tools">
                             {#each currentRole.tools as tool}
                                 <span class="tool-badge">{tool}</span>
@@ -274,26 +240,27 @@
 
             <!-- OS Selection -->
             <div class="create-section">
-                <div class="section-header">
-                    <span class="section-number">02</span>
-                    <h4>Select OS & Launch</h4>
-                </div>
+                <h4>Operating System</h4>
                 <div class="os-grid">
                     {#each images as image (image.name)}
                         <button
                             class="os-card"
                             on:click={() => selectAndCreate(image.name)}
                         >
-                            <div class="os-icon-wrap">
-                                <PlatformIcon platform={image.name} size={32} />
-                            </div>
+                            <PlatformIcon platform={image.name} size={28} />
                             <span class="os-name">{image.display_name || image.name}</span>
                             {#if image.popular}
-                                <span class="popular-badge">★</span>
+                                <span class="popular-badge">Popular</span>
                             {/if}
-                            <span class="launch-arrow">→</span>
                         </button>
                     {/each}
+                    <button
+                        class="os-card"
+                        on:click={() => selectAndCreate("custom")}
+                    >
+                        <PlatformIcon platform="custom" size={28} />
+                        <span class="os-name">Custom</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -302,16 +269,14 @@
 
 <style>
     .inline-create {
-        padding: 20px;
+        padding: 16px;
         height: 100%;
         overflow-y: auto;
         background: #0a0a0a;
-        display: flex;
-        flex-direction: column;
     }
 
     .inline-create.compact {
-        padding: 16px;
+        padding: 12px;
     }
 
     /* Progress */
@@ -320,15 +285,13 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 16px;
-        padding: 40px 24px;
+        gap: 12px;
+        padding: 24px;
         text-align: center;
-        flex: 1;
-        min-height: 300px;
     }
 
     .progress-header {
-        font-size: 32px;
+        font-size: 24px;
         font-weight: 600;
         color: var(--accent);
         font-family: var(--font-mono);
@@ -336,10 +299,10 @@
 
     .progress-bar {
         width: 100%;
-        max-width: 400px;
-        height: 6px;
+        max-width: 300px;
+        height: 4px;
         background: var(--bg-tertiary);
-        border-radius: 3px;
+        border-radius: 2px;
         overflow: hidden;
     }
 
@@ -349,92 +312,35 @@
         transition: width 0.3s ease;
     }
 
-    /* Progress Steps */
-    .progress-steps {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-        justify-content: center;
-        max-width: 500px;
-        margin: 8px 0;
-    }
-
-    .progress-step {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        padding: 4px 10px;
-        background: rgba(255, 255, 255, 0.03);
-        border-radius: 4px;
-        font-size: 11px;
-        color: var(--text-muted);
-        font-family: var(--font-mono);
-    }
-
-    .step-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: var(--border);
-        transition: all 0.2s ease;
-    }
-
-    .progress-step.pending .step-dot {
-        background: var(--border);
-    }
-
-    .progress-step.active .step-dot {
-        background: var(--accent);
-        box-shadow: 0 0 8px var(--accent);
-        animation: pulse 1s infinite;
-    }
-
-    .progress-step.active {
-        color: var(--accent);
-    }
-
-    .progress-step.completed .step-dot {
-        background: var(--accent);
-    }
-
-    .progress-step.completed {
-        color: var(--text);
-    }
-
-    .step-label {
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
     .progress-message {
         color: var(--text-muted);
-        font-size: 14px;
+        font-size: 13px;
         margin: 0;
     }
 
     .installing-tools {
-        margin-top: 12px;
+        margin-top: 8px;
     }
 
     .installing-label {
-        font-size: 12px;
+        font-size: 11px;
         color: var(--text-muted);
-        margin-bottom: 8px;
+        margin-bottom: 6px;
     }
 
     .tools-installing {
         display: flex;
         flex-wrap: wrap;
-        gap: 6px;
+        gap: 4px;
         justify-content: center;
     }
 
     .tool-badge-installing {
-        padding: 4px 8px;
+        padding: 2px 6px;
         background: rgba(0, 255, 65, 0.1);
         border: 1px solid rgba(0, 255, 65, 0.3);
-        border-radius: 4px;
-        font-size: 11px;
+        border-radius: 3px;
+        font-size: 10px;
         color: var(--accent);
         font-family: var(--font-mono);
         animation: pulse 1s infinite;
@@ -446,9 +352,9 @@
     }
 
     .spinner {
-        width: 32px;
-        height: 32px;
-        border: 3px solid var(--border);
+        width: 24px;
+        height: 24px;
+        border: 2px solid var(--border);
         border-top-color: var(--accent);
         border-radius: 50%;
         animation: spin 0.8s linear infinite;
@@ -462,295 +368,172 @@
     .create-content {
         display: flex;
         flex-direction: column;
-        gap: 32px;
-        flex: 1;
-        max-width: 100%;
-    }
-
-    /* Hero Section */
-    .create-hero {
-        text-align: center;
-        padding: 24px 0 16px;
-    }
-
-    .hero-icon {
-        width: 64px;
-        height: 64px;
-        margin: 0 auto 16px;
-        background: linear-gradient(135deg, rgba(0, 255, 65, 0.15), rgba(0, 255, 65, 0.05));
-        border: 2px solid var(--accent);
-        border-radius: 16px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 0 30px rgba(0, 255, 65, 0.2);
-    }
-
-    .terminal-prompt {
-        font-size: 32px;
-        font-weight: bold;
-        color: var(--accent);
-        font-family: var(--font-mono);
-        animation: blink 1s step-end infinite;
-    }
-
-    @keyframes blink {
-        50% { opacity: 0.5; }
-    }
-
-    .hero-title {
-        margin: 0 0 8px;
-        font-size: 24px;
-        font-weight: 700;
-        color: var(--text);
-    }
-
-    .hero-subtitle {
-        margin: 0;
-        font-size: 14px;
-        color: var(--text-muted);
-    }
-
-    /* Section Headers */
-    .section-header {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 16px;
-    }
-
-    .section-number {
-        font-size: 11px;
-        font-weight: 700;
-        color: var(--accent);
-        font-family: var(--font-mono);
-        padding: 4px 8px;
-        background: rgba(0, 255, 65, 0.1);
-        border: 1px solid rgba(0, 255, 65, 0.3);
-        border-radius: 4px;
+        gap: 20px;
     }
 
     .create-section h4 {
-        margin: 0;
-        font-size: 14px;
+        margin: 0 0 12px 0;
+        font-size: 13px;
         font-weight: 600;
-        color: var(--text);
+        color: var(--accent);
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 1px;
     }
 
     /* Role Grid */
     .role-grid {
-        display: flex;
-        flex-direction: column;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
         gap: 8px;
     }
 
     .role-card {
         display: flex;
+        flex-direction: column;
         align-items: center;
-        gap: 14px;
-        padding: 14px 16px;
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 10px;
+        gap: 8px;
+        padding: 12px 8px;
+        background: #1a1a1a;
+        border: 1px solid #333;
+        border-radius: 6px;
         cursor: pointer;
-        transition: all 0.2s ease;
-        text-align: left;
+        transition: all 0.15s ease;
     }
 
     .role-card:hover {
-        border-color: rgba(0, 255, 65, 0.4);
-        background: rgba(0, 255, 65, 0.03);
+        border-color: var(--text-muted);
+        background: #222;
     }
 
     .role-card.selected {
         border-color: var(--accent);
-        background: rgba(0, 255, 65, 0.08);
-        box-shadow: 0 0 20px rgba(0, 255, 65, 0.15), inset 0 0 20px rgba(0, 255, 65, 0.03);
+        background: rgba(0, 255, 65, 0.05);
+        box-shadow: 0 0 8px rgba(0, 255, 65, 0.2);
     }
 
-    .role-icon-wrap {
-        width: 44px;
-        height: 44px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: rgba(0, 0, 0, 0.3);
-        border-radius: 10px;
-        flex-shrink: 0;
-    }
-
-    .role-content {
-        flex: 1;
-        min-width: 0;
+    .role-card :global(.platform-icon) {
+        filter: drop-shadow(0 0 4px rgba(0, 255, 65, 0.3));
     }
 
     .role-name {
-        display: block;
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--text);
-        margin-bottom: 2px;
+        font-size: 11px;
+        color: #e0e0e0;
+        text-align: center;
+        font-weight: 500;
     }
 
-    .role-desc {
-        display: block;
-        font-size: 12px;
-        color: var(--text-muted);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+    /* Role Info */
+    .role-info {
+        margin-top: 12px;
+        padding: 10px;
+        background: #111;
+        border: 1px solid #333;
+        border-radius: 4px;
     }
 
-    .role-check {
-        width: 24px;
-        height: 24px;
+    .role-header-row {
         display: flex;
         align-items: center;
-        justify-content: center;
-        background: var(--accent);
-        color: #000;
-        border-radius: 50%;
-        font-size: 12px;
-        font-weight: bold;
-        flex-shrink: 0;
-    }
-
-    /* Role Preview */
-    .role-preview {
-        margin-top: 12px;
-        padding: 12px 14px;
-        background: rgba(0, 0, 0, 0.3);
-        border: 1px solid rgba(255, 255, 255, 0.06);
-        border-radius: 8px;
-    }
-
-    .preview-label {
-        font-size: 11px;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
+        gap: 8px;
         margin-bottom: 8px;
+    }
+
+    .role-name-sm {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text);
+    }
+
+    .role-os-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        margin-left: auto;
+        padding: 2px 6px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border);
+        border-radius: 3px;
+        font-size: 10px;
+        color: var(--text-muted);
     }
 
     .role-tools {
         display: flex;
         flex-wrap: wrap;
-        gap: 6px;
+        gap: 4px;
     }
 
     .tool-badge {
-        padding: 4px 10px;
-        background: rgba(0, 255, 65, 0.08);
-        border: 1px solid rgba(0, 255, 65, 0.2);
-        border-radius: 4px;
-        font-size: 11px;
-        color: var(--accent);
+        padding: 2px 6px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border);
+        border-radius: 3px;
+        font-size: 10px;
+        color: var(--text-muted);
         font-family: var(--font-mono);
     }
 
     /* OS Grid */
     .os-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-        gap: 10px;
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 8px;
     }
 
     .os-card {
         display: flex;
+        flex-direction: column;
         align-items: center;
-        gap: 12px;
-        padding: 14px 16px;
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 10px;
+        gap: 6px;
+        padding: 12px 8px;
+        background: #1a1a1a;
+        border: 1px solid #333;
+        border-radius: 6px;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all 0.15s ease;
         position: relative;
     }
 
     .os-card:hover {
         border-color: var(--accent);
-        background: rgba(0, 255, 65, 0.08);
+        background: rgba(0, 255, 65, 0.05);
         transform: translateY(-2px);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), 0 0 20px rgba(0, 255, 65, 0.1);
     }
 
-    .os-card:hover .launch-arrow {
-        opacity: 1;
-        transform: translateX(0);
-    }
-
-    .os-icon-wrap {
-        width: 40px;
-        height: 40px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: rgba(0, 0, 0, 0.3);
-        border-radius: 8px;
-        flex-shrink: 0;
+    .os-card :global(.platform-icon) {
+        filter: drop-shadow(0 0 4px rgba(0, 255, 65, 0.3));
     }
 
     .os-name {
-        flex: 1;
-        font-size: 13px;
-        font-weight: 500;
-        color: var(--text);
-        text-align: left;
+        font-size: 11px;
+        color: #e0e0e0;
+        text-align: center;
     }
 
     .popular-badge {
-        color: #ffd700;
-        font-size: 14px;
-    }
-
-    .launch-arrow {
-        font-size: 16px;
-        color: var(--accent);
-        opacity: 0;
-        transform: translateX(-4px);
-        transition: all 0.2s ease;
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        padding: 1px 4px;
+        background: var(--accent);
+        color: #000;
+        font-size: 8px;
+        font-weight: 600;
+        border-radius: 2px;
+        text-transform: uppercase;
     }
 
     /* Compact mode adjustments */
-    .compact .create-hero {
-        padding: 12px 0 8px;
-    }
-
-    .compact .hero-icon {
-        width: 48px;
-        height: 48px;
-    }
-
-    .compact .terminal-prompt {
-        font-size: 24px;
-    }
-
-    .compact .hero-title {
-        font-size: 18px;
-    }
-
-    .compact .role-card {
-        padding: 10px 12px;
-    }
-
-    .compact .role-icon-wrap {
-        width: 36px;
-        height: 36px;
-    }
-
-    .compact .os-grid {
+    .compact .role-grid {
         grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     }
 
-    .compact .os-card {
-        padding: 10px 12px;
+    .compact .os-grid {
+        grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
     }
 
-    .compact .os-icon-wrap {
-        width: 32px;
-        height: 32px;
+    .compact .role-card,
+    .compact .os-card {
+        padding: 10px 6px;
     }
 </style>
