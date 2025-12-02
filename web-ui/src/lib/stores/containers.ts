@@ -224,66 +224,89 @@ function createContainersStore() {
           let buffer = ""; // Buffer to handle chunked SSE data
           let completed = false; // Prevent duplicate completion callbacks
 
-          function processEvents(text: string) {
-            buffer += text;
+          function processLine(line: string) {
+            if (!line.startsWith("data: ")) {
+              console.debug("[SSE] Skipping non-data line:", line.slice(0, 50));
+              return;
+            }
 
-            // Split on double newline (SSE event separator)
-            const parts = buffer.split("\n\n");
+            const jsonStr = line.slice(6);
+            console.debug("[SSE] Processing event:", jsonStr.slice(0, 100));
 
-            // Keep the last part in buffer (might be incomplete)
-            buffer = parts.pop() || "";
+            try {
+              const event = JSON.parse(jsonStr) as ProgressEvent;
+              console.debug("[SSE] Parsed event:", {
+                stage: event.stage,
+                progress: event.progress,
+                complete: event.complete,
+                error: event.error,
+              });
 
-            for (const part of parts) {
-              const lines = part.split("\n");
-              for (const line of lines) {
-                if (line.startsWith("data: ")) {
-                  try {
-                    const event = JSON.parse(line.slice(6)) as ProgressEvent;
-
-                    // Update creating state with progress
-                    update((state) => ({
-                      ...state,
-                      creating: state.creating
-                        ? {
-                            ...state.creating,
-                            progress: event.progress || 0,
-                            message: event.message || "",
-                            stage: event.stage || "",
-                          }
-                        : null,
-                    }));
-
-                    onProgress?.(event);
-
-                    if (event.complete && event.container_id && !completed) {
-                      completed = true;
-                      const container: Container = {
-                        id: event.container_id,
-                        user_id: "",
-                        name,
-                        image,
-                        status: "running",
-                        created_at: new Date().toISOString(),
-                      };
-
-                      update((state) => ({
-                        ...state,
-                        containers: [container, ...state.containers],
-                        creating: null,
-                      }));
-
-                      onComplete?.(container);
+              // Update creating state with progress
+              update((state) => ({
+                ...state,
+                creating: state.creating
+                  ? {
+                      ...state.creating,
+                      progress: event.progress || 0,
+                      message: event.message || "",
+                      stage: event.stage || "",
                     }
+                  : null,
+              }));
 
-                    if (event.error && !completed) {
-                      completed = true;
-                      update((state) => ({ ...state, creating: null }));
-                      onError?.(event.error);
-                    }
-                  } catch {
-                    // Ignore parse errors
-                  }
-                }
+              onProgress?.(event);
+
+              if (event.complete && event.container_id && !completed) {
+                console.log(
+                  "[SSE] Container creation complete:",
+                  event.container_id,
+                );
+                completed = true;
+                const container: Container = {
+                  id: event.container_id,
+                  user_id: "",
+                  name,
+                  image,
+                  status: "running",
+                  created_at: new Date().toISOString(),
+                };
+
+                update((state) => ({
+                  ...state,
+                  containers: [container, ...state.containers],
+                  creating: null,
+                }));
+
+                onComplete?.(container);
+              }
+
+              if (event.error && !completed) {
+                console.error("[SSE] Event error:", event.error);
+                completed = true;
+                update((state) => ({ ...state, creating: null }));
+                onError?.(event.error);
+              }
+            } catch (e) {
+              console.warn(
+                "[SSE] Failed to parse event:",
+                jsonStr.slice(0, 100),
+                e,
+              );
+            }
+          }
+
+          function processBuffer() {
+            // Process complete lines from buffer
+            const lines = buffer.split("\n");
+
+            // Keep incomplete last line in buffer
+            buffer = lines.pop() || "";
+
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (trimmed) {
+                processLine(trimmed);
               }
             }
           }
@@ -293,19 +316,33 @@ function createContainersStore() {
               ?.read()
               .then(({ done, value }) => {
                 if (done) {
+                  console.debug(
+                    "[SSE] Stream ended, completed:",
+                    completed,
+                    "remaining buffer:",
+                    buffer.slice(0, 50),
+                  );
                   // Process any remaining buffered data
                   if (buffer.trim()) {
-                    processEvents("\n\n");
+                    processLine(buffer.trim());
+                  }
+                  // Stream ended - if not completed yet and no error, it might be a connection issue
+                  // But don't trigger error if we successfully completed
+                  if (!completed) {
+                    console.warn("[SSE] Stream ended without completion event");
                   }
                   return;
                 }
 
                 const text = decoder.decode(value, { stream: true });
-                processEvents(text);
+                buffer += text;
+                processBuffer();
 
                 read();
               })
               .catch((e) => {
+                console.error("[SSE] Read error:", e, "completed:", completed);
+                // Only report error if we haven't successfully completed
                 if (!completed) {
                   completed = true;
                   update((state) => ({ ...state, creating: null }));
@@ -317,10 +354,17 @@ function createContainersStore() {
           read();
         })
         .catch((e) => {
-          update((state) => ({ ...state, creating: null }));
-          onError?.(
-            e instanceof Error ? e.message : "Failed to create container",
-          );
+          console.error("[SSE] Fetch error:", e);
+          // This catch is for fetch errors (network, CORS, etc.)
+          // The 'completed' variable is scoped inside .then(), so we can't check it here
+          // Instead, we check if we're still in "creating" state
+          update((state) => {
+            if (state.creating) {
+              onError?.("Failed to create container");
+              return { ...state, creating: null };
+            }
+            return state;
+          });
         });
     },
 
