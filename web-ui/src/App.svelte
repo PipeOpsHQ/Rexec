@@ -135,6 +135,8 @@
             // Fetch container info and create session - TerminalPanel handles WebSocket
             const result = await containers.getContainer(containerId);
             if (result.success && result.container) {
+                // Set terminal to docked mode for direct URL access (full screen)
+                terminal.setViewMode("docked");
                 terminal.createSession(containerId, result.container.name);
             }
         }
