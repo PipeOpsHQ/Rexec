@@ -18,7 +18,6 @@
     let progress = 0;
     let progressMessage = "";
     let progressStage = "";
-    let showStatPopover = false;
 
     // Progress steps for visual display
     const progressSteps = [
@@ -443,115 +442,20 @@
 
                 <!-- Compact Hero Stat Display -->
                 {#if currentRole}
-                    <div class="hero-stat-compact">
-                        <div class="hero-identity">
-                            <span class="hero-icon-lg">{currentRole.icon}</span>
-                            <div class="hero-name-quote">
-                                <span class="hero-title"
-                                    >{currentRole.name}</span
-                                >
-                                <span class="hero-quote"
-                                    >"{currentRole.desc}"</span
-                                >
+                    <div class="role-info-compact">
+                        <div class="role-header-row">
+                            <span class="role-icon-lg">{currentRole.icon}</span>
+                            <div class="role-name-quote">
+                                <span class="role-title">{currentRole.name}</span>
+                                <span class="role-quote">"{currentRole.desc}"</span>
                             </div>
-                            <button
-                                class="stat-toggle"
-                                on:click|stopPropagation={() =>
-                                    (showStatPopover = !showStatPopover)}
-                            >
-                                <span class="stat-toggle-icon"
-                                    >{showStatPopover ? "▼" : "▶"}</span
-                                >
-                                <span class="stat-toggle-text">Stats</span>
-                            </button>
+                            <span class="role-os-badge">📦 {currentRole.recommendedOS}</span>
                         </div>
-
-                        {#if showStatPopover}
-                            <!-- svelte-ignore a11y-click-events-have-key-events -->
-                            <!-- svelte-ignore a11y-no-static-element-interactions -->
-                            <div
-                                class="hero-stat-popover-backdrop"
-                                on:click={() => (showStatPopover = false)}
-                            ></div>
-                            <div class="hero-stat-popover">
-                                <button
-                                    class="popover-close"
-                                    on:click={() => (showStatPopover = false)}
-                                    >✕</button
-                                >
-                                <div class="stat-header">
-                                    <span class="stat-class"
-                                        >{currentRole.name}</span
-                                    >
-                                    <span class="stat-level">LVL ∞</span>
-                                </div>
-                                <div class="stat-bars">
-                                    <div class="stat-row">
-                                        <span class="stat-label">⚡ PWR</span>
-                                        <div class="stat-bar-track">
-                                            <div
-                                                class="stat-bar-fill"
-                                                style="width: {85 +
-                                                    currentRole.tools.length *
-                                                        3}%"
-                                            ></div>
-                                        </div>
-                                    </div>
-                                    <div class="stat-row">
-                                        <span class="stat-label">🛡️ DEF</span>
-                                        <div class="stat-bar-track">
-                                            <div
-                                                class="stat-bar-fill defense"
-                                                style="width: {currentRole.id ===
-                                                'devops'
-                                                    ? 95
-                                                    : 70}%"
-                                            ></div>
-                                        </div>
-                                    </div>
-                                    <div class="stat-row">
-                                        <span class="stat-label">⚔️ SPD</span>
-                                        <div class="stat-bar-track">
-                                            <div
-                                                class="stat-bar-fill speed"
-                                                style="width: {currentRole.recommendedOS ===
-                                                'Alpine'
-                                                    ? 95
-                                                    : 75}%"
-                                            ></div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="stat-info-grid">
-                                    <div class="stat-info-cell">
-                                        <span class="stat-info-key">OS</span>
-                                        <span class="stat-info-val"
-                                            >{currentRole.recommendedOS}</span
-                                        >
-                                    </div>
-                                    <div class="stat-info-cell">
-                                        <span class="stat-info-key">CLASS</span>
-                                        <span class="stat-info-val"
-                                            >{currentRole.useCase.split(
-                                                ",",
-                                            )[0]}</span
-                                        >
-                                    </div>
-                                </div>
-                                <div class="stat-abilities">
-                                    <span class="abilities-label"
-                                        >⚙️ ABILITIES</span
-                                    >
-                                    <div class="abilities-list">
-                                        {#each currentRole.tools as tool}
-                                            <span class="ability-tag"
-                                                >{tool}</span
-                                            >
-                                        {/each}
-                                    </div>
-                                </div>
-                            </div>
-                        {/if}
+                        <div class="role-tools">
+                            {#each currentRole.tools as tool}
+                                <span class="tool-badge">{tool}</span>
+                            {/each}
+                        </div>
                     </div>
                 {/if}
             </div>
@@ -771,34 +675,29 @@
         text-align: center;
     }
 
-    /* Hero Stat Compact Display */
-    .hero-stat-compact {
+    /* Role Info Compact Display */
+    .role-info-compact {
         margin-top: 12px;
-        position: relative;
-        z-index: 100;
-    }
-
-    .hero-identity {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 10px 12px;
-        background: linear-gradient(
-            135deg,
-            var(--bg-elevated) 0%,
-            rgba(0, 255, 65, 0.05) 100%
-        );
+        padding: 12px;
+        background: var(--bg-elevated);
         border: 1px solid var(--border);
         border-radius: 8px;
         border-left: 3px solid var(--accent);
     }
 
-    .hero-icon-lg {
+    .role-header-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+
+    .role-icon-lg {
         font-size: 28px;
         filter: drop-shadow(0 0 4px var(--accent));
     }
 
-    .hero-name-quote {
+    .role-name-quote {
         flex: 1;
         display: flex;
         flex-direction: column;
@@ -806,14 +705,14 @@
         min-width: 0;
     }
 
-    .hero-title {
+    .role-title {
         font-size: 13px;
         font-weight: 600;
         color: var(--text);
         font-family: var(--font-mono);
     }
 
-    .hero-quote {
+    .role-quote {
         font-size: 10px;
         color: var(--accent);
         font-style: italic;
@@ -824,56 +723,32 @@
         text-overflow: ellipsis;
     }
 
-    .stat-toggle {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        padding: 6px 10px;
+    .role-os-badge {
+        font-size: 11px;
+        color: var(--text-muted);
+        font-family: var(--font-mono);
+        padding: 4px 8px;
         background: var(--bg-tertiary);
-        border: 1px solid var(--border);
         border-radius: 4px;
-        cursor: pointer;
-        transition: all 0.15s;
+    }
+
+    .role-tools {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .tool-badge {
+        padding: 4px 10px;
+        background: rgba(0, 255, 65, 0.1);
+        border: 1px solid rgba(0, 255, 65, 0.3);
+        border-radius: 4px;
+        font-size: 11px;
+        color: var(--accent);
         font-family: var(--font-mono);
     }
 
-    .stat-toggle:hover {
-        border-color: var(--accent);
-        background: var(--accent-dim);
-    }
-
-    .stat-toggle-icon {
-        font-size: 8px;
-        color: var(--accent);
-    }
-
-    .stat-toggle-text {
-        font-size: 10px;
-        color: var(--text);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    /* Hero Stat Popover */
-    .hero-stat-popover {
-        position: fixed;
-        top: auto;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 320px;
-        max-width: 90vw;
-        background: var(--bg, #0a0a0a);
-        border: 2px solid var(--accent);
-        border-radius: 8px;
-        padding: 14px;
-        z-index: 9999;
-        box-shadow:
-            0 8px 32px rgba(0, 0, 0, 0.9),
-            0 0 20px rgba(0, 255, 65, 0.3);
-        animation: popoverSlide 0.15s ease-out;
-    }
-
-    .hero-stat-popover-backdrop {
+    .image-grid {
         position: fixed;
         top: 0;
         left: 0;
