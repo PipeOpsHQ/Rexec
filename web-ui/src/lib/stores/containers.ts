@@ -864,6 +864,18 @@ export function stopContainerEvents() {
   reconnectAttempts = 0;
 }
 
+// Helper to match container by any ID field
+function matchesContainer(container: Container, eventData: any): boolean {
+  const eventId = eventData.id;
+  const eventDbId = eventData.db_id;
+  
+  // Match by docker ID or db_id
+  if (eventId && (container.id === eventId || container.db_id === eventId)) return true;
+  if (eventDbId && (container.id === eventDbId || container.db_id === eventDbId)) return true;
+  
+  return false;
+}
+
 // Handle incoming container events
 function handleContainerEvent(event: {
   type: string;
@@ -890,9 +902,7 @@ function handleContainerEvent(event: {
         ...state,
         containers: [
           containerData,
-          ...state.containers.filter(
-            (c) => c.id !== containerData.id && c.db_id !== containerData.id
-          ),
+          ...state.containers.filter((c) => !matchesContainer(c, containerData)),
         ],
         creating: null, // Clear creating state
       }));
@@ -902,30 +912,33 @@ function handleContainerEvent(event: {
     case "stopped":
     case "updated":
       // Container status changed - merge all data including resources
-      containers.update((state) => ({
-        ...state,
-        containers: state.containers.map((c) =>
-          c.id === containerData.id || c.db_id === containerData.id
-            ? { 
-                ...c, 
-                ...containerData,
-                // Ensure status is updated
-                status: containerData.status || c.status,
-                // Merge resources if present
-                resources: containerData.resources || c.resources,
-              }
-            : c
-        ),
-      }));
+      containers.update((state) => {
+        const newContainers = state.containers.map((c) => {
+          if (matchesContainer(c, containerData)) {
+            // Create a completely new object to ensure reactivity
+            return { 
+              ...c, 
+              ...containerData,
+              status: containerData.status || c.status,
+              resources: containerData.resources || c.resources,
+            };
+          }
+          return c;
+        });
+        
+        // Return new state object
+        return {
+          ...state,
+          containers: newContainers,
+        };
+      });
       break;
 
     case "deleted":
       // Container deleted
       containers.update((state) => ({
         ...state,
-        containers: state.containers.filter(
-          (c) => c.id !== containerData.id && c.db_id !== containerData.id
-        ),
+        containers: state.containers.filter((c) => !matchesContainer(c, containerData)),
       }));
       break;
 
