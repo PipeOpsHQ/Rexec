@@ -65,32 +65,33 @@ type Session struct {
 }
 
 // TierLimits returns resource limits based on user tier
+// CPUShares represents CPU count in millicores (500 = 0.5 CPU, 1000 = 1 CPU)
 func TierLimits(tier string) ResourceLimits {
 	switch tier {
 	case "trial", "guest", "free": // Unified 60-day trial
 		return ResourceLimits{
-			CPUShares: 512,
+			CPUShares: 500, // 0.5 CPU
 			MemoryMB:  512,
 			DiskMB:    2048, // Increased from 512-1024 for better trial experience
 			NetworkMB: 10,
 		}
 	case "pro":
 		return ResourceLimits{
-			CPUShares: 2048,
+			CPUShares: 2000, // 2 CPUs
 			MemoryMB:  2048,
 			DiskMB:    10240,
 			NetworkMB: 100,
 		}
 	case "enterprise":
 		return ResourceLimits{
-			CPUShares: 4096,
+			CPUShares: 4000, // 4 CPUs
 			MemoryMB:  4096,
 			DiskMB:    51200,
 			NetworkMB: 500,
 		}
 	default: // Default to trial tier
 		return ResourceLimits{
-			CPUShares: 512,
+			CPUShares: 500, // 0.5 CPU
 			MemoryMB:  512,
 			DiskMB:    2048,
 			NetworkMB: 10,
@@ -121,12 +122,13 @@ type TrialResourceLimits struct {
 }
 
 // GetTrialResourceLimits returns the allowed resource customization range for trial users
+// CPUShares in millicores (500 = 0.5 CPU, 1000 = 1 CPU)
 func GetTrialResourceLimits() TrialResourceLimits {
 	return TrialResourceLimits{
 		MinMemoryMB:  256,
 		MaxMemoryMB:  1024,
-		MinCPUShares: 256,
-		MaxCPUShares: 1024,
+		MinCPUShares: 250,  // 0.25 CPU
+		MaxCPUShares: 1000, // 1 CPU
 		MinDiskMB:    1024,
 		MaxDiskMB:    4096,
 	}

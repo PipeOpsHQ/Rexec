@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -690,7 +691,13 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 		cfg.MemoryLimit = 512 * 1024 * 1024 // 512MB
 	}
 	if cfg.CPULimit == 0 {
-		cfg.CPULimit = 100000 // 1 CPU
+		cfg.CPULimit = 500 // 0.5 CPU in millicores (1000 = 1 CPU)
+	}
+	
+	// Cap CPU to available host CPUs (in millicores)
+	maxCPUMillicores := int64(runtime.NumCPU()) * 1000
+	if cfg.CPULimit > maxCPUMillicores {
+		cfg.CPULimit = maxCPUMillicores
 	}
 
 	// Generate unique container name: rexec-{userID}-{containerName}
@@ -1266,17 +1273,17 @@ func (m *Manager) RecreateContainer(ctx context.Context, cfg RecreateContainerCo
 		Labels:        labels,
 	}
 
-	// Apply tier-based resource limits
+	// Apply tier-based resource limits (CPULimit in millicores: 1000 = 1 CPU)
 	switch cfg.Tier {
 	case "pro":
 		containerCfg.MemoryLimit = 2048 * 1024 * 1024 // 2GB
-		containerCfg.CPULimit = 200000                // 2 CPUs
+		containerCfg.CPULimit = 2000                  // 2 CPUs
 	case "enterprise":
 		containerCfg.MemoryLimit = 4096 * 1024 * 1024 // 4GB
-		containerCfg.CPULimit = 400000                // 4 CPUs
+		containerCfg.CPULimit = 4000                  // 4 CPUs
 	default: // free/guest
 		containerCfg.MemoryLimit = 512 * 1024 * 1024 // 512MB
-		containerCfg.CPULimit = 100000               // 1 CPU
+		containerCfg.CPULimit = 500                  // 0.5 CPU
 	}
 
 	return m.CreateContainer(ctx, containerCfg)
