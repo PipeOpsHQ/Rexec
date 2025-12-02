@@ -869,20 +869,23 @@
 
     .connected-badge {
         position: absolute;
-        top: 8px;
-        right: 8px;
+        top: -8px;
+        left: 50%;
+        transform: translateX(-50%);
         display: flex;
         align-items: center;
         gap: 4px;
-        padding: 3px 8px;
-        background: rgba(0, 217, 255, 0.15);
-        border: 1px solid rgba(0, 217, 255, 0.4);
-        border-radius: 4px;
+        padding: 3px 10px;
+        background: rgba(0, 217, 255, 0.2);
+        border: 1px solid rgba(0, 217, 255, 0.5);
+        border-radius: 12px;
         font-size: 10px;
         font-family: var(--font-mono);
         color: #00d9ff;
         text-transform: uppercase;
         letter-spacing: 0.5px;
+        z-index: 10;
+        box-shadow: 0 2px 8px rgba(0, 217, 255, 0.2);
         z-index: 5;
     }
 
