@@ -946,11 +946,13 @@ export const hasSessions = derived(
 // Get set of container IDs that have active (connected) terminal sessions
 export const connectedContainerIds = derived(terminal, ($terminal) => {
   const connected = new Set<string>();
-  $terminal.sessions.forEach((session) => {
+  // Use Array.from to ensure proper iteration and reactivity
+  const sessions = Array.from($terminal.sessions.values());
+  for (const session of sessions) {
     if (session.status === "connected" || session.status === "connecting") {
       connected.add(session.containerId);
     }
-  });
+  }
   return connected;
 });
 

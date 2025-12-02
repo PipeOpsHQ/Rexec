@@ -508,7 +508,7 @@
                     <div class="container-actions">
                         {#if container.status === "running"}
                             <div class="action-row">
-                                {#if !hasActiveSession(container.id) && !isConnecting(container.id)}
+                                {#if !isConnected(container.id) && !isConnecting(container.id)}
                                     <button
                                         class="btn btn-primary btn-sm flex-1"
                                         on:click={() =>
