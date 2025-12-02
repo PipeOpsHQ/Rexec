@@ -643,6 +643,11 @@
                             ⬒
                         </button>
                         <button on:click={minimize} title="Minimize">−</button>
+                        <button 
+                            on:click={() => activeId && closeSession(activeId)} 
+                            title="Close Current Terminal"
+                            disabled={!activeId}
+                        >×</button>
                     </div>
                 </div>
 
@@ -889,6 +894,14 @@
                             title="Minimize"
                         >
                             −
+                        </button>
+                        <button
+                            class="btn btn-danger btn-sm"
+                            on:click={() => activeId && closeSession(activeId)}
+                            title="Close Current Terminal"
+                            disabled={!activeId}
+                        >
+                            ×
                         </button>
                     </div>
                 </div>
