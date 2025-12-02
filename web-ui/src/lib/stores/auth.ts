@@ -8,6 +8,7 @@ export interface User {
   avatar?: string;
   tier: "guest" | "free" | "pro" | "enterprise";
   isGuest: boolean;
+  expiresAt?: number; // Unix timestamp for guest session expiration
 }
 
 export interface AuthState {
@@ -90,18 +91,31 @@ function createAuthStore() {
         }
 
         const data = await response.json();
-        // API returns nested response: { token: "...", user: {...}, guest: true, ... }
+        // API returns nested response: { token: "...", user: {...}, guest: true, expires_in: seconds, ... }
         const userData = data.user || data;
+
+        // Calculate expiration time from expires_in (seconds from now)
+        const expiresAt = data.expires_in
+          ? Math.floor(Date.now() / 1000) + data.expires_in
+          : undefined;
+
         const user: User = {
           id: userData.id || data.user_id,
           email: userData.email || email,
           name: userData.username || userData.name || "Guest User",
           tier: userData.tier || "guest",
           isGuest: true,
+          expiresAt,
         };
 
         this.login(data.token, user);
-        return { success: true };
+        return {
+          success: true,
+          expiresAt,
+          returningGuest: data.returning_guest || false,
+          message: data.message || "",
+          containerCount: data.containers || 0,
+        };
       } catch (e) {
         const error = e instanceof Error ? e.message : "Guest login failed";
         this.setError(error);
@@ -240,3 +254,7 @@ export const isAuthenticated = derived(auth, ($auth) => !!$auth.token);
 export const isGuest = derived(auth, ($auth) => $auth.user?.isGuest ?? false);
 export const userTier = derived(auth, ($auth) => $auth.user?.tier ?? "guest");
 export const token = derived(auth, ($auth) => $auth.token);
+export const sessionExpiresAt = derived(
+  auth,
+  ($auth) => $auth.user?.expiresAt ?? null,
+);

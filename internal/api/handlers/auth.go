@@ -52,9 +52,11 @@ func NewAuthHandler(store *storage.PostgresStore) *AuthHandler {
 	}
 }
 
-// GuestLogin handles guest login with just a username (1-hour session limit)
+// GuestLogin handles guest login with email (1-hour session limit)
+// If a guest with the same email exists, returns their existing session
 func (h *AuthHandler) GuestLogin(c *gin.Context) {
 	var req struct {
+		Email    string `json:"email"`
 		Username string `json:"username" binding:"required,min=2,max=30"`
 	}
 
@@ -78,27 +80,64 @@ func (h *AuthHandler) GuestLogin(c *gin.Context) {
 
 	ctx := context.Background()
 
-	// Generate a unique guest email to avoid conflicts
-	guestID := uuid.New().String()[:8]
-	guestEmail := "guest_" + guestID + "@guest.rexec.local"
+	// Determine guest email - use provided email or generate one
+	var guestEmail string
+	var isReturningGuest bool
+	var existingUser *models.User
 
-	// Create guest user
-	user := &models.User{
-		ID:        uuid.New().String(),
-		Email:     guestEmail,
-		Username:  username,
-		Tier:      "guest",
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+	if req.Email != "" && strings.Contains(req.Email, "@") {
+		// User provided an email - check if they're a returning guest
+		guestEmail = strings.TrimSpace(req.Email)
+		existingUser, _, _ = h.store.GetUserByEmail(ctx, guestEmail)
+		if existingUser != nil && existingUser.Tier == "guest" {
+			isReturningGuest = true
+		}
+	} else {
+		// Generate a unique guest email
+		guestID := uuid.New().String()[:8]
+		guestEmail = "guest_" + guestID + "@guest.rexec.local"
 	}
 
-	// Store guest user
-	if err := h.store.CreateUser(ctx, user, ""); err != nil {
-		c.JSON(http.StatusInternalServerError, models.APIError{
-			Code:    http.StatusInternalServerError,
-			Message: "Failed to create guest session",
-		})
-		return
+	var user *models.User
+
+	if isReturningGuest && existingUser != nil {
+		// Returning guest - use existing user
+		user = existingUser
+		// Update last activity
+		user.UpdatedAt = time.Now()
+		h.store.UpdateUser(ctx, user)
+	} else {
+		// New guest - create user
+		user = &models.User{
+			ID:        uuid.New().String(),
+			Email:     guestEmail,
+			Username:  username,
+			Tier:      "guest",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		}
+
+		// Store guest user
+		if err := h.store.CreateUser(ctx, user, ""); err != nil {
+			// If email already exists for non-guest, generate a unique one
+			if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "unique") {
+				guestID := uuid.New().String()[:8]
+				user.Email = "guest_" + guestID + "@guest.rexec.local"
+				if err := h.store.CreateUser(ctx, user, ""); err != nil {
+					c.JSON(http.StatusInternalServerError, models.APIError{
+						Code:    http.StatusInternalServerError,
+						Message: "Failed to create guest session",
+					})
+					return
+				}
+			} else {
+				c.JSON(http.StatusInternalServerError, models.APIError{
+					Code:    http.StatusInternalServerError,
+					Message: "Failed to create guest session",
+				})
+				return
+			}
+		}
 	}
 
 	// Generate JWT token with 1-hour expiry
@@ -111,13 +150,31 @@ func (h *AuthHandler) GuestLogin(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"token":      token,
-		"user":       user,
-		"guest":      true,
-		"expires_in": int(GuestSessionDuration.Seconds()),
-		"message":    "Guest session active for 1 hour. Sign in with PipeOps for unlimited sessions.",
-	})
+	// Get container count for returning guests
+	containerCount := 0
+	if isReturningGuest {
+		containers, _ := h.store.GetContainersByUserID(ctx, user.ID)
+		if containers != nil {
+			containerCount = len(containers)
+		}
+	}
+
+	response := gin.H{
+		"token":           token,
+		"user":            user,
+		"guest":           true,
+		"expires_in":      int(GuestSessionDuration.Seconds()),
+		"returning_guest": isReturningGuest,
+		"containers":      containerCount,
+	}
+
+	if isReturningGuest {
+		response["message"] = "Welcome back! Your previous session has been restored."
+	} else {
+		response["message"] = "Guest session active for 1 hour. Sign in with PipeOps for unlimited sessions."
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 // generateGuestToken creates a JWT token for a guest user with 1-hour expiry

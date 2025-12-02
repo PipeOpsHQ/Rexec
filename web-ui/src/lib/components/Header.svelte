@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
-  import { auth, isAuthenticated, isGuest } from '$stores/auth';
+  import { createEventDispatcher, onMount, onDestroy } from 'svelte';
+  import { auth, isAuthenticated, isGuest, sessionExpiresAt } from '$stores/auth';
   import { sessionCount } from '$stores/terminal';
 
   const dispatch = createEventDispatcher<{
@@ -12,6 +12,59 @@
   }>();
 
   let showUserMenu = false;
+  let timeRemaining = '';
+  let countdownInterval: ReturnType<typeof setInterval> | null = null;
+
+  function updateCountdown() {
+    if (!$sessionExpiresAt) {
+      timeRemaining = '';
+      return;
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    const remaining = $sessionExpiresAt - now;
+
+    if (remaining <= 0) {
+      timeRemaining = 'Expired';
+      auth.logout();
+      return;
+    }
+
+    const hours = Math.floor(remaining / 3600);
+    const minutes = Math.floor((remaining % 3600) / 60);
+    const seconds = remaining % 60;
+
+    if (hours > 0) {
+      timeRemaining = `${hours}h ${minutes}m`;
+    } else if (minutes > 0) {
+      timeRemaining = `${minutes}m ${seconds}s`;
+    } else {
+      timeRemaining = `${seconds}s`;
+    }
+  }
+
+  onMount(() => {
+    if ($isGuest && $sessionExpiresAt) {
+      updateCountdown();
+      countdownInterval = setInterval(updateCountdown, 1000);
+    }
+  });
+
+  onDestroy(() => {
+    if (countdownInterval) {
+      clearInterval(countdownInterval);
+    }
+  });
+
+  // Reactively start/stop countdown when guest status changes
+  $: if ($isGuest && $sessionExpiresAt && !countdownInterval) {
+    updateCountdown();
+    countdownInterval = setInterval(updateCountdown, 1000);
+  } else if (!$isGuest && countdownInterval) {
+    clearInterval(countdownInterval);
+    countdownInterval = null;
+    timeRemaining = '';
+  }
 
   function handleGuestClick() {
     dispatch('guest');
@@ -68,6 +121,11 @@
           </span>
           {#if $isGuest}
             <span class="guest-badge">Guest</span>
+            {#if timeRemaining}
+              <span class="countdown-badge" class:warning={timeRemaining.includes('m') && !timeRemaining.includes('h')} class:danger={timeRemaining.includes('s') && !timeRemaining.includes('m')}>
+                ⏱ {timeRemaining}
+              </span>
+            {/if}
           {/if}
           <span class="dropdown-arrow">▼</span>
         </button>
@@ -247,6 +305,33 @@
     font-size: 9px;
     padding: 1px 4px;
     text-transform: uppercase;
+  }
+
+  .countdown-badge {
+    background: var(--bg-tertiary);
+    color: var(--accent);
+    font-size: 10px;
+    padding: 2px 6px;
+    font-family: var(--font-mono);
+    border: 1px solid var(--border);
+  }
+
+  .countdown-badge.warning {
+    color: var(--warning);
+    border-color: var(--warning);
+    background: rgba(255, 200, 0, 0.1);
+  }
+
+  .countdown-badge.danger {
+    color: var(--danger);
+    border-color: var(--danger);
+    background: rgba(255, 0, 60, 0.1);
+    animation: pulse 1s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
   }
 
   .dropdown-arrow {
