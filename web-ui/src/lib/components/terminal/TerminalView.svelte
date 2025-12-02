@@ -475,7 +475,11 @@
     }
 
     function closeAll() {
-        if (confirm("Close all terminal sessions?")) {
+        if (
+            confirm(
+                "Close all docked terminals? (Detached windows will remain open)",
+            )
+        ) {
             terminal.closeAllSessions();
         }
     }
@@ -864,7 +868,7 @@
                             {/if}
                         </div>
                     {:else}
-                        {#each sessions as [id, session] (`float-${viewModeKey}-${id}`)}
+                        {#each dockedSessions as [id, session] (`float-${viewModeKey}-${id}`)}
                             <div
                                 class="terminal-panel"
                                 class:active={id === activeId}
@@ -1156,7 +1160,7 @@
                             {/if}
                         </div>
                     {:else}
-                        {#each sessions as [id, session] (`dock-${viewModeKey}-${id}`)}
+                        {#each dockedSessions as [id, session] (`dock-${viewModeKey}-${id}`)}
                             <div
                                 class="terminal-panel"
                                 class:active={id === activeId}

@@ -149,9 +149,25 @@
         </div>
 
         <div class="toolbar-actions">
-            {#if isDisconnected}
+            {#if isConnected}
                 <button
-                    class="toolbar-btn"
+                    class="toolbar-btn connected-btn"
+                    disabled
+                    title="Terminal is connected"
+                >
+                    ● Connected
+                </button>
+            {:else if isConnecting}
+                <button
+                    class="toolbar-btn connecting-btn"
+                    disabled
+                    title="Connecting..."
+                >
+                    ◌ Connecting
+                </button>
+            {:else}
+                <button
+                    class="toolbar-btn reconnect-btn"
                     on:click={handleReconnect}
                     title="Reconnect"
                 >
@@ -317,10 +333,44 @@
         transition: all 0.15s;
     }
 
-    .toolbar-btn:hover {
+    .toolbar-btn:hover:not(:disabled) {
         color: var(--text);
         background: var(--bg-tertiary);
         border-color: var(--border);
+    }
+
+    .toolbar-btn:disabled {
+        cursor: default;
+        opacity: 0.8;
+    }
+
+    .toolbar-btn.connected-btn {
+        color: var(--green);
+        border-color: var(--green);
+        background: rgba(0, 255, 65, 0.1);
+    }
+
+    .toolbar-btn.connecting-btn {
+        color: var(--yellow);
+        border-color: var(--yellow);
+        background: rgba(255, 200, 0, 0.1);
+    }
+
+    .toolbar-btn.connecting-btn::before {
+        content: "";
+        display: inline-block;
+        animation: spin 1s linear infinite;
+    }
+
+    .toolbar-btn.reconnect-btn {
+        color: var(--red);
+        border-color: var(--red);
+        background: rgba(255, 0, 60, 0.1);
+    }
+
+    .toolbar-btn.reconnect-btn:hover {
+        background: var(--red);
+        color: var(--bg);
     }
 
     /* Terminal Container */

@@ -34,7 +34,7 @@
         if (remaining <= 0) {
             timeRemaining = "Expired";
             // Close all terminal sessions when guest session expires
-            terminal.closeAllSessions();
+            terminal.closeAllSessionsForce();
             toast.error("Guest session expired. Please sign in again.");
             auth.logout();
             return;

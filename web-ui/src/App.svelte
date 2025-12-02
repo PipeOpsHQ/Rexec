@@ -219,7 +219,7 @@
     $: if (isInitialized && !$isAuthenticated && currentView !== "landing") {
         currentView = "landing";
         containers.reset();
-        terminal.closeAllSessions();
+        terminal.closeAllSessionsForce();
     }
 
     // Navigation functions

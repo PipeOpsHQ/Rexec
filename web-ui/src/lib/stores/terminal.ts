@@ -505,12 +505,17 @@ function createTerminalStore() {
         const newSessions = new Map(state.sessions);
         newSessions.delete(sessionId);
 
-        // Set new active session if needed
+        // Set new active session if needed (prefer docked sessions over detached)
         let newActiveId: string | null = null;
         if (state.activeSessionId === sessionId) {
-          const remaining = Array.from(newSessions.keys());
+          // Find another docked (non-detached) session to make active
+          const remainingDocked = Array.from(newSessions.values()).filter(
+            (s) => !s.isDetached,
+          );
           newActiveId =
-            remaining.length > 0 ? remaining[remaining.length - 1] : null;
+            remainingDocked.length > 0
+              ? remainingDocked[remainingDocked.length - 1].id
+              : null;
         } else {
           newActiveId = state.activeSessionId;
         }
@@ -533,8 +538,24 @@ function createTerminalStore() {
       });
     },
 
-    // Close all sessions
+    // Close all docked sessions (not detached ones)
     closeAllSessions() {
+      const state = getState();
+      state.sessions.forEach((session, id) => {
+        // Only close non-detached sessions
+        if (!session.isDetached) {
+          this.closeSession(id);
+        }
+      });
+      // Only clear URL if no sessions remain
+      const remaining = getState();
+      if (remaining.sessions.size === 0) {
+        this.clearUrl();
+      }
+    },
+
+    // Close all sessions including detached (for logout/cleanup)
+    closeAllSessionsForce() {
       const state = getState();
       state.sessions.forEach((_, id) => this.closeSession(id));
       this.clearUrl();
