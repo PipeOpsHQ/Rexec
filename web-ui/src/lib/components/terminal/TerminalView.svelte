@@ -24,6 +24,8 @@
     $: floatingPosition = $terminal.floatingPosition;
     $: floatingSize = $terminal.floatingSize;
     $: sessions = Array.from($terminal.sessions.entries());
+    $: dockedSessions = sessions.filter(([_, s]) => !s.isDetached);
+    $: detachedSessions = sessions.filter(([_, s]) => s.isDetached);
     $: activeId = $terminal.activeSessionId;
 
     // Inline create terminal state
@@ -102,51 +104,75 @@
         }
     }
 
-    // Available roles
+    // Available roles with detailed descriptions
     const roles = [
         {
             id: "standard",
             name: "The Minimalist",
             icon: "🧘",
             desc: "I use Arch btw. Just give me a shell.",
+            tools: ["bash", "git", "curl", "vim"],
+            recommendedOS: "Alpine",
+            useCase: "Quick tasks, scripting, and basic development",
         },
         {
             id: "node",
             name: "10x JS Ninja",
             icon: "🚀",
             desc: "Ship fast, break things, npm install everything.",
+            tools: ["node", "npm", "yarn", "pnpm", "git"],
+            recommendedOS: "Ubuntu",
+            useCase: "Full-stack JavaScript/TypeScript development",
         },
         {
             id: "python",
             name: "Data Wizard",
             icon: "🧙‍♂️",
             desc: "Import antigravity. I speak in list comprehensions.",
+            tools: ["python3", "pip", "jupyter", "pandas", "numpy"],
+            recommendedOS: "Ubuntu",
+            useCase: "Data science, ML, and Python development",
         },
         {
             id: "go",
             name: "The Gopher",
             icon: "🐹",
             desc: "If err != nil { panic(err) }. Simplicity is key.",
+            tools: ["go", "git", "make", "delve"],
+            recommendedOS: "Alpine",
+            useCase: "Go development, CLI tools, and microservices",
         },
         {
             id: "neovim",
             name: "Neovim God",
             icon: "⌨️",
             desc: "My config is longer than your code. Mouse? What mouse?",
+            tools: ["neovim", "tmux", "fzf", "ripgrep", "lazygit"],
+            recommendedOS: "Arch",
+            useCase: "Terminal-first development with powerful editing",
         },
         {
             id: "devops",
             name: "YAML Herder",
             icon: "☸️",
             desc: "I don't write code, I write config. Prod is my playground.",
+            tools: ["kubectl", "docker", "terraform", "helm", "aws-cli"],
+            recommendedOS: "Alpine",
+            useCase: "Infrastructure, containers, and cloud operations",
         },
         {
             id: "overemployed",
             name: "The Overemployed",
             icon: "💼",
             desc: "Working 4 remote jobs. Need max efficiency.",
+            tools: ["tmux", "git", "ssh", "docker", "zsh"],
+            recommendedOS: "Alpine",
+            useCase: "Maximum productivity with minimal overhead",
         },
     ];
+
+    // Get current selected role details
+    $: currentRole = roles.find((r) => r.id === selectedRole);
 
     function getIcon(imageName: string): string {
         const lower = imageName.toLowerCase();
@@ -487,29 +513,78 @@
         const session = $terminal.sessions.get(sessionId);
         if (!session) return;
 
-        // Get container info
-        const containerId = session.containerId;
+        // Detach as in-page floating window
         const containerName = session.name;
+        const left = Math.max(50, x - 50);
+        const top = Math.max(50, y - 30);
 
-        // Calculate window position (offset from cursor)
-        const windowWidth = 800;
-        const windowHeight = 600;
-        const left = Math.max(0, x - 50);
-        const top = Math.max(0, y - 30);
+        terminal.detachSession(sessionId, left, top);
+        toast.success(`Detached "${containerName}" to floating window`);
+    }
 
-        // Open new window with the terminal
-        const newWindow = window.open(
-            `${window.location.origin}?terminal=${containerId}&name=${encodeURIComponent(containerName)}`,
-            `terminal_${containerId}`,
-            `width=${windowWidth},height=${windowHeight},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no`,
-        );
+    // Detached window drag state
+    let draggingDetachedId: string | null = null;
+    let detachedDragOffset = { x: 0, y: 0 };
+    let resizingDetachedId: string | null = null;
 
-        if (newWindow) {
-            // Close the session in current window
-            terminal.closeSession(sessionId);
-            toast.success(`Popped out "${containerName}" to new window`);
-        } else {
-            toast.error("Failed to open new window. Check popup blocker.");
+    // Detached window drag handlers
+    function handleDetachedMouseDown(event: MouseEvent, sessionId: string) {
+        if ((event.target as HTMLElement).closest(".detached-actions")) return;
+        draggingDetachedId = sessionId;
+        const session = $terminal.sessions.get(sessionId);
+        if (session) {
+            detachedDragOffset = {
+                x: event.clientX - session.detachedPosition.x,
+                y: event.clientY - session.detachedPosition.y,
+            };
+        }
+        event.preventDefault();
+    }
+
+    function handleDetachedMouseMove(event: MouseEvent) {
+        if (draggingDetachedId) {
+            const x = Math.max(0, event.clientX - detachedDragOffset.x);
+            const y = Math.max(0, event.clientY - detachedDragOffset.y);
+            terminal.setDetachedPosition(draggingDetachedId, x, y);
+        }
+        if (resizingDetachedId) {
+            const session = $terminal.sessions.get(resizingDetachedId);
+            if (session) {
+                const width = Math.max(
+                    300,
+                    event.clientX - session.detachedPosition.x,
+                );
+                const height = Math.max(
+                    200,
+                    event.clientY - session.detachedPosition.y,
+                );
+                terminal.setDetachedSize(resizingDetachedId, width, height);
+            }
+        }
+    }
+
+    function handleDetachedMouseUp() {
+        if (draggingDetachedId) {
+            terminal.fitSession(draggingDetachedId);
+        }
+        if (resizingDetachedId) {
+            terminal.fitSession(resizingDetachedId);
+        }
+        draggingDetachedId = null;
+        resizingDetachedId = null;
+    }
+
+    function handleDetachedResizeStart(event: MouseEvent, sessionId: string) {
+        resizingDetachedId = sessionId;
+        event.preventDefault();
+        event.stopPropagation();
+    }
+
+    function dockSession(sessionId: string) {
+        const session = $terminal.sessions.get(sessionId);
+        if (session) {
+            terminal.attachSession(sessionId);
+            toast.success(`Docked "${session.name}" back to terminal panel`);
         }
     }
 
@@ -519,6 +594,8 @@
         window.addEventListener("mouseup", handleMouseUp);
         window.addEventListener("mousemove", handleTabDragMove);
         window.addEventListener("mouseup", handleTabDragEnd);
+        window.addEventListener("mousemove", handleDetachedMouseMove);
+        window.addEventListener("mouseup", handleDetachedMouseUp);
     });
 
     onDestroy(() => {
@@ -526,6 +603,8 @@
         window.removeEventListener("mouseup", handleMouseUp);
         window.removeEventListener("mousemove", handleTabDragMove);
         window.removeEventListener("mouseup", handleTabDragEnd);
+        window.removeEventListener("mousemove", handleDetachedMouseMove);
+        window.removeEventListener("mouseup", handleDetachedMouseUp);
     });
 </script>
 
@@ -547,13 +626,17 @@
                     tabindex="-1"
                 >
                     <div class="floating-tabs">
-                        {#each sessions as [id, session] (id)}
+                        {#each dockedSessions as [id, session] (id)}
                             <button
                                 class="floating-tab"
-                                class:active={id === activeId}
+                                class:active={id === activeId &&
+                                    !showCreatePanel}
                                 class:dragging={draggingTabId === id &&
                                     isDraggingTab}
-                                on:click={() => setActive(id)}
+                                on:click={() => {
+                                    showCreatePanel = false;
+                                    setActive(id);
+                                }}
                                 on:mousedown={(e) => handleTabDragStart(e, id)}
                                 title="Drag out to pop to new window"
                             >
@@ -575,16 +658,17 @@
                         {/each}
                         <button
                             class="new-tab-btn"
+                            class:active={showCreatePanel}
                             on:click={openCreatePanel}
                             title="New Terminal"
                         >
-                            + New
+                            +
                         </button>
                     </div>
 
                     <div class="floating-actions">
                         <button on:click={toggleViewMode} title="Dock Terminal">
-                            ⬒ Dock
+                            ⬒
                         </button>
                         <button on:click={minimize} title="Minimize">−</button>
                         <button on:click={closeAll} title="Close All">×</button>
@@ -652,11 +736,41 @@
                                                 </button>
                                             {/each}
                                         </div>
-                                        <p class="role-desc">
-                                            {roles.find(
-                                                (r) => r.id === selectedRole,
-                                            )?.desc}
-                                        </p>
+                                        {#if currentRole}
+                                            <div class="role-details">
+                                                <p class="role-quote">
+                                                    "{currentRole.desc}"
+                                                </p>
+                                                <div class="role-info-row">
+                                                    <span
+                                                        class="role-info-label"
+                                                        >OS:</span
+                                                    >
+                                                    <span
+                                                        class="role-info-value"
+                                                        >{currentRole.recommendedOS}</span
+                                                    >
+                                                    <span class="role-info-sep"
+                                                        >•</span
+                                                    >
+                                                    <span
+                                                        class="role-info-label"
+                                                        >For:</span
+                                                    >
+                                                    <span
+                                                        class="role-info-value"
+                                                        >{currentRole.useCase}</span
+                                                    >
+                                                </div>
+                                                <div class="tools-row">
+                                                    {#each currentRole.tools as tool}
+                                                        <span class="tool-badge"
+                                                            >{tool}</span
+                                                        >
+                                                    {/each}
+                                                </div>
+                                            </div>
+                                        {/if}
                                     </div>
 
                                     <!-- OS Selection -->
@@ -735,183 +849,294 @@
         {/if}
     {:else}
         <!-- Docked Terminal -->
-        <div class="docked-terminal">
-            <!-- Header -->
-            <div class="docked-header">
-                <div class="docked-tabs">
-                    {#each sessions as [id, session] (id)}
-                        <button
-                            class="docked-tab"
-                            class:active={id === activeId}
-                            class:dragging={draggingTabId === id &&
-                                isDraggingTab}
-                            on:click={() => setActive(id)}
-                            on:mousedown={(e) => handleTabDragStart(e, id)}
-                            title="Drag out to pop to new window"
-                        >
-                            <span
-                                class="status-dot {getStatusClass(
-                                    session.status,
-                                )}"
-                            ></span>
-                            <span class="tab-name">{session.name}</span>
-                            <button
-                                class="tab-close"
-                                on:click|stopPropagation={() =>
-                                    closeSession(id)}
-                                title="Close"
-                            >
-                                ×
-                            </button>
-                        </button>
-                    {/each}
-                </div>
-
-                <div class="docked-actions">
-                    <button
-                        class="btn btn-primary btn-sm"
-                        on:click={openCreatePanel}
+        {#if isMinimized}
+            <div class="minimized-bar docked-minimized">
+                <button class="restore-btn" on:click={restore}>
+                    <span class="restore-icon">↑</span>
+                    <span
+                        >{$sessionCount} Terminal{$sessionCount > 1
+                            ? "s"
+                            : ""}</span
                     >
-                        + New Terminal
-                    </button>
-                    <button
-                        class="btn btn-secondary btn-sm"
-                        on:click={toggleViewMode}
-                    >
-                        ⬔ Float
-                    </button>
-                    <button
-                        class="btn btn-secondary btn-sm"
-                        on:click={minimize}
-                    >
-                        − Minimize
-                    </button>
-                    <button class="btn btn-danger btn-sm" on:click={closeAll}>
-                        × Close All
-                    </button>
-                </div>
+                </button>
             </div>
-
-            <!-- Body -->
-            <div class="docked-body">
-                {#if showCreatePanel}
-                    <!-- Inline Create Panel for Docked Mode -->
-                    <div class="create-panel docked-create">
-                        <div class="create-panel-header">
-                            <h3>New Terminal</h3>
-                            {#if !isCreating}
+        {:else}
+            <div class="docked-terminal">
+                <!-- Header -->
+                <div class="docked-header">
+                    <div class="docked-tabs">
+                        {#each dockedSessions as [id, session] (id)}
+                            <button
+                                class="docked-tab"
+                                class:active={id === activeId &&
+                                    !showCreatePanel}
+                                class:dragging={draggingTabId === id &&
+                                    isDraggingTab}
+                                on:click={() => {
+                                    showCreatePanel = false;
+                                    setActive(id);
+                                }}
+                                on:mousedown={(e) => handleTabDragStart(e, id)}
+                                title="Drag out to pop to new window"
+                            >
+                                <span
+                                    class="status-dot {getStatusClass(
+                                        session.status,
+                                    )}"
+                                ></span>
+                                <span class="tab-name">{session.name}</span>
                                 <button
-                                    class="close-create"
-                                    on:click={closeCreatePanel}>× Cancel</button
+                                    class="tab-close"
+                                    on:click|stopPropagation={() =>
+                                        closeSession(id)}
+                                    title="Close"
                                 >
-                            {/if}
-                        </div>
+                                    ×
+                                </button>
+                            </button>
+                        {/each}
+                        <button
+                            class="docked-tab new-tab-btn"
+                            class:active={showCreatePanel}
+                            on:click={openCreatePanel}
+                            title="New Terminal"
+                        >
+                            +
+                        </button>
+                    </div>
 
-                        {#if isCreating}
-                            <div class="create-progress">
-                                <div class="progress-bar">
-                                    <div
-                                        class="progress-fill"
-                                        style="width: {progress}%"
-                                    ></div>
-                                </div>
-                                <div class="progress-info">
-                                    <span class="progress-stage"
-                                        >{progressStage}</span
+                    <div class="docked-actions">
+                        <button
+                            class="btn btn-secondary btn-sm"
+                            on:click={toggleViewMode}
+                            title="Float"
+                        >
+                            ⬔
+                        </button>
+                        <button
+                            class="btn btn-secondary btn-sm"
+                            on:click={minimize}
+                            title="Minimize"
+                        >
+                            −
+                        </button>
+                        <button
+                            class="btn btn-danger btn-sm"
+                            on:click={closeAll}
+                            title="Close All"
+                        >
+                            ×
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Body -->
+                <div class="docked-body">
+                    {#if showCreatePanel}
+                        <!-- Inline Create Panel for Docked Mode -->
+                        <div class="create-panel docked-create">
+                            <div class="create-panel-header">
+                                <h3>New Terminal</h3>
+                                {#if !isCreating}
+                                    <button
+                                        class="close-create"
+                                        on:click={closeCreatePanel}
+                                        >× Cancel</button
                                     >
-                                    <span class="progress-percent"
-                                        >{progress}%</span
-                                    >
-                                </div>
-                                <p class="progress-message">
-                                    {progressMessage}
-                                </p>
-                                <div class="spinner"></div>
+                                {/if}
                             </div>
-                        {:else}
-                            <div class="create-panel-content docked-content">
-                                <!-- Role Selection -->
-                                <div class="create-section">
-                                    <h4>Environment</h4>
-                                    <div class="role-grid">
-                                        {#each roles as role}
-                                            <button
-                                                class="role-card"
-                                                class:selected={selectedRole ===
-                                                    role.id}
-                                                on:click={() =>
-                                                    (selectedRole = role.id)}
-                                                title={role.desc}
-                                            >
-                                                <span class="role-icon"
-                                                    >{role.icon}</span
-                                                >
-                                                <span class="role-name"
-                                                    >{role.name}</span
-                                                >
-                                            </button>
-                                        {/each}
-                                    </div>
-                                    <p class="role-desc">
-                                        {roles.find(
-                                            (r) => r.id === selectedRole,
-                                        )?.desc}
-                                    </p>
-                                </div>
 
-                                <!-- OS Selection -->
-                                <div class="create-section">
-                                    <h4>Operating System</h4>
-                                    <div class="os-grid docked-grid">
-                                        {#each images as image (image.name)}
+                            {#if isCreating}
+                                <div class="create-progress">
+                                    <div class="progress-bar">
+                                        <div
+                                            class="progress-fill"
+                                            style="width: {progress}%"
+                                        ></div>
+                                    </div>
+                                    <div class="progress-info">
+                                        <span class="progress-stage"
+                                            >{progressStage}</span
+                                        >
+                                        <span class="progress-percent"
+                                            >{progress}%</span
+                                        >
+                                    </div>
+                                    <p class="progress-message">
+                                        {progressMessage}
+                                    </p>
+                                    <div class="spinner"></div>
+                                </div>
+                            {:else}
+                                <div
+                                    class="create-panel-content docked-content"
+                                >
+                                    <!-- Role Selection -->
+                                    <div class="create-section">
+                                        <h4>Environment</h4>
+                                        <div class="role-grid">
+                                            {#each roles as role}
+                                                <button
+                                                    class="role-card"
+                                                    class:selected={selectedRole ===
+                                                        role.id}
+                                                    on:click={() =>
+                                                        (selectedRole =
+                                                            role.id)}
+                                                    title={role.desc}
+                                                >
+                                                    <span class="role-icon"
+                                                        >{role.icon}</span
+                                                    >
+                                                    <span class="role-name"
+                                                        >{role.name}</span
+                                                    >
+                                                </button>
+                                            {/each}
+                                        </div>
+                                        {#if currentRole}
+                                            <div class="role-details">
+                                                <p class="role-quote">
+                                                    "{currentRole.desc}"
+                                                </p>
+                                                <div class="role-info-row">
+                                                    <span
+                                                        class="role-info-label"
+                                                        >OS:</span
+                                                    >
+                                                    <span
+                                                        class="role-info-value"
+                                                        >{currentRole.recommendedOS}</span
+                                                    >
+                                                    <span class="role-info-sep"
+                                                        >•</span
+                                                    >
+                                                    <span
+                                                        class="role-info-label"
+                                                        >For:</span
+                                                    >
+                                                    <span
+                                                        class="role-info-value"
+                                                        >{currentRole.useCase}</span
+                                                    >
+                                                </div>
+                                                <div class="tools-row">
+                                                    {#each currentRole.tools as tool}
+                                                        <span class="tool-badge"
+                                                            >{tool}</span
+                                                        >
+                                                    {/each}
+                                                </div>
+                                            </div>
+                                        {/if}
+                                    </div>
+
+                                    <!-- OS Selection -->
+                                    <div class="create-section">
+                                        <h4>Operating System</h4>
+                                        <div class="os-grid docked-grid">
+                                            {#each images as image (image.name)}
+                                                <button
+                                                    class="os-card"
+                                                    on:click={() =>
+                                                        selectAndCreate(
+                                                            image.name,
+                                                        )}
+                                                >
+                                                    <span class="os-icon"
+                                                        >{getIcon(
+                                                            image.name,
+                                                        )}</span
+                                                    >
+                                                    <span class="os-name"
+                                                        >{image.display_name ||
+                                                            image.name}</span
+                                                    >
+                                                    {#if image.popular}
+                                                        <span
+                                                            class="popular-badge"
+                                                            >Popular</span
+                                                        >
+                                                    {/if}
+                                                </button>
+                                            {/each}
                                             <button
                                                 class="os-card"
                                                 on:click={() =>
-                                                    selectAndCreate(image.name)}
+                                                    selectAndCreate("custom")}
                                             >
-                                                <span class="os-icon"
-                                                    >{getIcon(image.name)}</span
-                                                >
+                                                <span class="os-icon">📦</span>
                                                 <span class="os-name"
-                                                    >{image.display_name ||
-                                                        image.name}</span
+                                                    >Custom Image</span
                                                 >
-                                                {#if image.popular}
-                                                    <span class="popular-badge"
-                                                        >Popular</span
-                                                    >
-                                                {/if}
                                             </button>
-                                        {/each}
-                                        <button
-                                            class="os-card"
-                                            on:click={() =>
-                                                selectAndCreate("custom")}
-                                        >
-                                            <span class="os-icon">📦</span>
-                                            <span class="os-name"
-                                                >Custom Image</span
-                                            >
-                                        </button>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        {/if}
-                    </div>
-                {:else}
-                    {#each sessions as [id, session] (`dock-${viewModeKey}-${id}`)}
-                        <div
-                            class="terminal-panel"
-                            class:active={id === activeId}
-                        >
-                            <TerminalPanel {session} />
+                            {/if}
                         </div>
-                    {/each}
-                {/if}
+                    {:else}
+                        {#each sessions as [id, session] (`dock-${viewModeKey}-${id}`)}
+                            <div
+                                class="terminal-panel"
+                                class:active={id === activeId}
+                            >
+                                <TerminalPanel {session} />
+                            </div>
+                        {/each}
+                    {/if}
+                </div>
             </div>
-        </div>
+        {/if}
     {/if}
 {/if}
+
+<!-- Detached Floating Windows -->
+{#each detachedSessions as [id, session] (id)}
+    <div
+        class="detached-window"
+        style="left: {session.detachedPosition.x}px; top: {session
+            .detachedPosition.y}px; width: {session.detachedSize
+            .width}px; height: {session.detachedSize.height}px;"
+    >
+        <div
+            class="detached-header"
+            on:mousedown={(e) => handleDetachedMouseDown(e, id)}
+            on:dblclick={() => dockSession(id)}
+            role="toolbar"
+            tabindex="-1"
+        >
+            <span class="detached-title">{session.name}</span>
+            <span class="detached-status status-{session.status}"></span>
+            <div class="detached-actions">
+                <button
+                    on:click={() => dockSession(id)}
+                    title="Dock back to terminal panel"
+                >
+                    ⬒
+                </button>
+                <button
+                    on:click={() => {
+                        terminal.closeSession(id);
+                        toast.success(`Closed "${session.name}"`);
+                    }}
+                    title="Close terminal"
+                >
+                    ×
+                </button>
+            </div>
+        </div>
+        <div class="detached-body" id="detached-terminal-{id}">
+            <TerminalPanel {session} />
+        </div>
+        <div
+            class="detached-resize-handle"
+            on:mousedown={(e) => handleDetachedResizeStart(e, id)}
+            role="button"
+            tabindex="-1"
+        ></div>
+    </div>
+{/each}
 
 <style>
     /* Floating Container */
@@ -1131,6 +1356,38 @@
         background: rgba(0, 217, 255, 0.1);
     }
 
+    .docked-tabs .new-tab-btn.active {
+        border-style: solid;
+        border-color: var(--accent);
+        color: var(--accent);
+        background: var(--bg);
+        border-bottom-color: var(--bg);
+    }
+
+    /* Floating new tab button */
+    .floating-tabs .new-tab-btn {
+        background: transparent;
+        border: none;
+        color: var(--text-muted);
+        padding: 6px 10px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .floating-tabs .new-tab-btn:hover {
+        color: var(--accent);
+        background: rgba(0, 255, 65, 0.1);
+    }
+
+    .floating-tabs .new-tab-btn.active {
+        color: var(--accent);
+        background: rgba(0, 255, 65, 0.15);
+    }
+
     .docked-actions {
         display: flex;
         gap: 8px;
@@ -1200,6 +1457,19 @@
         bottom: 16px;
         right: 16px;
         z-index: 1001;
+        pointer-events: auto;
+    }
+
+    .minimized-bar.docked-minimized {
+        bottom: 0;
+        left: 0;
+        right: 0;
+        border-radius: 0;
+        display: flex;
+        justify-content: center;
+        background: var(--bg-elevated);
+        border-top: 1px solid var(--border);
+        padding: 8px;
     }
 
     .restore-btn {
@@ -1345,13 +1615,61 @@
         max-width: 100%;
     }
 
-    .role-desc {
+    .role-details {
+        margin-top: 12px;
+        padding: 10px 12px;
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+    }
+
+    .role-quote {
         font-size: 11px;
-        color: var(--text-muted);
+        color: var(--accent);
         font-family: var(--font-mono);
         font-style: italic;
-        margin: 4px 0 0 0;
-        min-height: 16px;
+        margin: 0 0 8px 0;
+        text-align: center;
+    }
+
+    .role-info-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px;
+        font-size: 10px;
+        margin-bottom: 8px;
+    }
+
+    .role-info-label {
+        color: var(--text-muted);
+        font-family: var(--font-mono);
+    }
+
+    .role-info-value {
+        color: var(--text);
+        font-family: var(--font-mono);
+    }
+
+    .role-info-sep {
+        color: var(--text-muted);
+        margin: 0 2px;
+    }
+
+    .tools-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .tool-badge {
+        padding: 2px 6px;
+        background: rgba(0, 255, 65, 0.1);
+        border: 1px solid var(--accent);
+        border-radius: 3px;
+        font-size: 9px;
+        color: var(--accent);
+        font-family: var(--font-mono);
     }
 
     .os-grid {
@@ -1501,5 +1819,119 @@
         to {
             transform: rotate(360deg);
         }
+    }
+
+    /* Detached Window Styles */
+    .detached-window {
+        position: fixed;
+        display: flex;
+        flex-direction: column;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        z-index: 1001;
+        pointer-events: auto;
+        overflow: hidden;
+    }
+
+    .detached-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: var(--bg-elevated);
+        border-bottom: 1px solid var(--border);
+        cursor: grab;
+        user-select: none;
+    }
+
+    .detached-header:active {
+        cursor: grabbing;
+    }
+
+    .detached-title {
+        flex: 1;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .detached-status {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .detached-status.status-connected {
+        background: var(--green);
+        box-shadow: 0 0 6px var(--green);
+    }
+
+    .detached-status.status-connecting {
+        background: var(--warning);
+        animation: pulse 1s infinite;
+    }
+
+    .detached-status.status-disconnected,
+    .detached-status.status-error {
+        background: var(--danger);
+    }
+
+    .detached-actions {
+        display: flex;
+        gap: 4px;
+    }
+
+    .detached-actions button {
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        font-size: 14px;
+        padding: 4px 6px;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: all 0.15s;
+    }
+
+    .detached-actions button:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--text);
+    }
+
+    .detached-body {
+        flex: 1;
+        overflow: hidden;
+        background: var(--bg-terminal);
+    }
+
+    .detached-resize-handle {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        width: 16px;
+        height: 16px;
+        cursor: se-resize;
+        background: linear-gradient(
+            135deg,
+            transparent 50%,
+            var(--border) 50%,
+            var(--border) 60%,
+            transparent 60%,
+            transparent 70%,
+            var(--border) 70%,
+            var(--border) 80%,
+            transparent 80%
+        );
+        opacity: 0.5;
+        transition: opacity 0.15s;
+    }
+
+    .detached-resize-handle:hover {
+        opacity: 1;
     }
 </style>

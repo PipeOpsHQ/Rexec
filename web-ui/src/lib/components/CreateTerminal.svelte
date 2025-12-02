@@ -51,51 +51,75 @@
         }
     }
 
-    // Available roles with fun descriptions
+    // Available roles with detailed descriptions
     const roles = [
         {
             id: "standard",
             name: "The Minimalist",
             icon: "🧘",
             desc: "I use Arch btw. Just give me a shell.",
+            tools: ["bash", "git", "curl", "vim"],
+            recommendedOS: "Alpine",
+            useCase: "Quick tasks, scripting, and basic development",
         },
         {
             id: "node",
             name: "10x JS Ninja",
             icon: "🚀",
             desc: "Ship fast, break things, npm install everything.",
+            tools: ["node", "npm", "yarn", "pnpm", "git"],
+            recommendedOS: "Ubuntu",
+            useCase: "Full-stack JavaScript/TypeScript development",
         },
         {
             id: "python",
             name: "Data Wizard",
             icon: "🧙‍♂️",
             desc: "Import antigravity. I speak in list comprehensions.",
+            tools: ["python3", "pip", "jupyter", "pandas", "numpy"],
+            recommendedOS: "Ubuntu",
+            useCase: "Data science, ML, and Python development",
         },
         {
             id: "go",
             name: "The Gopher",
             icon: "🐹",
             desc: "If err != nil { panic(err) }. Simplicity is key.",
+            tools: ["go", "git", "make", "delve"],
+            recommendedOS: "Alpine",
+            useCase: "Go development, CLI tools, and microservices",
         },
         {
             id: "neovim",
             name: "Neovim God",
             icon: "⌨️",
             desc: "My config is longer than your code. Mouse? What mouse?",
+            tools: ["neovim", "tmux", "fzf", "ripgrep", "lazygit"],
+            recommendedOS: "Arch",
+            useCase: "Terminal-first development with powerful editing",
         },
         {
             id: "devops",
             name: "YAML Herder",
             icon: "☸️",
             desc: "I don't write code, I write config. Prod is my playground.",
+            tools: ["kubectl", "docker", "terraform", "helm", "aws-cli"],
+            recommendedOS: "Alpine",
+            useCase: "Infrastructure, containers, and cloud operations",
         },
         {
             id: "overemployed",
             name: "The Overemployed",
             icon: "💼",
             desc: "Working 4 remote jobs. Need max efficiency.",
+            tools: ["tmux", "git", "ssh", "docker", "zsh"],
+            recommendedOS: "Alpine",
+            useCase: "Maximum productivity with minimal overhead",
         },
     ];
+
+    // Get current selected role details
+    $: currentRole = roles.find((r) => r.id === selectedRole);
 
     // Image icons
     const imageIcons: Record<string, string> = {
@@ -287,9 +311,6 @@
             dispatch("cancel");
         }
     }
-
-    // Get current role description
-    $: currentRoleDesc = roles.find((r) => r.id === selectedRole)?.desc || "";
 </script>
 
 <div class="create-container">
@@ -362,7 +383,38 @@
                     {/each}
                 </div>
 
-                <p class="role-desc">{currentRoleDesc}</p>
+                <!-- Selected Environment Details -->
+                {#if currentRole}
+                    <div class="role-details">
+                        <p class="role-quote">"{currentRole.desc}"</p>
+                        <div class="role-info">
+                            <div class="role-info-item">
+                                <span class="role-info-label"
+                                    >Recommended OS</span
+                                >
+                                <span class="role-info-value"
+                                    >{currentRole.recommendedOS}</span
+                                >
+                            </div>
+                            <div class="role-info-item">
+                                <span class="role-info-label">Use Case</span>
+                                <span class="role-info-value"
+                                    >{currentRole.useCase}</span
+                                >
+                            </div>
+                            <div class="role-info-item tools">
+                                <span class="role-info-label"
+                                    >Pre-installed Tools</span
+                                >
+                                <div class="tools-list">
+                                    {#each currentRole.tools as tool}
+                                        <span class="tool-badge">{tool}</span>
+                                    {/each}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {/if}
             </div>
 
             <!-- Step 2: OS Selection -->
@@ -579,14 +631,69 @@
         text-align: center;
     }
 
-    .role-desc {
-        font-size: 12px;
+    /* Role Details Panel */
+    .role-details {
+        margin-top: 16px;
+        padding: 16px;
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+    }
+
+    .role-quote {
+        font-size: 13px;
         color: var(--accent);
         font-family: var(--font-mono);
         font-style: italic;
-        margin: 4px 0 0 0;
-        min-height: 20px;
+        margin: 0 0 16px 0;
         text-align: center;
+    }
+
+    .role-info {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .role-info-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .role-info-item.tools {
+        margin-top: 4px;
+    }
+
+    .role-info-label {
+        font-size: 10px;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-family: var(--font-mono);
+    }
+
+    .role-info-value {
+        font-size: 13px;
+        color: var(--text);
+        font-family: var(--font-mono);
+    }
+
+    .tools-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 4px;
+    }
+
+    .tool-badge {
+        padding: 4px 8px;
+        background: rgba(0, 255, 65, 0.1);
+        border: 1px solid var(--accent);
+        border-radius: 4px;
+        font-size: 11px;
+        color: var(--accent);
+        font-family: var(--font-mono);
     }
 
     /* Image Grid */
