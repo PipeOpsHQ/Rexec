@@ -173,7 +173,7 @@ function createContainersStore() {
       return { success: true, container: data };
     },
 
-    // Create container with SSE progress streaming
+    // Create container with SSE progress streaming (falls back to polling if SSE fails)
     createContainerWithProgress(
       name: string,
       image: string,
@@ -205,7 +205,7 @@ function createContainersStore() {
         body.custom_image = customImage;
       }
 
-      // Use SSE endpoint for streaming progress
+      // Try SSE endpoint first, fall back to polling if it fails
       fetch("/api/containers/stream", {
         method: "POST",
         headers: {
@@ -215,6 +215,28 @@ function createContainersStore() {
         body: JSON.stringify(body),
       })
         .then(async (response) => {
+          const contentType = response.headers.get("content-type") || "";
+
+          // Check if we got an SSE response or something else (like Cloudflare error page)
+          if (!contentType.includes("text/event-stream")) {
+            // Not SSE - likely Cloudflare blocking. Fall back to polling.
+            console.warn(
+              "SSE not available (got " +
+                contentType +
+                "), falling back to polling",
+            );
+            // Use the polling fallback
+            this.createContainerFallback(
+              name,
+              image,
+              customImage,
+              onProgress,
+              onComplete,
+              onError,
+            );
+            return;
+          }
+
           if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
             throw new Error(
@@ -231,6 +253,7 @@ function createContainersStore() {
           }
 
           let buffer = "";
+          let receivedAnyData = false;
 
           const processEvents = () => {
             const lines = buffer.split("\n");
@@ -238,6 +261,7 @@ function createContainersStore() {
 
             for (const line of lines) {
               if (line.startsWith("data: ")) {
+                receivedAnyData = true;
                 try {
                   const event: ProgressEvent = JSON.parse(line.slice(6));
 
@@ -334,6 +358,20 @@ function createContainersStore() {
                   buffer += "\n";
                   processEvents();
                 }
+                // If we never received any SSE data, the stream was blocked
+                if (!receivedAnyData) {
+                  console.warn(
+                    "SSE stream ended without data, falling back to polling",
+                  );
+                  this.createContainerFallback(
+                    name,
+                    image,
+                    customImage,
+                    onProgress,
+                    onComplete,
+                    onError,
+                  );
+                }
                 return;
               }
 
@@ -343,8 +381,24 @@ function createContainersStore() {
               return read();
             } catch (e) {
               if (e instanceof Error && e.name !== "AbortError") {
-                update((state) => ({ ...state, creating: null }));
-                onError?.(e.message);
+                // On stream error, try polling fallback if we haven't received data
+                if (!receivedAnyData) {
+                  console.warn(
+                    "SSE stream error, falling back to polling:",
+                    e.message,
+                  );
+                  this.createContainerFallback(
+                    name,
+                    image,
+                    customImage,
+                    onProgress,
+                    onComplete,
+                    onError,
+                  );
+                } else {
+                  update((state) => ({ ...state, creating: null }));
+                  onError?.(e.message);
+                }
               }
             }
           };
@@ -352,9 +406,15 @@ function createContainersStore() {
           return read();
         })
         .catch((e) => {
-          update((state) => ({ ...state, creating: null }));
-          onError?.(
-            e instanceof Error ? e.message : "Failed to create container",
+          // Network error or fetch failed - try polling fallback
+          console.warn("SSE fetch failed, falling back to polling:", e.message);
+          this.createContainerFallback(
+            name,
+            image,
+            customImage,
+            onProgress,
+            onComplete,
+            onError,
           );
         });
     },

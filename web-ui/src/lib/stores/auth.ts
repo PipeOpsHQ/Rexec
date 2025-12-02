@@ -196,6 +196,19 @@ function createAuthStore() {
         const data = await response.json();
         // API returns nested response: { user: {...}, stats: {...}, limits: {...} }
         const userData = data.user || data;
+
+        // Get existing user from localStorage to preserve expiresAt for guests
+        let existingExpiresAt: number | undefined;
+        try {
+          const existingUserJson = localStorage.getItem("rexec_user");
+          if (existingUserJson) {
+            const existingUser = JSON.parse(existingUserJson);
+            existingExpiresAt = existingUser.expiresAt;
+          }
+        } catch {
+          // Ignore parse errors
+        }
+
         const user: User = {
           id: userData.id,
           email: userData.email || "",
@@ -203,6 +216,8 @@ function createAuthStore() {
           avatar: userData.avatar,
           tier: userData.tier || "free",
           isGuest: userData.tier === "guest",
+          // Preserve expiresAt from localStorage for guest sessions
+          expiresAt: userData.expires_at || existingExpiresAt,
         };
 
         update((state) => ({

@@ -514,15 +514,27 @@ func (h *AuthHandler) GetProfile(c *gin.Context) {
 		sshKeyCount = len(sshKeys)
 	}
 
+	// Build user response
+	userResponse := gin.H{
+		"id":         user.ID,
+		"email":      user.Email,
+		"username":   user.Username,
+		"tier":       user.Tier,
+		"created_at": user.CreatedAt,
+		"updated_at": user.UpdatedAt,
+	}
+
+	// For guest users, calculate and include expiration time
+	isGuest := c.GetBool("guest")
+	if isGuest || user.Tier == "guest" {
+		// Guest sessions expire 1 hour after creation
+		expiresAt := user.CreatedAt.Add(GuestSessionDuration)
+		userResponse["expires_at"] = expiresAt.Unix()
+		userResponse["is_guest"] = true
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"user": gin.H{
-			"id":         user.ID,
-			"email":      user.Email,
-			"username":   user.Username,
-			"tier":       user.Tier,
-			"created_at": user.CreatedAt,
-			"updated_at": user.UpdatedAt,
-		},
+		"user": userResponse,
 		"stats": gin.H{
 			"containers":      containerCount,
 			"container_limit": containerLimit,
