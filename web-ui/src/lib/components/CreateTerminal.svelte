@@ -18,6 +18,7 @@
     let progress = 0;
     let progressMessage = "";
     let progressStage = "";
+    let showStatPopover = false;
 
     // Progress steps for visual display
     const progressSteps = [
@@ -433,36 +434,111 @@
                     {/each}
                 </div>
 
-                <!-- Selected Environment Details -->
+                <!-- Compact Hero Stat Display -->
                 {#if currentRole}
-                    <div class="role-details">
-                        <p class="role-quote">"{currentRole.desc}"</p>
-                        <div class="role-info">
-                            <div class="role-info-item">
-                                <span class="role-info-label"
-                                    >Recommended OS</span
+                    <div class="hero-stat-compact">
+                        <div class="hero-identity">
+                            <span class="hero-icon-lg">{currentRole.icon}</span>
+                            <div class="hero-name-quote">
+                                <span class="hero-title"
+                                    >{currentRole.name}</span
                                 >
-                                <span class="role-info-value"
-                                    >{currentRole.recommendedOS}</span
-                                >
-                            </div>
-                            <div class="role-info-item">
-                                <span class="role-info-label">Use Case</span>
-                                <span class="role-info-value"
-                                    >{currentRole.useCase}</span
+                                <span class="hero-quote"
+                                    >"{currentRole.desc}"</span
                                 >
                             </div>
-                            <div class="role-info-item tools">
-                                <span class="role-info-label"
-                                    >Pre-installed Tools</span
+                            <button
+                                class="stat-toggle"
+                                on:click={() =>
+                                    (showStatPopover = !showStatPopover)}
+                                on:blur={() =>
+                                    setTimeout(
+                                        () => (showStatPopover = false),
+                                        150,
+                                    )}
+                            >
+                                <span class="stat-toggle-icon"
+                                    >{showStatPopover ? "▼" : "▶"}</span
                                 >
-                                <div class="tools-list">
-                                    {#each currentRole.tools as tool}
-                                        <span class="tool-badge">{tool}</span>
-                                    {/each}
+                                <span class="stat-toggle-text">Stats</span>
+                            </button>
+                        </div>
+
+                        {#if showStatPopover}
+                            <div class="hero-stat-popover">
+                                <div class="stat-header">
+                                    <span class="stat-class"
+                                        >{currentRole.name}</span
+                                    >
+                                    <span class="stat-level">LVL ∞</span>
+                                </div>
+                                <div class="stat-bars">
+                                    <div class="stat-row">
+                                        <span class="stat-label">⚡ PWR</span>
+                                        <div class="stat-bar-track">
+                                            <div
+                                                class="stat-bar-fill"
+                                                style="width: {85 +
+                                                    currentRole.tools.length *
+                                                        3}%"
+                                            ></div>
+                                        </div>
+                                    </div>
+                                    <div class="stat-row">
+                                        <span class="stat-label">🛡️ DEF</span>
+                                        <div class="stat-bar-track">
+                                            <div
+                                                class="stat-bar-fill defense"
+                                                style="width: {currentRole.id ===
+                                                'devops'
+                                                    ? 95
+                                                    : 70}%"
+                                            ></div>
+                                        </div>
+                                    </div>
+                                    <div class="stat-row">
+                                        <span class="stat-label">⚔️ SPD</span>
+                                        <div class="stat-bar-track">
+                                            <div
+                                                class="stat-bar-fill speed"
+                                                style="width: {currentRole.recommendedOS ===
+                                                'Alpine'
+                                                    ? 95
+                                                    : 75}%"
+                                            ></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="stat-info-grid">
+                                    <div class="stat-info-cell">
+                                        <span class="stat-info-key">OS</span>
+                                        <span class="stat-info-val"
+                                            >{currentRole.recommendedOS}</span
+                                        >
+                                    </div>
+                                    <div class="stat-info-cell">
+                                        <span class="stat-info-key">CLASS</span>
+                                        <span class="stat-info-val"
+                                            >{currentRole.useCase.split(
+                                                ",",
+                                            )[0]}</span
+                                        >
+                                    </div>
+                                </div>
+                                <div class="stat-abilities">
+                                    <span class="abilities-label"
+                                        >⚙️ ABILITIES</span
+                                    >
+                                    <div class="abilities-list">
+                                        {#each currentRole.tools as tool}
+                                            <span class="ability-tag"
+                                                >{tool}</span
+                                            >
+                                        {/each}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        {/if}
                     </div>
                 {/if}
             </div>
@@ -681,67 +757,249 @@
         text-align: center;
     }
 
-    /* Role Details Panel */
-    .role-details {
-        margin-top: 16px;
-        padding: 16px;
-        background: var(--bg-elevated);
+    /* Hero Stat Compact Display */
+    .hero-stat-compact {
+        margin-top: 12px;
+        position: relative;
+    }
+
+    .hero-identity {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        background: linear-gradient(
+            135deg,
+            var(--bg-elevated) 0%,
+            rgba(0, 255, 65, 0.05) 100%
+        );
         border: 1px solid var(--border);
         border-radius: 8px;
+        border-left: 3px solid var(--accent);
     }
 
-    .role-quote {
-        font-size: 13px;
-        color: var(--accent);
-        font-family: var(--font-mono);
-        font-style: italic;
-        margin: 0 0 16px 0;
-        text-align: center;
+    .hero-icon-lg {
+        font-size: 28px;
+        filter: drop-shadow(0 0 4px var(--accent));
     }
 
-    .role-info {
+    .hero-name-quote {
+        flex: 1;
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: 2px;
+        min-width: 0;
     }
 
-    .role-info-item {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-    }
-
-    .role-info-item.tools {
-        margin-top: 4px;
-    }
-
-    .role-info-label {
-        font-size: 10px;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        font-family: var(--font-mono);
-    }
-
-    .role-info-value {
+    .hero-title {
         font-size: 13px;
+        font-weight: 600;
         color: var(--text);
         font-family: var(--font-mono);
     }
 
-    .tools-list {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        margin-top: 4px;
+    .hero-quote {
+        font-size: 10px;
+        color: var(--accent);
+        font-style: italic;
+        font-family: var(--font-mono);
+        opacity: 0.9;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
-    .tool-badge {
-        padding: 4px 8px;
+    .stat-toggle {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 6px 10px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.15s;
+        font-family: var(--font-mono);
+    }
+
+    .stat-toggle:hover {
+        border-color: var(--accent);
+        background: var(--accent-dim);
+    }
+
+    .stat-toggle-icon {
+        font-size: 8px;
+        color: var(--accent);
+    }
+
+    .stat-toggle-text {
+        font-size: 10px;
+        color: var(--text);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* Hero Stat Popover */
+    .hero-stat-popover {
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        right: 0;
+        background: var(--bg-elevated);
+        border: 1px solid var(--accent);
+        border-radius: 8px;
+        padding: 12px;
+        z-index: 100;
+        box-shadow:
+            0 4px 20px rgba(0, 0, 0, 0.4),
+            0 0 15px rgba(0, 255, 65, 0.1);
+        animation: popoverSlide 0.15s ease-out;
+    }
+
+    @keyframes popoverSlide {
+        from {
+            opacity: 0;
+            transform: translateY(-8px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .stat-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .stat-class {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--accent);
+        font-family: var(--font-mono);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .stat-level {
+        font-size: 10px;
+        color: var(--warning, #ffd93d);
+        font-family: var(--font-mono);
+        padding: 2px 6px;
+        background: rgba(255, 217, 61, 0.1);
+        border-radius: 3px;
+    }
+
+    .stat-bars {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-bottom: 10px;
+    }
+
+    .stat-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .stat-label {
+        font-size: 9px;
+        color: var(--text-muted);
+        font-family: var(--font-mono);
+        width: 50px;
+        flex-shrink: 0;
+    }
+
+    .stat-bar-track {
+        flex: 1;
+        height: 6px;
+        background: var(--bg-tertiary);
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    .stat-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--accent) 0%, #00ff88 100%);
+        border-radius: 3px;
+        transition: width 0.3s ease;
+        box-shadow: 0 0 6px var(--accent);
+    }
+
+    .stat-bar-fill.defense {
+        background: linear-gradient(90deg, #00d9ff 0%, #0099ff 100%);
+        box-shadow: 0 0 6px #00d9ff;
+    }
+
+    .stat-bar-fill.speed {
+        background: linear-gradient(90deg, #ff6b6b 0%, #ffd93d 100%);
+        box-shadow: 0 0 6px #ff6b6b;
+    }
+
+    .stat-info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+
+    .stat-info-cell {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 6px 8px;
+        background: var(--bg-tertiary);
+        border-radius: 4px;
+    }
+
+    .stat-info-key {
+        font-size: 8px;
+        color: var(--text-muted);
+        font-family: var(--font-mono);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .stat-info-val {
+        font-size: 11px;
+        color: var(--text);
+        font-family: var(--font-mono);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .stat-abilities {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .abilities-label {
+        font-size: 9px;
+        color: var(--text-muted);
+        font-family: var(--font-mono);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .abilities-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .ability-tag {
+        padding: 3px 7px;
         background: rgba(0, 255, 65, 0.1);
         border: 1px solid var(--accent);
-        border-radius: 4px;
-        font-size: 11px;
+        border-radius: 3px;
+        font-size: 10px;
         color: var(--accent);
         font-family: var(--font-mono);
     }

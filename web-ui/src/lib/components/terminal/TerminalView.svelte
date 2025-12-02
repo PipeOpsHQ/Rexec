@@ -37,6 +37,7 @@
     let progress = 0;
     let progressMessage = "";
     let progressStage = "";
+    let showStatPopover = false;
 
     // Progress steps for visual display
     const progressSteps = [
@@ -793,38 +794,139 @@
                                             {/each}
                                         </div>
                                         {#if currentRole}
-                                            <div class="role-details">
-                                                <p class="role-quote">
-                                                    "{currentRole.desc}"
-                                                </p>
-                                                <div class="role-info-row">
-                                                    <span
-                                                        class="role-info-label"
-                                                        >OS:</span
+                                            <div class="hero-stat-compact">
+                                                <div class="hero-identity">
+                                                    <span class="hero-icon-sm"
+                                                        >{currentRole.icon}</span
                                                     >
-                                                    <span
-                                                        class="role-info-value"
-                                                        >{currentRole.recommendedOS}</span
+                                                    <span class="hero-title-sm"
+                                                        >{currentRole.name}</span
                                                     >
-                                                    <span class="role-info-sep"
-                                                        >•</span
+                                                    <button
+                                                        class="stat-toggle-sm"
+                                                        on:click={() =>
+                                                            (showStatPopover =
+                                                                !showStatPopover)}
+                                                        on:blur={() =>
+                                                            setTimeout(
+                                                                () =>
+                                                                    (showStatPopover = false),
+                                                                150,
+                                                            )}
                                                     >
-                                                    <span
-                                                        class="role-info-label"
-                                                        >For:</span
-                                                    >
-                                                    <span
-                                                        class="role-info-value"
-                                                        >{currentRole.useCase}</span
-                                                    >
-                                                </div>
-                                                <div class="tools-row">
-                                                    {#each currentRole.tools as tool}
-                                                        <span class="tool-badge"
-                                                            >{tool}</span
+                                                        <span
+                                                            class="stat-toggle-icon"
+                                                            >{showStatPopover
+                                                                ? "▼"
+                                                                : "▶"}</span
                                                         >
-                                                    {/each}
+                                                        <span>Stats</span>
+                                                    </button>
                                                 </div>
+                                                {#if showStatPopover}
+                                                    <div
+                                                        class="hero-stat-popover-sm"
+                                                    >
+                                                        <div
+                                                            class="stat-header-sm"
+                                                        >
+                                                            <span
+                                                                class="stat-class-sm"
+                                                                >{currentRole.name}</span
+                                                            >
+                                                            <span
+                                                                class="stat-level-sm"
+                                                                >LVL ∞</span
+                                                            >
+                                                        </div>
+                                                        <div
+                                                            class="stat-bars-sm"
+                                                        >
+                                                            <div
+                                                                class="stat-row-sm"
+                                                            >
+                                                                <span
+                                                                    class="stat-label-sm"
+                                                                    >⚡</span
+                                                                >
+                                                                <div
+                                                                    class="stat-bar-track-sm"
+                                                                >
+                                                                    <div
+                                                                        class="stat-bar-fill-sm"
+                                                                        style="width: {85 +
+                                                                            currentRole
+                                                                                .tools
+                                                                                .length *
+                                                                                3}%"
+                                                                    ></div>
+                                                                </div>
+                                                            </div>
+                                                            <div
+                                                                class="stat-row-sm"
+                                                            >
+                                                                <span
+                                                                    class="stat-label-sm"
+                                                                    >🛡️</span
+                                                                >
+                                                                <div
+                                                                    class="stat-bar-track-sm"
+                                                                >
+                                                                    <div
+                                                                        class="stat-bar-fill-sm defense"
+                                                                        style="width: {currentRole.id ===
+                                                                        'devops'
+                                                                            ? 95
+                                                                            : 70}%"
+                                                                    ></div>
+                                                                </div>
+                                                            </div>
+                                                            <div
+                                                                class="stat-row-sm"
+                                                            >
+                                                                <span
+                                                                    class="stat-label-sm"
+                                                                    >⚔️</span
+                                                                >
+                                                                <div
+                                                                    class="stat-bar-track-sm"
+                                                                >
+                                                                    <div
+                                                                        class="stat-bar-fill-sm speed"
+                                                                        style="width: {currentRole.recommendedOS ===
+                                                                        'Alpine'
+                                                                            ? 95
+                                                                            : 75}%"
+                                                                    ></div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div
+                                                            class="stat-info-row-sm"
+                                                        >
+                                                            <span
+                                                                class="stat-info-sm"
+                                                                >📦 {currentRole.recommendedOS}</span
+                                                            >
+                                                            <span
+                                                                class="stat-info-sm"
+                                                                >🎯 {currentRole.useCase.split(
+                                                                    ",",
+                                                                )[0]}</span
+                                                            >
+                                                        </div>
+                                                        <div
+                                                            class="abilities-row-sm"
+                                                        >
+                                                            {#each currentRole.tools as tool}
+                                                                <span
+                                                                    class="ability-tag-sm"
+                                                                    >{tool}</span
+                                                                >
+                                                            {/each}
+                                                        </div>
+                                                    </div>
+                                                {/if}
                                             </div>
                                         {/if}
                                     </div>
@@ -1079,38 +1181,139 @@
                                             {/each}
                                         </div>
                                         {#if currentRole}
-                                            <div class="role-details">
-                                                <p class="role-quote">
-                                                    "{currentRole.desc}"
-                                                </p>
-                                                <div class="role-info-row">
-                                                    <span
-                                                        class="role-info-label"
-                                                        >OS:</span
+                                            <div class="hero-stat-compact">
+                                                <div class="hero-identity">
+                                                    <span class="hero-icon-sm"
+                                                        >{currentRole.icon}</span
                                                     >
-                                                    <span
-                                                        class="role-info-value"
-                                                        >{currentRole.recommendedOS}</span
+                                                    <span class="hero-title-sm"
+                                                        >{currentRole.name}</span
                                                     >
-                                                    <span class="role-info-sep"
-                                                        >•</span
+                                                    <button
+                                                        class="stat-toggle-sm"
+                                                        on:click={() =>
+                                                            (showStatPopover =
+                                                                !showStatPopover)}
+                                                        on:blur={() =>
+                                                            setTimeout(
+                                                                () =>
+                                                                    (showStatPopover = false),
+                                                                150,
+                                                            )}
                                                     >
-                                                    <span
-                                                        class="role-info-label"
-                                                        >For:</span
-                                                    >
-                                                    <span
-                                                        class="role-info-value"
-                                                        >{currentRole.useCase}</span
-                                                    >
-                                                </div>
-                                                <div class="tools-row">
-                                                    {#each currentRole.tools as tool}
-                                                        <span class="tool-badge"
-                                                            >{tool}</span
+                                                        <span
+                                                            class="stat-toggle-icon"
+                                                            >{showStatPopover
+                                                                ? "▼"
+                                                                : "▶"}</span
                                                         >
-                                                    {/each}
+                                                        <span>Stats</span>
+                                                    </button>
                                                 </div>
+                                                {#if showStatPopover}
+                                                    <div
+                                                        class="hero-stat-popover-sm"
+                                                    >
+                                                        <div
+                                                            class="stat-header-sm"
+                                                        >
+                                                            <span
+                                                                class="stat-class-sm"
+                                                                >{currentRole.name}</span
+                                                            >
+                                                            <span
+                                                                class="stat-level-sm"
+                                                                >LVL ∞</span
+                                                            >
+                                                        </div>
+                                                        <div
+                                                            class="stat-bars-sm"
+                                                        >
+                                                            <div
+                                                                class="stat-row-sm"
+                                                            >
+                                                                <span
+                                                                    class="stat-label-sm"
+                                                                    >⚡</span
+                                                                >
+                                                                <div
+                                                                    class="stat-bar-track-sm"
+                                                                >
+                                                                    <div
+                                                                        class="stat-bar-fill-sm"
+                                                                        style="width: {85 +
+                                                                            currentRole
+                                                                                .tools
+                                                                                .length *
+                                                                                3}%"
+                                                                    ></div>
+                                                                </div>
+                                                            </div>
+                                                            <div
+                                                                class="stat-row-sm"
+                                                            >
+                                                                <span
+                                                                    class="stat-label-sm"
+                                                                    >🛡️</span
+                                                                >
+                                                                <div
+                                                                    class="stat-bar-track-sm"
+                                                                >
+                                                                    <div
+                                                                        class="stat-bar-fill-sm defense"
+                                                                        style="width: {currentRole.id ===
+                                                                        'devops'
+                                                                            ? 95
+                                                                            : 70}%"
+                                                                    ></div>
+                                                                </div>
+                                                            </div>
+                                                            <div
+                                                                class="stat-row-sm"
+                                                            >
+                                                                <span
+                                                                    class="stat-label-sm"
+                                                                    >⚔️</span
+                                                                >
+                                                                <div
+                                                                    class="stat-bar-track-sm"
+                                                                >
+                                                                    <div
+                                                                        class="stat-bar-fill-sm speed"
+                                                                        style="width: {currentRole.recommendedOS ===
+                                                                        'Alpine'
+                                                                            ? 95
+                                                                            : 75}%"
+                                                                    ></div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div
+                                                            class="stat-info-row-sm"
+                                                        >
+                                                            <span
+                                                                class="stat-info-sm"
+                                                                >📦 {currentRole.recommendedOS}</span
+                                                            >
+                                                            <span
+                                                                class="stat-info-sm"
+                                                                >🎯 {currentRole.useCase.split(
+                                                                    ",",
+                                                                )[0]}</span
+                                                            >
+                                                        </div>
+                                                        <div
+                                                            class="abilities-row-sm"
+                                                        >
+                                                            {#each currentRole.tools as tool}
+                                                                <span
+                                                                    class="ability-tag-sm"
+                                                                    >{tool}</span
+                                                                >
+                                                            {/each}
+                                                        </div>
+                                                    </div>
+                                                {/if}
                                             </div>
                                         {/if}
                                     </div>
@@ -1699,59 +1902,199 @@
         max-width: 100%;
     }
 
-    .role-details {
-        margin-top: 12px;
-        padding: 10px 12px;
-        background: var(--bg-elevated);
+    /* Hero Stat Compact (Anime Style) */
+    .hero-stat-compact {
+        margin-top: 10px;
+        position: relative;
+    }
+
+    .hero-identity {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        background: linear-gradient(
+            135deg,
+            var(--bg-elevated) 0%,
+            rgba(0, 255, 65, 0.05) 100%
+        );
         border: 1px solid var(--border);
         border-radius: 6px;
+        border-left: 2px solid var(--accent);
     }
 
-    .role-quote {
+    .hero-icon-sm {
+        font-size: 20px;
+        filter: drop-shadow(0 0 3px var(--accent));
+    }
+
+    .hero-title-sm {
+        flex: 1;
         font-size: 11px;
+        font-weight: 600;
+        color: var(--text);
+        font-family: var(--font-mono);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .stat-toggle-sm {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        padding: 4px 8px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border);
+        border-radius: 3px;
+        cursor: pointer;
+        transition: all 0.15s;
+        font-family: var(--font-mono);
+        font-size: 9px;
+        color: var(--text);
+    }
+
+    .stat-toggle-sm:hover {
+        border-color: var(--accent);
+        background: var(--accent-dim);
+    }
+
+    .stat-toggle-icon {
+        font-size: 7px;
+        color: var(--accent);
+    }
+
+    /* Hero Stat Popover (Small) */
+    .hero-stat-popover-sm {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        right: 0;
+        background: var(--bg-elevated);
+        border: 1px solid var(--accent);
+        border-radius: 6px;
+        padding: 10px;
+        z-index: 100;
+        box-shadow:
+            0 4px 16px rgba(0, 0, 0, 0.4),
+            0 0 12px rgba(0, 255, 65, 0.1);
+        animation: popoverSlide 0.15s ease-out;
+    }
+
+    @keyframes popoverSlide {
+        from {
+            opacity: 0;
+            transform: translateY(-6px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .stat-header-sm {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .stat-class-sm {
+        font-size: 10px;
+        font-weight: 600;
         color: var(--accent);
         font-family: var(--font-mono);
-        font-style: italic;
-        margin: 0 0 8px 0;
-        text-align: center;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
-    .role-info-row {
+    .stat-level-sm {
+        font-size: 8px;
+        color: var(--warning, #ffd93d);
+        font-family: var(--font-mono);
+        padding: 2px 5px;
+        background: rgba(255, 217, 61, 0.1);
+        border-radius: 2px;
+    }
+
+    .stat-bars-sm {
         display: flex;
-        flex-wrap: wrap;
-        align-items: center;
+        flex-direction: column;
         gap: 4px;
-        font-size: 10px;
         margin-bottom: 8px;
     }
 
-    .role-info-label {
+    .stat-row-sm {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .stat-label-sm {
+        font-size: 10px;
+        width: 20px;
+        flex-shrink: 0;
+    }
+
+    .stat-bar-track-sm {
+        flex: 1;
+        height: 5px;
+        background: var(--bg-tertiary);
+        border-radius: 2px;
+        overflow: hidden;
+    }
+
+    .stat-bar-fill-sm {
+        height: 100%;
+        background: linear-gradient(90deg, var(--accent) 0%, #00ff88 100%);
+        border-radius: 2px;
+        transition: width 0.3s ease;
+        box-shadow: 0 0 4px var(--accent);
+    }
+
+    .stat-bar-fill-sm.defense {
+        background: linear-gradient(90deg, #00d9ff 0%, #0099ff 100%);
+        box-shadow: 0 0 4px #00d9ff;
+    }
+
+    .stat-bar-fill-sm.speed {
+        background: linear-gradient(90deg, #ff6b6b 0%, #ffd93d 100%);
+        box-shadow: 0 0 4px #ff6b6b;
+    }
+
+    .stat-info-row-sm {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+
+    .stat-info-sm {
+        flex: 1;
+        font-size: 9px;
         color: var(--text-muted);
         font-family: var(--font-mono);
+        padding: 4px 6px;
+        background: var(--bg-tertiary);
+        border-radius: 3px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
-    .role-info-value {
-        color: var(--text);
-        font-family: var(--font-mono);
-    }
-
-    .role-info-sep {
-        color: var(--text-muted);
-        margin: 0 2px;
-    }
-
-    .tools-row {
+    .abilities-row-sm {
         display: flex;
         flex-wrap: wrap;
-        gap: 4px;
+        gap: 3px;
     }
 
-    .tool-badge {
-        padding: 2px 6px;
+    .ability-tag-sm {
+        padding: 2px 5px;
         background: rgba(0, 255, 65, 0.1);
         border: 1px solid var(--accent);
-        border-radius: 3px;
-        font-size: 9px;
+        border-radius: 2px;
+        font-size: 8px;
         color: var(--accent);
         font-family: var(--font-mono);
     }
