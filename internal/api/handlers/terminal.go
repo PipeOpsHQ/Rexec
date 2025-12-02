@@ -190,7 +190,7 @@ func (h *TerminalHandler) runTerminalSessionWithRestart(session *TerminalSession
 	defer statsCancel()
 
 	go func() {
-		statsCh := make(chan mgr.ContainerStats)
+		statsCh := make(chan mgr.ContainerResourceStats)
 		go func() {
 			if err := h.containerManager.StreamContainerStats(statsCtx, session.ContainerID, statsCh); err != nil {
 				log.Printf("Stats streaming ended: %v", err)

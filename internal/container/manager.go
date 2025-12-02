@@ -1227,15 +1227,15 @@ func (m *Manager) RecreateContainer(ctx context.Context, cfg RecreateContainerCo
 	return m.CreateContainer(ctx, containerCfg)
 }
 
-// ContainerStats represents simplified container resource usage
-type ContainerStats struct {
+// ContainerResourceStats represents simplified container resource usage
+type ContainerResourceStats struct {
 	CPUPercent  float64 `json:"cpu_percent"`
 	Memory      float64 `json:"memory"`       // in bytes
 	MemoryLimit float64 `json:"memory_limit"` // in bytes
 }
 
 // StreamContainerStats streams container stats to the provided channel
-func (m *Manager) StreamContainerStats(ctx context.Context, containerID string, statsCh chan<- ContainerStats) error {
+func (m *Manager) StreamContainerStats(ctx context.Context, containerID string, statsCh chan<- ContainerResourceStats) error {
 	stats, err := m.client.ContainerStats(ctx, containerID, true)
 	if err != nil {
 		return err
@@ -1292,7 +1292,7 @@ func (m *Manager) StreamContainerStats(ctx context.Context, containerID string, 
 				}
 			}
 
-			statsCh <- ContainerStats{
+			statsCh <- ContainerResourceStats{
 				CPUPercent:  cpuPercent,
 				Memory:      memUsage,
 				MemoryLimit: float64(v.MemoryStats.Limit),
