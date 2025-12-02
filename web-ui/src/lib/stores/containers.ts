@@ -176,10 +176,10 @@ function createContainersStore() {
         return { success: false, error, status };
       }
 
-      // Add new container to store
+      // Add new container to store (dedupe by id)
       update((state) => ({
         ...state,
-        containers: [data!, ...state.containers],
+        containers: [data!, ...state.containers.filter(c => c.id !== data!.id && c.db_id !== data!.id)],
         isLoading: false,
         error: null,
       }));
@@ -335,7 +335,7 @@ function createContainersStore() {
 
                           update((state) => ({
                             ...state,
-                            containers: [container, ...state.containers],
+                            containers: [container, ...state.containers.filter(c => c.id !== container.id && c.db_id !== container.id)],
                             creating: null,
                           }));
 
@@ -355,7 +355,7 @@ function createContainersStore() {
 
                           update((state) => ({
                             ...state,
-                            containers: [container, ...state.containers],
+                            containers: [container, ...state.containers.filter(c => c.id !== container.id && c.db_id !== container.id)],
                             creating: null,
                           }));
 
@@ -590,7 +590,7 @@ function createContainersStore() {
 
               update((state) => ({
                 ...state,
-                containers: [container, ...state.containers],
+                containers: [container, ...state.containers.filter(c => c.id !== container.id && c.db_id !== container.id)],
                 creating: null,
               }));
 
