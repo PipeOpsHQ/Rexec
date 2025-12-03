@@ -244,33 +244,33 @@ func (h *AuthHandler) OAuthCallback(c *gin.Context) {
 	// Check for error from OAuth provider
 	if errorParam != "" {
 		errorDesc := c.Query("error_description")
-		c.HTML(http.StatusBadRequest, "", renderOAuthErrorPage(errorParam, errorDesc))
+		c.Data(http.StatusBadRequest, "text/html; charset=utf-8", []byte(renderOAuthErrorPage(errorParam, errorDesc)))
 		return
 	}
 
 	if code == "" || state == "" {
-		c.HTML(http.StatusBadRequest, "", renderOAuthErrorPage("missing_params", "Missing code or state parameter"))
+		c.Data(http.StatusBadRequest, "text/html; charset=utf-8", []byte(renderOAuthErrorPage("missing_params", "Missing code or state parameter")))
 		return
 	}
 
 	// Verify state and get code verifier
 	storedState, exists := oauthStates[state]
 	if !exists {
-		c.HTML(http.StatusBadRequest, "", renderOAuthErrorPage("invalid_state", "Invalid or expired state parameter"))
+		c.Data(http.StatusBadRequest, "text/html; charset=utf-8", []byte(renderOAuthErrorPage("invalid_state", "Invalid or expired state parameter")))
 		return
 	}
 
 	// Check if state is expired (10 minutes)
 	if time.Since(storedState.CreatedAt) > 10*time.Minute {
 		delete(oauthStates, state)
-		c.HTML(http.StatusBadRequest, "", renderOAuthErrorPage("expired_state", "Authentication session expired. Please try again."))
+		c.Data(http.StatusBadRequest, "text/html; charset=utf-8", []byte(renderOAuthErrorPage("expired_state", "Authentication session expired. Please try again.")))
 		return
 	}
 
 	// Exchange code for token
 	tokenResp, err := h.oauthService.ExchangeCodeForToken(code, storedState.CodeVerifier)
 	if err != nil {
-		c.HTML(http.StatusInternalServerError, "", renderOAuthErrorPage("token_exchange", "Failed to exchange code for token: "+err.Error()))
+		c.Data(http.StatusInternalServerError, "text/html; charset=utf-8", []byte(renderOAuthErrorPage("token_exchange", "Failed to exchange code for token: "+err.Error())))
 		return
 	}
 
@@ -280,7 +280,7 @@ func (h *AuthHandler) OAuthCallback(c *gin.Context) {
 	// Get user info from PipeOps
 	userInfo, err := h.oauthService.GetUserInfo(tokenResp.AccessToken)
 	if err != nil {
-		c.HTML(http.StatusInternalServerError, "", renderOAuthErrorPage("userinfo", "Failed to get user information: "+err.Error()))
+		c.Data(http.StatusInternalServerError, "text/html; charset=utf-8", []byte(renderOAuthErrorPage("userinfo", "Failed to get user information: "+err.Error())))
 		return
 	}
 
@@ -292,7 +292,7 @@ func (h *AuthHandler) OAuthCallback(c *gin.Context) {
 	// Check if user exists
 	user, _, err := h.store.GetUserByEmail(ctx, normalizedEmail)
 	if err != nil {
-		c.HTML(http.StatusInternalServerError, "", renderOAuthErrorPage("database", "Database error"))
+		c.Data(http.StatusInternalServerError, "text/html; charset=utf-8", []byte(renderOAuthErrorPage("database", "Database error")))
 		return
 	}
 
@@ -318,7 +318,7 @@ func (h *AuthHandler) OAuthCallback(c *gin.Context) {
 
 		// Store user with empty password (OAuth user)
 		if err := h.store.CreateUser(ctx, user, ""); err != nil {
-			c.HTML(http.StatusInternalServerError, "", renderOAuthErrorPage("create_user", "Failed to create user"))
+			c.Data(http.StatusInternalServerError, "text/html; charset=utf-8", []byte(renderOAuthErrorPage("create_user", "Failed to create user")))
 			return
 		}
 	} else {
@@ -333,7 +333,7 @@ func (h *AuthHandler) OAuthCallback(c *gin.Context) {
 	// Generate JWT token
 	token, err := h.generateToken(user)
 	if err != nil {
-		c.HTML(http.StatusInternalServerError, "", renderOAuthErrorPage("token", "Failed to generate token"))
+		c.Data(http.StatusInternalServerError, "text/html; charset=utf-8", []byte(renderOAuthErrorPage("token", "Failed to generate token")))
 		return
 	}
 
