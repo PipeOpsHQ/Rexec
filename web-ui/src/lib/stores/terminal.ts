@@ -33,6 +33,10 @@ export interface TerminalSession {
     cpu: number;
     memory: number;
     memoryLimit: number;
+    diskRead: number;
+    diskWrite: number;
+    netRx: number;
+    netTx: number;
   };
   // Detached window state (when popped out as separate floating window)
   isDetached: boolean;
@@ -295,6 +299,10 @@ function createTerminalStore() {
           cpu: 0,
           memory: 0,
           memoryLimit: 0,
+          diskRead: 0,
+          diskWrite: 0,
+          netRx: 0,
+          netTx: 0,
         },
         isDetached: false,
         detachedPosition: { x: 150, y: 150 },
@@ -471,6 +479,10 @@ function createTerminalStore() {
                   cpu: statsData.cpu_percent || 0,
                   memory: statsData.memory || 0,
                   memoryLimit: statsData.memory_limit || 0,
+                  diskRead: statsData.disk_read || 0,
+                  diskWrite: statsData.disk_write || 0,
+                  netRx: statsData.net_rx || 0,
+                  netTx: statsData.net_tx || 0,
                 },
               }));
             } catch (e) {

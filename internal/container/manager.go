@@ -1399,6 +1399,10 @@ type ContainerResourceStats struct {
 	CPUPercent  float64 `json:"cpu_percent"`
 	Memory      float64 `json:"memory"`       // in bytes
 	MemoryLimit float64 `json:"memory_limit"` // in bytes
+	DiskRead    float64 `json:"disk_read"`    // bytes read
+	DiskWrite   float64 `json:"disk_write"`   // bytes written
+	NetRx       float64 `json:"net_rx"`       // bytes received
+	NetTx       float64 `json:"net_tx"`       // bytes transmitted
 }
 
 // StreamContainerStats streams container stats to the provided channel
@@ -1459,10 +1463,33 @@ func (m *Manager) StreamContainerStats(ctx context.Context, containerID string, 
 				}
 			}
 
+			// Calculate Disk I/O
+			var diskRead, diskWrite float64
+			if v.BlkioStats.IoServiceBytesRecursive != nil {
+				for _, entry := range v.BlkioStats.IoServiceBytesRecursive {
+					if entry.Op == "Read" || entry.Op == "read" {
+						diskRead += float64(entry.Value)
+					} else if entry.Op == "Write" || entry.Op == "write" {
+						diskWrite += float64(entry.Value)
+					}
+				}
+			}
+
+			// Calculate Network I/O
+			var netRx, netTx float64
+			for _, netStats := range v.Networks {
+				netRx += float64(netStats.RxBytes)
+				netTx += float64(netStats.TxBytes)
+			}
+
 			statsCh <- ContainerResourceStats{
 				CPUPercent:  cpuPercent,
 				Memory:      memUsage,
 				MemoryLimit: float64(v.MemoryStats.Limit),
+				DiskRead:    diskRead,
+				DiskWrite:   diskWrite,
+				NetRx:       netRx,
+				NetTx:       netTx,
 			}
 		}
 	}
