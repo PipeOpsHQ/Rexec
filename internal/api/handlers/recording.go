@@ -66,13 +66,18 @@ func NewRecordingHandler(store *storage.PostgresStore, storagePath string) *Reco
 	}
 	
 	// Ensure storage directory exists
-	os.MkdirAll(storagePath, 0755)
+	if err := os.MkdirAll(storagePath, 0755); err != nil {
+		log.Printf("[Recording] Warning: failed to create storage directory %s: %v", storagePath, err)
+	}
 
-	return &RecordingHandler{
+	handler := &RecordingHandler{
 		store:       store,
 		recordings:  make(map[string]*ActiveRecording),
 		storagePath: storagePath,
 	}
+	
+	log.Printf("[Recording] Handler initialized with storage path: %s", storagePath)
+	return handler
 }
 
 // StartRecording starts recording a terminal session
@@ -117,14 +122,16 @@ func (h *RecordingHandler) StartRecording(c *gin.Context) {
 
 	h.mu.Lock()
 	h.recordings[req.ContainerID] = recording
+	activeCount := len(h.recordings)
 	h.mu.Unlock()
 
-	log.Printf("[Recording] Started recording %s for container: %s", recording.ID, req.ContainerID)
+	log.Printf("[Recording] Started recording %s for container: %s (total active: %d)", recording.ID, req.ContainerID, activeCount)
 
 	c.JSON(http.StatusOK, gin.H{
-		"recording_id": recording.ID,
-		"started_at":   recording.StartedAt,
-		"message":      "Recording started",
+		"recording_id":   recording.ID,
+		"started_at":     recording.StartedAt,
+		"container_id":   req.ContainerID,
+		"message":        "Recording started",
 	})
 }
 

@@ -111,6 +111,8 @@ func main() {
 	sshHandler := handlers.NewSSHHandler(store, containerManager)
 	collabHandler := handlers.NewCollabHandler(store, containerManager, terminalHandler)
 	recordingHandler := handlers.NewRecordingHandler(store, os.Getenv("RECORDINGS_PATH"))
+	// Connect recording handler to terminal handler to capture events
+	terminalHandler.SetRecordingHandler(recordingHandler)
 	var billingHandler *handlers.BillingHandler
 	if billingService != nil {
 		billingHandler = handlers.NewBillingHandler(billingService, store)

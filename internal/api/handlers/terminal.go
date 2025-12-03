@@ -33,6 +33,7 @@ type TerminalHandler struct {
 	containerManager *mgr.Manager
 	sessions         map[string]*TerminalSession
 	mu               sync.RWMutex
+	recordingHandler *RecordingHandler
 }
 
 // TerminalSession represents an active terminal session
@@ -67,6 +68,11 @@ func NewTerminalHandler(cm *mgr.Manager) *TerminalHandler {
 	go h.keepAliveLoop()
 
 	return h
+}
+
+// SetRecordingHandler sets the recording handler for capturing terminal output
+func (h *TerminalHandler) SetRecordingHandler(rh *RecordingHandler) {
+	h.recordingHandler = rh
 }
 
 // HandleWebSocket handles WebSocket connections for terminal access
@@ -320,12 +326,17 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 		
 		flushAccumulator := func() {
 			if len(accumulator) > 0 {
+				outputData := sanitizeUTF8(accumulator)
 				if err := session.SendMessage(TerminalMessage{
 					Type: "output",
-					Data: sanitizeUTF8(accumulator),
+					Data: outputData,
 				}); err != nil {
 					errChan <- err
 					return
+				}
+				// Record output if recording is active
+				if h.recordingHandler != nil {
+					h.recordingHandler.AddEvent(session.ContainerID, "o", outputData, 0, 0)
 				}
 				accumulator = accumulator[:0] // Reset without reallocating
 			}
@@ -407,6 +418,10 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 					}
 					// Touch container on input
 					h.containerManager.TouchContainer(session.ContainerID)
+					// Record input if recording is active
+					if h.recordingHandler != nil {
+						h.recordingHandler.AddEvent(session.ContainerID, "i", msg.Data, 0, 0)
+					}
 
 				case "resize":
 					if msg.Cols > 0 && msg.Rows > 0 {
@@ -420,6 +435,10 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 							Width:  msg.Cols,
 						}); err != nil {
 							log.Printf("Failed to resize terminal: %v", err)
+						}
+						// Record resize if recording is active
+						if h.recordingHandler != nil {
+							h.recordingHandler.AddEvent(session.ContainerID, "r", "", int(msg.Cols), int(msg.Rows))
 						}
 					}
 
