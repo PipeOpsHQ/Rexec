@@ -106,7 +106,7 @@ var SupportedImages = map[string]string{
 	"alpine-3.18": "alpine:3.18",   // Older stable
 	"busybox":     "busybox:1.37",  // Latest busybox
 	// Container / Cloud Optimized
-	"rancheros": "rancher/os:latest",
+	"rancheros": "alpine:3.21", // RancherOS discontinued, using Alpine as lightweight alternative
 	// Cloud Provider Specific (Updated Dec 2025)
 	"amazonlinux":     "amazonlinux:2023.6", // Amazon Linux 2023 latest
 	"amazonlinux2":    "amazonlinux:2",      // Amazon Linux 2 (EOL 2025)
@@ -198,7 +198,7 @@ func GetImageMetadata() []ImageMetadata {
 		{Name: "busybox", DisplayName: "BusyBox 1.37", Description: "Ultra-minimal Unix utilities (~2MB)", Category: "minimal", Tags: []string{"minimal", "embedded"}, Popular: false},
 
 		// Container / Cloud Optimized
-		{Name: "rancheros", DisplayName: "RancherOS", Description: "Entire OS as Docker containers", Category: "container", Tags: []string{"containers", "docker", "minimal"}, Popular: false},
+		{Name: "rancheros", DisplayName: "RancherOS (Alpine)", Description: "Lightweight container-optimized OS (Alpine-based)", Category: "container", Tags: []string{"containers", "docker", "minimal"}, Popular: false},
 
 		// Cloud Provider Specific - Updated Dec 2025
 		{Name: "amazonlinux", DisplayName: "Amazon Linux 2023", Description: "Latest Amazon Linux optimized for AWS", Category: "cloud", Tags: []string{"aws", "cloud", "enterprise"}, Popular: true},
@@ -382,7 +382,7 @@ var ImageShells = map[string]string{
 	"busybox":     "/bin/sh",
 	// Container optimized
 	"flatcar":      "/bin/bash",
-	"rancheros":    "/bin/bash",
+	"rancheros":    "/bin/sh", // Alpine-based, uses sh
 	"bottlerocket": "/bin/bash",
 	"talos":        "/bin/sh",
 	"k3os":         "/bin/sh",
