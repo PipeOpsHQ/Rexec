@@ -126,11 +126,11 @@ type TrialResourceLimits struct {
 func GetTrialResourceLimits() TrialResourceLimits {
 	return TrialResourceLimits{
 		MinMemoryMB:  256,
-		MaxMemoryMB:  1024,
+		MaxMemoryMB:  2048, // 2GB max for trial
 		MinCPUShares: 250,  // 0.25 CPU
 		MaxCPUShares: 1000, // 1 CPU
 		MinDiskMB:    1024,
-		MaxDiskMB:    4096,
+		MaxDiskMB:    8192, // 8GB max for trial
 	}
 }
 
