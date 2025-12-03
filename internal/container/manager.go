@@ -109,7 +109,7 @@ var SupportedImages = map[string]string{
 	// Container / Cloud Optimized
 	"rancheros": "alpine:3.21", // RancherOS discontinued, using Alpine as lightweight alternative
 	// Cloud Provider Specific (Updated Dec 2025)
-	"amazonlinux":     "amazonlinux:2023.6", // Amazon Linux 2023 latest
+	"amazonlinux":     "amazonlinux:2023", // Amazon Linux 2023 latest
 	"amazonlinux2":    "amazonlinux:2",      // Amazon Linux 2 (EOL 2025)
 	"oracle-slim":     "oraclelinux:9-slim",
 	// Scientific

@@ -4,10 +4,14 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 )
+
+// ShellSetupTimeout is the maximum time allowed for shell setup
+const ShellSetupTimeout = 5 * time.Minute
 
 // ShellSetupScript contains the script to install and configure zsh with oh-my-zsh
 const ShellSetupScript = `#!/bin/sh
@@ -502,6 +506,10 @@ type SetupShellResponse struct {
 
 // SetupEnhancedShell installs and configures zsh with oh-my-zsh in a container
 func SetupEnhancedShell(ctx context.Context, cli *client.Client, containerID string) (*SetupShellResponse, error) {
+	// Apply timeout to prevent hanging on slow containers
+	ctx, cancel := context.WithTimeout(ctx, ShellSetupTimeout)
+	defer cancel()
+	
 	// Create exec configuration
 	execConfig := container.ExecOptions{
 		Cmd:          []string{"/bin/sh", "-c", ShellSetupScript},

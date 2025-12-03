@@ -185,97 +185,110 @@ if [ "$INSTALL_KATA" = true ]; then
             ;;
     esac
 
-    # Install dependencies
-    apt-get update
-    apt-get install -y curl gnupg2 apt-transport-https ca-certificates
+    # Check if already installed
+    if command -v kata-runtime &> /dev/null; then
+        echo -e "${GREEN}Kata Containers is already installed. Skipping download.${NC}"
+    else
+        # Install dependencies
+        apt-get update
+        apt-get install -y curl gnupg2 apt-transport-https ca-certificates
 
-    # Use Kata 2.5.x which has OCI runtime CLI support for Docker
-    # Kata 3.x removed OCI CLI support and only works as containerd shim
-    KATA_VERSION="2.5.2"
-    KATA_URL="https://github.com/kata-containers/kata-containers/releases/download/${KATA_VERSION}"
+        # Use Kata 2.5.x which has OCI runtime CLI support for Docker
+        KATA_VERSION="2.5.2"
+        KATA_URL="https://github.com/kata-containers/kata-containers/releases/download/${KATA_VERSION}"
 
-    # Download and extract Kata
-    echo -e "${CYAN}Downloading Kata Containers ${KATA_VERSION}...${NC}"
-    mkdir -p /opt/kata
-    cd /opt/kata
+        # Download and extract Kata
+        echo -e "${CYAN}Downloading Kata Containers ${KATA_VERSION}...${NC}"
+        mkdir -p /opt/kata
+        cd /opt/kata
 
-    # Download kata-static bundle (includes Firecracker)
-    curl -LO "${KATA_URL}/kata-static-${KATA_VERSION}-${KATA_ARCH}.tar.xz"
-    tar -xf "kata-static-${KATA_VERSION}-${KATA_ARCH}.tar.xz" --strip-components=2
+        # Download with error checking
+        set +e
+        curl -LOf "${KATA_URL}/kata-static-${KATA_VERSION}-${KATA_ARCH}.tar.xz"
+        CURL_EXIT=$?
+        set -e
 
-    # Clean up archive
-    rm -f "kata-static-${KATA_VERSION}-${KATA_ARCH}.tar.xz"
+        if [ $CURL_EXIT -ne 0 ]; then
+            echo -e "${RED}Failed to download Kata Containers. Skipping Kata installation.${NC}"
+            # Don't exit, just disable Kata so we can proceed to gVisor
+            INSTALL_KATA=false
+        else
+            tar -xf "kata-static-${KATA_VERSION}-${KATA_ARCH}.tar.xz" --strip-components=2
 
-    # Verify extracted files exist
-    if [ ! -f /opt/kata/bin/kata-runtime ]; then
-        echo -e "${RED}Kata binaries not found after extraction${NC}"
-        echo "Checking extracted contents..."
-        ls -la /opt/kata/
-        # Try alternative extraction location
-        if [ -d /opt/kata/opt/kata ]; then
-            mv /opt/kata/opt/kata/* /opt/kata/
-            rm -rf /opt/kata/opt
+            # Clean up archive
+            rm -f "kata-static-${KATA_VERSION}-${KATA_ARCH}.tar.xz"
+
+            # Verify extracted files exist
+            if [ ! -f /opt/kata/bin/kata-runtime ]; then
+                echo -e "${RED}Kata binaries not found after extraction${NC}"
+                # Try alternative extraction location
+                if [ -d /opt/kata/opt/kata ]; then
+                    mv /opt/kata/opt/kata/* /opt/kata/
+                    rm -rf /opt/kata/opt
+                fi
+            fi
+
+            # Link binaries
+            ln -sf /opt/kata/bin/kata-runtime /usr/local/bin/kata-runtime
+            ln -sf /opt/kata/bin/kata-collect-data.sh /usr/local/bin/kata-collect-data.sh
+            ln -sf /opt/kata/bin/containerd-shim-kata-v2 /usr/local/bin/containerd-shim-kata-v2
+
+            # Create shim symlinks for all Kata runtime variants
+            ln -sf /opt/kata/bin/containerd-shim-kata-v2 /usr/local/bin/containerd-shim-kata-fc-v2
+            ln -sf /opt/kata/bin/containerd-shim-kata-v2 /usr/local/bin/containerd-shim-kata-qemu-v2
+            ln -sf /opt/kata/bin/containerd-shim-kata-v2 /usr/local/bin/containerd-shim-kata-clh-v2
+
+            echo -e "${GREEN}✓ Kata shim binaries linked${NC}"
         fi
     fi
 
-    # Link binaries
-    ln -sf /opt/kata/bin/kata-runtime /usr/local/bin/kata-runtime
-    ln -sf /opt/kata/bin/kata-collect-data.sh /usr/local/bin/kata-collect-data.sh
-    ln -sf /opt/kata/bin/containerd-shim-kata-v2 /usr/local/bin/containerd-shim-kata-v2
+    # Only proceed with config if Kata is installed (either pre-existing or just installed)
+    if command -v kata-runtime &> /dev/null; then
+        # Also link firecracker binary to PATH
+        ln -sf /opt/kata/bin/firecracker /usr/local/bin/firecracker 2>/dev/null || true
+        ln -sf /opt/kata/bin/jailer /usr/local/bin/jailer 2>/dev/null || true
 
-    # Create shim symlinks for all Kata runtime variants
-    # Docker/containerd looks for containerd-shim-<runtime>-v2 in PATH
-    ln -sf /opt/kata/bin/containerd-shim-kata-v2 /usr/local/bin/containerd-shim-kata-fc-v2
-    ln -sf /opt/kata/bin/containerd-shim-kata-v2 /usr/local/bin/containerd-shim-kata-qemu-v2
-    ln -sf /opt/kata/bin/containerd-shim-kata-v2 /usr/local/bin/containerd-shim-kata-clh-v2
+        # Create symlinks for configuration files
+        mkdir -p /etc/kata-containers
+        ln -sf /opt/kata/share/defaults/kata-containers/configuration-fc.toml /etc/kata-containers/configuration.toml
+        ln -sf /opt/kata/share/defaults/kata-containers/configuration-fc.toml /etc/kata-containers/configuration-fc.toml
+        ln -sf /opt/kata/share/defaults/kata-containers/configuration-qemu.toml /etc/kata-containers/configuration-qemu.toml
 
-    echo -e "${GREEN}✓ Kata shim binaries linked${NC}"
-    ls -la /usr/local/bin/containerd-shim-kata*
+        # Verify Kata installation
+        if kata-runtime --version > /dev/null 2>&1; then
+            echo -e "${GREEN}✓ Kata Containers installed successfully${NC}"
+            kata-runtime --version
+        else
+            echo -e "${RED}✗ Kata Containers installation failed${NC}"
+            # Don't exit, just warn
+            echo "Warning: Kata runtime check failed."
+        fi
 
-    # Also link firecracker binary to PATH
-    ln -sf /opt/kata/bin/firecracker /usr/local/bin/firecracker 2>/dev/null || true
-    ln -sf /opt/kata/bin/jailer /usr/local/bin/jailer 2>/dev/null || true
+        # Check Firecracker
+        if command -v firecracker &> /dev/null; then
+            echo -e "${GREEN}✓ Firecracker available${NC}"
+            firecracker --version
+        fi
 
-    # Create symlinks for configuration files
-    mkdir -p /etc/kata-containers
-    ln -sf /opt/kata/share/defaults/kata-containers/configuration-fc.toml /etc/kata-containers/configuration.toml
-    ln -sf /opt/kata/share/defaults/kata-containers/configuration-fc.toml /etc/kata-containers/configuration-fc.toml
-    ln -sf /opt/kata/share/defaults/kata-containers/configuration-qemu.toml /etc/kata-containers/configuration-qemu.toml
+        echo ""
+        STEP_NUM=$((STEP_NUM + 1))
+        echo -e "${YELLOW}[$STEP_NUM/$TOTAL_STEPS] Configuring containerd for Kata...${NC}"
 
-    # Verify Kata installation
-    if kata-runtime --version > /dev/null 2>&1; then
-        echo -e "${GREEN}✓ Kata Containers installed successfully${NC}"
-        kata-runtime --version
-    else
-        echo -e "${RED}✗ Kata Containers installation failed${NC}"
-        exit 1
-    fi
+        # Configure containerd for Kata runtime
+        mkdir -p /etc/containerd
 
-    # Check Firecracker
-    if /opt/kata/bin/firecracker --version > /dev/null 2>&1; then
-        echo -e "${GREEN}✓ Firecracker available${NC}"
-        /opt/kata/bin/firecracker --version
-    fi
+        # Generate default containerd config if not exists
+        if [ ! -f /etc/containerd/config.toml ]; then
+            containerd config default > /etc/containerd/config.toml
+        fi
 
-    echo ""
-    STEP_NUM=$((STEP_NUM + 1))
-    echo -e "${YELLOW}[$STEP_NUM/$TOTAL_STEPS] Configuring containerd for Kata...${NC}"
+        # Remove any existing Kata config to avoid duplicates
+        sed -i '/containerd.runtimes.kata/,/ConfigPath.*kata/d' /etc/containerd/config.toml 2>/dev/null || true
 
-    # Configure containerd for Kata runtime
-    mkdir -p /etc/containerd
-
-    # Generate default containerd config if not exists
-    if [ ! -f /etc/containerd/config.toml ]; then
-        containerd config default > /etc/containerd/config.toml
-    fi
-
-    # Remove any existing Kata config to avoid duplicates
-    sed -i '/containerd.runtimes.kata/,/ConfigPath.*kata/d' /etc/containerd/config.toml 2>/dev/null || true
-
-    # Add Kata runtime configuration
-    # Note: Both kata and kata-fc use the same shim (io.containerd.kata.v2)
-    # The difference is the config file which specifies the hypervisor (QEMU vs Firecracker)
-    cat >> /etc/containerd/config.toml <<'CONTAINERDEOF'
+        # Add Kata runtime configuration
+        # Note: Both kata and kata-fc use the same shim (io.containerd.kata.v2)
+        # The difference is the config file which specifies the hypervisor (QEMU vs Firecracker)
+        cat >> /etc/containerd/config.toml <<'CONTAINERDEOF'
 
 # Kata Containers with Firecracker runtime
 [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata]
@@ -299,12 +312,13 @@ if [ "$INSTALL_KATA" = true ]; then
   [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata-qemu.options]
     ConfigPath = "/opt/kata/share/defaults/kata-containers/configuration-qemu.toml"
 CONTAINERDEOF
-    echo -e "${GREEN}✓ Kata runtime added to containerd config${NC}"
+        echo -e "${GREEN}✓ Kata runtime added to containerd config${NC}"
 
-    # Restart containerd
-    systemctl restart containerd
-    echo -e "${GREEN}✓ containerd configured for Kata${NC}"
-    echo ""
+        # Restart containerd
+        systemctl restart containerd
+        echo -e "${GREEN}✓ containerd configured for Kata${NC}"
+        echo ""
+    fi
 fi
 
 # =============================================================================
@@ -425,11 +439,13 @@ network = "sandbox"
 
 # Performance optimizations for terminal/shell workloads
 directfs = true                    # 50-70% faster file I/O operations
-overlay2 = "all:memory"            # Fast tmpfs operations, reduces overhead
 ignore-cgroups = true              # Faster container startup times
 num-network-channels = 2           # Sufficient for terminal workloads
-file-access = "shared"             # Better volume mount performance
+file-access = "exclusive"          # Required for directfs, better performance
 host-uds = "all"                   # Unix domain socket support
+
+# Disable gVisor rootfs overlay - conflicts with Docker overlay2 storage driver
+overlay = "root:none"
 
 # Debug settings (disable in production for best performance)
 debug = false
@@ -441,7 +457,7 @@ EOF
     fi
 
     echo -e "${GREEN}✓ gVisor (runsc) installed and configured with optimizations${NC}"
-    echo -e "${CYAN}  Performance flags: directfs, overlay2=memory, file-access=shared${NC}"
+    echo -e "${CYAN}  Performance flags: directfs, file-access=exclusive${NC}"
     echo ""
 fi
 
@@ -695,14 +711,15 @@ WRAPPER
         fi
 
         # Build optimized gVisor runtime args for Docker daemon.json
-        # These flags significantly improve terminal/shell workload performance:
-        # - directfs: 50-70% faster file I/O
-        # - overlay2=all:memory: Fast tmpfs operations
+        # These flags improve terminal/shell workload performance:
+        # - directfs: 50-70% faster file I/O (requires file-access=exclusive)
         # - ignore-cgroups: Faster container startup
         # - num-network-channels=2: Optimized for low-bandwidth terminal traffic
-        # - file-access=shared: Better volume mount performance
+        # - file-access=exclusive: Better performance, required for directfs
         # - host-uds=all: Unix domain socket support
-        GVISOR_ARGS_JSON="\"--platform=${GVISOR_PLATFORM}\", \"--directfs\", \"--overlay2=all:memory\", \"--ignore-cgroups\", \"--num-network-channels=2\", \"--file-access=shared\", \"--host-uds=all\""
+        # - overlay=root:none: Disable gVisor rootfs overlay (conflicts with Docker overlay2)
+        # NOTE: overlay2 flag removed - incompatible with Docker's overlay2 storage driver
+        GVISOR_ARGS_JSON="\"--platform=${GVISOR_PLATFORM}\", \"--directfs\", \"--ignore-cgroups\", \"--num-network-channels=2\", \"--file-access=exclusive\", \"--host-uds=all\", \"--overlay=root:none\""
 
         # Add runsc runtime with auto-detected platform
         RUNTIMES_JSON="${RUNTIMES_JSON}\"runsc\": {
@@ -712,7 +729,7 @@ WRAPPER
 
         # Only add explicit runsc-kvm if KVM is available
         if [ "$GVISOR_PLATFORM" = "kvm" ]; then
-            GVISOR_KVM_ARGS_JSON="\"--platform=kvm\", \"--directfs\", \"--overlay2=all:memory\", \"--ignore-cgroups\", \"--num-network-channels=2\", \"--file-access=shared\", \"--host-uds=all\""
+            GVISOR_KVM_ARGS_JSON="\"--platform=kvm\", \"--directfs\", \"--ignore-cgroups\", \"--num-network-channels=2\", \"--file-access=exclusive\", \"--host-uds=all\", \"--overlay=root:none\""
             RUNTIMES_JSON="${RUNTIMES_JSON}, \"runsc-kvm\": {
       \"path\": \"/usr/local/bin/runsc\",
       \"runtimeArgs\": [${GVISOR_KVM_ARGS_JSON}]
