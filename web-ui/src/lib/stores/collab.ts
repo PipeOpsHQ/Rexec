@@ -228,7 +228,18 @@ function createCollabStore() {
   }
 
   function sendInput(input: string) {
+    // Check if user can send input (owner or editor only)
+    const state = get({ subscribe });
+    if (state.activeSession?.role === 'viewer') {
+      console.log('[Collab] Input blocked: view-only mode');
+      return;
+    }
     sendMessage('input', input);
+  }
+
+  function canSendInput(): boolean {
+    const state = get({ subscribe });
+    return state.activeSession?.role !== 'viewer';
   }
 
   function onMessage(handler: (msg: CollabMessage) => void) {
@@ -308,6 +319,7 @@ function createCollabStore() {
     connectWebSocket,
     sendCursorPosition,
     sendInput,
+    canSendInput,
     onMessage,
     endSession,
     getActiveSessions,

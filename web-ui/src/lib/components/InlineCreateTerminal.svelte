@@ -13,7 +13,7 @@
 
     let selectedImage = "";
     let isCreating = false;
-    let selectedRole = "standard";
+    let selectedRole = "vibe-coder";
     let progress = 0;
     let progressMessage = "";
     let progressStage = "";
@@ -79,13 +79,13 @@
     }> = [];
 
     const roleToOS: Record<string, string> = {
-        standard: "alpine",
-        node: "ubuntu",
-        python: "ubuntu",
-        go: "alpine",
-        neovim: "arch",
-        devops: "alpine",
-        overemployed: "alpine",
+        "vibe-coder": "ubuntu",
+        "gpu-alchemist": "ubuntu",
+        "cloud-native": "alpine",
+        "remote-access": "alpine",
+        "pair-programming": "arch",
+        "data-science": "ubuntu",
+        "minimalist": "alpine",
     };
 
     $: if (selectedRole && roleToOS[selectedRole]) {
@@ -97,52 +97,52 @@
 
     const roles = [
         {
-            id: "standard",
-            name: "The Minimalist",
-            desc: "I use Arch btw. Just give me a shell.",
-            tools: ["bash", "git", "curl", "vim"],
-            recommendedOS: "Alpine",
-        },
-        {
-            id: "node",
-            name: "10x JS Ninja",
-            desc: "Ship fast, break things, npm install everything.",
-            tools: ["node", "npm", "yarn", "pnpm", "git"],
+            id: "vibe-coder",
+            name: "Vibe Coder",
+            desc: "AI-assisted development. Cursor, Copilot, Claude vibes.",
+            tools: ["node", "python3", "git", "curl", "jq"],
             recommendedOS: "Ubuntu",
         },
         {
-            id: "python",
-            name: "Data Wizard",
-            desc: "Import antigravity. I speak in list comprehensions.",
-            tools: ["python3", "pip", "jupyter", "pandas", "numpy"],
+            id: "gpu-alchemist",
+            name: "GPU Alchemist",
+            desc: "Training models, running inference. GPU go brrr.",
+            tools: ["python3", "pip", "cuda-toolkit", "pytorch", "jupyter"],
             recommendedOS: "Ubuntu",
         },
         {
-            id: "go",
-            name: "The Gopher",
-            desc: "If err != nil { panic(err) }. Simplicity is key.",
-            tools: ["go", "git", "make", "delve"],
+            id: "cloud-native",
+            name: "Cloud Native",
+            desc: "Kubernetes, containers, microservices. Scale to infinity.",
+            tools: ["kubectl", "docker", "helm", "terraform", "aws-cli"],
             recommendedOS: "Alpine",
         },
         {
-            id: "neovim",
-            name: "Neovim God",
-            desc: "My config is longer than your code. Mouse? What mouse?",
-            tools: ["neovim", "tmux", "fzf", "ripgrep", "lazygit"],
+            id: "remote-access",
+            name: "Remote Access",
+            desc: "Secure gateway to private resources. Share with team.",
+            tools: ["ssh", "tmux", "rsync", "curl", "htop"],
+            recommendedOS: "Alpine",
+        },
+        {
+            id: "pair-programming",
+            name: "Pair Programming",
+            desc: "Code together in real-time. Mob programming made easy.",
+            tools: ["neovim", "tmux", "git", "fzf", "ripgrep"],
             recommendedOS: "Arch",
         },
         {
-            id: "devops",
-            name: "YAML Herder",
-            desc: "I don't write code, I write config. Prod is my playground.",
-            tools: ["kubectl", "docker", "terraform", "helm", "aws-cli"],
-            recommendedOS: "Alpine",
+            id: "data-science",
+            name: "Data Science",
+            desc: "Jupyter, pandas, the whole data stack. Insights await.",
+            tools: ["python3", "jupyter", "pandas", "numpy", "matplotlib"],
+            recommendedOS: "Ubuntu",
         },
         {
-            id: "overemployed",
-            name: "The Overemployed",
-            desc: "Working 4 remote jobs. Need max efficiency.",
-            tools: ["tmux", "git", "ssh", "docker", "zsh"],
+            id: "minimalist",
+            name: "Minimalist",
+            desc: "Just a shell. Nothing more, nothing less.",
+            tools: ["bash", "git", "curl", "vim"],
             recommendedOS: "Alpine",
         },
     ];

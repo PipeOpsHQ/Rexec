@@ -1,7 +1,9 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { collab } from '../stores/collab';
+  import { containers } from '../stores/containers';
   import { slide } from 'svelte/transition';
+  import PlatformIcon from './icons/PlatformIcon.svelte';
 
   export let containerId: string;
   export let isOpen = false;
@@ -19,6 +21,11 @@
   $: session = $collab.activeSession;
   $: participants = $collab.participants;
   $: isConnected = $collab.isConnected;
+  
+  // Get terminal info for display
+  $: terminal = $containers.containers.find(c => c.id === containerId);
+  $: terminalName = terminal?.name || containerId.slice(0, 12);
+  $: terminalOS = terminal?.image || 'unknown';
 
   async function startSession() {
     isStarting = true;
@@ -69,20 +76,34 @@
 
     {#if !session}
       <div class="panel-content">
-        <div class="option-row">
-          <span class="label">Mode</span>
-          <div class="mode-toggle">
-            <button class="mode-btn" class:active={mode === 'view'} on:click={() => mode = 'view'}>
-              👁 View
-            </button>
-            <button class="mode-btn" class:active={mode === 'control'} on:click={() => mode = 'control'}>
-              ✏️ Control
-            </button>
+        <!-- Terminal being shared -->
+        <div class="terminal-info">
+          <PlatformIcon platform={terminalOS} size={20} />
+          <div class="terminal-details">
+            <span class="terminal-name">{terminalName}</span>
+            <span class="terminal-os">{terminalOS}</span>
           </div>
         </div>
 
         <div class="option-row">
-          <span class="label">Max users</span>
+          <span class="label">Access Level</span>
+          <div class="mode-toggle">
+            <button class="mode-btn" class:active={mode === 'view'} on:click={() => mode = 'view'}>
+              👁 View Only
+            </button>
+            <button class="mode-btn" class:active={mode === 'control'} on:click={() => mode = 'control'}>
+              ✏️ Full Control
+            </button>
+          </div>
+          <p class="mode-hint">
+            {mode === 'view' 
+              ? 'Viewers can watch but cannot type or execute commands' 
+              : 'Collaborators can type and execute commands'}
+          </p>
+        </div>
+
+        <div class="option-row">
+          <span class="label">Max collaborators</span>
           <div class="slider-row">
             <input type="range" min="2" max="10" bind:value={maxUsers} class="slider" />
             <span class="slider-value">{maxUsers}</span>
@@ -93,11 +114,20 @@
           {#if isStarting}
             <span class="spinner-sm"></span>
           {/if}
-          {isStarting ? 'Starting...' : 'Start Session'}
+          {isStarting ? 'Starting...' : 'Share Terminal'}
         </button>
       </div>
     {:else}
       <div class="panel-content">
+        <!-- Terminal being shared -->
+        <div class="terminal-info shared">
+          <PlatformIcon platform={terminalOS} size={20} />
+          <div class="terminal-details">
+            <span class="terminal-name">{terminalName}</span>
+            <span class="sharing-badge">SHARING</span>
+          </div>
+        </div>
+
         <div class="share-section">
           <div class="code-box">
             <span class="share-code">{shareCode}</span>
@@ -110,7 +140,7 @@
 
         <div class="participants-section">
           <div class="section-header">
-            <span>Participants</span>
+            <span>Collaborators</span>
             <span class="count">{participants.length}/{maxUsers}</span>
           </div>
           <div class="participants-list">
@@ -118,10 +148,12 @@
               <div class="participant">
                 <span class="avatar" style="background: {p.color}">{p.username.charAt(0)}</span>
                 <span class="name">{p.username}</span>
-                <span class="role-tag">{p.role}</span>
+                <span class="role-tag" class:owner={p.role === 'owner'} class:viewer={p.role === 'viewer'}>
+                  {p.role === 'owner' ? 'Host' : p.role === 'viewer' ? 'Viewing' : 'Editing'}
+                </span>
               </div>
             {:else}
-              <p class="empty">Waiting for others...</p>
+              <p class="empty">Waiting for collaborators...</p>
             {/each}
           </div>
         </div>
@@ -129,10 +161,12 @@
         <div class="status-row">
           <span class="status-dot" class:live={isConnected}></span>
           <span class="status-text">{isConnected ? 'Live' : 'Connecting'}</span>
-          <span class="mode-tag">{mode === 'view' ? 'View' : 'Control'}</span>
+          <span class="mode-tag" class:control={mode === 'control'}>
+            {mode === 'view' ? 'View Only' : 'Full Control'}
+          </span>
         </div>
 
-        <button class="end-btn" on:click={endSession}>End Session</button>
+        <button class="end-btn" on:click={endSession}>End Sharing</button>
       </div>
     {/if}
   </div>
@@ -203,6 +237,64 @@
 
   .panel-content {
     padding: 12px;
+  }
+
+  .terminal-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background: #0a0a0c;
+    border: 1px solid #1e1e28;
+    border-radius: 4px;
+    margin-bottom: 12px;
+  }
+
+  .terminal-info.shared {
+    background: rgba(0, 255, 136, 0.05);
+    border-color: rgba(0, 255, 136, 0.2);
+  }
+
+  .terminal-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+  }
+
+  .terminal-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: #e0e0e0;
+  }
+
+  .terminal-os {
+    font-size: 9px;
+    color: #666;
+    text-transform: uppercase;
+  }
+
+  .sharing-badge {
+    font-size: 8px;
+    padding: 2px 6px;
+    background: var(--accent, #00ff88);
+    color: #000;
+    border-radius: 2px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    animation: pulse-badge 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-badge {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+
+  .mode-hint {
+    margin: 6px 0 0 0;
+    font-size: 9px;
+    color: #555;
+    line-height: 1.3;
   }
 
   .option-row {
@@ -452,6 +544,18 @@
     letter-spacing: 0.3px;
   }
 
+  .role-tag.owner {
+    background: rgba(255, 215, 0, 0.1);
+    border-color: rgba(255, 215, 0, 0.3);
+    color: #ffd700;
+  }
+
+  .role-tag.viewer {
+    background: rgba(100, 100, 100, 0.1);
+    border-color: rgba(100, 100, 100, 0.3);
+    color: #888;
+  }
+
   .empty {
     color: #444;
     text-align: center;
@@ -499,12 +603,18 @@
   .mode-tag {
     font-size: 8px;
     padding: 2px 6px;
-    background: rgba(0, 217, 255, 0.08);
-    border: 1px solid rgba(0, 217, 255, 0.15);
+    background: rgba(100, 100, 100, 0.1);
+    border: 1px solid rgba(100, 100, 100, 0.2);
     border-radius: 3px;
-    color: #00d9ff;
+    color: #888;
     text-transform: uppercase;
     letter-spacing: 0.3px;
+  }
+
+  .mode-tag.control {
+    background: rgba(0, 255, 136, 0.08);
+    border-color: rgba(0, 255, 136, 0.2);
+    color: var(--accent, #00ff88);
   }
 
   .end-btn {
