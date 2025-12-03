@@ -48,12 +48,12 @@
     }
 
     const progressSteps = [
-        { id: "validating", label: "Validating" },
-        { id: "pulling", label: "Pulling Image" },
-        { id: "creating", label: "Creating Container" },
-        { id: "starting", label: "Starting" },
-        { id: "configuring", label: "Configuring" },
-        { id: "ready", label: "Ready" },
+        { id: "validating", label: "Validating", icon: "✓" },
+        { id: "pulling", label: "Pulling Image", icon: "📦" },
+        { id: "creating", label: "Creating Container", icon: "🔧" },
+        { id: "starting", label: "Starting", icon: "🚀" },
+        { id: "configuring", label: "Configuring", icon: "⚙️" },
+        { id: "ready", label: "Ready", icon: "✨" },
     ];
 
     // Get step status
@@ -223,6 +223,7 @@
     {#if isCreating}
         <div class="create-progress">
             <div class="progress-header">
+                <h2>Creating Terminal</h2>
                 <span class="progress-percent">{displayProgress}%</span>
             </div>
             <div class="progress-bar">
@@ -233,16 +234,18 @@
             <div class="progress-steps">
                 {#each progressSteps as step}
                     <div class="progress-step {getStepStatus(step.id)}">
-                        <span class="step-dot"></span>
+                        <span class="step-icon">{step.icon}</span>
                         <span class="step-label">{step.label}</span>
                     </div>
                 {/each}
             </div>
             
             <p class="progress-message">{progressMessage}</p>
+            
+            <!-- Role-specific tools being installed -->
             {#if currentRole && progressStage === "configuring"}
                 <div class="installing-tools">
-                    <p class="installing-label">Installing {currentRole.name} tools:</p>
+                    <p class="installing-label">Installing tools for {currentRole.name}:</p>
                     <div class="tools-installing">
                         {#each currentRole.tools as tool}
                             <span class="tool-badge-installing">{tool}</span>
@@ -250,7 +253,10 @@
                     </div>
                 </div>
             {/if}
-            <div class="spinner"></div>
+            
+            <div class="progress-spinner">
+                <div class="spinner-large"></div>
+            </div>
         </div>
     {:else}
         <div class="create-content">
@@ -416,25 +422,40 @@
         align-items: center;
         justify-content: center;
         gap: 16px;
-        padding: 40px 24px;
+        padding: 60px 24px;
         text-align: center;
         flex: 1;
         min-height: 300px;
     }
 
     .progress-header {
-        font-size: 32px;
-        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 8px;
+    }
+
+    .progress-header h2 {
+        font-size: 18px;
+        text-transform: uppercase;
+        margin: 0;
+        color: var(--text);
+        letter-spacing: 1px;
+    }
+
+    .progress-percent {
+        font-size: 14px;
         color: var(--accent);
+        font-weight: 600;
         font-family: var(--font-mono);
     }
 
     .progress-bar {
         width: 100%;
         max-width: 400px;
-        height: 6px;
+        height: 4px;
         background: var(--bg-tertiary);
-        border-radius: 3px;
+        border: 1px solid var(--border);
         overflow: hidden;
     }
 
@@ -447,58 +468,50 @@
     /* Progress Steps */
     .progress-steps {
         display: flex;
-        gap: 8px;
         flex-wrap: wrap;
         justify-content: center;
+        gap: 8px;
+        margin: 16px 0;
         max-width: 500px;
-        margin: 8px 0;
     }
 
     .progress-step {
         display: flex;
         align-items: center;
-        gap: 6px;
-        padding: 4px 10px;
-        background: rgba(255, 255, 255, 0.03);
+        gap: 4px;
+        padding: 6px 10px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
         border-radius: 4px;
         font-size: 11px;
-        color: var(--text-muted);
         font-family: var(--font-mono);
+        transition: all 0.2s;
     }
 
-    .step-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: var(--border);
-        transition: all 0.2s ease;
-    }
-
-    .progress-step.pending .step-dot {
-        background: var(--border);
-    }
-
-    .progress-step.active .step-dot {
-        background: var(--accent);
-        box-shadow: 0 0 8px var(--accent);
-        animation: pulse 1s infinite;
+    .progress-step.pending {
+        opacity: 0.4;
+        color: var(--text-muted);
     }
 
     .progress-step.active {
+        border-color: var(--accent);
         color: var(--accent);
-    }
-
-    .progress-step.completed .step-dot {
-        background: var(--accent);
+        background: rgba(0, 255, 65, 0.1);
+        animation: pulse 1.5s infinite;
     }
 
     .progress-step.completed {
-        color: var(--text);
+        border-color: var(--green);
+        color: var(--green);
+    }
+
+    .step-icon {
+        font-size: 12px;
     }
 
     .step-label {
+        font-size: 10px;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
     }
 
     .progress-message {
@@ -508,13 +521,19 @@
     }
 
     .installing-tools {
-        margin-top: 12px;
+        margin-top: 16px;
+        padding: 16px;
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        max-width: 400px;
     }
 
     .installing-label {
         font-size: 12px;
         color: var(--text-muted);
-        margin-bottom: 8px;
+        margin: 0 0 12px 0;
+        font-family: var(--font-mono);
     }
 
     .tools-installing {
@@ -527,22 +546,26 @@
     .tool-badge-installing {
         padding: 4px 8px;
         background: rgba(0, 255, 65, 0.1);
-        border: 1px solid rgba(0, 255, 65, 0.3);
+        border: 1px solid var(--accent);
         border-radius: 4px;
         font-size: 11px;
         color: var(--accent);
         font-family: var(--font-mono);
-        animation: pulse 1s infinite;
+        animation: pulse 1.5s infinite;
     }
 
     @keyframes pulse {
         0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
+        50% { opacity: 0.6; }
     }
 
-    .spinner {
-        width: 32px;
-        height: 32px;
+    .progress-spinner {
+        margin-top: 20px;
+    }
+
+    .spinner-large {
+        width: 40px;
+        height: 40px;
         border: 3px solid var(--border);
         border-top-color: var(--accent);
         border-radius: 50%;
