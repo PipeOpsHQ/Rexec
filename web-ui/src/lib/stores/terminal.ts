@@ -57,9 +57,11 @@ export interface TerminalState {
 }
 
 // Constants
-const WS_MAX_RECONNECT = 5;
-const WS_RECONNECT_DELAY = 2000;
+const WS_MAX_RECONNECT = 10;           // More attempts for poor networks
+const WS_RECONNECT_BASE_DELAY = 1000;  // Start with 1s delay
+const WS_RECONNECT_MAX_DELAY = 30000;  // Max 30s between retries
 const WS_PING_INTERVAL = 25000;
+const WS_SILENT_RECONNECT_THRESHOLD = 3; // Show message only after N silent attempts
 
 const REXEC_BANNER =
   "\x1b[38;5;46m\r\n" +
@@ -532,8 +534,6 @@ function createTerminalStore() {
       };
 
       ws.onclose = (event) => {
-        updateSession(sessionId, (s) => ({ ...s, status: "disconnected" }));
-
         const currentSession = getState().sessions.get(sessionId);
         if (!currentSession) return;
 
@@ -541,48 +541,67 @@ function createTerminalStore() {
           clearInterval(currentSession.pingInterval);
         }
 
-        // Don't reconnect if we intentionally closed or container is gone
-        // Code 1000 = normal close, 1006 = abnormal (server rejected), 4000+ = custom codes
-        const shouldNotReconnect = event.code === 1000 || 
-          event.code === 1006 || 
-          event.code >= 4000 ||
-          currentSession.reconnectAttempts >= WS_MAX_RECONNECT;
+        // Determine if we should attempt reconnection
+        // Code 1000 = normal close (intentional), 4000+ = custom error codes (container gone, auth failed, etc)
+        // Code 1006 = abnormal close (network issue) - SHOULD reconnect
+        const isIntentionalClose = event.code === 1000;
+        const isContainerGone = event.code >= 4000;
+        const maxAttemptsReached = currentSession.reconnectAttempts >= WS_MAX_RECONNECT;
+        
+        const shouldReconnect = !isIntentionalClose && !isContainerGone && !maxAttemptsReached;
 
-        if (!shouldNotReconnect && currentSession.reconnectAttempts < WS_MAX_RECONNECT) {
+        if (shouldReconnect) {
+          const attemptNum = currentSession.reconnectAttempts + 1;
+          
+          // Calculate exponential backoff delay
+          const baseDelay = WS_RECONNECT_BASE_DELAY;
+          const delay = Math.min(baseDelay * Math.pow(1.5, currentSession.reconnectAttempts), WS_RECONNECT_MAX_DELAY);
+          
+          // Update status to connecting (not error/disconnected during silent reconnect)
           updateSession(sessionId, (s) => ({
             ...s,
             status: "connecting",
-            reconnectAttempts: s.reconnectAttempts + 1,
+            reconnectAttempts: attemptNum,
           }));
 
-          session.terminal.writeln(
-            `\r\n\x1b[33mReconnecting (${currentSession.reconnectAttempts + 1}/${WS_MAX_RECONNECT})...\x1b[0m`,
-          );
+          // Only show message after silent threshold is exceeded
+          if (attemptNum > WS_SILENT_RECONNECT_THRESHOLD) {
+            session.terminal.writeln(
+              `\r\n\x1b[33m⟳ Reconnecting (${attemptNum}/${WS_MAX_RECONNECT})...\x1b[0m`,
+            );
+          } else {
+            // Silent reconnect - just log to console
+            console.log(`[Terminal] Silent reconnect attempt ${attemptNum}/${WS_MAX_RECONNECT} for ${sessionId}`);
+          }
 
           const timer = setTimeout(() => {
             this.connectWebSocket(sessionId);
-          }, WS_RECONNECT_DELAY);
+          }, delay);
 
           updateSession(sessionId, (s) => ({ ...s, reconnectTimer: timer }));
         } else {
-          // Don't spam the terminal with reconnection messages
-          if (currentSession.reconnectAttempts === 0) {
+          // Set to disconnected/error state
+          updateSession(sessionId, (s) => ({ ...s, status: "disconnected" }));
+          
+          // Show appropriate message based on reason
+          if (isContainerGone) {
             session.terminal.writeln(
-              "\r\n\x1b[31mConnection closed. Terminal session may be stopped or unavailable.\x1b[0m",
+              "\r\n\x1b[31m✖ Terminal session ended. Container may have been stopped or removed.\x1b[0m",
             );
-          } else {
+            updateSession(sessionId, (s) => ({ ...s, status: "error" }));
+          } else if (maxAttemptsReached) {
             session.terminal.writeln(
-              "\r\n\x1b[31mConnection lost. Click reconnect to try again.\x1b[0m",
+              "\r\n\x1b[31m✖ Connection lost after multiple attempts. Click \x1b[33m⟳\x1b[31m to reconnect.\x1b[0m",
             );
+            updateSession(sessionId, (s) => ({ ...s, status: "error" }));
           }
-          updateSession(sessionId, (s) => ({ ...s, status: "error" }));
+          // If intentional close (code 1000), don't show any message
         }
       };
 
-      ws.onerror = (error) => {
-        // WebSocket errors before connection opens usually mean container is unavailable
-        // Don't write error message here - onclose will handle it
-        console.error("[Terminal] WebSocket error:", error);
+      ws.onerror = () => {
+        // WebSocket errors are handled by onclose - just log silently
+        console.log("[Terminal] WebSocket error - will attempt reconnect");
       };
 
       // Handle terminal input with chunking for large pastes

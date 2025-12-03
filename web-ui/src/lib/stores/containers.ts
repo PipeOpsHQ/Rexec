@@ -694,8 +694,10 @@ export const containers = createContainersStore();
 // WebSocket connection for real-time updates
 let eventsSocket: WebSocket | null = null;
 let reconnectAttempts = 0;
-const MAX_RECONNECT_ATTEMPTS = 5;
-const RECONNECT_DELAY = 3000;
+const MAX_RECONNECT_ATTEMPTS = 15;           // More attempts for resilience
+const RECONNECT_BASE_DELAY = 1000;           // Start with 1s
+const RECONNECT_MAX_DELAY = 30000;           // Max 30s between retries
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
 // Get WebSocket URL
 function getWebSocketUrl(): string {
@@ -708,9 +710,22 @@ function getWebSocketUrl(): string {
 // WebSocket connection status
 export const wsConnected = writable(false);
 
+// Calculate exponential backoff delay
+function getReconnectDelay(): number {
+  return Math.min(RECONNECT_BASE_DELAY * Math.pow(1.5, reconnectAttempts), RECONNECT_MAX_DELAY);
+}
+
 // Start WebSocket connection for real-time container updates
 export function startContainerEvents() {
-  if (eventsSocket?.readyState === WebSocket.OPEN) return;
+  // Clear any pending reconnect
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  
+  if (eventsSocket?.readyState === WebSocket.OPEN || eventsSocket?.readyState === WebSocket.CONNECTING) {
+    return;
+  }
 
   const currentToken = get(token);
   if (!currentToken) return;
@@ -734,34 +749,61 @@ export function startContainerEvents() {
     };
 
     eventsSocket.onclose = (event) => {
-      console.log("[ContainerEvents] WebSocket closed:", event.code);
       eventsSocket = null;
       wsConnected.set(false);
 
-      // Attempt to reconnect if not intentionally closed
-      if (event.code !== 1000 && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+      // Don't reconnect if intentionally closed or auth issue
+      const isIntentionalClose = event.code === 1000;
+      const isAuthError = event.code === 4001 || event.code === 4003;
+      
+      if (isIntentionalClose || isAuthError) {
+        console.log("[ContainerEvents] WebSocket closed (intentional or auth):", event.code);
+        reconnectAttempts = 0;
+        return;
+      }
+
+      // Attempt silent reconnect with exponential backoff
+      if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
         reconnectAttempts++;
-        console.log(`[ContainerEvents] Reconnecting (attempt ${reconnectAttempts})...`);
-        setTimeout(startContainerEvents, RECONNECT_DELAY);
+        const delay = getReconnectDelay();
+        console.log(`[ContainerEvents] Reconnecting in ${delay}ms (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
+        reconnectTimer = setTimeout(startContainerEvents, delay);
+      } else {
+        console.log("[ContainerEvents] Max reconnect attempts reached");
+        // Reset after a longer delay to allow manual refresh or page reload
+        reconnectTimer = setTimeout(() => {
+          reconnectAttempts = 0;
+          startContainerEvents();
+        }, 60000); // Retry after 1 minute
       }
     };
 
-    eventsSocket.onerror = (error) => {
-      console.error("[ContainerEvents] WebSocket error:", error);
-      wsConnected.set(false);
+    eventsSocket.onerror = () => {
+      // Errors are handled by onclose - just log silently
+      console.log("[ContainerEvents] WebSocket error - will attempt reconnect");
     };
   } catch (e) {
     console.error("[ContainerEvents] Failed to create WebSocket:", e);
+    // Retry after delay
+    if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+      reconnectAttempts++;
+      reconnectTimer = setTimeout(startContainerEvents, getReconnectDelay());
+    }
   }
 }
 
 // Stop WebSocket connection
 export function stopContainerEvents() {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
   if (eventsSocket) {
     eventsSocket.close(1000, "User logged out");
     eventsSocket = null;
   }
   reconnectAttempts = 0;
+  wsConnected.set(false);
 }
 
 // Helper to match container by any ID field

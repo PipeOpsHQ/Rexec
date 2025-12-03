@@ -51,8 +51,19 @@ function createCollabStore() {
 
   let ws: WebSocket | null = null;
   let messageHandlers: ((msg: CollabMessage) => void)[] = [];
+  let reconnectAttempts = 0;
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  let currentShareCode: string | null = null;
+  
+  const MAX_RECONNECT_ATTEMPTS = 10;
+  const RECONNECT_BASE_DELAY = 1000;
+  const RECONNECT_MAX_DELAY = 30000;
 
   const API_BASE = '';
+  
+  function getReconnectDelay(): number {
+    return Math.min(RECONNECT_BASE_DELAY * Math.pow(1.5, reconnectAttempts), RECONNECT_MAX_DELAY);
+  }
 
   async function startSession(containerId: string, mode: 'view' | 'control' = 'view', maxUsers: number = 5): Promise<CollabSession | null> {
     const token = get(auth).token;
@@ -133,6 +144,15 @@ function createCollabStore() {
     const token = get(auth).token;
     if (!token) return;
 
+    // Clear any pending reconnect
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+    
+    // Store share code for reconnection
+    currentShareCode = shareCode;
+
     update(s => ({ ...s, isConnecting: true }));
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -142,7 +162,8 @@ function createCollabStore() {
 
     ws.onopen = () => {
       console.log('[Collab] WebSocket connected');
-      update(s => ({ ...s, isConnected: true, isConnecting: false }));
+      reconnectAttempts = 0;
+      update(s => ({ ...s, isConnected: true, isConnecting: false, error: null }));
     };
 
     ws.onmessage = (event) => {
@@ -154,15 +175,41 @@ function createCollabStore() {
       }
     };
 
-    ws.onclose = () => {
-      console.log('[Collab] WebSocket closed');
-      update(s => ({ ...s, isConnected: false }));
+    ws.onclose = (event) => {
       ws = null;
+      update(s => ({ ...s, isConnected: false }));
+      
+      // Don't reconnect if session ended or intentionally closed
+      const isIntentionalClose = event.code === 1000;
+      const isSessionEnded = event.code === 4000 || event.code === 4001;
+      
+      if (isIntentionalClose || isSessionEnded) {
+        console.log('[Collab] WebSocket closed (intentional):', event.code);
+        reconnectAttempts = 0;
+        currentShareCode = null;
+        return;
+      }
+      
+      // Attempt silent reconnect
+      if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS && currentShareCode) {
+        reconnectAttempts++;
+        const delay = getReconnectDelay();
+        console.log(`[Collab] Reconnecting in ${delay}ms (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
+        reconnectTimer = setTimeout(() => {
+          if (currentShareCode) {
+            connectWebSocket(currentShareCode);
+          }
+        }, delay);
+      } else {
+        console.log('[Collab] Max reconnect attempts reached');
+        update(s => ({ ...s, error: 'Connection lost. Please rejoin the session.' }));
+      }
     };
 
-    ws.onerror = (err) => {
-      console.error('[Collab] WebSocket error:', err);
-      update(s => ({ ...s, error: 'Connection error', isConnecting: false }));
+    ws.onerror = () => {
+      // Errors are handled by onclose - just log silently
+      console.log('[Collab] WebSocket error - will attempt reconnect');
+      update(s => ({ ...s, isConnecting: false }));
     };
   }
 
@@ -293,8 +340,14 @@ function createCollabStore() {
   }
 
   function disconnect() {
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+    currentShareCode = null;
+    reconnectAttempts = 0;
     if (ws) {
-      ws.close();
+      ws.close(1000, "User disconnected");
       ws = null;
     }
     update(s => ({
