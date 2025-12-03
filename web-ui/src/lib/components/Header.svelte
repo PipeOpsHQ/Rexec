@@ -130,7 +130,7 @@
             {#if $sessionCount > 0}
                 <span class="terminal-status">
                     <span class="terminal-dot"></span>
-                    {$sessionCount} Active
+                    {$sessionCount} Session{$sessionCount > 1 ? 's' : ''}
                 </span>
             {/if}
 

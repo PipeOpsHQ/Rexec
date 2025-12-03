@@ -496,21 +496,21 @@ function createContainersStore() {
         return;
       }
 
-      // Set creating state
+      // Set creating state - use the same stages as SSE
       update((state) => ({
         ...state,
         creating: {
           name,
           image,
           progress: 5,
-          message: "Requesting container...",
-          stage: "requesting",
+          message: "Validating request...",
+          stage: "validating",
         },
       }));
 
       onProgress?.({
-        stage: "requesting",
-        message: "Requesting container...",
+        stage: "validating",
+        message: "Validating request...",
         progress: 5,
       });
 
@@ -550,32 +550,89 @@ function createContainersStore() {
         // Container creation is async - poll for status
         const containerId = data.db_id || data.id;
 
+        // Simulate progress through stages
         update((state) => ({
           ...state,
           creating: state.creating
             ? {
               ...state.creating,
-              progress: 20,
-              message: "Pulling image and creating container...",
-              stage: "creating",
+              progress: 15,
+              message: "Pulling image...",
+              stage: "pulling",
             }
             : null,
         }));
 
         onProgress?.({
-          stage: "creating",
-          message:
-            "Pulling image and creating container (this may take a minute)...",
-          progress: 20,
+          stage: "pulling",
+          message: "Pulling image...",
+          progress: 15,
         });
 
         // Poll for container status
         const maxAttempts = 120; // 2 minutes max
         const pollInterval = 1000; // 1 second
         let attempts = 0;
+        let currentStage = "pulling";
+        let lastProgress = 15;
+
+        // Stage definitions with progress ranges
+        const stageConfig: Record<string, { progress: number; message: string }> = {
+          pulling: { progress: 15, message: "Pulling image..." },
+          creating: { progress: 35, message: "Creating container..." },
+          starting: { progress: 55, message: "Starting container..." },
+          configuring: { progress: 75, message: "Configuring environment..." },
+          ready: { progress: 100, message: "Ready!" },
+        };
+
+        const updateStage = (stage: string) => {
+          if (stage === currentStage) return;
+          currentStage = stage;
+          const config = stageConfig[stage] || { progress: lastProgress + 5, message: `${stage}...` };
+          lastProgress = config.progress;
+          
+          update((state) => ({
+            ...state,
+            creating: state.creating
+              ? {
+                ...state.creating,
+                progress: config.progress,
+                message: config.message,
+                stage: stage,
+              }
+              : null,
+          }));
+          onProgress?.({
+            stage: stage,
+            message: config.message,
+            progress: config.progress,
+          });
+        };
+
+        // Smooth progress animation between stages
+        const animateProgress = () => {
+          const targetProgress = stageConfig[currentStage]?.progress || lastProgress;
+          if (lastProgress < targetProgress - 2) {
+            lastProgress += 2;
+            update((state) => ({
+              ...state,
+              creating: state.creating
+                ? { ...state.creating, progress: lastProgress }
+                : null,
+            }));
+            onProgress?.({
+              stage: currentStage,
+              message: stageConfig[currentStage]?.message || "Processing...",
+              progress: lastProgress,
+            });
+          }
+        };
 
         const pollStatus = async (): Promise<void> => {
           attempts++;
+          
+          // Animate progress smoothly
+          animateProgress();
 
           try {
             const statusResponse = await fetch(
@@ -589,7 +646,8 @@ function createContainersStore() {
 
             if (!statusResponse.ok) {
               if (statusResponse.status === 404 && attempts < 5) {
-                // Container might not be in Docker yet, keep polling
+                // Container might not be in Docker yet - still pulling
+                updateStage("pulling");
                 setTimeout(pollStatus, pollInterval);
                 return;
               }
@@ -599,28 +657,21 @@ function createContainersStore() {
             const containerData = await statusResponse.json();
             const status = containerData.status;
 
-            // Update progress based on attempts
-            const progress = Math.min(
-              20 + Math.floor((attempts / maxAttempts) * 70),
-              90,
-            );
+            // Map container status to our progress stages
+            if (status === "creating") {
+              updateStage("creating");
+            } else if (status === "starting") {
+              updateStage("starting");
+            } else if (status === "running") {
+              // Show configuring briefly before ready
+              if (currentStage !== "configuring" && currentStage !== "ready") {
+                updateStage("configuring");
+                await new Promise(resolve => setTimeout(resolve, 800));
+              }
+              
+              // Now show ready
+              updateStage("ready");
 
-            update((state) => ({
-              ...state,
-              creating: state.creating
-                ? {
-                  ...state.creating,
-                  progress,
-                  message:
-                    status === "creating"
-                      ? "Still creating..."
-                      : `Status: ${status}`,
-                  stage: status,
-                }
-                : null,
-            }));
-
-            if (status === "running") {
               // Container is ready!
               const container: Container = {
                 id: containerData.id || containerData.docker_id || containerId,

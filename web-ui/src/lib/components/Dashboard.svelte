@@ -20,6 +20,19 @@
         connect: { id: string; name: string };
     }>();
 
+    // Session type icons and labels
+    const sessionTypeInfo: Record<string, { icon: string; label: string; color: string }> = {
+        container: { icon: "🐳", label: "Container", color: "#00d4ff" },
+        gpu: { icon: "⚡", label: "GPU Session", color: "#ff6b6b" },
+        ssh: { icon: "🔐", label: "SSH Target", color: "#ffd93d" },
+        custom: { icon: "🔧", label: "Custom", color: "#a29bfe" },
+    };
+
+    function getSessionType(container: Container): string {
+        // For now, all are containers. Future: detect from container metadata
+        return container.session_type || "container";
+    }
+
     // Track containers being deleted
     // (moved to loadingStates)
 
@@ -115,13 +128,13 @@
             toast.update(toastId, `${container.name} started`, "success");
             if (result.recreated) {
                 toast.info(
-                    "Terminal was recreated. Your data volume was preserved.",
+                    "Session was recreated. Your data volume was preserved.",
                 );
             }
         } else {
             toast.update(
                 toastId,
-                result.error || "Failed to start terminal",
+                result.error || "Failed to start session",
                 "error",
             );
         }
@@ -138,7 +151,7 @@
         } else {
             toast.update(
                 toastId,
-                result.error || "Failed to stop terminal",
+                result.error || "Failed to stop session",
                 "error",
             );
         }
@@ -171,7 +184,7 @@
         } else {
             toast.update(
                 toastId,
-                result.error || "Failed to delete terminal",
+                result.error || "Failed to delete session",
                 "error",
             );
         }
@@ -291,7 +304,7 @@
 
 <ConfirmModal
     bind:show={showDeleteConfirm}
-    title="Delete Terminal"
+    title="Delete Session"
     message={containerToDelete
         ? `Are you sure you want to delete "${containerToDelete.name}"? This action cannot be undone and all data will be lost.`
         : ""}
@@ -312,7 +325,7 @@
 <div class="dashboard">
     <div class="dashboard-header">
         <div class="dashboard-title">
-            <h1>Terminals</h1>
+            <h1>Sessions</h1>
             <span class="count-badge">
                 {effectiveCount} / {containerLimit}
             </span>
@@ -364,7 +377,7 @@
                             y2="12"
                         />
                     </svg>
-                    New Terminal
+                    New Session
                 {/if}
             </button>
         </div>
@@ -373,7 +386,7 @@
     {#if isLoading && containerList.length === 0}
         <div class="loading-state">
             <div class="spinner"></div>
-            <p>Loading terminals...</p>
+            <p>Loading sessions...</p>
         </div>
     {:else if containerList.length === 0}
         <div class="empty-state">
@@ -388,10 +401,9 @@
                     <path d="M8 21h8M12 17v4M6 8l4 4-4 4M12 16h4" />
                 </svg>
             </div>
-            <h2>No Terminals Yet</h2>
+            <h2>No Sessions Yet</h2>
             <p>
-                Create your first terminal to get started with a Linux
-                environment in seconds.
+                Create your first session to access a cloud environment, GPU workspace, or connect to remote resources.
             </p>
             <button
                 class="btn btn-primary btn-lg"
@@ -411,7 +423,7 @@
                         y2="12"
                     />
                 </svg>
-                Create Terminal
+                Create Session
             </button>
         </div>
     {:else}
