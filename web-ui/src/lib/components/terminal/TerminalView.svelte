@@ -542,13 +542,10 @@
                     </div>
 
                     <div class="floating-actions">
+                        <button on:click={minimize} title="Minimize">−</button>
                         <button on:click={toggleFullscreen} title="Fullscreen">
                             ⛶
                         </button>
-                        <button on:click={toggleView} title="Toggle View">
-                            ⬒
-                        </button>
-                        <button on:click={minimize} title="Minimize">−</button>
                         <button
                             on:click={() => activeId && closeSession(activeId)}
                             title="Close Current Terminal"
@@ -683,27 +680,22 @@
                         </button>
                     </div>
 
+                    <div class="docked-spacer"></div>
+
                     <div class="docked-actions">
-                        <button
-                            class="btn btn-secondary btn-sm"
-                            on:click={toggleFullscreen}
-                            title="Fullscreen"
-                        >
-                            ⛶
-                        </button>
-                        <button
-                            class="btn btn-secondary btn-sm"
-                            on:click={toggleView}
-                            title="Float"
-                        >
-                            ⬔
-                        </button>
                         <button
                             class="btn btn-secondary btn-sm"
                             on:click={minimize}
                             title="Minimize"
                         >
                             −
+                        </button>
+                        <button
+                            class="btn btn-secondary btn-sm"
+                            on:click={toggleFullscreen}
+                            title="Fullscreen"
+                        >
+                            ⛶
                         </button>
                         <button
                             class="btn btn-danger btn-sm"
@@ -1147,6 +1139,11 @@
         display: flex;
         align-items: center;
         gap: 16px;
+        padding: 8px 12px;
+    }
+
+    .docked-spacer {
+        flex: 1;
     }
 
     .docked-tabs {
