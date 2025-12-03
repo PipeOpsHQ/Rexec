@@ -160,6 +160,7 @@ func main() {
 		// PipeOps OAuth routes
 		auth.GET("/oauth/url", authHandler.GetOAuthURL)
 		auth.GET("/callback", authHandler.OAuthCallback)
+		auth.GET("/signin", authHandler.OAuthCallback) // Alternative callback path
 		auth.POST("/oauth/exchange", authHandler.OAuthExchange)
 	}
 

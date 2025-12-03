@@ -73,7 +73,7 @@ func NewPKCEOAuthService() *PKCEOAuthService {
 	redirectURI := os.Getenv("PIPEOPS_REDIRECT_URI")
 	if redirectURI == "" {
 		// Default redirect URI - should be configured in production
-		redirectURI = "http://localhost:8080/api/auth/callback"
+		redirectURI = "http://localhost:8080/auth/signin"
 	}
 
 	return &PKCEOAuthService{
