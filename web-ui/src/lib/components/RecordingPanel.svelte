@@ -75,6 +75,30 @@
     navigator.clipboard.writeText(url);
   }
 
+  async function downloadRecording(recording: Recording) {
+    try {
+      const response = await fetch(`/api/recordings/${recording.id}/stream`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${recording.title || 'recording'}.cast`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        a.remove();
+      }
+    } catch (err) {
+      console.error('Download failed:', err);
+    }
+  }
+
   async function playRecording(recording: Recording) {
     selectedRecording = recording;
     isPlaying = false;
@@ -282,9 +306,9 @@
               <button class="ctrl-btn play" on:click={restartPlayback} title="Play">▶</button>
             {/if}
           </div>
-          <a href={`/api/recordings/${selectedRecording.id}/stream`} class="download-btn" download>
+          <button class="ctrl-btn download" on:click={() => downloadRecording(selectedRecording)} title="Download">
             ↓
-          </a>
+          </button>
         </div>
       </div>
     {:else}
@@ -758,14 +782,12 @@
     color: #00ff88;
   }
 
-  .download-btn {
+  .ctrl-btn.download {
     color: #666;
-    text-decoration: none;
     font-size: 14px;
-    padding: 4px;
   }
 
-  .download-btn:hover {
+  .ctrl-btn.download:hover {
     color: #00ff88;
   }
 
