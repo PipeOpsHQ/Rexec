@@ -1223,8 +1223,8 @@ func (m *Manager) UpdateContainerResources(ctx context.Context, dockerID string,
 func (m *Manager) ExecInContainer(ctx context.Context, dockerID string, cmd []string) error {
 	execConfig := container.ExecOptions{
 		Cmd:          cmd,
-		AttachStdout: false,
-		AttachStderr: false,
+		AttachStdout: true,
+		AttachStderr: true,
 	}
 	
 	execResp, err := m.client.ContainerExecCreate(ctx, dockerID, execConfig)
@@ -1232,9 +1232,12 @@ func (m *Manager) ExecInContainer(ctx context.Context, dockerID string, cmd []st
 		return fmt.Errorf("failed to create exec: %w", err)
 	}
 	
-	if err := m.client.ContainerExecStart(ctx, execResp.ID, container.ExecStartOptions{}); err != nil {
-		return fmt.Errorf("failed to start exec: %w", err)
+	// Use ContainerExecAttach for Podman compatibility (attach implicitly starts)
+	attachResp, err := m.client.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to attach/start exec: %w", err)
 	}
+	attachResp.Close()
 	
 	return nil
 }

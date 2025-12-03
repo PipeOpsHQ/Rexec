@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"net/http"
 	"regexp"
 	"strings"
@@ -373,10 +374,12 @@ func (h *SSHHandler) syncKeysToContainer(ctx context.Context, containerID, userI
 		return fmt.Errorf("failed to create exec: %w", err)
 	}
 
-	err = client.ContainerExecStart(ctx, execResp.ID, dockerContainer.ExecStartOptions{})
+	// Use ContainerExecAttach for Podman compatibility (it starts the exec)
+	attachResp, err := client.ContainerExecAttach(ctx, execResp.ID, dockerContainer.ExecAttachOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to start exec: %w", err)
+		return fmt.Errorf("failed to attach/start exec: %w", err)
 	}
+	attachResp.Close()
 
 	return nil
 }
@@ -535,7 +538,7 @@ func (h *SSHHandler) InstallSSH(c *gin.Context) {
 		return
 	}
 
-	// Start the exec
+	// Start the exec via attach (Podman compatibility - attach implicitly starts)
 	attachResp, err := client.ContainerExecAttach(ctx, execResp.ID, dockerContainer.ExecAttachOptions{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to attach exec: " + err.Error()})
@@ -543,12 +546,8 @@ func (h *SSHHandler) InstallSSH(c *gin.Context) {
 	}
 	defer attachResp.Close()
 
-	// Wait for completion
-	err = client.ContainerExecStart(ctx, execResp.ID, dockerContainer.ExecStartOptions{})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to start exec: " + err.Error()})
-		return
-	}
+	// Read output to wait for completion
+	io.Copy(io.Discard, attachResp.Reader)
 
 	// Check exit code
 	inspect, err := client.ContainerExecInspect(ctx, execResp.ID)
@@ -635,6 +634,32 @@ func (h *SSHHandler) getSSHInstallCommand(ctx context.Context, containerID, imag
 			chmod 600 /home/user/.ssh/authorized_keys && \
 			chown -R user:user /home/user/.ssh && \
 			/usr/sbin/sshd`,
+
+		"arch": `pacman -Sy --noconfirm openssh && \
+			mkdir -p /var/run/sshd && \
+			ssh-keygen -A && \
+			sed -i 's/#PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config && \
+			sed -i 's/#PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config && \
+			sed -i 's/#PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config && \
+			mkdir -p /home/user/.ssh && \
+			chmod 700 /home/user/.ssh && \
+			touch /home/user/.ssh/authorized_keys && \
+			chmod 600 /home/user/.ssh/authorized_keys && \
+			chown -R user:user /home/user/.ssh && \
+			/usr/sbin/sshd`,
+
+		"opensuse": `zypper install -y openssh && \
+			mkdir -p /var/run/sshd && \
+			ssh-keygen -A && \
+			sed -i 's/#PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config && \
+			sed -i 's/#PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config && \
+			sed -i 's/#PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config && \
+			mkdir -p /home/user/.ssh && \
+			chmod 700 /home/user/.ssh && \
+			touch /home/user/.ssh/authorized_keys && \
+			chmod 600 /home/user/.ssh/authorized_keys && \
+			chown -R user:user /home/user/.ssh && \
+			/usr/sbin/sshd`,
 	}
 
 	if cmd, ok := commands[imageType]; ok {
@@ -644,34 +669,49 @@ func (h *SSHHandler) getSSHInstallCommand(ctx context.Context, containerID, imag
 	// Try to detect the OS if imageType is unknown
 	client := h.containerManager.GetClient()
 
-	// Check for apt (Debian/Ubuntu)
-	execConfig := dockerContainer.ExecOptions{
-		Cmd:          []string{"which", "apt-get"},
-		AttachStdout: true,
-	}
-	if execResp, err := client.ContainerExecCreate(ctx, containerID, execConfig); err == nil {
-		client.ContainerExecStart(ctx, execResp.ID, dockerContainer.ExecStartOptions{})
-		if inspect, err := client.ContainerExecInspect(ctx, execResp.ID); err == nil && inspect.ExitCode == 0 {
-			return commands["debian"]
+	// Helper function to run a simple command and check exit code
+	runCheck := func(cmd []string) bool {
+		execConfig := dockerContainer.ExecOptions{
+			Cmd:          cmd,
+			AttachStdout: true,
 		}
+		execResp, err := client.ContainerExecCreate(ctx, containerID, execConfig)
+		if err != nil {
+			return false
+		}
+		// Use attach for Podman compatibility
+		attachResp, err := client.ContainerExecAttach(ctx, execResp.ID, dockerContainer.ExecAttachOptions{})
+		if err != nil {
+			return false
+		}
+		attachResp.Close()
+		inspect, err := client.ContainerExecInspect(ctx, execResp.ID)
+		return err == nil && inspect.ExitCode == 0
+	}
+
+	// Check for apt (Debian/Ubuntu)
+	if runCheck([]string{"which", "apt-get"}) {
+		return commands["debian"]
 	}
 
 	// Check for apk (Alpine)
-	execConfig.Cmd = []string{"which", "apk"}
-	if execResp, err := client.ContainerExecCreate(ctx, containerID, execConfig); err == nil {
-		client.ContainerExecStart(ctx, execResp.ID, dockerContainer.ExecStartOptions{})
-		if inspect, err := client.ContainerExecInspect(ctx, execResp.ID); err == nil && inspect.ExitCode == 0 {
-			return commands["alpine"]
-		}
+	if runCheck([]string{"which", "apk"}) {
+		return commands["alpine"]
 	}
 
 	// Check for dnf (Fedora)
-	execConfig.Cmd = []string{"which", "dnf"}
-	if execResp, err := client.ContainerExecCreate(ctx, containerID, execConfig); err == nil {
-		client.ContainerExecStart(ctx, execResp.ID, dockerContainer.ExecStartOptions{})
-		if inspect, err := client.ContainerExecInspect(ctx, execResp.ID); err == nil && inspect.ExitCode == 0 {
-			return commands["fedora"]
-		}
+	if runCheck([]string{"which", "dnf"}) {
+		return commands["fedora"]
+	}
+
+	// Check for pacman (Arch)
+	if runCheck([]string{"which", "pacman"}) {
+		return commands["arch"]
+	}
+
+	// Check for zypper (openSUSE/Tumbleweed)
+	if runCheck([]string{"which", "zypper"}) {
+		return commands["opensuse"]
 	}
 
 	return ""
@@ -712,31 +752,33 @@ func (h *SSHHandler) CheckSSHStatus(c *gin.Context) {
 	ctx := c.Request.Context()
 	client := h.containerManager.GetClient()
 
-	// Check if sshd exists
-	execConfig := dockerContainer.ExecOptions{
-		Cmd:          []string{"which", "sshd"},
-		AttachStdout: true,
+	// Helper to run a simple check command
+	runCheck := func(cmd []string) bool {
+		execConfig := dockerContainer.ExecOptions{
+			Cmd:          cmd,
+			AttachStdout: true,
+		}
+		execResp, err := client.ContainerExecCreate(ctx, containerID, execConfig)
+		if err != nil {
+			return false
+		}
+		// Use attach for Podman compatibility
+		attachResp, err := client.ContainerExecAttach(ctx, execResp.ID, dockerContainer.ExecAttachOptions{})
+		if err != nil {
+			return false
+		}
+		attachResp.Close()
+		inspect, err := client.ContainerExecInspect(ctx, execResp.ID)
+		return err == nil && inspect.ExitCode == 0
 	}
 
-	installed := false
-	execResp, err := client.ContainerExecCreate(ctx, containerID, execConfig)
-	if err == nil {
-		client.ContainerExecStart(ctx, execResp.ID, dockerContainer.ExecStartOptions{})
-		if inspect, err := client.ContainerExecInspect(ctx, execResp.ID); err == nil {
-			installed = inspect.ExitCode == 0
-		}
-	}
+	// Check if sshd exists
+	installed := runCheck([]string{"which", "sshd"})
 
 	// Check if sshd is running
 	running := false
 	if installed {
-		execConfig.Cmd = []string{"pgrep", "-x", "sshd"}
-		if execResp, err := client.ContainerExecCreate(ctx, containerID, execConfig); err == nil {
-			client.ContainerExecStart(ctx, execResp.ID, dockerContainer.ExecStartOptions{})
-			if inspect, err := client.ContainerExecInspect(ctx, execResp.ID); err == nil {
-				running = inspect.ExitCode == 0
-			}
-		}
+		running = runCheck([]string{"pgrep", "-x", "sshd"})
 	}
 
 	c.JSON(http.StatusOK, gin.H{
