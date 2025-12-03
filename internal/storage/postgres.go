@@ -647,6 +647,39 @@ func (s *PostgresStore) GetContainerByUserAndDockerID(ctx context.Context, userI
 	return &c, nil
 }
 
+// GetContainerByDockerID retrieves a container by its Docker ID (for collab sessions)
+func (s *PostgresStore) GetContainerByDockerID(ctx context.Context, dockerID string) (*ContainerRecord, error) {
+	var c ContainerRecord
+	query := `
+		SELECT id, user_id, name, image, status, docker_id, volume_name,
+		       COALESCE(memory_mb, 512) as memory_mb, COALESCE(cpu_shares, 512) as cpu_shares, COALESCE(disk_mb, 2048) as disk_mb,
+		       created_at, last_used_at
+		FROM containers WHERE docker_id = $1 AND deleted_at IS NULL
+	`
+	row := s.db.QueryRowContext(ctx, query, dockerID)
+	err := row.Scan(
+		&c.ID,
+		&c.UserID,
+		&c.Name,
+		&c.Image,
+		&c.Status,
+		&c.DockerID,
+		&c.VolumeName,
+		&c.MemoryMB,
+		&c.CPUShares,
+		&c.DiskMB,
+		&c.CreatedAt,
+		&c.LastUsedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
 // UpdateContainerStatus updates a container's status (only for non-deleted containers)
 func (s *PostgresStore) UpdateContainerStatus(ctx context.Context, id, status string) error {
 	query := `UPDATE containers SET status = $2, last_used_at = $3 WHERE id = $1 AND deleted_at IS NULL`
