@@ -478,6 +478,12 @@ func (h *RecordingHandler) GetRecordingStatus(c *gin.Context) {
 
 // saveRecording saves recording in asciinema v2 format
 func (h *RecordingHandler) saveRecording(recording *ActiveRecording, filePath string) error {
+	// Ensure directory exists
+	dir := filepath.Dir(filePath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("failed to create recordings directory: %w", err)
+	}
+	
 	file, err := os.Create(filePath)
 	if err != nil {
 		return err

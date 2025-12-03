@@ -4,9 +4,34 @@
     import { toast } from "$stores/toast";
     import TerminalPanel from "./TerminalPanel.svelte";
     import InlineCreateTerminal from "../InlineCreateTerminal.svelte";
+    import RecordingPanel from "../RecordingPanel.svelte";
+    import CollabPanel from "../CollabPanel.svelte";
 
     // Track view mode changes to force terminal re-render
     let viewModeKey = 0;
+    
+    // Panel states
+    let showRecordingsPanel = false;
+    let showCollabPanel = false;
+    let panelContainerId: string | null = null;
+    
+    function handleOpenRecordings(e: CustomEvent<{containerId: string}>) {
+        panelContainerId = e.detail.containerId;
+        showRecordingsPanel = true;
+        showCollabPanel = false;
+    }
+    
+    function handleOpenCollab(e: CustomEvent<{containerId: string}>) {
+        panelContainerId = e.detail.containerId;
+        showCollabPanel = true;
+        showRecordingsPanel = false;
+    }
+    
+    function closePanels() {
+        showRecordingsPanel = false;
+        showCollabPanel = false;
+        panelContainerId = null;
+    }
 
     // Mobile detection
     let isMobile = false;
@@ -451,7 +476,7 @@
                 {:else}
                     {#each dockedSessions as [id, session] (`full-${viewModeKey}-${id}`)}
                         <div class="terminal-panel" class:active={id === activeId}>
-                            <TerminalPanel {session} />
+                            <TerminalPanel {session} on:openRecordings={handleOpenRecordings} on:openCollab={handleOpenCollab} />
                         </div>
                     {/each}
                 {/if}
@@ -554,7 +579,7 @@
                                 class="terminal-panel"
                                 class:active={id === activeId}
                             >
-                                <TerminalPanel {session} />
+                                <TerminalPanel {session} on:openRecordings={handleOpenRecordings} on:openCollab={handleOpenCollab} />
                             </div>
                         {/each}
                     {/if}
@@ -714,7 +739,7 @@
                                 class="terminal-panel"
                                 class:active={id === activeId}
                             >
-                                <TerminalPanel {session} />
+                                <TerminalPanel {session} on:openRecordings={handleOpenRecordings} on:openCollab={handleOpenCollab} />
                             </div>
                         {/each}
                     {/if}
@@ -763,7 +788,7 @@
             </div>
         </div>
         <div class="detached-body" id="detached-terminal-{id}">
-            <TerminalPanel {session} />
+            <TerminalPanel {session} on:openRecordings={handleOpenRecordings} on:openCollab={handleOpenCollab} />
         </div>
         <div
             class="detached-resize-handle"
@@ -773,6 +798,24 @@
         ></div>
     </div>
 {/each}
+
+<!-- Recordings Panel Modal -->
+{#if showRecordingsPanel && panelContainerId}
+    <div class="panel-overlay" on:click={closePanels} on:keydown={() => {}} role="button" tabindex="-1">
+        <div class="panel-modal" on:click|stopPropagation on:keydown={() => {}} role="dialog">
+            <RecordingPanel containerId={panelContainerId} on:close={closePanels} />
+        </div>
+    </div>
+{/if}
+
+<!-- Collab Panel Modal -->
+{#if showCollabPanel && panelContainerId}
+    <div class="panel-overlay" on:click={closePanels} on:keydown={() => {}} role="button" tabindex="-1">
+        <div class="panel-modal" on:click|stopPropagation on:keydown={() => {}} role="dialog">
+            <CollabPanel containerId={panelContainerId} on:close={closePanels} />
+        </div>
+    </div>
+{/if}
 
 <style>
     /* Fullscreen Terminal */
@@ -2077,5 +2120,31 @@
 
     .detached-resize-handle:hover {
         opacity: 1;
+    }
+    
+    /* Panel overlay and modal */
+    .panel-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        backdrop-filter: blur(4px);
+    }
+    
+    .panel-modal {
+        background: #1a1a1a;
+        border: 1px solid #333;
+        border-radius: 12px;
+        max-width: 600px;
+        max-height: 80vh;
+        width: 90%;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
     }
 </style>
