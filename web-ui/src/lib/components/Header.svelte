@@ -8,6 +8,7 @@
     } from "$stores/auth";
     import { terminal, sessionCount } from "$stores/terminal";
     import { toast } from "$stores/toast";
+    import StatusIcon from "./icons/StatusIcon.svelte";
 
     const dispatch = createEventDispatcher<{
         home: void;
@@ -218,9 +219,9 @@
                                 }
                             }}
                         >
-                            <span>⚙️</span>
+                            <StatusIcon status="settings" size={14} />
                             Settings
-                            {#if $isGuest}<span class="lock-icon">🔒</span>{/if}
+                            {#if $isGuest}<span class="lock-icon"><StatusIcon status="lock" size={12} /></span>{/if}
                         </button>
                         <button
                             class="user-menu-item"
@@ -236,9 +237,9 @@
                                 }
                             }}
                         >
-                            <span>🔑</span>
+                            <StatusIcon status="key" size={14} />
                             SSH Keys
-                            {#if $isGuest}<span class="lock-icon">🔒</span>{/if}
+                            {#if $isGuest}<span class="lock-icon"><StatusIcon status="lock" size={12} /></span>{/if}
                         </button>
                         {#if $isGuest}
                             <div class="user-menu-divider"></div>

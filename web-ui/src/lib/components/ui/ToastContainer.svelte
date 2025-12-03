@@ -2,19 +2,20 @@
     import { flip } from "svelte/animate";
     import { fly, fade } from "svelte/transition";
     import { activeToasts, toast, type Toast } from "$stores/toast";
+    import StatusIcon from "../icons/StatusIcon.svelte";
 
-    function getIcon(type: Toast["type"]): string {
+    function getIconType(type: Toast["type"]): string {
         switch (type) {
             case "success":
-                return "✓";
+                return "success";
             case "error":
-                return "✕";
+                return "error";
             case "warning":
-                return "⚠";
+                return "warning";
             case "loading":
-                return "◌";
+                return "refresh";
             default:
-                return "ℹ";
+                return "info";
         }
     }
 </script>
@@ -32,7 +33,7 @@
             on:keydown={(e) => e.key === "Enter" && toast.dismiss(t.id)}
         >
             <span class="toast-icon" class:spinning={t.type === "loading"}>
-                {getIcon(t.type)}
+                <StatusIcon status={getIconType(t.type)} size={14} />
             </span>
             <span class="toast-message">{t.message}</span>
             <button class="toast-close" aria-label="Dismiss"> × </button>

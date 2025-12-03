@@ -2,6 +2,7 @@
     import { createEventDispatcher } from "svelte";
     import { auth } from "$stores/auth";
     import { toast } from "$stores/toast";
+    import StatusIcon from "./icons/StatusIcon.svelte";
 
     const dispatch = createEventDispatcher<{
         guest: void;
@@ -99,17 +100,17 @@
 
         <div class="features">
             <div class="feature">
-                <span class="feature-icon">⚡</span>
+                <span class="feature-icon"><StatusIcon status="bolt" size={24} /></span>
                 <h3>Instant</h3>
                 <p>Rexec terminals launch in seconds with pre-configured shells</p>
             </div>
             <div class="feature">
-                <span class="feature-icon">🔒</span>
+                <span class="feature-icon"><StatusIcon status="connected" size={24} /></span>
                 <h3>Isolated</h3>
                 <p>Each terminal is fully isolated with its own filesystem</p>
             </div>
             <div class="feature">
-                <span class="feature-icon">🌐</span>
+                <span class="feature-icon"><StatusIcon status="terminal" size={24} /></span>
                 <h3>Accessible</h3>
                 <p>Access from any browser, anywhere. SSH support included</p>
             </div>

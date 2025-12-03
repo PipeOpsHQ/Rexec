@@ -14,18 +14,19 @@
     import ConfirmModal from "./ConfirmModal.svelte";
     import TerminalSettingsModal from "./TerminalSettingsModal.svelte";
     import PlatformIcon from "./icons/PlatformIcon.svelte";
+    import StatusIcon from "./icons/StatusIcon.svelte";
 
     const dispatch = createEventDispatcher<{
         create: void;
         connect: { id: string; name: string };
     }>();
 
-    // Session type icons and labels
+    // Session type icons and labels - using StatusIcon types
     const sessionTypeInfo: Record<string, { icon: string; label: string; color: string }> = {
-        container: { icon: "🐳", label: "Terminal", color: "#00d4ff" },
-        gpu: { icon: "⚡", label: "GPU Session", color: "#ff6b6b" },
-        ssh: { icon: "🔐", label: "SSH Target", color: "#ffd93d" },
-        custom: { icon: "🔧", label: "Custom", color: "#a29bfe" },
+        container: { icon: "terminal", label: "Terminal", color: "#00d4ff" },
+        gpu: { icon: "gpu", label: "GPU Session", color: "#ff6b6b" },
+        ssh: { icon: "connected", label: "SSH Target", color: "#ffd93d" },
+        custom: { icon: "wrench", label: "Custom", color: "#a29bfe" },
     };
 
     function getSessionType(container: Container): string {

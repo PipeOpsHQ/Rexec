@@ -3,6 +3,7 @@
     import { containers, type ProgressEvent } from "$stores/containers";
     import { api, formatMemory, formatStorage, formatCPU } from "$utils/api";
     import PlatformIcon from "./icons/PlatformIcon.svelte";
+    import StatusIcon from "./icons/StatusIcon.svelte";
 
     export let compact = false;
 
@@ -48,12 +49,12 @@
     }
 
     const progressSteps = [
-        { id: "validating", label: "Validating", icon: "✓" },
-        { id: "pulling", label: "Pulling Image", icon: "📦" },
-        { id: "creating", label: "Creating Terminal", icon: "🔧" },
-        { id: "starting", label: "Starting", icon: "🚀" },
-        { id: "configuring", label: "Configuring", icon: "⚙️" },
-        { id: "ready", label: "Ready", icon: "✨" },
+        { id: "validating", label: "Validating", icon: "validating" },
+        { id: "pulling", label: "Pulling Image", icon: "pulling" },
+        { id: "creating", label: "Creating Terminal", icon: "creating" },
+        { id: "starting", label: "Starting", icon: "starting" },
+        { id: "configuring", label: "Configuring", icon: "configuring" },
+        { id: "ready", label: "Ready", icon: "ready" },
     ];
 
     // Reactive step statuses - must depend on progressStage to update
@@ -235,7 +236,7 @@
             <div class="progress-steps">
                 {#each progressSteps as step (step.id)}
                     <div class="progress-step {stepStatuses[step.id] || 'pending'}">
-                        <span class="step-icon">{step.icon}</span>
+                        <span class="step-icon"><StatusIcon status={step.icon} size={12} /></span>
                         <span class="step-label">{step.label}</span>
                     </div>
                 {/each}

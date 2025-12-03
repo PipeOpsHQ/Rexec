@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
+  import StatusIcon from "./icons/StatusIcon.svelte";
   
   const dispatch = createEventDispatcher();
   
@@ -100,7 +101,7 @@
             <ul class="features">
               {#each plan.features as feature}
                 <li>
-                  <span class="check">✓</span>
+                  <span class="check"><StatusIcon status="check" size={12} /></span>
                   {feature}
                 </li>
               {/each}
@@ -119,7 +120,7 @@
       </div>
       
       <div class="pricing-footer">
-        <p>🚀 <strong>60-day trial:</strong> All features unlocked during our beta period</p>
+        <p><StatusIcon status="rocket" size={14} /> <strong>60-day trial:</strong> All features unlocked during our beta period</p>
       </div>
     </div>
   </div>

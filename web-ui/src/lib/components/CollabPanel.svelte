@@ -4,6 +4,7 @@
   import { containers } from '../stores/containers';
   import { slide } from 'svelte/transition';
   import PlatformIcon from './icons/PlatformIcon.svelte';
+  import StatusIcon from './icons/StatusIcon.svelte';
 
   export let containerId: string;
   export let isOpen = false;
@@ -135,7 +136,11 @@
           <div class="share-link-box">
             <input class="share-url" readonly value={shareUrl} on:click|stopPropagation={(e) => e.currentTarget.select()} />
             <button class="copy-link-btn" on:click={copyLink}>
-              {copied ? '✓ Copied' : '📋 Copy Link'}
+              {#if copied}
+                <StatusIcon status="check" size={12} /> Copied
+              {:else}
+                <StatusIcon status="copy" size={12} /> Copy Link
+              {/if}
             </button>
           </div>
           <p class="share-hint">Share this link with collaborators</p>
