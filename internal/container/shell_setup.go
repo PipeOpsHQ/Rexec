@@ -264,24 +264,36 @@ show_system_stats() {
     
     # Container Disk info - use allocated quota from environment
     local disk_quota="${REXEC_DISK_QUOTA:-2G}"
-    # Get container's actual disk usage (not host)
-    # Use du on root to measure container layer size, exclude virtual filesystems
-    local disk_used_bytes=0
-    # Try du with --exclude (GNU coreutils)
-    if du --version >/dev/null 2>&1; then
-        disk_used_bytes=$(du -sx --exclude=/proc --exclude=/sys --exclude=/dev / 2>/dev/null | awk '{print $1}')
-    else
-        # Fallback for busybox/alpine du without --exclude
-        disk_used_bytes=$(du -sx / 2>/dev/null | awk '{print $1}')
-    fi
+    # Get container's actual disk usage from overlay filesystem
     local disk_used="N/A"
-    if [ -n "$disk_used_bytes" ] && [ "$disk_used_bytes" -gt 0 ] 2>/dev/null; then
-        if [ "$disk_used_bytes" -ge 1048576 ]; then
-            disk_used=$(awk "BEGIN {printf \"%.1fG\", $disk_used_bytes / 1048576}")
-        elif [ "$disk_used_bytes" -ge 1024 ]; then
-            disk_used=$(awk "BEGIN {printf \"%.0fM\", $disk_used_bytes / 1024}")
-        else
-            disk_used="${disk_used_bytes}K"
+    # Try to get disk usage from df on root overlay
+    local df_output=""
+    if command -v df >/dev/null 2>&1; then
+        # Get used space on root filesystem (container overlay)
+        df_output=$(df -h / 2>/dev/null | tail -1 | awk '{print $3}')
+        if [ -n "$df_output" ] && [ "$df_output" != "-" ]; then
+            disk_used="$df_output"
+        fi
+    fi
+    # Fallback: estimate from common directories if df fails
+    if [ "$disk_used" = "N/A" ]; then
+        local used_kb=0
+        for dir in /root /home /var /opt /usr/local; do
+            if [ -d "$dir" ]; then
+                local dir_size=$(du -sk "$dir" 2>/dev/null | awk '{print $1}')
+                if [ -n "$dir_size" ]; then
+                    used_kb=$((used_kb + dir_size))
+                fi
+            fi
+        done
+        if [ "$used_kb" -gt 0 ]; then
+            if [ "$used_kb" -ge 1048576 ]; then
+                disk_used=$(awk "BEGIN {printf \"%.1fG\", $used_kb / 1048576}")
+            elif [ "$used_kb" -ge 1024 ]; then
+                disk_used=$(awk "BEGIN {printf \"%.0fM\", $used_kb / 1024}")
+            else
+                disk_used="${used_kb}K"
+            fi
         fi
     fi
     
@@ -289,6 +301,22 @@ show_system_stats() {
     local mem_limit="${REXEC_MEMORY_LIMIT:-${mem_total_mb}M}"
     # Remove decimal from memory limit if present (e.g., 1024.00M -> 1024M)
     mem_limit=$(echo "$mem_limit" | sed 's/\.00//')
+    
+    # Convert memory limit to GB if >= 1024M
+    local mem_limit_display="$mem_limit"
+    if echo "$mem_limit" | grep -qE '^[0-9]+M$'; then
+        local mem_mb=$(echo "$mem_limit" | sed 's/M$//')
+        if [ "$mem_mb" -ge 1024 ]; then
+            local mem_gb=$((mem_mb / 1024))
+            local mem_remainder=$((mem_mb % 1024))
+            if [ "$mem_remainder" -eq 0 ]; then
+                mem_limit_display="${mem_gb}G"
+            else
+                # Show one decimal place
+                mem_limit_display="$(echo "scale=1; $mem_mb / 1024" | bc 2>/dev/null || echo "${mem_gb}G")G"
+            fi
+        fi
+    fi
     
     # Print banner
     echo ""
@@ -303,7 +331,7 @@ show_system_stats() {
     echo ""
     echo "\033[1;33m  Resources (Allocated):\033[0m"
     echo "\033[38;5;243m  ├─ CPU:\033[0m         ${cpu_cores} vCPU"
-    echo "\033[38;5;243m  ├─ Memory:\033[0m      ${mem_used_mb}MB / ${mem_limit}"
+    echo "\033[38;5;243m  ├─ Memory:\033[0m      ${mem_used_mb}MB / ${mem_limit_display}"
     echo "\033[38;5;243m  └─ Storage:\033[0m     ${disk_used} / ${disk_quota}"
     echo ""
     echo "\033[38;5;243m  Type '\033[1;37mhelp\033[38;5;243m' for common commands\033[0m"

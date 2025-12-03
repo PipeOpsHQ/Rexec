@@ -266,6 +266,15 @@
         return "linux";
     }
 
+    // Format memory to show GB for values >= 1024MB
+    function formatMemory(mb: number): string {
+        if (mb >= 1024) {
+            const gb = mb / 1024;
+            return gb % 1 === 0 ? `${gb}G` : `${gb.toFixed(1)}G`;
+        }
+        return `${mb}M`;
+    }
+
     // Reactive
     $: containerList = $containers.containers;
     $: isLoading = $containers.isLoading;
@@ -532,7 +541,7 @@
                                     />
                                     <rect x="9" y="9" width="6" height="6" />
                                 </svg>
-                                {container.resources.memory_mb}M
+                                {formatMemory(container.resources.memory_mb)}
                             </span>
                             <span class="resource-divider">/</span>
                             <span class="resource-spec">

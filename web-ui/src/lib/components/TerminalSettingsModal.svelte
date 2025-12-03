@@ -47,6 +47,24 @@
         initialized = false;
     }
 
+    // Format memory to show GB for values >= 1024MB
+    function formatMemory(mb: number): string {
+        if (mb >= 1024) {
+            const gb = mb / 1024;
+            return gb % 1 === 0 ? `${gb}GB` : `${gb.toFixed(1)}GB`;
+        }
+        return `${mb}MB`;
+    }
+
+    // Format disk to show GB for values >= 1024MB
+    function formatDisk(mb: number): string {
+        if (mb >= 1024) {
+            const gb = mb / 1024;
+            return gb % 1 === 0 ? `${gb}GB` : `${gb.toFixed(1)}GB`;
+        }
+        return `${mb}MB`;
+    }
+
     // Handler functions for sliders
     function handleMemoryChange(e: Event) {
         memoryMB = parseInt((e.target as HTMLInputElement).value);
@@ -156,7 +174,7 @@
                 <div class="form-group">
                     <label for="memory">
                         Memory
-                        <span class="value-display">{memoryMB}MB</span>
+                        <span class="value-display">{formatMemory(memoryMB)}</span>
                     </label>
                     <input
                         id="memory"
@@ -169,15 +187,15 @@
                         class="slider"
                     />
                     <div class="range-labels">
-                        <span>{resourceLimits.minMemory}MB</span>
-                        <span>{resourceLimits.maxMemory}MB</span>
+                        <span>{formatMemory(resourceLimits.minMemory)}</span>
+                        <span>{formatMemory(resourceLimits.maxMemory)}</span>
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label for="cpu">
-                        CPU Shares
-                        <span class="value-display">{cpuShares}</span>
+                        CPU
+                        <span class="value-display">{(cpuShares / 1000).toFixed(1)} vCPU</span>
                     </label>
                     <input
                         id="cpu"
@@ -190,15 +208,15 @@
                         class="slider"
                     />
                     <div class="range-labels">
-                        <span>{resourceLimits.minCPU}</span>
-                        <span>{resourceLimits.maxCPU}</span>
+                        <span>{(resourceLimits.minCPU / 1000).toFixed(1)} vCPU</span>
+                        <span>{(resourceLimits.maxCPU / 1000).toFixed(1)} vCPU</span>
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label for="disk">
                         Disk
-                        <span class="value-display">{diskMB}MB</span>
+                        <span class="value-display">{formatDisk(diskMB)}</span>
                     </label>
                     <input
                         id="disk"
@@ -211,8 +229,8 @@
                         class="slider"
                     />
                     <div class="range-labels">
-                        <span>{resourceLimits.minDisk}MB</span>
-                        <span>{resourceLimits.maxDisk}MB</span>
+                        <span>{formatDisk(resourceLimits.minDisk)}</span>
+                        <span>{formatDisk(resourceLimits.maxDisk)}</span>
                     </div>
                 </div>
 
