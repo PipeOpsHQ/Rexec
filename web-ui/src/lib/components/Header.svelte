@@ -15,6 +15,7 @@
         settings: void;
         sshkeys: void;
         guest: void;
+        pricing: void;
     }>();
 
     let showUserMenu = false;
@@ -179,6 +180,17 @@
                         </div>
 
                         <div class="user-menu-divider"></div>
+                        
+                        <button
+                            class="user-menu-item"
+                            on:click={() => {
+                                showUserMenu = false;
+                                dispatch("pricing");
+                            }}
+                        >
+                            <span>💎</span>
+                            Pricing
+                        </button>
 
                         {#if !$isGuest}
                             <button

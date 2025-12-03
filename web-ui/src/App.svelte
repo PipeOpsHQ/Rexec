@@ -15,6 +15,7 @@
     import TerminalView from "$components/terminal/TerminalView.svelte";
     import ToastContainer from "$components/ui/ToastContainer.svelte";
     import JoinSession from "$components/JoinSession.svelte";
+    import Pricing from "$components/Pricing.svelte";
 
     // App state
     let currentView:
@@ -32,6 +33,9 @@
     let showGuestModal = false;
     let guestEmail = "";
     let isGuestSubmitting = false;
+    
+    // Pricing modal state
+    let showPricing = false;
 
     function openGuestModal() {
         guestEmail = "";
@@ -289,6 +293,7 @@
             on:settings={goToSettings}
             on:sshkeys={goToSSHKeys}
             on:guest={openGuestModal}
+            on:pricing={() => showPricing = true}
         />
 
         <main class="main" class:has-terminal={$hasSessions}>
@@ -326,6 +331,9 @@
 
         <!-- Toast notifications -->
         <ToastContainer />
+        
+        <!-- Pricing Modal -->
+        <Pricing bind:isOpen={showPricing} on:close={() => showPricing = false} />
 
         <!-- Guest Email Modal -->
         {#if showGuestModal}

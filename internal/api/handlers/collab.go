@@ -252,12 +252,19 @@ func (h *CollabHandler) JoinSession(c *gin.Context) {
 		role = "owner"
 	}
 
+	// Get container info for better display
+	containerName := session.ContainerID[:12] // Default to truncated ID
+	if container, err := h.store.GetContainerByDockerID(c.Request.Context(), session.ContainerID); err == nil && container != nil {
+		containerName = container.Name
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"session_id":   session.ID,
-		"container_id": session.ContainerID,
-		"mode":         session.Mode,
-		"role":         role,
-		"expires_at":   session.ExpiresAt,
+		"session_id":     session.ID,
+		"container_id":   session.ContainerID,
+		"container_name": containerName,
+		"mode":           session.Mode,
+		"role":           role,
+		"expires_at":     session.ExpiresAt,
 	})
 }
 

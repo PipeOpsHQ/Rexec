@@ -16,6 +16,7 @@
   let sessionInfo: {
     sessionId: string;
     containerId: string;
+    containerName: string;
     mode: string;
     role: string;
     expiresAt: string;
@@ -42,18 +43,19 @@
         sessionInfo = {
           sessionId: result.id,
           containerId: result.containerId,
+          containerName: result.containerName,
           mode: result.mode,
           role: result.role,
           expiresAt: result.expiresAt
         };
         // Connect to the collab websocket
         collab.connectWebSocket(code);
-        toast.success(`Joined session as ${result.role}`);
+        toast.success(`Joined terminal as ${result.role}`);
       } else {
-        error = 'Session not found or has expired';
+        error = 'Terminal not found or sharing has ended';
       }
     } catch (e) {
-      error = 'Failed to join session';
+      error = 'Failed to join terminal';
     }
     
     isLoading = false;
@@ -123,18 +125,18 @@
         <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
         <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
       </svg>
-      <h1>Join Session</h1>
+      <h1>Join Terminal</h1>
       <p class="code-display">{code}</p>
     </div>
 
     {#if isLoading}
       <div class="loading">
         <div class="spinner"></div>
-        <p>Connecting to session...</p>
+        <p>Connecting to terminal...</p>
       </div>
     {:else if needsAuth}
       <div class="auth-prompt">
-        <p class="auth-description">Enter your email to join this terminal session</p>
+        <p class="auth-description">Enter your email to join this shared terminal</p>
         <div class="form-group">
           <label for="guest-email">Email Address</label>
           <input
@@ -149,7 +151,7 @@
         <div class="actions">
           <button class="btn btn-secondary" on:click={cancel} disabled={isSubmittingGuest}>Cancel</button>
           <button class="btn btn-primary" on:click={handleGuestSubmit} disabled={isSubmittingGuest || !guestEmail.trim()}>
-            {isSubmittingGuest ? 'Connecting...' : 'Join Session'}
+            {isSubmittingGuest ? 'Connecting...' : 'Join Terminal'}
           </button>
         </div>
       </div>
@@ -165,8 +167,16 @@
       </div>
     {:else if sessionInfo}
       <div class="session-info">
+        <div class="terminal-card">
+          <div class="terminal-icon">⚡</div>
+          <div class="terminal-details">
+            <span class="terminal-name">{sessionInfo.containerName}</span>
+            <span class="terminal-shared">Shared Terminal</span>
+          </div>
+        </div>
+        
         <div class="info-row">
-          <span class="label">Mode</span>
+          <span class="label">Access</span>
           <span class="value mode-badge" class:control={sessionInfo.mode === 'control'}>
             {sessionInfo.mode === 'control' ? 'Full Control' : 'View Only'}
           </span>
@@ -291,6 +301,40 @@
     background: var(--bg-secondary);
     border: 1px solid var(--border);
     margin-bottom: 24px;
+  }
+
+  .terminal-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: rgba(0, 255, 65, 0.05);
+    border: 1px solid rgba(0, 255, 65, 0.2);
+    margin-bottom: 8px;
+  }
+
+  .terminal-icon {
+    font-size: 24px;
+  }
+
+  .terminal-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .terminal-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--accent);
+    font-family: var(--font-mono);
+  }
+
+  .terminal-shared {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
   }
 
   .info-row {

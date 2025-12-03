@@ -6,6 +6,7 @@ export interface CollabSession {
   id: string;
   shareCode: string;
   containerId: string;
+  containerName: string;
   mode: 'view' | 'control';
   role: 'owner' | 'editor' | 'viewer';
   expiresAt: string;
@@ -77,6 +78,7 @@ function createCollabStore() {
         id: data.session_id,
         shareCode: data.share_code,
         containerId,
+        containerName: data.container_name || containerId.slice(0, 12),
         mode,
         role: 'owner',
         expiresAt: data.expires_at,
@@ -112,6 +114,7 @@ function createCollabStore() {
         id: data.session_id,
         shareCode,
         containerId: data.container_id,
+        containerName: data.container_name || data.container_id.slice(0, 12),
         mode: data.mode,
         role: data.role,
         expiresAt: data.expires_at,
