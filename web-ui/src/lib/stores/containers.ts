@@ -459,50 +459,63 @@ function createContainersStore() {
               return;
             }
 
+            // Update progress based on container status (fallback when WebSocket isn't working)
+            if (!receivedWsProgress && status in stageConfig) {
+              const stageInfo = stageConfig[status];
+              update((state) => ({
+                ...state,
+                creating: state.creating
+                  ? {
+                    ...state.creating,
+                    progress: stageInfo.progress,
+                    message: stageInfo.message,
+                    stage: status,
+                  }
+                  : null,
+              }));
+              onProgress?.({
+                stage: status,
+                message: stageInfo.message,
+                progress: stageInfo.progress,
+              });
+            }
+
             if (status === "running") {
-              // Container is running - wait for WebSocket to confirm setup complete
-              // or use timeout fallback
-              const configTimeout = 60;
-              if (attempts > (maxAttempts - configTimeout)) {
-                // Fallback: if we've been waiting too long, complete anyway
-                console.log("[Containers] Environment setup timeout, completing anyway");
-                
-                if (typeof window !== 'undefined') {
-                  window.removeEventListener('container-progress', wsProgressHandler);
-                }
-                
-                const container: Container = {
-                  id: containerData.id || containerData.docker_id || containerId,
-                  db_id: containerData.db_id || containerId,
-                  user_id: containerData.user_id || "",
-                  name: containerData.name || name,
-                  image: containerData.image || image,
-                  status: "running",
-                  created_at: containerData.created_at || new Date().toISOString(),
-                  ip_address: containerData.ip_address,
-                  resources: containerData.resources,
-                };
-
-                update((state) => ({
-                  ...state,
-                  containers: [container, ...state.containers.filter(c => c.id !== container.id && c.db_id !== container.id)],
-                  creating: null,
-                }));
-
-                onProgress?.({
-                  stage: "ready",
-                  message: "Terminal ready!",
-                  progress: 100,
-                  complete: true,
-                  container_id: container.id,
-                });
-
-                onComplete?.(container);
-                return;
+              // Container is running - complete immediately
+              // Shell setup runs in background, user can connect right away
+              console.log("[Containers] Container running, completing immediately");
+              
+              if (typeof window !== 'undefined') {
+                window.removeEventListener('container-progress', wsProgressHandler);
               }
               
-              // Keep polling to check if creating state is cleared by WebSocket
-              setTimeout(pollStatus, pollInterval);
+              const container: Container = {
+                id: containerData.id || containerData.docker_id || containerId,
+                db_id: containerData.db_id || containerId,
+                user_id: containerData.user_id || "",
+                name: containerData.name || name,
+                image: containerData.image || image,
+                status: "running",
+                created_at: containerData.created_at || new Date().toISOString(),
+                ip_address: containerData.ip_address,
+                resources: containerData.resources,
+              };
+
+              update((state) => ({
+                ...state,
+                containers: [container, ...state.containers.filter(c => c.id !== container.id && c.db_id !== container.id)],
+                creating: null,
+              }));
+
+              onProgress?.({
+                stage: "ready",
+                message: "Terminal ready!",
+                progress: 100,
+                complete: true,
+                container_id: container.id,
+              });
+
+              onComplete?.(container);
               return;
             }
 
