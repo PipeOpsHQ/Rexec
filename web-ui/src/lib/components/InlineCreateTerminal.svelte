@@ -193,20 +193,15 @@
             progress = 0;
             progressMessage = "";
             progressStage = "";
-            logMessages = [];
-            prevStage = '';
         }
 
         function handleError(error: string) {
-            logMessages = [...logMessages, { text: `[ERROR] ${error}`, type: 'info' as const }];
             progressMessage = error || "Failed to create terminal";
             setTimeout(() => {
                 isCreating = false;
                 progress = 0;
                 progressMessage = "";
                 progressStage = "";
-                logMessages = [];
-                prevStage = '';
             }, 3000);
         }
 
