@@ -444,27 +444,52 @@
 
                 <div class="fullscreen-actions">
                     <button
-                        class="btn btn-secondary btn-sm"
-                        on:click={() => activeId && popOutTerminal(activeId, window.innerWidth / 2 - 300, window.innerHeight / 2 - 200)}
-                        title="Pop out to new window"
+                        class="btn btn-secondary btn-sm btn-icon share-btn"
+                        on:click={() => {
+                            if (activeId) {
+                                const session = $terminal.sessions.get(activeId);
+                                if (session) {
+                                    const url = `${window.location.origin}/terminal/${session.containerId}`;
+                                    navigator.clipboard.writeText(url);
+                                    toast.success("Terminal link copied!");
+                                }
+                            }
+                        }}
+                        title="Share Terminal"
                         disabled={!activeId}
                     >
-                        ↗
+                        <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
+                            <path d="M13.5 1a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM11 2.5a2.5 2.5 0 1 1 .603 1.628l-6.718 3.12a2.499 2.499 0 0 1 0 1.504l6.718 3.12a2.5 2.5 0 1 1-.488.876l-6.718-3.12a2.5 2.5 0 1 1 0-3.256l6.718-3.12A2.5 2.5 0 0 1 11 2.5zm-8.5 4a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm11 5.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/>
+                        </svg>
                     </button>
                     <button
-                        class="btn btn-secondary btn-sm"
+                        class="btn btn-secondary btn-sm btn-icon"
+                        on:click={() => activeId && popOutTerminal(activeId, window.innerWidth / 2 - 300, window.innerHeight / 2 - 200)}
+                        title="Float window"
+                        disabled={!activeId}
+                    >
+                        <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
+                            <path d="M5.5 0a.5.5 0 0 1 .5.5v4A1.5 1.5 0 0 1 4.5 6h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5zm5 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 10 4.5v-4a.5.5 0 0 1 .5-.5zM0 10.5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 6 11.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zm10 1a1.5 1.5 0 0 1 1.5-1.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4z"/>
+                        </svg>
+                    </button>
+                    <button
+                        class="btn btn-secondary btn-sm btn-icon"
                         on:click={toggleFullscreen}
                         title="Exit Fullscreen"
                     >
-                        ⛶
+                        <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
+                            <path d="M5.5 0a.5.5 0 0 1 .5.5v4A1.5 1.5 0 0 1 4.5 6h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5zm5 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 10 4.5v-4a.5.5 0 0 1 .5-.5zM0 10.5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 6 11.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zm10 1a1.5 1.5 0 0 1 1.5-1.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4z"/>
+                        </svg>
                     </button>
                     <button
-                        class="btn btn-danger btn-sm"
+                        class="btn btn-danger btn-sm btn-icon"
                         on:click={() => activeId && closeSession(activeId)}
-                        title="Close Current Terminal"
+                        title="Close Terminal"
                         disabled={!activeId}
                     >
-                        ×
+                        <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
+                            <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854Z"/>
+                        </svg>
                     </button>
                 </div>
             </div>
@@ -551,20 +576,60 @@
 
                     <div class="floating-actions">
                         <button 
-                            on:click={() => activeId && popOutTerminal(activeId, floatingPosition.x + 100, floatingPosition.y + 100)} 
-                            title="Pop out to new window"
+                            class="float-action-btn share-btn"
+                            on:click={() => {
+                                if (activeId) {
+                                    const session = $terminal.sessions.get(activeId);
+                                    if (session) {
+                                        const url = `${window.location.origin}/terminal/${session.containerId}`;
+                                        navigator.clipboard.writeText(url);
+                                        toast.success("Terminal link copied!");
+                                    }
+                                }
+                            }} 
+                            title="Share Terminal"
                             disabled={!activeId}
-                        >↗</button>
-                        <button on:click={toggleView} title="Dock window">⊡</button>
-                        <button on:click={minimize} title="Minimize">−</button>
-                        <button on:click={toggleFullscreen} title="Fullscreen">
-                            ⛶
+                        >
+                            <svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12">
+                                <path d="M13.5 1a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM11 2.5a2.5 2.5 0 1 1 .603 1.628l-6.718 3.12a2.499 2.499 0 0 1 0 1.504l6.718 3.12a2.5 2.5 0 1 1-.488.876l-6.718-3.12a2.5 2.5 0 1 1 0-3.256l6.718-3.12A2.5 2.5 0 0 1 11 2.5zm-8.5 4a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm11 5.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/>
+                            </svg>
+                        </button>
+                        <button 
+                            class="float-action-btn"
+                            on:click={() => activeId && popOutTerminal(activeId, floatingPosition.x + 100, floatingPosition.y + 100)} 
+                            title="Pop out"
+                            disabled={!activeId}
+                        >
+                            <svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12">
+                                <path d="M5.5 0a.5.5 0 0 1 .5.5v4A1.5 1.5 0 0 1 4.5 6h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5zm5 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 10 4.5v-4a.5.5 0 0 1 .5-.5zM0 10.5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 6 11.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zm10 1a1.5 1.5 0 0 1 1.5-1.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4z"/>
+                            </svg>
+                        </button>
+                        <button class="float-action-btn" on:click={toggleView} title="Dock window">
+                            <svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12">
+                                <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>
+                                <path d="M6 11.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z"/>
+                            </svg>
+                        </button>
+                        <button class="float-action-btn" on:click={minimize} title="Minimize">
+                            <svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12">
+                                <path d="M2 8a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 8Z"/>
+                            </svg>
+                        </button>
+                        <button class="float-action-btn" on:click={toggleFullscreen} title="Fullscreen">
+                            <svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12">
+                                <path d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1h-4zM10 .5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 16 1.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zM.5 10a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5v-4a.5.5 0 0 1 .5-.5zm15 0a.5.5 0 0 1 .5.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5z"/>
+                            </svg>
                         </button>
                         <button
+                            class="float-action-btn close-btn"
                             on:click={() => activeId && closeSession(activeId)}
-                            title="Close Current Terminal"
+                            title="Close Terminal"
                             disabled={!activeId}
-                        >×</button>
+                        >
+                            <svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12">
+                                <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854Z"/>
+                            </svg>
+                        </button>
                     </div>
                 </div>
 
@@ -698,41 +763,71 @@
 
                     <div class="docked-actions">
                         <button
-                            class="btn btn-secondary btn-sm"
-                            on:click={() => activeId && popOutTerminal(activeId, window.innerWidth / 2 - 300, window.innerHeight / 2 - 200)}
-                            title="Pop out to new window"
+                            class="btn btn-secondary btn-sm btn-icon share-btn"
+                            on:click={() => {
+                                if (activeId) {
+                                    const session = $terminal.sessions.get(activeId);
+                                    if (session) {
+                                        const url = `${window.location.origin}/terminal/${session.containerId}`;
+                                        navigator.clipboard.writeText(url);
+                                        toast.success("Terminal link copied!");
+                                    }
+                                }
+                            }}
+                            title="Share Terminal"
                             disabled={!activeId}
                         >
-                            ↗
+                            <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
+                                <path d="M13.5 1a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM11 2.5a2.5 2.5 0 1 1 .603 1.628l-6.718 3.12a2.499 2.499 0 0 1 0 1.504l6.718 3.12a2.5 2.5 0 1 1-.488.876l-6.718-3.12a2.5 2.5 0 1 1 0-3.256l6.718-3.12A2.5 2.5 0 0 1 11 2.5zm-8.5 4a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm11 5.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/>
+                            </svg>
                         </button>
                         <button
-                            class="btn btn-secondary btn-sm"
-                            on:click={toggleView}
+                            class="btn btn-secondary btn-sm btn-icon"
+                            on:click={() => activeId && popOutTerminal(activeId, window.innerWidth / 2 - 300, window.innerHeight / 2 - 200)}
                             title="Float window"
+                            disabled={!activeId}
                         >
-                            ⧉
+                            <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
+                                <path d="M5.5 0a.5.5 0 0 1 .5.5v4A1.5 1.5 0 0 1 4.5 6h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5zm5 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 10 4.5v-4a.5.5 0 0 1 .5-.5zM0 10.5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 6 11.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zm10 1a1.5 1.5 0 0 1 1.5-1.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4z"/>
+                            </svg>
                         </button>
                         <button
-                            class="btn btn-secondary btn-sm"
+                            class="btn btn-secondary btn-sm btn-icon"
+                            on:click={toggleView}
+                            title="Toggle dock/float"
+                        >
+                            <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
+                                <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>
+                                <path d="M6 11.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z"/>
+                            </svg>
+                        </button>
+                        <button
+                            class="btn btn-secondary btn-sm btn-icon"
                             on:click={minimize}
                             title="Minimize"
                         >
-                            −
+                            <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
+                                <path d="M2 8a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 8Z"/>
+                            </svg>
                         </button>
                         <button
-                            class="btn btn-secondary btn-sm"
+                            class="btn btn-secondary btn-sm btn-icon"
                             on:click={toggleFullscreen}
                             title="Fullscreen"
                         >
-                            ⛶
+                            <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
+                                <path d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1h-4zM10 .5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 16 1.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zM.5 10a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5v-4a.5.5 0 0 1 .5-.5zm15 0a.5.5 0 0 1 .5.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5z"/>
+                            </svg>
                         </button>
                         <button
-                            class="btn btn-danger btn-sm"
+                            class="btn btn-danger btn-sm btn-icon"
                             on:click={() => activeId && closeSession(activeId)}
-                            title="Close Current Terminal"
+                            title="Close Terminal"
                             disabled={!activeId}
                         >
-                            ×
+                            <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
+                                <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854Z"/>
+                            </svg>
                         </button>
                     </div>
                 </div>
@@ -915,8 +1010,12 @@
 
     .fullscreen-actions {
         display: flex;
-        gap: 8px;
+        gap: 4px;
         flex-shrink: 0;
+    }
+
+    .fullscreen-actions .btn-icon {
+        padding: 6px !important;
     }
 
     .fullscreen-body {
@@ -1029,23 +1128,40 @@
 
     .floating-actions {
         display: flex;
-        gap: 4px;
+        gap: 2px;
         align-items: center;
     }
 
-    .floating-actions button {
+    .floating-actions button,
+    .float-action-btn {
         background: none;
         border: none;
         color: var(--text-muted);
         cursor: pointer;
-        padding: 4px 8px;
+        padding: 4px 6px;
         font-size: 12px;
         font-family: var(--font-mono);
-        transition: color 0.15s ease;
+        transition: all 0.15s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 3px;
     }
 
-    .floating-actions button:hover {
+    .floating-actions button:hover,
+    .float-action-btn:hover {
         color: var(--text);
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .float-action-btn.share-btn:hover {
+        color: var(--accent);
+        background: rgba(0, 255, 65, 0.15);
+    }
+
+    .float-action-btn.close-btn:hover {
+        color: var(--red);
+        background: rgba(255, 0, 60, 0.15);
     }
 
     .floating-body {
@@ -1275,7 +1391,27 @@
 
     .docked-actions {
         display: flex;
-        gap: 8px;
+        gap: 4px;
+    }
+
+    /* Icon-only buttons for window controls */
+    .btn-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 6px !important;
+        min-width: 28px;
+        height: 28px;
+    }
+
+    .btn-icon svg {
+        flex-shrink: 0;
+    }
+
+    .btn-icon.share-btn:hover {
+        border-color: var(--accent) !important;
+        color: var(--accent) !important;
+        background: rgba(0, 255, 65, 0.1) !important;
     }
 
     .docked-body {

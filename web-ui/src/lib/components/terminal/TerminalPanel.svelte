@@ -14,6 +14,9 @@
     let showConnectedIndicator = false;
     let previousStatus = session?.status;
     
+    // More actions dropdown state
+    let showMoreMenu = false;
+    
     // Show connected indicator briefly when status changes to connected
     $: if (session?.status === 'connected' && previousStatus === 'connecting') {
         showConnectedIndicator = true;
@@ -263,171 +266,101 @@
                     on:click={handleReconnect}
                     title="Reconnect"
                 >
-                    <svg
-                        class="toolbar-icon"
-                        viewBox="0 0 16 16"
-                        fill="currentColor"
-                    >
-                        <path
-                            d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"
-                        />
-                        <path
-                            fill-rule="evenodd"
-                            d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"
-                        />
+                    <svg class="toolbar-icon" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/>
+                        <path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/>
                     </svg>
-                    <span class="btn-text">Reconnect</span>
                 </button>
             {/if}
-            <button
-                class="toolbar-btn"
-                on:click={handleCopyLink}
-                title="Copy Terminal Link"
-            >
-                <svg
-                    class="toolbar-icon"
-                    viewBox="0 0 16 16"
-                    fill="currentColor"
-                >
-                    <path
-                        d="M4.715 6.542 3.343 7.914a3 3 0 1 0 4.243 4.243l1.828-1.829A3 3 0 0 0 8.586 5.5L8 6.086a1.002 1.002 0 0 0-.154.199 2 2 0 0 1 .861 3.337L6.88 11.45a2 2 0 1 1-2.83-2.83l.793-.792a4.018 4.018 0 0 1-.128-1.287z"
-                    />
-                    <path
-                        d="M6.586 4.672A3 3 0 0 0 7.414 9.5l.775-.776a2 2 0 0 1-.896-3.346L9.12 3.55a2 2 0 1 1 2.83 2.83l-.793.792c.112.42.155.855.128 1.287l1.372-1.372a3 3 0 1 0-4.243-4.243L6.586 4.672z"
-                    />
-                </svg>
-                <span class="btn-text">Link</span>
-            </button>
-            <button
-                class="toolbar-btn"
-                on:click={handleCopy}
-                title="Copy Selection"
-            >
-                <svg
-                    class="toolbar-icon"
-                    viewBox="0 0 16 16"
-                    fill="currentColor"
-                >
-                    <path
-                        d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"
-                    />
-                    <path
-                        d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"
-                    />
-                </svg>
-                <span class="btn-text">Copy</span>
-            </button>
-            <button class="toolbar-btn" on:click={handlePaste} title="Paste">
-                <svg
-                    class="toolbar-icon"
-                    viewBox="0 0 16 16"
-                    fill="currentColor"
-                >
-                    <path
-                        d="M3.5 2a.5.5 0 0 0-.5.5v12a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-12a.5.5 0 0 0-.5-.5H12a.5.5 0 0 1 0-1h.5A1.5 1.5 0 0 1 14 2.5v12a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 14.5v-12A1.5 1.5 0 0 1 3.5 1H4a.5.5 0 0 1 0 1h-.5z"
-                    />
-                    <path
-                        d="M10 .5a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5.5.5 0 0 1-.5.5.5.5 0 0 0-.5.5V2a.5.5 0 0 0 .5.5h5A.5.5 0 0 0 11 2v-.5a.5.5 0 0 0-.5-.5.5.5 0 0 1-.5-.5z"
-                    />
-                </svg>
-                <span class="btn-text">Paste</span>
-            </button>
-            <button
-                class="toolbar-btn"
-                on:click={handleClear}
-                title="Clear Terminal"
-            >
-                <svg
-                    class="toolbar-icon"
-                    viewBox="0 0 16 16"
-                    fill="currentColor"
-                >
-                    <path
-                        d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"
-                    />
-                    <path
-                        fill-rule="evenodd"
-                        d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"
-                    />
-                </svg>
-                <span class="btn-text">Clear</span>
-            </button>
-            <span class="toolbar-divider"></span>
-            <!-- Split Terminal Buttons -->
-            <button
-                class="toolbar-btn split-btn"
-                on:click={handleSplitHorizontal}
-                title="Split Horizontal (same terminal, new view)"
-            >
+            
+            <!-- Primary Actions (Icons Only) -->
+            <button class="toolbar-btn icon-btn" on:click={handleSplitHorizontal} title="Split Horizontal">
                 <svg class="toolbar-icon" viewBox="0 0 16 16" fill="currentColor">
                     <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>
-                    <path d="M8 1v14"/>
                     <line x1="8" y1="1" x2="8" y2="15" stroke="currentColor" stroke-width="1"/>
                 </svg>
-                <span class="btn-text">Split H</span>
             </button>
-            <button
-                class="toolbar-btn split-btn"
-                on:click={handleSplitVertical}
-                title="Split Vertical (same terminal, new view)"
-            >
+            <button class="toolbar-btn icon-btn" on:click={handleSplitVertical} title="Split Vertical">
                 <svg class="toolbar-icon" viewBox="0 0 16 16" fill="currentColor">
                     <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>
                     <line x1="1" y1="8" x2="15" y2="8" stroke="currentColor" stroke-width="1"/>
                 </svg>
-                <span class="btn-text">Split V</span>
             </button>
+            
             <span class="toolbar-divider"></span>
-            <!-- Recording Button -->
+            
+            <!-- Recording -->
             <button
-                class="toolbar-btn"
+                class="toolbar-btn icon-btn"
                 class:recording={isRecording}
                 on:click={handleRecording}
                 title={isRecording ? "Stop Recording" : "Start Recording"}
             >
-                <svg
-                    class="toolbar-icon"
-                    viewBox="0 0 16 16"
-                    fill="currentColor"
-                >
+                <svg class="toolbar-icon" viewBox="0 0 16 16" fill="currentColor">
                     {#if isRecording}
                         <rect x="4" y="4" width="8" height="8" rx="1"/>
                     {:else}
                         <circle cx="8" cy="8" r="5"/>
                     {/if}
                 </svg>
-                <span class="btn-text">{isRecording ? 'Stop' : 'Rec'}</span>
             </button>
-            <!-- Recordings Library Button -->
-            <button
-                class="toolbar-btn"
-                on:click={handleRecordingsPanel}
-                title="View Recordings"
-            >
-                <svg
-                    class="toolbar-icon"
-                    viewBox="0 0 16 16"
-                    fill="currentColor"
-                >
-                    <path d="M0 1a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H1a1 1 0 0 1-1-1V1zm4 0v6h8V1H4zm8 8H4v6h8V9zM1 1v2h2V1H1zm2 3H1v2h2V4zM1 7v2h2V7H1zm2 3H1v2h2v-2zm-2 3v2h2v-2H1zM15 1h-2v2h2V1zm-2 3v2h2V4h-2zm2 3h-2v2h2V7zm-2 3v2h2v-2h-2zm2 3h-2v2h2v-2z"/>
+            
+            <!-- Share -->
+            <button class="toolbar-btn icon-btn share-btn" on:click={handleCollab} title="Share & Collaborate">
+                <svg class="toolbar-icon" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M13.5 1a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM11 2.5a2.5 2.5 0 1 1 .603 1.628l-6.718 3.12a2.499 2.499 0 0 1 0 1.504l6.718 3.12a2.5 2.5 0 1 1-.488.876l-6.718-3.12a2.5 2.5 0 1 1 0-3.256l6.718-3.12A2.5 2.5 0 0 1 11 2.5zm-8.5 4a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm11 5.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/>
                 </svg>
-                <span class="btn-text">Recs</span>
             </button>
-            <!-- Collaborate Button -->
-            <button
-                class="toolbar-btn collab-btn"
-                on:click={handleCollab}
-                title="Share & Collaborate"
-            >
-                <svg
-                    class="toolbar-icon"
-                    viewBox="0 0 16 16"
-                    fill="currentColor"
-                >
-                    <path d="M15 14s1 0 1-1-1-4-5-4-5 3-5 4 1 1 1 1h8zm-7.978-1A.261.261 0 0 1 7 12.996c.001-.264.167-1.03.76-1.72C8.312 10.629 9.282 10 11 10c1.717 0 2.687.63 3.24 1.276.593.69.758 1.457.76 1.72l-.008.002a.274.274 0 0 1-.014.002H7.022zM11 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm3-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM6.936 9.28a5.88 5.88 0 0 0-1.23-.247A7.35 7.35 0 0 0 5 9c-4 0-5 3-5 4 0 .667.333 1 1 1h4.216A2.238 2.238 0 0 1 5 13c0-1.01.377-2.042 1.09-2.904.243-.294.526-.569.846-.816zM4.92 10A5.493 5.493 0 0 0 4 13H1c0-.26.164-1.03.76-1.724.545-.636 1.492-1.256 3.16-1.275zM1.5 5.5a3 3 0 1 1 6 0 3 3 0 0 1-6 0zm3-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/>
-                </svg>
-                <span class="btn-text">Share</span>
-            </button>
+            
+            <span class="toolbar-divider"></span>
+            
+            <!-- More Actions Dropdown -->
+            <div class="more-dropdown">
+                <button class="toolbar-btn icon-btn more-btn" on:click={() => showMoreMenu = !showMoreMenu} title="More actions">
+                    <svg class="toolbar-icon" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M3 9.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/>
+                    </svg>
+                </button>
+                {#if showMoreMenu}
+                    <div class="more-menu" on:mouseleave={() => showMoreMenu = false}>
+                        <button class="menu-item" on:click={() => { handleCopyLink(); showMoreMenu = false; }}>
+                            <svg class="menu-icon" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M4.715 6.542 3.343 7.914a3 3 0 1 0 4.243 4.243l1.828-1.829A3 3 0 0 0 8.586 5.5L8 6.086a1.002 1.002 0 0 0-.154.199 2 2 0 0 1 .861 3.337L6.88 11.45a2 2 0 1 1-2.83-2.83l.793-.792a4.018 4.018 0 0 1-.128-1.287z"/>
+                                <path d="M6.586 4.672A3 3 0 0 0 7.414 9.5l.775-.776a2 2 0 0 1-.896-3.346L9.12 3.55a2 2 0 1 1 2.83 2.83l-.793.792c.112.42.155.855.128 1.287l1.372-1.372a3 3 0 1 0-4.243-4.243L6.586 4.672z"/>
+                            </svg>
+                            Copy Link
+                        </button>
+                        <button class="menu-item" on:click={() => { handleCopy(); showMoreMenu = false; }}>
+                            <svg class="menu-icon" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/>
+                                <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/>
+                            </svg>
+                            Copy Selection
+                        </button>
+                        <button class="menu-item" on:click={() => { handlePaste(); showMoreMenu = false; }}>
+                            <svg class="menu-icon" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M3.5 2a.5.5 0 0 0-.5.5v12a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-12a.5.5 0 0 0-.5-.5H12a.5.5 0 0 1 0-1h.5A1.5 1.5 0 0 1 14 2.5v12a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 14.5v-12A1.5 1.5 0 0 1 3.5 1H4a.5.5 0 0 1 0 1h-.5z"/>
+                                <path d="M10 .5a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5.5.5 0 0 1-.5.5.5.5 0 0 0-.5.5V2a.5.5 0 0 0 .5.5h5A.5.5 0 0 0 11 2v-.5a.5.5 0 0 0-.5-.5.5.5 0 0 1-.5-.5z"/>
+                            </svg>
+                            Paste
+                        </button>
+                        <button class="menu-item" on:click={() => { handleClear(); showMoreMenu = false; }}>
+                            <svg class="menu-icon" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+                                <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+                            </svg>
+                            Clear Terminal
+                        </button>
+                        <div class="menu-divider"></div>
+                        <button class="menu-item" on:click={() => { handleRecordingsPanel(); showMoreMenu = false; }}>
+                            <svg class="menu-icon" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M0 1a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H1a1 1 0 0 1-1-1V1zm4 0v6h8V1H4zm8 8H4v6h8V9zM1 1v2h2V1H1zm2 3H1v2h2V4zM1 7v2h2V7H1zm2 3H1v2h2v-2zm-2 3v2h2v-2H1zM15 1h-2v2h2V1zm-2 3v2h2V4h-2zm2 3h-2v2h2V7zm-2 3v2h2v-2h-2zm2 3h-2v2h2v-2z"/>
+                            </svg>
+                            View Recordings
+                        </button>
+                    </div>
+                {/if}
+            </div>
         </div>
     </div>
 
@@ -797,6 +730,103 @@
         color: var(--cyan, #00d9ff);
         border-color: var(--cyan, #00d9ff);
         background: rgba(0, 217, 255, 0.1);
+    }
+
+    /* Icon-only buttons */
+    .toolbar-btn.icon-btn {
+        padding: 6px;
+        min-width: 28px;
+        justify-content: center;
+    }
+
+    .toolbar-btn.icon-btn .toolbar-icon {
+        width: 14px;
+        height: 14px;
+    }
+
+    .toolbar-btn.icon-btn:hover {
+        background: var(--bg-tertiary);
+        border-color: var(--border);
+        color: var(--text);
+    }
+
+    /* Share button highlight */
+    .toolbar-btn.share-btn:hover {
+        color: var(--accent);
+        border-color: var(--accent);
+        background: rgba(0, 255, 65, 0.1);
+    }
+
+    /* More dropdown */
+    .more-dropdown {
+        position: relative;
+    }
+
+    .more-btn:hover {
+        color: var(--text);
+    }
+
+    .more-menu {
+        position: absolute;
+        top: calc(100% + 4px);
+        right: 0;
+        min-width: 160px;
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+        z-index: 100;
+        overflow: hidden;
+        animation: menuFadeIn 0.15s ease;
+    }
+
+    @keyframes menuFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-4px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .menu-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 10px 14px;
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        font-size: 12px;
+        font-family: var(--font-mono);
+        cursor: pointer;
+        text-align: left;
+        transition: all 0.15s;
+    }
+
+    .menu-item:hover {
+        background: var(--bg-tertiary);
+        color: var(--text);
+    }
+
+    .menu-icon {
+        width: 14px;
+        height: 14px;
+        flex-shrink: 0;
+        opacity: 0.7;
+    }
+
+    .menu-item:hover .menu-icon {
+        opacity: 1;
+    }
+
+    .menu-divider {
+        height: 1px;
+        background: var(--border);
+        margin: 4px 0;
     }
 
     /* Split Container */
