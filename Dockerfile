@@ -90,7 +90,8 @@ RUN adduser -D -g '' -u 1000 rexec
 RUN mkdir -p /var/lib/rexec/volumes && \
     mkdir -p /home/rexec/.docker && \
     mkdir -p /home/rexec/.ssh && \
-    chown -R rexec:rexec /var/lib/rexec /home/rexec
+    mkdir -p /app/recordings && \
+    chown -R rexec:rexec /var/lib/rexec /home/rexec /app/recordings
 
 # Set working directory
 WORKDIR /app

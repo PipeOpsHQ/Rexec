@@ -74,7 +74,12 @@ function createRecordingStore() {
 
   async function startRecording(containerId: string, title?: string): Promise<string | null> {
     const token = get(auth).token;
-    if (!token) return null;
+    if (!token) {
+      console.error('[Recording] No auth token');
+      return null;
+    }
+
+    console.log('[Recording] Starting recording for container:', containerId);
 
     try {
       const res = await fetch(`${API_BASE}/api/recordings/start`, {
@@ -87,7 +92,8 @@ function createRecordingStore() {
       });
 
       if (!res.ok) {
-        const error = await res.json();
+        const error = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        console.error('[Recording] Start failed:', error);
         throw new Error(error.error || 'Failed to start recording');
       }
 
@@ -114,7 +120,12 @@ function createRecordingStore() {
 
   async function stopRecording(containerId: string): Promise<Recording | null> {
     const token = get(auth).token;
-    if (!token) return null;
+    if (!token) {
+      console.error('[Recording] No auth token');
+      return null;
+    }
+
+    console.log('[Recording] Stopping recording for container:', containerId);
 
     try {
       const res = await fetch(`${API_BASE}/api/recordings/stop/${containerId}`, {
@@ -123,7 +134,8 @@ function createRecordingStore() {
       });
 
       if (!res.ok) {
-        const error = await res.json();
+        const error = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        console.error('[Recording] Stop failed:', error);
         throw new Error(error.error || 'Failed to stop recording');
       }
 

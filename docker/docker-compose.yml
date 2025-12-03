@@ -24,6 +24,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+    volumes:
+      - recordings-data:/app/recordings
     restart: unless-stopped
     networks:
       - rexec-network
@@ -64,6 +66,7 @@ services:
 volumes:
   redis-data:
   postgres-data:
+  recordings-data:
 
 networks:
   rexec-network:
