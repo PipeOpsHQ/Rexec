@@ -390,15 +390,13 @@ function createTerminalStore() {
           }),
         );
 
-        // Clear terminal and write banner after a short delay to ensure proper sizing
-        setTimeout(() => {
-          session.terminal.clear();
-          session.terminal.write(REXEC_BANNER);
-          session.terminal.writeln("\x1b[32m⚡ Connected\x1b[0m");
-          session.terminal.writeln(
-            "\x1b[38;5;243m  Type 'help' for tips & shortcuts\x1b[0m\r\n",
-          );
-        }, 100);
+        // Clear terminal and write banner immediately
+        session.terminal.clear();
+        session.terminal.write(REXEC_BANNER);
+        session.terminal.writeln("\x1b[32m⚡ Connected\x1b[0m");
+        session.terminal.writeln(
+          "\x1b[38;5;243m  Type 'help' for tips & shortcuts\x1b[0m\r\n",
+        );
 
         // Send resize again after fit
         // Setup ping interval
@@ -870,10 +868,8 @@ function createTerminalStore() {
         updateSession(sessionId, (s) => ({ ...s, resizeObserver }));
       }
 
-      // Multiple fit attempts to ensure proper sizing
-      setTimeout(() => this.fitSession(sessionId), 50);
-      setTimeout(() => this.fitSession(sessionId), 150);
-      setTimeout(() => this.fitSession(sessionId), 300);
+      // Single fit call - ResizeObserver handles subsequent fits
+      requestAnimationFrame(() => this.fitSession(sessionId));
     },
 
     // Re-attach terminal to a new DOM element (for dock/float switching)
@@ -915,14 +911,11 @@ function createTerminalStore() {
         updateSession(sessionId, (s) => ({ ...s, resizeObserver }));
       }
 
-      // Multiple fit attempts to ensure proper sizing after view mode switch
-      setTimeout(() => {
+      // Single fit call after reattachment - ResizeObserver handles the rest
+      requestAnimationFrame(() => {
         this.fitSession(sessionId);
         session.terminal.focus();
-      }, 50);
-      setTimeout(() => this.fitSession(sessionId), 150);
-      setTimeout(() => this.fitSession(sessionId), 300);
-      setTimeout(() => this.fitSession(sessionId), 500);
+      });
     },
 
     // Write to terminal
@@ -999,7 +992,7 @@ function createTerminalStore() {
       }
 
       // Fit the terminal after detaching
-      setTimeout(() => this.fitSession(sessionId), 100);
+      requestAnimationFrame(() => this.fitSession(sessionId));
     },
 
     // Bring a detached window to front
@@ -1038,7 +1031,7 @@ function createTerminalStore() {
       }));
 
       // Fit the terminal after attaching
-      setTimeout(() => this.fitSession(sessionId), 100);
+      requestAnimationFrame(() => this.fitSession(sessionId));
     },
 
     // Update detached window position

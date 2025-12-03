@@ -304,8 +304,25 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 	cfg.CPULimit = limits.CPUShares                 // Already in millicores (500 = 0.5 CPU)
 	cfg.DiskQuota = limits.DiskMB * 1024 * 1024     // Convert MB to bytes
 
+	// Determine shell configuration - use request or defaults based on role
+	shellCfg := container.DefaultShellSetupConfig()
+	if req.Shell != nil {
+		shellCfg = container.ShellSetupConfig{
+			Enhanced:        req.Shell.Enhanced,
+			Theme:           req.Shell.Theme,
+			Autosuggestions: req.Shell.Autosuggestions,
+			SyntaxHighlight: req.Shell.SyntaxHighlight,
+			HistorySearch:   req.Shell.HistorySearch,
+			GitAliases:      req.Shell.GitAliases,
+			SystemStats:     req.Shell.SystemStats,
+		}
+	} else if req.Role == "standard" {
+		// "The Minimalist" role - no enhanced shell
+		shellCfg = container.ShellSetupConfig{Enhanced: false}
+	}
+
 	// Start async container creation (pull image + create container)
-	go h.createContainerAsync(record.ID, cfg, req.Image, req.CustomImage, req.Role, isGuest || tier == "guest")
+	go h.createContainerAsync(record.ID, cfg, req.Image, req.CustomImage, req.Role, shellCfg, isGuest || tier == "guest")
 
 	// Return immediately with "creating" status
 	response := gin.H{
@@ -343,7 +360,7 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 }
 
 // createContainerAsync handles the actual container creation in the background
-func (h *ContainerHandler) createContainerAsync(recordID string, cfg container.ContainerConfig, imageType string, customImage string, role string, isGuest bool) {
+func (h *ContainerHandler) createContainerAsync(recordID string, cfg container.ContainerConfig, imageType string, customImage string, role string, shellCfg container.ShellSetupConfig, isGuest bool) {
 	ctx := context.Background()
 	userID := cfg.UserID
 
@@ -427,39 +444,6 @@ func (h *ContainerHandler) createContainerAsync(recordID string, cfg container.C
 	h.store.UpdateContainerDockerID(ctx, recordID, info.ID)
 	h.store.UpdateContainerStatus(ctx, recordID, info.Status)
 
-	// Send configuring progress - now we actually wait for environment setup
-	sendProgress("configuring", "Setting up enhanced shell environment...", 65)
-
-	// Run shell setup (zsh + oh-my-zsh)
-	shellResult, shellErr := container.SetupEnhancedShell(ctx, h.manager.GetClient(), info.ID)
-	if shellErr != nil {
-		log.Printf("[Container] Shell setup error for %s: %v", info.ID[:12], shellErr)
-		sendProgress("configuring", "Shell setup skipped (will use default shell)", 75)
-	} else if !shellResult.Success {
-		log.Printf("[Container] Shell setup incomplete for %s: %s", info.ID[:12], shellResult.Message)
-		sendProgress("configuring", "Shell setup incomplete (will use default shell)", 75)
-	} else {
-		log.Printf("[Container] Shell setup complete for %s", info.ID[:12])
-		sendProgress("configuring", "Enhanced shell configured", 80)
-	}
-
-	// Setup role if specified
-	if role != "" && role != "standard" {
-		sendProgress("configuring", fmt.Sprintf("Setting up %s environment...", role), 85)
-		
-		roleResult, roleErr := container.SetupRole(ctx, h.manager.GetClient(), info.ID, role)
-		if roleErr != nil {
-			log.Printf("[Container] Role setup error for %s (%s): %v", info.ID[:12], role, roleErr)
-			sendProgress("configuring", fmt.Sprintf("Role %s setup skipped", role), 90)
-		} else if !roleResult.Success {
-			log.Printf("[Container] Role setup incomplete for %s (%s): %s", info.ID[:12], role, roleResult.Message)
-			sendProgress("configuring", fmt.Sprintf("Role %s setup incomplete", role), 90)
-		} else {
-			log.Printf("[Container] Role setup complete for %s (%s)", info.ID[:12], role)
-			sendProgress("configuring", fmt.Sprintf("Role %s configured", role), 95)
-		}
-	}
-
 	// Determine the image name for response
 	imageName := imageType
 	if imageType == "custom" {
@@ -477,9 +461,12 @@ func (h *ContainerHandler) createContainerAsync(recordID string, cfg container.C
 		diskMB = record.DiskMB
 	}
 
+	// Mark container as ready IMMEDIATELY - user can connect now
+	// Shell setup runs in background and will be ready when they connect
+	sendProgress("ready", "Terminal ready!", 100)
+
 	// Notify via WebSocket that container is ready
 	if h.eventsHub != nil {
-		// Send ready progress with container data
 		h.eventsHub.NotifyContainerProgress(userID, gin.H{
 			"id":           recordID,
 			"stage":        "ready",
@@ -520,6 +507,39 @@ func (h *ContainerHandler) createContainerAsync(recordID string, cfg container.C
 			},
 		})
 	}
+
+	// Run shell and role setup in background AFTER container is ready
+	// This allows user to connect immediately with default shell
+	// Enhanced shell will be available after setup completes
+	go func() {
+		bgCtx := context.Background()
+		
+		// Run shell setup with config (zsh + oh-my-zsh if enhanced)
+		if shellCfg.Enhanced {
+			log.Printf("[Container] Starting background shell setup for %s", info.ID[:12])
+			shellResult, shellErr := container.SetupShellWithConfig(bgCtx, h.manager.GetClient(), info.ID, shellCfg)
+			if shellErr != nil {
+				log.Printf("[Container] Shell setup error for %s: %v", info.ID[:12], shellErr)
+			} else if !shellResult.Success {
+				log.Printf("[Container] Shell setup incomplete for %s: %s", info.ID[:12], shellResult.Message)
+			} else {
+				log.Printf("[Container] Shell setup complete for %s", info.ID[:12])
+			}
+		}
+
+		// Setup role if specified
+		if role != "" && role != "standard" {
+			log.Printf("[Container] Starting background role setup for %s (%s)", info.ID[:12], role)
+			roleResult, roleErr := container.SetupRole(bgCtx, h.manager.GetClient(), info.ID, role)
+			if roleErr != nil {
+				log.Printf("[Container] Role setup error for %s (%s): %v", info.ID[:12], role, roleErr)
+			} else if !roleResult.Success {
+				log.Printf("[Container] Role setup incomplete for %s (%s): %s", info.ID[:12], role, roleResult.Message)
+			} else {
+				log.Printf("[Container] Role setup complete for %s (%s)", info.ID[:12], role)
+			}
+		}
+	}()
 }
 
 // Get returns a specific container
@@ -1360,16 +1380,42 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 		Progress: 90,
 	})
 
-	// Stage 5: Configuring shell (install oh-my-zsh)
-	sendEvent(container.ProgressEvent{
-		Stage:    "configuring",
-		Message:  "Setting up enhanced shell environment...",
-		Progress: 92,
-		Detail:   "Installing zsh and oh-my-zsh",
-	})
+	// Determine shell configuration - use request or defaults based on role
+	shellCfg := container.DefaultShellSetupConfig()
+	if req.Shell != nil {
+		shellCfg = container.ShellSetupConfig{
+			Enhanced:        req.Shell.Enhanced,
+			Theme:           req.Shell.Theme,
+			Autosuggestions: req.Shell.Autosuggestions,
+			SyntaxHighlight: req.Shell.SyntaxHighlight,
+			HistorySearch:   req.Shell.HistorySearch,
+			GitAliases:      req.Shell.GitAliases,
+			SystemStats:     req.Shell.SystemStats,
+		}
+	} else if req.Role == "standard" {
+		// "The Minimalist" role - no enhanced shell
+		shellCfg = container.ShellSetupConfig{Enhanced: false}
+	}
 
-	// Run shell setup in background - don't block container creation if it fails
-	shellResult, shellErr := container.SetupEnhancedShell(ctx, h.manager.GetClient(), info.ID)
+	// Stage 5: Configuring shell (install oh-my-zsh if enhanced)
+	if shellCfg.Enhanced {
+		sendEvent(container.ProgressEvent{
+			Stage:    "configuring",
+			Message:  "Setting up enhanced shell environment...",
+			Progress: 92,
+			Detail:   "Installing zsh and oh-my-zsh",
+		})
+	} else {
+		sendEvent(container.ProgressEvent{
+			Stage:    "configuring",
+			Message:  "Configuring minimal shell...",
+			Progress: 92,
+			Detail:   "Skipping enhanced shell features",
+		})
+	}
+
+	// Run shell setup with config - don't block container creation if it fails
+	shellResult, shellErr := container.SetupShellWithConfig(ctx, h.manager.GetClient(), info.ID, shellCfg)
 	if shellErr != nil {
 		// Log error but continue - shell setup is optional
 		sendEvent(container.ProgressEvent{
@@ -1386,12 +1432,21 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 			Detail:   shellResult.Message,
 		})
 	} else {
-		sendEvent(container.ProgressEvent{
-			Stage:    "configuring",
-			Message:  "Enhanced shell configured successfully",
-			Progress: 95,
-			Detail:   "zsh with oh-my-zsh ready",
-		})
+		if shellCfg.Enhanced {
+			sendEvent(container.ProgressEvent{
+				Stage:    "configuring",
+				Message:  "Enhanced shell configured successfully",
+				Progress: 95,
+				Detail:   "zsh with oh-my-zsh ready",
+			})
+		} else {
+			sendEvent(container.ProgressEvent{
+				Stage:    "configuring",
+				Message:  "Shell ready",
+				Progress: 95,
+				Detail:   "Minimal shell mode",
+			})
+		}
 	}
 
 	// Stage 6: Setup Role (if specified)

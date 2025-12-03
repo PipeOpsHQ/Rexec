@@ -563,18 +563,22 @@ func (h *TerminalHandler) isZshSetup(ctx context.Context, containerID string) bo
 	}
 	attachResp.Close()
 
-	// Wait a bit for the command to complete
-	time.Sleep(100 * time.Millisecond)
-
-	inspect, err := client.ContainerExecInspect(ctx, execResp.ID)
-	if err != nil {
-		log.Printf("[Terminal] isZshSetup: exec inspect failed for %s: %v", containerID[:12], err)
-		return false
+	// Poll exec status instead of fixed sleep - much faster for quick commands
+	for i := 0; i < 20; i++ { // Max 200ms total
+		inspect, err := client.ContainerExecInspect(ctx, execResp.ID)
+		if err != nil {
+			log.Printf("[Terminal] isZshSetup: exec inspect failed for %s: %v", containerID[:12], err)
+			return false
+		}
+		if !inspect.Running {
+			isSetup := inspect.ExitCode == 0
+			log.Printf("[Terminal] isZshSetup: container %s = %v (exit code: %d, poll: %d)", containerID[:12], isSetup, inspect.ExitCode, i)
+			return isSetup
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
-
-	isSetup := inspect.ExitCode == 0
-	log.Printf("[Terminal] isZshSetup: container %s = %v (exit code: %d)", containerID[:12], isSetup, inspect.ExitCode)
-	return isSetup
+	log.Printf("[Terminal] isZshSetup: timeout waiting for exec in %s", containerID[:12])
+	return false
 }
 
 // shellExists checks if a shell exists and is executable
@@ -603,18 +607,22 @@ func (h *TerminalHandler) shellExists(ctx context.Context, containerID, shell st
 	}
 	attachResp.Close()
 
-	// Wait a bit for the command to complete
-	time.Sleep(100 * time.Millisecond)
-
-	inspect, err := client.ContainerExecInspect(ctx, execResp.ID)
-	if err != nil {
-		log.Printf("[Terminal] shellExists: exec inspect failed for %s in %s: %v", shell, containerID[:12], err)
-		return false
+	// Poll exec status instead of fixed sleep - much faster for quick commands
+	for i := 0; i < 20; i++ { // Max 200ms total
+		inspect, err := client.ContainerExecInspect(ctx, execResp.ID)
+		if err != nil {
+			log.Printf("[Terminal] shellExists: exec inspect failed for %s in %s: %v", shell, containerID[:12], err)
+			return false
+		}
+		if !inspect.Running {
+			exists := inspect.ExitCode == 0
+			log.Printf("[Terminal] shellExists: %s in %s = %v (exit code: %d, poll: %d)", shell, containerID[:12], exists, inspect.ExitCode, i)
+			return exists
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
-
-	exists := inspect.ExitCode == 0
-	log.Printf("[Terminal] shellExists: %s in %s = %v (exit code: %d)", shell, containerID[:12], exists, inspect.ExitCode)
-	return exists
+	log.Printf("[Terminal] shellExists: timeout waiting for exec in %s", containerID[:12])
+	return false
 }
 
 // SendMessage sends a message to the WebSocket client

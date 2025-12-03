@@ -99,12 +99,51 @@ func TierLimits(tier string) ResourceLimits {
 	}
 }
 
+// ShellConfig defines shell customization options
+type ShellConfig struct {
+	Enhanced        bool `json:"enhanced"`          // Install oh-my-zsh + plugins (default: true)
+	Theme           string `json:"theme,omitempty"` // zsh theme: "rexec" (default), "minimal", "powerlevel10k"
+	Autosuggestions bool `json:"autosuggestions"`   // Enable zsh-autosuggestions (default: true)
+	SyntaxHighlight bool `json:"syntax_highlight"`  // Enable zsh-syntax-highlighting (default: true)
+	HistorySearch   bool `json:"history_search"`    // Enable history-substring-search (default: true)
+	GitAliases      bool `json:"git_aliases"`       // Enable git shortcuts (default: true)
+	SystemStats     bool `json:"system_stats"`      // Show system stats on login (default: true)
+}
+
+// DefaultShellConfig returns the default shell configuration
+func DefaultShellConfig() ShellConfig {
+	return ShellConfig{
+		Enhanced:        true,
+		Theme:           "rexec",
+		Autosuggestions: true,
+		SyntaxHighlight: true,
+		HistorySearch:   true,
+		GitAliases:      true,
+		SystemStats:     true,
+	}
+}
+
+// MinimalShellConfig returns a minimal shell configuration (for "use Arch btw" users)
+func MinimalShellConfig() ShellConfig {
+	return ShellConfig{
+		Enhanced:        false,
+		Theme:           "",
+		Autosuggestions: false,
+		SyntaxHighlight: false,
+		HistorySearch:   false,
+		GitAliases:      false,
+		SystemStats:     false,
+	}
+}
+
 // CreateContainerRequest represents a request to create a new container
 type CreateContainerRequest struct {
 	Name        string `json:"name"`                     // Optional - auto-generated if empty
 	Image       string `json:"image" binding:"required"` // Image type (ubuntu, debian, etc.) or "custom"
 	CustomImage string `json:"custom_image,omitempty"`   // Required when Image is "custom"
 	Role        string `json:"role,omitempty"`           // Optional role (node, python, etc.)
+	// Shell customization
+	Shell *ShellConfig `json:"shell,omitempty"` // Optional shell config (defaults to enhanced)
 	// Trial resource customization (within limits)
 	MemoryMB  int64 `json:"memory_mb,omitempty"`  // Optional: custom memory (256-1024 MB for trial)
 	CPUShares int64 `json:"cpu_shares,omitempty"` // Optional: custom CPU shares (256-1024 for trial)
