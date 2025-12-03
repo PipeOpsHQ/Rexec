@@ -48,8 +48,8 @@
         </h1>
 
         <p class="description">
-            Launch isolated containers with full shell access. No setup
-            required. Choose from Ubuntu, Debian, Alpine, Fedora, and more.
+            Create your first terminal to access a cloud environment, GPU workspace, 
+            or connect to remote resources. No setup required.
         </p>
 
         <div class="landing-actions">
@@ -101,12 +101,12 @@
             <div class="feature">
                 <span class="feature-icon">⚡</span>
                 <h3>Instant</h3>
-                <p>Containers launch in seconds with pre-configured shells</p>
+                <p>Rexec terminals launch in seconds with pre-configured shells</p>
             </div>
             <div class="feature">
                 <span class="feature-icon">🔒</span>
                 <h3>Isolated</h3>
-                <p>Each container is fully isolated with its own filesystem</p>
+                <p>Each terminal is fully isolated with its own filesystem</p>
             </div>
             <div class="feature">
                 <span class="feature-icon">🌐</span>

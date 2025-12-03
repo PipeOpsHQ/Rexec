@@ -50,7 +50,7 @@
     const progressSteps = [
         { id: "validating", label: "Validating", icon: "✓" },
         { id: "pulling", label: "Pulling Image", icon: "📦" },
-        { id: "creating", label: "Creating Container", icon: "🔧" },
+        { id: "creating", label: "Creating Terminal", icon: "🔧" },
         { id: "starting", label: "Starting", icon: "🚀" },
         { id: "configuring", label: "Configuring", icon: "⚙️" },
         { id: "ready", label: "Ready", icon: "✨" },

@@ -22,7 +22,7 @@
 
     // Session type icons and labels
     const sessionTypeInfo: Record<string, { icon: string; label: string; color: string }> = {
-        container: { icon: "🐳", label: "Container", color: "#00d4ff" },
+        container: { icon: "🐳", label: "Terminal", color: "#00d4ff" },
         gpu: { icon: "⚡", label: "GPU Session", color: "#ff6b6b" },
         ssh: { icon: "🔐", label: "SSH Target", color: "#ffd93d" },
         custom: { icon: "🔧", label: "Custom", color: "#a29bfe" },

@@ -81,7 +81,7 @@
         // Use db_id if available, fallback to id (docker_id)
         const containerId = container.db_id || container.id;
         if (!containerId) {
-            toast.error("Container ID not found");
+            toast.error("Terminal ID not found");
             return;
         }
 

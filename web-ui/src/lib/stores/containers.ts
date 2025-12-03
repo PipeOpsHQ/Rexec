@@ -328,7 +328,7 @@ function createContainersStore() {
                       onError?.(
                         typeof event.error === "string"
                           ? event.error
-                          : "Container creation failed",
+                          : "Terminal creation failed",
                       );
                     } else if (event.container_id) {
                       // Fetch the created container details
@@ -396,7 +396,7 @@ function createContainersStore() {
                     } else {
                       // Completion without container_id - shouldn't happen but handle it
                       update((state) => ({ ...state, creating: null }));
-                      onError?.("Container created but no ID received");
+                      onError?.("Terminal created but no ID received");
                     }
                   }
                 } catch {
@@ -706,14 +706,14 @@ function createContainersStore() {
 
             if (status === "error") {
               update((state) => ({ ...state, creating: null }));
-              onError?.("Container creation failed. Please try again.");
+              onError?.("Terminal creation failed. Please try again.");
               return;
             }
 
             if (attempts >= maxAttempts) {
               update((state) => ({ ...state, creating: null }));
               onError?.(
-                "Container creation timed out. Please check your containers list.",
+                "Terminal creation timed out. Please check your terminals list.",
               );
               return;
             }
