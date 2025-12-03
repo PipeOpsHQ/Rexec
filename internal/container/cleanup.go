@@ -164,15 +164,19 @@ func (m *Manager) GetIdleTime(dockerID string) time.Duration {
 	return 0
 }
 
-// GetExpiredGuestContainers returns guest containers that have exceeded the 1-hour limit
+// GetExpiredGuestContainers returns guest containers that have exceeded their session limit
 func (m *Manager) GetExpiredGuestContainers() []*ContainerInfo {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
 	var expired []*ContainerInfo
+	now := time.Now()
+
 	for _, info := range m.containers {
-		// Check if this is a guest container by checking labels or image type contains "guest"
+		// Check if this is a guest container
 		isGuest := false
+		var expiresAt time.Time
+
 		if info.Labels != nil {
 			if tier, ok := info.Labels["rexec.tier"]; ok && tier == "guest" {
 				isGuest = true
@@ -180,9 +184,27 @@ func (m *Manager) GetExpiredGuestContainers() []*ContainerInfo {
 			if _, ok := info.Labels["rexec.guest"]; ok {
 				isGuest = true
 			}
+			// Check for explicit expiration time (set from guest session token)
+			if expStr, ok := info.Labels["rexec.expires_at"]; ok {
+				if t, err := time.Parse(time.RFC3339, expStr); err == nil {
+					expiresAt = t
+				}
+			}
 		}
 
-		if isGuest && time.Since(info.CreatedAt) > GuestMaxSessionDuration {
+		if !isGuest {
+			continue
+		}
+
+		// Use explicit expiration time if set, otherwise fall back to creation time + max duration
+		isExpired := false
+		if !expiresAt.IsZero() {
+			isExpired = now.After(expiresAt)
+		} else {
+			isExpired = time.Since(info.CreatedAt) > GuestMaxSessionDuration
+		}
+
+		if isExpired {
 			expired = append(expired, info)
 		}
 	}
@@ -213,6 +235,19 @@ func (m *Manager) GetGuestSessionTimeRemaining(dockerID string) time.Duration {
 	defer m.mu.RUnlock()
 
 	if info, ok := m.containers[dockerID]; ok {
+		// Check for explicit expiration time from label
+		if info.Labels != nil {
+			if expStr, ok := info.Labels["rexec.expires_at"]; ok {
+				if expiresAt, err := time.Parse(time.RFC3339, expStr); err == nil {
+					remaining := time.Until(expiresAt)
+					if remaining < 0 {
+						return 0
+					}
+					return remaining
+				}
+			}
+		}
+		// Fallback to creation time based calculation
 		elapsed := time.Since(info.CreatedAt)
 		remaining := GuestMaxSessionDuration - elapsed
 		if remaining < 0 {

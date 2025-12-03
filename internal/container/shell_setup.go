@@ -255,11 +255,14 @@ show_system_stats() {
     fi
     
     # Calculate CPU cores allocated to container
-    # Prefer environment variable if set, otherwise calculate from cgroup
-    local cpu_cores="${REXEC_CPU_LIMIT:-0.5}"
-    if [ -z "$REXEC_CPU_LIMIT" ] && [ "$cpu_quota" -gt 0 ] 2>/dev/null && [ "$cpu_period" -gt 0 ] 2>/dev/null; then
+    # Read from cgroups (updated in real-time) rather than env var (set at creation)
+    local cpu_cores="0.5"
+    if [ "$cpu_quota" -gt 0 ] 2>/dev/null && [ "$cpu_period" -gt 0 ] 2>/dev/null; then
         # cpu_cores = quota / period (e.g., 50000/100000 = 0.5 cores)
         cpu_cores=$(awk "BEGIN {printf \"%.1f\", $cpu_quota / $cpu_period}")
+    elif [ -n "$REXEC_CPU_LIMIT" ]; then
+        # Fallback to env var if cgroup not available
+        cpu_cores="$REXEC_CPU_LIMIT"
     fi
     
     # Container Disk info - use allocated quota from environment
@@ -268,8 +271,8 @@ show_system_stats() {
     # From inside container, we can only estimate by checking user-created files
     # Show allocated quota only - usage tracking happens at platform level
     
-    # Memory limit - prefer environment variable, clean up format
-    local mem_limit="${REXEC_MEMORY_LIMIT:-${mem_total_mb}M}"
+    # Memory limit - prefer cgroup value (updated in real-time), clean up format
+    local mem_limit="${mem_total_mb}M"
     # Remove decimal from memory limit if present (e.g., 1024.00M -> 1024M)
     mem_limit=$(echo "$mem_limit" | sed 's/\.00//')
     

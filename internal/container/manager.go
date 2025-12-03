@@ -1122,6 +1122,37 @@ func (m *Manager) UpdateContainerStatus(dockerID string, status string) {
 	}
 }
 
+// UpdateContainerResources updates a running container's resource limits via Docker API
+// Note: Disk quota cannot be changed on a running container
+func (m *Manager) UpdateContainerResources(ctx context.Context, dockerID string, memoryMB int64, cpuMillicores int64) error {
+	// Convert memory from MB to bytes
+	memoryBytes := memoryMB * 1024 * 1024
+	
+	// Convert CPU millicores to nanocpus (500 millicores = 0.5 CPU = 500000000 nanocpus)
+	nanoCPUs := cpuMillicores * 1000000
+	
+	// Cap CPU to available host CPUs
+	maxCPUMillicores := int64(runtime.NumCPU()) * 1000
+	if cpuMillicores > maxCPUMillicores {
+		nanoCPUs = maxCPUMillicores * 1000000
+	}
+
+	// Update the container's resources using Docker API
+	updateConfig := container.UpdateConfig{
+		Resources: container.Resources{
+			Memory:   memoryBytes,
+			NanoCPUs: nanoCPUs,
+		},
+	}
+
+	_, err := m.client.ContainerUpdate(ctx, dockerID, updateConfig)
+	if err != nil {
+		return fmt.Errorf("failed to update container resources: %w", err)
+	}
+
+	return nil
+}
+
 // GetIdleContainers returns containers that have been idle for longer than the threshold
 func (m *Manager) GetIdleContainers(threshold time.Duration) []*ContainerInfo {
 	m.mu.RLock()

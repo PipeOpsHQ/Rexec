@@ -285,7 +285,13 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 	if isGuest || tier == "guest" {
 		cfg.Labels["rexec.tier"] = "guest"
 		cfg.Labels["rexec.guest"] = "true"
-		cfg.Labels["rexec.expires_at"] = time.Now().Add(GuestMaxContainerDuration).Format(time.RFC3339)
+		// Use token expiration if available (more accurate), otherwise calculate from now
+		if tokenExp, exists := c.Get("tokenExp"); exists {
+			expiresAt := time.Unix(tokenExp.(int64), 0)
+			cfg.Labels["rexec.expires_at"] = expiresAt.Format(time.RFC3339)
+		} else {
+			cfg.Labels["rexec.expires_at"] = time.Now().Add(GuestMaxContainerDuration).Format(time.RFC3339)
+		}
 	}
 
 	// Apply resource limits to container config
@@ -316,8 +322,15 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 	// Add guest session info
 	if isGuest || tier == "guest" {
 		response["guest"] = true
-		response["expires_at"] = time.Now().Add(GuestMaxContainerDuration).Format(time.RFC3339)
-		response["session_limit_seconds"] = int(GuestMaxContainerDuration.Seconds())
+		// Use token expiration if available
+		if tokenExp, exists := c.Get("tokenExp"); exists {
+			expiresAt := time.Unix(tokenExp.(int64), 0)
+			response["expires_at"] = expiresAt.Format(time.RFC3339)
+			response["session_limit_seconds"] = int(time.Until(expiresAt).Seconds())
+		} else {
+			response["expires_at"] = time.Now().Add(GuestMaxContainerDuration).Format(time.RFC3339)
+			response["session_limit_seconds"] = int(GuestMaxContainerDuration.Seconds())
+		}
 	}
 
 	c.JSON(http.StatusAccepted, response)
@@ -864,6 +877,14 @@ func (h *ContainerHandler) UpdateSettings(c *gin.Context) {
 		return
 	}
 
+	// Update running container's resources in Docker (if it has a Docker ID and is running)
+	if found.DockerID != "" && found.Status == "running" {
+		if err := h.manager.UpdateContainerResources(ctx, found.DockerID, req.MemoryMB, req.CPUShares); err != nil {
+			log.Printf("[UpdateSettings] Warning: failed to update Docker container resources for %s: %v", found.DockerID, err)
+			// Continue anyway - we'll still update the database, and changes will apply on restart
+		}
+	}
+
 	// Update in database
 	if err := h.store.UpdateContainerSettings(ctx, found.ID, req.Name, req.MemoryMB, req.CPUShares, req.DiskMB); err != nil {
 		log.Printf("[UpdateSettings] Failed to update settings for container %s: %v", found.ID, err)
@@ -1121,7 +1142,13 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 	if isGuest || tier == "guest" {
 		cfg.Labels["rexec.tier"] = "guest"
 		cfg.Labels["rexec.guest"] = "true"
-		cfg.Labels["rexec.expires_at"] = time.Now().Add(GuestMaxContainerDuration).Format(time.RFC3339)
+		// Use token expiration if available (more accurate), otherwise calculate from now
+		if tokenExp, exists := c.Get("tokenExp"); exists {
+			expiresAt := time.Unix(tokenExp.(int64), 0)
+			cfg.Labels["rexec.expires_at"] = expiresAt.Format(time.RFC3339)
+		} else {
+			cfg.Labels["rexec.expires_at"] = time.Now().Add(GuestMaxContainerDuration).Format(time.RFC3339)
+		}
 	}
 
 	limits := models.ValidateTrialResources(&req, tier)
@@ -1276,8 +1303,15 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 
 	if isGuest || tier == "guest" {
 		response["guest"] = true
-		response["expires_at"] = time.Now().Add(GuestMaxContainerDuration).Format(time.RFC3339)
-		response["session_limit_seconds"] = int(GuestMaxContainerDuration.Seconds())
+		// Use token expiration if available
+		if tokenExp, exists := c.Get("tokenExp"); exists {
+			expiresAt := time.Unix(tokenExp.(int64), 0)
+			response["expires_at"] = expiresAt.Format(time.RFC3339)
+			response["session_limit_seconds"] = int(time.Until(expiresAt).Seconds())
+		} else {
+			response["expires_at"] = time.Now().Add(GuestMaxContainerDuration).Format(time.RFC3339)
+			response["session_limit_seconds"] = int(GuestMaxContainerDuration.Seconds())
+		}
 	}
 
 	// Notify via WebSocket - use the actual validated limits, not tier defaults
