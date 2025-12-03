@@ -101,12 +101,26 @@ func (r *ReconcilerService) reconcile() {
 
 	// Timeout for containers stuck in transitional states
 	const stuckContainerTimeout = 5 * time.Minute
+	// Grace period for error containers before auto-deletion (allow user to see the error)
+	const errorContainerGracePeriod = 10 * time.Minute
 
 	for _, dbContainer := range dbContainers {
 		if dbContainer.DockerID == "" {
 			// Container was never created in Docker (failed during creation)
-			// Mark as error and soft-delete
-			if dbContainer.Status != "error" && dbContainer.Status != "deleted" {
+			if dbContainer.Status == "error" {
+				// Check if error container has exceeded grace period
+				timeSinceUpdate := time.Since(dbContainer.LastUsedAt)
+				if timeSinceUpdate > errorContainerGracePeriod {
+					// Auto-delete old error containers
+					if err := r.store.DeleteContainer(ctx, dbContainer.ID); err != nil {
+						log.Printf("🔄 Reconciler: failed to soft-delete old error container %s: %v", dbContainer.ID, err)
+					} else {
+						log.Printf("🔄 Reconciler: auto-deleted error container %s (no Docker ID, age: %v)", dbContainer.ID, timeSinceUpdate.Round(time.Second))
+						removed++
+					}
+				}
+			} else if dbContainer.Status != "deleted" {
+				// Mark as error and soft-delete containers that never got a Docker ID
 				if err := r.store.UpdateContainerStatus(ctx, dbContainer.ID, "error"); err != nil {
 					log.Printf("🔄 Reconciler: failed to update status for %s: %v", dbContainer.ID, err)
 				}

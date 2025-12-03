@@ -710,7 +710,7 @@ func (s *PostgresStore) UpdateContainerError(ctx context.Context, id, errorMsg s
 
 // DeleteContainer soft deletes a container record by setting deleted_at
 func (s *PostgresStore) DeleteContainer(ctx context.Context, id string) error {
-	query := `UPDATE containers SET deleted_at = CURRENT_TIMESTAMP, status = 'stopped' WHERE id = $1`
+	query := `UPDATE containers SET deleted_at = CURRENT_TIMESTAMP, status = 'deleted' WHERE id = $1`
 	_, err := s.db.ExecContext(ctx, query, id)
 	return err
 }
