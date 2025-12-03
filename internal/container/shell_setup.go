@@ -566,9 +566,12 @@ func IsShellSetupComplete(ctx context.Context, cli *client.Client, containerID s
 		return false
 	}
 
-	if err := cli.ContainerExecStart(ctx, execResp.ID, container.ExecStartOptions{}); err != nil {
+	// Use ContainerExecAttach instead of ContainerExecStart for Podman compatibility
+	attachResp, err := cli.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{})
+	if err != nil {
 		return false
 	}
+	attachResp.Close()
 
 	inspect, err := cli.ContainerExecInspect(ctx, execResp.ID)
 	if err != nil {
@@ -595,9 +598,12 @@ func GetContainerShell(ctx context.Context, cli *client.Client, containerID stri
 			continue
 		}
 
-		if err := cli.ContainerExecStart(ctx, execResp.ID, container.ExecStartOptions{}); err != nil {
+		// Use ContainerExecAttach instead of ContainerExecStart for Podman compatibility
+		attachResp, err := cli.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{})
+		if err != nil {
 			continue
 		}
+		attachResp.Close()
 
 		inspect, err := cli.ContainerExecInspect(ctx, execResp.ID)
 		if err != nil {

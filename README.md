@@ -75,7 +75,6 @@ This spins up the API and PostgreSQL with volumes persisted via Docker.
 | ------------------------- | --------------------------------------------------------------- |
 | `PORT`                    | `8080` – API listen port                                        |
 | `DATABASE_URL`            | `postgres://rexec:rexec@localhost:5432/rexec?sslmode=disable`   |
-
 | `JWT_SECRET`              | **Required** – used for signing auth tokens                     |
 | `STRIPE_SECRET_KEY`       | Enables billing endpoints when set                              |
 | `STRIPE_WEBHOOK_SECRET`   | Required for webhook verification                               |
@@ -83,6 +82,20 @@ This spins up the API and PostgreSQL with volumes persisted via Docker.
 | `STRIPE_PRICE_ENTERPRISE` | Price ID for Enterprise tier                                    |
 | `WEB_DIR`                 | Directory containing `index.html` (defaults to `./web`)         |
 | `GIN_MODE`                | `release` or `debug` – influences container cleanup thresholds  |
+
+### S3 Storage for Recordings (Optional)
+
+Store terminal recordings in S3-compatible storage for horizontal scaling:
+
+| Variable              | Description                                              |
+| --------------------- | -------------------------------------------------------- |
+| `S3_BUCKET`           | S3 bucket name (enables S3 storage when set)             |
+| `S3_REGION`           | AWS region (default: `us-east-1`)                        |
+| `S3_ENDPOINT`         | Custom endpoint for S3-compatible services (MinIO, etc.) |
+| `S3_ACCESS_KEY_ID`    | AWS access key ID                                        |
+| `S3_SECRET_ACCESS_KEY`| AWS secret access key                                    |
+| `S3_PREFIX`           | Key prefix for recordings (e.g., `recordings/`)          |
+| `S3_FORCE_PATH_STYLE` | Set to `true` for MinIO and some S3-compatible services  |
 
 ---
 

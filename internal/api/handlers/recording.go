@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -20,6 +21,7 @@ import (
 // RecordingHandler manages terminal recordings
 type RecordingHandler struct {
 	store           *storage.PostgresStore
+	s3Store         *storage.S3Store  // Optional S3 storage for recording data
 	recordings      map[string]*ActiveRecording // containerID -> recording
 	mu              sync.RWMutex
 }
@@ -60,6 +62,29 @@ func NewRecordingHandler(store *storage.PostgresStore, storagePath string) *Reco
 	handler := &RecordingHandler{
 		store:       store,
 		recordings:  make(map[string]*ActiveRecording),
+	}
+	
+	// Initialize S3 store if configured
+	s3Bucket := os.Getenv("S3_BUCKET")
+	if s3Bucket != "" {
+		s3Config := storage.S3Config{
+			Bucket:          s3Bucket,
+			Region:          os.Getenv("S3_REGION"),
+			Endpoint:        os.Getenv("S3_ENDPOINT"),
+			AccessKeyID:     os.Getenv("S3_ACCESS_KEY_ID"),
+			SecretAccessKey: os.Getenv("S3_SECRET_ACCESS_KEY"),
+			Prefix:          os.Getenv("S3_PREFIX"),
+			ForcePathStyle:  os.Getenv("S3_FORCE_PATH_STYLE") == "true",
+		}
+		
+		s3Store, err := storage.NewS3Store(s3Config)
+		if err != nil {
+			log.Printf("[Recording] Warning: Failed to initialize S3 store: %v (falling back to database)", err)
+		} else {
+			handler.s3Store = s3Store
+			log.Printf("[Recording] Handler initialized (storing in S3: %s)", s3Bucket)
+			return handler
+		}
 	}
 	
 	log.Printf("[Recording] Handler initialized (storing in database)")
@@ -200,7 +225,23 @@ func (h *RecordingHandler) StopRecording(c *gin.Context) {
 
 	log.Printf("[Recording] Converted recording: %d bytes, %d events", len(recordingData), len(recording.Events))
 
-	// Save to database with data
+	// Store recording data in S3 if configured, otherwise in database
+	var dataToStore []byte
+	if h.s3Store != nil {
+		// Upload to S3
+		if err := h.s3Store.PutRecording(c.Request.Context(), recording.ID, recordingData); err != nil {
+			log.Printf("[Recording] Failed to upload to S3: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save recording"})
+			return
+		}
+		// Don't store data in database when using S3
+		dataToStore = nil
+	} else {
+		// Store in database
+		dataToStore = recordingData
+	}
+
+	// Save metadata to database
 	record := &storage.RecordingRecord{
 		ID:          recording.ID,
 		UserID:      userID.(string),
@@ -208,7 +249,7 @@ func (h *RecordingHandler) StopRecording(c *gin.Context) {
 		Title:       recording.Title,
 		Duration:    duration.Milliseconds(),
 		Size:        int64(len(recordingData)),
-		Data:        recordingData,
+		Data:        dataToStore,
 		ShareToken:  shareToken,
 		IsPublic:    false,
 		CreatedAt:   recording.StartedAt,
@@ -326,11 +367,21 @@ func (h *RecordingHandler) StreamRecording(c *gin.Context) {
 		return
 	}
 
-	// Get recording data from database
-	data, err := h.store.GetRecordingData(c.Request.Context(), recordingID)
-	if err != nil || data == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "recording data not found"})
-		return
+	// Get recording data from S3 or database
+	var data []byte
+	if h.s3Store != nil {
+		data, err = h.s3Store.GetRecording(c.Request.Context(), recordingID)
+		if err != nil {
+			log.Printf("[Recording] Failed to get recording from S3: %v", err)
+			c.JSON(http.StatusNotFound, gin.H{"error": "recording data not found"})
+			return
+		}
+	} else {
+		data, err = h.store.GetRecordingData(c.Request.Context(), recordingID)
+		if err != nil || data == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "recording data not found"})
+			return
+		}
 	}
 
 	c.Header("Content-Type", "application/x-asciicast")
@@ -344,10 +395,28 @@ func (h *RecordingHandler) StreamRecording(c *gin.Context) {
 func (h *RecordingHandler) StreamRecordingByToken(c *gin.Context) {
 	token := c.Param("token")
 
-	data, err := h.store.GetRecordingDataByToken(c.Request.Context(), token)
-	if err != nil || data == nil {
+	// First get the recording metadata to get the ID for S3 lookup
+	recording, err := h.store.GetRecordingByShareToken(c.Request.Context(), token)
+	if err != nil || recording == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "recording not found"})
 		return
+	}
+
+	// Get recording data from S3 or database
+	var data []byte
+	if h.s3Store != nil {
+		data, err = h.s3Store.GetRecording(c.Request.Context(), recording.ID)
+		if err != nil {
+			log.Printf("[Recording] Failed to get recording from S3: %v", err)
+			c.JSON(http.StatusNotFound, gin.H{"error": "recording data not found"})
+			return
+		}
+	} else {
+		data, err = h.store.GetRecordingDataByToken(c.Request.Context(), token)
+		if err != nil || data == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "recording not found"})
+			return
+		}
 	}
 
 	c.Header("Content-Type", "application/x-asciicast")
@@ -406,7 +475,15 @@ func (h *RecordingHandler) DeleteRecording(c *gin.Context) {
 		return
 	}
 
-	// Delete from database (data is stored in DB, no file to delete)
+	// Delete from S3 if configured
+	if h.s3Store != nil {
+		if err := h.s3Store.DeleteRecording(c.Request.Context(), recordingID); err != nil {
+			log.Printf("[Recording] Warning: Failed to delete from S3: %v", err)
+			// Continue with database deletion anyway
+		}
+	}
+
+	// Delete from database
 	if err := h.store.DeleteRecording(c.Request.Context(), recordingID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete"})
 		return

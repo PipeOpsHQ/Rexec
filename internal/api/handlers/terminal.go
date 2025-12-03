@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -550,40 +551,70 @@ func (h *TerminalHandler) isZshSetup(ctx context.Context, containerID string) bo
 
 	execResp, err := client.ContainerExecCreate(ctx, containerID, execConfig)
 	if err != nil {
+		log.Printf("[Terminal] isZshSetup: exec create failed for %s: %v", containerID[:12], err)
 		return false
 	}
 
-	client.ContainerExecStart(ctx, execResp.ID, container.ExecStartOptions{})
+	// Must attach to start the exec (Podman compatibility)
+	attachResp, err := client.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{})
+	if err != nil {
+		log.Printf("[Terminal] isZshSetup: exec attach failed for %s: %v", containerID[:12], err)
+		return false
+	}
+	attachResp.Close()
+
+	// Wait a bit for the command to complete
+	time.Sleep(100 * time.Millisecond)
+
 	inspect, err := client.ContainerExecInspect(ctx, execResp.ID)
 	if err != nil {
+		log.Printf("[Terminal] isZshSetup: exec inspect failed for %s: %v", containerID[:12], err)
 		return false
 	}
 
-	return inspect.ExitCode == 0
+	isSetup := inspect.ExitCode == 0
+	log.Printf("[Terminal] isZshSetup: container %s = %v (exit code: %d)", containerID[:12], isSetup, inspect.ExitCode)
+	return isSetup
 }
 
 // shellExists checks if a shell exists and is executable
 func (h *TerminalHandler) shellExists(ctx context.Context, containerID, shell string) bool {
 	client := h.containerManager.GetClient()
 
+	// Use /bin/sh -c to run test command - more portable across distros
+	// Some minimal distros don't have standalone 'test' binary
 	execConfig := container.ExecOptions{
-		Cmd:          []string{"test", "-x", shell},
+		Cmd:          []string{"/bin/sh", "-c", fmt.Sprintf("test -x %s", shell)},
 		AttachStdout: true,
 		AttachStderr: true,
 	}
 
 	execResp, err := client.ContainerExecCreate(ctx, containerID, execConfig)
 	if err != nil {
+		log.Printf("[Terminal] shellExists: exec create failed for %s in %s: %v", shell, containerID[:12], err)
 		return false
 	}
 
-	client.ContainerExecStart(ctx, execResp.ID, container.ExecStartOptions{})
+	// Must attach to start the exec (Podman compatibility)
+	attachResp, err := client.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{})
+	if err != nil {
+		log.Printf("[Terminal] shellExists: exec attach failed for %s in %s: %v", shell, containerID[:12], err)
+		return false
+	}
+	attachResp.Close()
+
+	// Wait a bit for the command to complete
+	time.Sleep(100 * time.Millisecond)
+
 	inspect, err := client.ContainerExecInspect(ctx, execResp.ID)
 	if err != nil {
+		log.Printf("[Terminal] shellExists: exec inspect failed for %s in %s: %v", shell, containerID[:12], err)
 		return false
 	}
 
-	return inspect.ExitCode == 0
+	exists := inspect.ExitCode == 0
+	log.Printf("[Terminal] shellExists: %s in %s = %v (exit code: %d)", shell, containerID[:12], exists, inspect.ExitCode)
+	return exists
 }
 
 // SendMessage sends a message to the WebSocket client
