@@ -89,10 +89,13 @@ func (h *RecordingHandler) StartRecording(c *gin.Context) {
 		return
 	}
 
+	log.Printf("[Recording] Start request for container: %s by user: %s", req.ContainerID, userID)
+
 	// Check if already recording this container
 	h.mu.RLock()
 	if _, exists := h.recordings[req.ContainerID]; exists {
 		h.mu.RUnlock()
+		log.Printf("[Recording] Already recording container: %s", req.ContainerID)
 		c.JSON(http.StatusConflict, gin.H{"error": "already recording this terminal"})
 		return
 	}
@@ -115,6 +118,8 @@ func (h *RecordingHandler) StartRecording(c *gin.Context) {
 	h.mu.Lock()
 	h.recordings[req.ContainerID] = recording
 	h.mu.Unlock()
+
+	log.Printf("[Recording] Started recording %s for container: %s", recording.ID, req.ContainerID)
 
 	c.JSON(http.StatusOK, gin.H{
 		"recording_id": recording.ID,
@@ -157,18 +162,31 @@ func (h *RecordingHandler) StopRecording(c *gin.Context) {
 	userID, _ := c.Get("userID")
 	containerID := c.Param("containerId")
 
+	log.Printf("[Recording] Stop request for container: %s by user: %s", containerID, userID)
+
 	h.mu.Lock()
 	recording, exists := h.recordings[containerID]
 	if !exists {
 		h.mu.Unlock()
+		// Log all active recordings for debugging
+		h.mu.RLock()
+		activeIDs := make([]string, 0, len(h.recordings))
+		for id := range h.recordings {
+			activeIDs = append(activeIDs, id)
+		}
+		h.mu.RUnlock()
+		log.Printf("[Recording] No active recording for container: %s. Active recordings: %v", containerID, activeIDs)
 		c.JSON(http.StatusNotFound, gin.H{"error": "no active recording for this terminal"})
 		return
 	}
 	delete(h.recordings, containerID)
 	h.mu.Unlock()
 
+	log.Printf("[Recording] Found recording %s for container: %s, events: %d", recording.ID, containerID, len(recording.Events))
+
 	// Verify ownership
 	if recording.UserID != userID.(string) {
+		log.Printf("[Recording] Unauthorized: recording user %s != request user %s", recording.UserID, userID)
 		c.JSON(http.StatusForbidden, gin.H{"error": "not authorized"})
 		return
 	}
