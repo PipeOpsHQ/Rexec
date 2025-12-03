@@ -275,6 +275,15 @@
         return `${mb}M`;
     }
 
+    // Format storage to show GB for values >= 1024MB
+    function formatStorage(mb: number): string {
+        if (mb >= 1024) {
+            const gb = mb / 1024;
+            return gb % 1 === 0 ? `${gb}G` : `${gb.toFixed(1)}G`;
+        }
+        return `${mb}M`;
+    }
+
     // Reactive
     $: containerList = $containers.containers;
     $: isLoading = $containers.isLoading;
@@ -568,7 +577,7 @@
                                     <circle cx="12" cy="12" r="10" />
                                     <circle cx="12" cy="12" r="3" />
                                 </svg>
-                                {container.resources.disk_mb}M
+                                {formatStorage(container.resources.disk_mb)}
                             </span>
                         </div>
                     {/if}
