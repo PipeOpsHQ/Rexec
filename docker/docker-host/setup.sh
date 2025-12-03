@@ -443,8 +443,8 @@ num-network-channels = 2           # Sufficient for terminal workloads
 file-access = "exclusive"          # Required for directfs, better performance
 host-uds = "all"                   # Unix domain socket support
 
-# Disable gVisor rootfs overlay - conflicts with Docker overlay2 storage driver
-overlay = "root:none"
+# Disable gVisor rootfs overlay to avoid conflicts with Docker overlay2 storage driver
+# overlay2 disabled - use default gVisor behavior
 
 # Debug settings (disable in production for best performance)
 debug = false
@@ -486,7 +486,7 @@ else
     REGENERATE_CERTS=true
 fi
 
-if [ "${REGENERATE_CERTS:-true}" = "true" ]; then
+if [ "${REGENERATE_CERTS:-false}" = "true" ]; then
     mkdir -p "$CERT_DIR"
     cd "$CERT_DIR"
 
@@ -715,9 +715,9 @@ WRAPPER
         # - num-network-channels=2: Optimized for low-bandwidth terminal traffic
         # - file-access=exclusive: Better performance, required for directfs
         # - host-uds=all: Unix domain socket support
-        # - overlay=root:none: Disable gVisor rootfs overlay (conflicts with Docker overlay2)
         # NOTE: ignore-cgroups removed to allow resource limit enforcement
-        GVISOR_ARGS_JSON="\"--platform=${GVISOR_PLATFORM}\", \"--directfs\", \"--num-network-channels=2\", \"--file-access=exclusive\", \"--host-uds=all\", \"--overlay=root:none\""
+        # NOTE: overlay2 flag removed - was causing parse errors with gVisor
+        GVISOR_ARGS_JSON="\"--platform=${GVISOR_PLATFORM}\", \"--directfs\", \"--num-network-channels=2\", \"--file-access=exclusive\", \"--host-uds=all\""
 
         # Add runsc runtime with auto-detected platform
         RUNTIMES_JSON="${RUNTIMES_JSON}\"runsc\": {
@@ -727,7 +727,7 @@ WRAPPER
 
         # Only add explicit runsc-kvm if KVM is available
         if [ "$GVISOR_PLATFORM" = "kvm" ]; then
-            GVISOR_KVM_ARGS_JSON="\"--platform=kvm\", \"--directfs\", \"--num-network-channels=2\", \"--file-access=exclusive\", \"--host-uds=all\", \"--overlay=root:none\""
+            GVISOR_KVM_ARGS_JSON="\"--platform=kvm\", \"--directfs\", \"--num-network-channels=2\", \"--file-access=exclusive\", \"--host-uds=all\""
             RUNTIMES_JSON="${RUNTIMES_JSON}, \"runsc-kvm\": {
       \"path\": \"/usr/local/bin/runsc\",
       \"runtimeArgs\": [${GVISOR_KVM_ARGS_JSON}]
