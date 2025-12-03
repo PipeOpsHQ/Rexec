@@ -56,121 +56,7 @@
         { id: "ready", label: "Ready" },
     ];
 
-    // Matrix characters for animation
-    const matrixChars = '█▓▒░╬╫╪┼┿╀╁╂╃╄╅╆╇╈╉╊╋';
-    
-    // ASCII art frames for animation
-    const asciiFrames = [
-`╔══════════════════════════════════════════╗
-║  ██████╗ ███████╗██╗  ██╗███████╗ ██████╗ ║
-║  ██╔══██╗██╔════╝╚██╗██╔╝██╔════╝██╔════╝ ║
-║  ██████╔╝█████╗   ╚███╔╝ █████╗  ██║      ║
-║  ██╔══██╗██╔══╝   ██╔██╗ ██╔══╝  ██║      ║
-║  ██║  ██║███████╗██╔╝ ██╗███████╗╚██████╗ ║
-║  ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚══════╝ ╚═════╝ ║
-╠══════════════════════════════════════════╣
-║  ▓▓▓ INITIALIZING SECURE CONTAINER ▓▓▓   ║
-╚══════════════════════════════════════════╝`,
-`╔══════════════════════════════════════════╗
-║  ██████╗ ███████╗██╗  ██╗███████╗ ██████╗ ║
-║  ██╔══██╗██╔════╝╚██╗██╔╝██╔════╝██╔════╝ ║
-║  ██████╔╝█████╗   ╚███╔╝ █████╗  ██║      ║
-║  ██╔══██╗██╔══╝   ██╔██╗ ██╔══╝  ██║      ║
-║  ██║  ██║███████╗██╔╝ ██╗███████╗╚██████╗ ║
-║  ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚══════╝ ╚═════╝ ║
-╠══════════════════════════════════════════╣
-║  ░░░ INITIALIZING SECURE CONTAINER ░░░   ║
-╚══════════════════════════════════════════╝`,
-`╔══════════════════════════════════════════╗
-║  ██████╗ ███████╗██╗  ██╗███████╗ ██████╗ ║
-║  ██╔══██╗██╔════╝╚██╗██╔╝██╔════╝██╔════╝ ║
-║  ██████╔╝█████╗   ╚███╔╝ █████╗  ██║      ║
-║  ██╔══██╗██╔══╝   ██╔██╗ ██╔══╝  ██║      ║
-║  ██║  ██║███████╗██╔╝ ██╗███████╗╚██████╗ ║
-║  ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚══════╝ ╚═════╝ ║
-╠══════════════════════════════════════════╣
-║  ▒▒▒ INITIALIZING SECURE CONTAINER ▒▒▒   ║
-╚══════════════════════════════════════════╝`
-    ];
-    
-    let asciiFrameIndex = 0;
-    let asciiFrame = asciiFrames[0];
-    let animationInterval: ReturnType<typeof setInterval>;
-    
-    $: if (isCreating && !animationInterval) {
-        animationInterval = setInterval(() => {
-            asciiFrameIndex = (asciiFrameIndex + 1) % asciiFrames.length;
-            asciiFrame = asciiFrames[asciiFrameIndex];
-        }, 400);
-    }
-    
-    $: if (!isCreating && animationInterval) {
-        clearInterval(animationInterval);
-        animationInterval = undefined as any;
-    }
-
-    // Hacker-style log messages
-    let logMessages: Array<{ text: string; type: 'info' | 'success' | 'cmd' | 'data' }> = [];
-    let logContainer: HTMLDivElement;
-    
-    const stageLogMessages: Record<string, Array<{ text: string; type: 'info' | 'success' | 'cmd' | 'data' }>> = {
-        validating: [
-            { text: '$ rexec init --validate', type: 'cmd' },
-            { text: '[SYS] Authenticating session...', type: 'info' },
-            { text: '[AUTH] Token verified ✓', type: 'success' },
-            { text: '[QUOTA] Checking resource allocation...', type: 'info' },
-        ],
-        pulling: [
-            { text: '$ docker pull registry.rexec.io/base', type: 'cmd' },
-            { text: '[NET] Connecting to registry...', type: 'info' },
-            { text: '[PULL] Downloading layers...', type: 'data' },
-            { text: '[CACHE] Layer sha256:a3ed... cached', type: 'info' },
-            { text: '[PULL] Extracting filesystem...', type: 'data' },
-        ],
-        creating: [
-            { text: '$ rexec container create --secure', type: 'cmd' },
-            { text: '[DOCKER] Allocating container ID...', type: 'info' },
-            { text: '[NET] Configuring network namespace...', type: 'info' },
-            { text: '[FS] Mounting overlay filesystem...', type: 'data' },
-            { text: '[SEC] Applying seccomp profile...', type: 'info' },
-        ],
-        starting: [
-            { text: '$ rexec container start', type: 'cmd' },
-            { text: '[INIT] Starting container process...', type: 'info' },
-            { text: '[PID] Process spawned: 1', type: 'data' },
-            { text: '[TTY] Allocating pseudo-terminal...', type: 'info' },
-            { text: '[WS] WebSocket channel ready', type: 'success' },
-        ],
-        configuring: [
-            { text: '$ rexec setup --role ${role}', type: 'cmd' },
-            { text: '[PKG] Updating package index...', type: 'info' },
-            { text: '[INSTALL] Installing development tools...', type: 'data' },
-            { text: '[CONFIG] Writing shell configuration...', type: 'info' },
-            { text: '[ENV] Setting environment variables...', type: 'data' },
-        ],
-        ready: [
-            { text: '[SYS] Container ready ✓', type: 'success' },
-            { text: '[WS] Terminal connection established', type: 'success' },
-            { text: '$ echo "Welcome to Rexec"', type: 'cmd' },
-        ],
-    };
-    
-    let prevStage = '';
-    $: if (progressStage && progressStage !== prevStage) {
-        prevStage = progressStage;
-        const newLogs = stageLogMessages[progressStage] || [];
-        // Add logs with slight delay for effect
-        newLogs.forEach((log, i) => {
-            setTimeout(() => {
-                logMessages = [...logMessages, log];
-                // Auto-scroll to bottom
-                if (logContainer) {
-                    logContainer.scrollTop = logContainer.scrollHeight;
-                }
-            }, i * 150);
-        });
-    }
-
+    // Get step status
     function getStepStatus(stepId: string): "pending" | "active" | "completed" {
         const stepOrder = progressSteps.map((s) => s.id);
         const currentIndex = stepOrder.indexOf(progressStage);
@@ -341,56 +227,35 @@
 <div class="inline-create" class:compact>
     {#if isCreating}
         <div class="create-progress">
-            <!-- Cyber ASCII Art Header -->
-            <div class="ascii-container">
-                <pre class="ascii-art">{asciiFrame}</pre>
+            <div class="progress-header">
+                <span class="progress-percent">{displayProgress}%</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: {displayProgress}%"></div>
             </div>
             
-            <!-- Matrix-style progress bar -->
-            <div class="matrix-progress">
-                <div class="matrix-bar">
-                    {#each Array(40) as _, i}
-                        <span 
-                            class="matrix-cell" 
-                            class:active={i < (displayProgress / 100) * 40}
-                            class:pulse={i === Math.floor((displayProgress / 100) * 40) - 1}
-                        >{i < (displayProgress / 100) * 40 ? matrixChars[Math.floor(Math.random() * matrixChars.length)] : '░'}</span>
-                    {/each}
-                </div>
-                <div class="progress-label">
-                    <span class="hex-progress">0x{displayProgress.toString(16).toUpperCase().padStart(2, '0')}</span>
-                    <span class="stage-text">{progressStage.toUpperCase()}</span>
-                    <span class="percent">{displayProgress}%</span>
-                </div>
-            </div>
-            
-            <!-- Cyberpunk log stream -->
-            <div class="cyber-logs" bind:this={logContainer}>
-                <div class="scanline"></div>
-                {#each logMessages as log, i}
-                    <div class="log-entry" class:cmd={log.type === 'cmd'} class:success={log.type === 'success'} class:data={log.type === 'data'}>
-                        <span class="log-time">[{String(i).padStart(3, '0')}]</span>
-                        <span class="log-icon">{log.type === 'cmd' ? '▶' : log.type === 'success' ? '✓' : '→'}</span>
-                        <span class="log-msg">{log.text}</span>
-                        {#if i === logMessages.length - 1}
-                            <span class="blink-cursor">█</span>
-                        {/if}
+            <!-- Step Indicators -->
+            <div class="progress-steps">
+                {#each progressSteps as step}
+                    <div class="progress-step {getStepStatus(step.id)}">
+                        <span class="step-dot"></span>
+                        <span class="step-label">{step.label}</span>
                     </div>
                 {/each}
             </div>
             
-            <!-- DNA-style stage helix -->
-            <div class="stage-helix">
-                {#each progressSteps as step, i}
-                    <div class="helix-node" class:active={progressStage === step.id} class:done={getStepStatus(step.id) === 'completed'}>
-                        <span class="node-line">{getStepStatus(step.id) === 'completed' ? '═══' : getStepStatus(step.id) === 'active' ? '▓▓▓' : '───'}</span>
-                        <span class="node-dot">{getStepStatus(step.id) === 'completed' ? '◆' : getStepStatus(step.id) === 'active' ? '◈' : '◇'}</span>
-                        {#if i < progressSteps.length - 1}
-                            <span class="node-line">{getStepStatus(step.id) === 'completed' ? '═══' : '───'}</span>
-                        {/if}
+            <p class="progress-message">{progressMessage}</p>
+            {#if currentRole && progressStage === "configuring"}
+                <div class="installing-tools">
+                    <p class="installing-label">Installing {currentRole.name} tools:</p>
+                    <div class="tools-installing">
+                        {#each currentRole.tools as tool}
+                            <span class="tool-badge-installing">{tool}</span>
+                        {/each}
                     </div>
-                {/each}
-            </div>
+                </div>
+            {/if}
+            <div class="spinner"></div>
         </div>
     {:else}
         <div class="create-content">
@@ -549,249 +414,148 @@
         padding: 12px;
     }
 
-    /* Progress - Cyberpunk Style */
+    /* Progress */
     .create-progress {
         display: flex;
         flex-direction: column;
-        gap: 12px;
-        padding: 16px;
-        background: linear-gradient(135deg, #000 0%, #0a0a0a 50%, #000 100%);
-        border: 1px solid #00ff41;
-        border-radius: 4px;
-        font-family: var(--font-mono);
-        box-shadow: 
-            0 0 30px rgba(0, 255, 65, 0.15),
-            inset 0 0 60px rgba(0, 255, 65, 0.03),
-            0 0 1px #00ff41;
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .create-progress::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(0, 255, 65, 0.05), transparent);
-        animation: shimmer 2s infinite;
-    }
-    
-    @keyframes shimmer {
-        100% { left: 100%; }
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        padding: 40px 24px;
+        text-align: center;
+        flex: 1;
+        min-height: 300px;
     }
 
-    /* ASCII Art Container */
-    .ascii-container {
-        text-align: center;
-        padding: 8px 0;
+    .progress-header {
+        font-size: 32px;
+        font-weight: 600;
+        color: var(--accent);
+        font-family: var(--font-mono);
     }
-    
-    .ascii-art {
-        font-size: 7px;
-        line-height: 1.1;
-        color: #00ff41;
-        text-shadow: 0 0 10px rgba(0, 255, 65, 0.8), 0 0 20px rgba(0, 255, 65, 0.4);
-        margin: 0;
-        letter-spacing: 0.5px;
-        animation: glow 2s ease-in-out infinite alternate;
+
+    .progress-bar {
+        width: 100%;
+        max-width: 400px;
+        height: 6px;
+        background: var(--bg-tertiary);
+        border-radius: 3px;
+        overflow: hidden;
     }
-    
-    @keyframes glow {
-        from { text-shadow: 0 0 5px rgba(0, 255, 65, 0.5), 0 0 10px rgba(0, 255, 65, 0.3); }
-        to { text-shadow: 0 0 15px rgba(0, 255, 65, 0.9), 0 0 30px rgba(0, 255, 65, 0.5); }
+
+    .progress-fill {
+        height: 100%;
+        background: var(--accent);
+        transition: width 0.3s ease;
     }
-    
-    /* Matrix Progress Bar */
-    .matrix-progress {
-        padding: 8px 0;
-    }
-    
-    .matrix-bar {
-        display: flex;
-        justify-content: center;
-        font-size: 12px;
-        letter-spacing: -1px;
-    }
-    
-    .matrix-cell {
-        color: #1a3a1a;
-        transition: all 0.1s ease;
-    }
-    
-    .matrix-cell.active {
-        color: #00ff41;
-        text-shadow: 0 0 8px rgba(0, 255, 65, 0.9);
-        animation: matrix-flicker 0.1s ease;
-    }
-    
-    .matrix-cell.pulse {
-        animation: matrix-pulse 0.5s ease infinite;
-    }
-    
-    @keyframes matrix-flicker {
-        0% { opacity: 0.3; }
-        50% { opacity: 1; }
-        100% { opacity: 0.9; }
-    }
-    
-    @keyframes matrix-pulse {
-        0%, 100% { color: #00ff41; text-shadow: 0 0 10px rgba(0, 255, 65, 1); }
-        50% { color: #00aa28; text-shadow: 0 0 5px rgba(0, 255, 65, 0.5); }
-    }
-    
-    .progress-label {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-top: 8px;
-        padding: 0 4px;
-        font-size: 10px;
-    }
-    
-    .hex-progress {
-        color: #ff00ff;
-        font-weight: bold;
-        text-shadow: 0 0 5px rgba(255, 0, 255, 0.5);
-    }
-    
-    .stage-text {
-        color: #0af;
-        letter-spacing: 2px;
-        animation: stage-blink 1s ease infinite;
-    }
-    
-    @keyframes stage-blink {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.6; }
-    }
-    
-    .percent {
-        color: #00ff41;
-        font-weight: bold;
-    }
-    
-    /* Cyber Logs */
-    .cyber-logs {
-        height: 140px;
-        overflow-y: auto;
-        background: rgba(0, 0, 0, 0.8);
-        border: 1px solid #00ff4133;
-        border-radius: 2px;
-        padding: 8px;
-        position: relative;
-        scrollbar-width: thin;
-        scrollbar-color: #00ff41 #111;
-    }
-    
-    .cyber-logs::-webkit-scrollbar { width: 3px; }
-    .cyber-logs::-webkit-scrollbar-track { background: #0a0a0a; }
-    .cyber-logs::-webkit-scrollbar-thumb { background: #00ff41; }
-    
-    .scanline {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 2px;
-        background: linear-gradient(90deg, transparent, rgba(0, 255, 65, 0.3), transparent);
-        animation: scanline 3s linear infinite;
-        pointer-events: none;
-    }
-    
-    @keyframes scanline {
-        0% { top: 0; }
-        100% { top: 100%; }
-    }
-    
-    .log-entry {
+
+    /* Progress Steps */
+    .progress-steps {
         display: flex;
         gap: 8px;
-        font-size: 10px;
-        line-height: 1.8;
-        color: #666;
-        animation: log-slide 0.2s ease;
-    }
-    
-    @keyframes log-slide {
-        from { opacity: 0; transform: translateX(-10px); }
-        to { opacity: 1; transform: translateX(0); }
-    }
-    
-    .log-time {
-        color: #444;
-        font-size: 9px;
-    }
-    
-    .log-icon {
-        color: #555;
-    }
-    
-    .log-entry.cmd { color: #fff; }
-    .log-entry.cmd .log-icon { color: #00ff41; }
-    .log-entry.success { color: #00ff41; }
-    .log-entry.success .log-icon { color: #00ff41; }
-    .log-entry.data { color: #0af; }
-    
-    .blink-cursor {
-        animation: blink 0.7s step-end infinite;
-        color: #00ff41;
-    }
-    
-    @keyframes blink {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0; }
-    }
-    
-    /* DNA Helix Stage Indicator */
-    .stage-helix {
-        display: flex;
+        flex-wrap: wrap;
         justify-content: center;
-        align-items: center;
-        padding: 8px 0;
-        border-top: 1px solid rgba(0, 255, 65, 0.15);
+        max-width: 500px;
+        margin: 8px 0;
     }
-    
-    .helix-node {
+
+    .progress-step {
         display: flex;
         align-items: center;
-        font-size: 10px;
+        gap: 6px;
+        padding: 4px 10px;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 4px;
+        font-size: 11px;
+        color: var(--text-muted);
+        font-family: var(--font-mono);
     }
-    
-    .node-line {
-        color: #222;
-        letter-spacing: -2px;
+
+    .step-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--border);
+        transition: all 0.2s ease;
     }
-    
-    .node-dot {
-        color: #333;
+
+    .progress-step.pending .step-dot {
+        background: var(--border);
+    }
+
+    .progress-step.active .step-dot {
+        background: var(--accent);
+        box-shadow: 0 0 8px var(--accent);
+        animation: pulse 1s infinite;
+    }
+
+    .progress-step.active {
+        color: var(--accent);
+    }
+
+    .progress-step.completed .step-dot {
+        background: var(--accent);
+    }
+
+    .progress-step.completed {
+        color: var(--text);
+    }
+
+    .step-label {
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .progress-message {
+        color: var(--text-muted);
+        font-size: 14px;
+        margin: 0;
+    }
+
+    .installing-tools {
+        margin-top: 12px;
+    }
+
+    .installing-label {
         font-size: 12px;
-        transition: all 0.3s ease;
+        color: var(--text-muted);
+        margin-bottom: 8px;
     }
-    
-    .helix-node.active .node-dot {
-        color: #00ff41;
-        text-shadow: 0 0 10px rgba(0, 255, 65, 1);
-        animation: node-pulse 1s ease infinite;
+
+    .tools-installing {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        justify-content: center;
     }
-    
-    .helix-node.active .node-line {
-        color: #00aa28;
+
+    .tool-badge-installing {
+        padding: 4px 8px;
+        background: rgba(0, 255, 65, 0.1);
+        border: 1px solid rgba(0, 255, 65, 0.3);
+        border-radius: 4px;
+        font-size: 11px;
+        color: var(--accent);
+        font-family: var(--font-mono);
+        animation: pulse 1s infinite;
     }
-    
-    .helix-node.done .node-dot {
-        color: #00ff41;
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
     }
-    
-    .helix-node.done .node-line {
-        color: #00ff41;
-        text-shadow: 0 0 5px rgba(0, 255, 65, 0.5);
+
+    .spinner {
+        width: 32px;
+        height: 32px;
+        border: 3px solid var(--border);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
     }
-    
-    @keyframes node-pulse {
-        0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.3); }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
     }
 
     /* Content */
