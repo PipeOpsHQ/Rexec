@@ -625,18 +625,27 @@ function createTerminalStore() {
         isProcessingQueue = false;
       };
 
+      // Filter out mouse tracking sequences (SGR mouse mode: \x1b[<...M or \x1b[<...m)
+      // These are sent by xterm.js when mouse tracking is enabled by applications
+      // but can be noisy and cause issues when not needed
+      const mouseTrackingRegex = /\x1b\[<[\d;]+[Mm]/g;
+      
       session.terminal.onData((data) => {
         if (ws.readyState !== WebSocket.OPEN) return;
 
+        // Filter out mouse tracking sequences to reduce noise
+        const filteredData = data.replace(mouseTrackingRegex, '');
+        if (!filteredData) return; // Skip if only mouse data
+        
         // For large pastes, chunk the data
-        if (data.length > CHUNK_SIZE) {
-          for (let i = 0; i < data.length; i += CHUNK_SIZE) {
-            inputQueue.push(data.slice(i, i + CHUNK_SIZE));
+        if (filteredData.length > CHUNK_SIZE) {
+          for (let i = 0; i < filteredData.length; i += CHUNK_SIZE) {
+            inputQueue.push(filteredData.slice(i, i + CHUNK_SIZE));
           }
           processInputQueue();
         } else {
           // Small inputs go directly
-          ws.send(JSON.stringify({ type: "input", data }));
+          ws.send(JSON.stringify({ type: "input", data: filteredData }));
         }
       });
     },
