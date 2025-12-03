@@ -275,7 +275,10 @@
 </script>
 
 {#if isOpen}
-  <div class="recording-panel" class:compact transition:slide={{ duration: 200 }}>
+  <!-- svelte-ignore a11y-click-events-have-key-events -->
+  <!-- svelte-ignore a11y-no-static-element-interactions -->
+  <div class="panel-overlay" on:click|self={close}>
+    <div class="recording-panel" class:compact transition:slide={{ duration: 200 }}>
     <div class="panel-header">
       <div class="header-left">
         <span class="rec-icon">⏺</span>
@@ -392,22 +395,32 @@
         {/if}
       </div>
     {/if}
+    </div>
   </div>
 {/if}
 
 <style>
+  .panel-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10001;
+  }
+
   .recording-panel {
-    position: absolute;
-    right: 8px;
-    top: 40px;
-    width: 300px;
+    width: 360px;
+    max-width: 95vw;
+    max-height: 85vh;
     background: #0c0c10;
     border: 1px solid #1e1e28;
-    border-radius: 6px;
-    z-index: 100;
+    border-radius: 8px;
     font-size: 11px;
     font-family: var(--font-mono, 'JetBrains Mono', monospace);
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.02);
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.9), 0 0 20px rgba(255, 71, 87, 0.1);
     overflow: hidden;
   }
 

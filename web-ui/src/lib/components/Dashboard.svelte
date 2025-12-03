@@ -128,13 +128,13 @@
             toast.update(toastId, `${container.name} started`, "success");
             if (result.recreated) {
                 toast.info(
-                    "Session was recreated. Your data volume was preserved.",
+                    "Terminal was recreated. Your data volume was preserved.",
                 );
             }
         } else {
             toast.update(
                 toastId,
-                result.error || "Failed to start session",
+                result.error || "Failed to start terminal",
                 "error",
             );
         }
@@ -151,7 +151,7 @@
         } else {
             toast.update(
                 toastId,
-                result.error || "Failed to stop session",
+                result.error || "Failed to stop terminal",
                 "error",
             );
         }
@@ -184,7 +184,7 @@
         } else {
             toast.update(
                 toastId,
-                result.error || "Failed to delete session",
+                result.error || "Failed to delete terminal",
                 "error",
             );
         }
@@ -304,7 +304,7 @@
 
 <ConfirmModal
     bind:show={showDeleteConfirm}
-    title="Delete Session"
+    title="Delete Terminal"
     message={containerToDelete
         ? `Are you sure you want to delete "${containerToDelete.name}"? This action cannot be undone and all data will be lost.`
         : ""}
@@ -325,7 +325,7 @@
 <div class="dashboard">
     <div class="dashboard-header">
         <div class="dashboard-title">
-            <h1>Sessions</h1>
+            <h1>Terminals</h1>
             <span class="count-badge">
                 {effectiveCount} / {containerLimit}
             </span>
@@ -377,7 +377,7 @@
                             y2="12"
                         />
                     </svg>
-                    New Session
+                    New Terminal
                 {/if}
             </button>
         </div>
@@ -386,7 +386,7 @@
     {#if isLoading && containerList.length === 0}
         <div class="loading-state">
             <div class="spinner"></div>
-            <p>Loading sessions...</p>
+            <p>Loading terminals...</p>
         </div>
     {:else if containerList.length === 0}
         <div class="empty-state">
@@ -401,9 +401,9 @@
                     <path d="M8 21h8M12 17v4M6 8l4 4-4 4M12 16h4" />
                 </svg>
             </div>
-            <h2>No Sessions Yet</h2>
+            <h2>No Terminals Yet</h2>
             <p>
-                Create your first session to access a cloud environment, GPU workspace, or connect to remote resources.
+                Create your first terminal to access a cloud environment, GPU workspace, or connect to remote resources.
             </p>
             <button
                 class="btn btn-primary btn-lg"
@@ -423,7 +423,7 @@
                         y2="12"
                     />
                 </svg>
-                Create Session
+                Create Terminal
             </button>
         </div>
     {:else}

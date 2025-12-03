@@ -76,13 +76,13 @@
             if (result.returningGuest) {
                 if (result.containerCount > 0) {
                     toast.success(
-                        `Welcome back! Found ${result.containerCount} container${result.containerCount > 1 ? "s" : ""} from your previous session.`,
+                        `Welcome back! Found ${result.containerCount} terminal${result.containerCount > 1 ? "s" : ""} from your previous visit.`,
                     );
                 } else {
                     toast.success("Welcome back!");
                 }
             } else {
-                toast.success("Guest session started! You have 1 hour.");
+                toast.success("Guest access started! You have 1 hour.");
             }
         }
     }
@@ -361,7 +361,7 @@
 
                     <div class="modal-body">
                         <p class="modal-description">
-                            Enter your email to start your free guest session.
+                            Enter your email to start your free guest access.
                             We'll use this to save your work and send you
                             updates.
                         </p>
@@ -379,7 +379,7 @@
                         </div>
 
                         <p class="modal-hint">
-                            🕐 Guest sessions last 30 minutes. Sign in with
+                            🕐 Guest access lasts 30 minutes. Sign in with
                             PipeOps for unlimited access.
                         </p>
                     </div>

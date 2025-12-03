@@ -106,7 +106,7 @@
     if (sessionInfo) {
       dispatch('joined', {
         containerId: sessionInfo.containerId,
-        containerName: `Collab Session (${code})`
+        containerName: `Shared Terminal (${code})`
       });
     }
   }
@@ -119,13 +119,14 @@
 <div class="join-container">
   <div class="join-card">
     <div class="join-header">
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-        <circle cx="9" cy="7" r="4"/>
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-      </svg>
-      <h1>Join Terminal</h1>
+      <div class="join-icon">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+          <line x1="8" y1="21" x2="16" y2="21"/>
+          <line x1="12" y1="17" x2="12" y2="21"/>
+        </svg>
+      </div>
+      <h1>Join Shared Terminal</h1>
       <p class="code-display">{code}</p>
     </div>
 
@@ -168,26 +169,36 @@
     {:else if sessionInfo}
       <div class="session-info">
         <div class="terminal-card">
-          <div class="terminal-icon">⚡</div>
+          <div class="terminal-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="4 17 10 11 4 5"/>
+              <line x1="12" y1="19" x2="20" y2="19"/>
+            </svg>
+          </div>
           <div class="terminal-details">
             <span class="terminal-name">{sessionInfo.containerName}</span>
-            <span class="terminal-shared">Shared Terminal</span>
+            <span class="terminal-shared">
+              <span class="shared-badge">LIVE</span>
+              Shared Terminal
+            </span>
           </div>
         </div>
         
-        <div class="info-row">
-          <span class="label">Access</span>
-          <span class="value mode-badge" class:control={sessionInfo.mode === 'control'}>
-            {sessionInfo.mode === 'control' ? 'Full Control' : 'View Only'}
-          </span>
-        </div>
-        <div class="info-row">
-          <span class="label">Your Role</span>
-          <span class="value role-badge">{sessionInfo.role}</span>
-        </div>
-        <div class="info-row">
-          <span class="label">Expires</span>
-          <span class="value">{new Date(sessionInfo.expiresAt).toLocaleTimeString()}</span>
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="label">Access</span>
+            <span class="value mode-badge" class:control={sessionInfo.mode === 'control'}>
+              {sessionInfo.mode === 'control' ? '✏️ Full Control' : '👁 View Only'}
+            </span>
+          </div>
+          <div class="info-item">
+            <span class="label">Your Role</span>
+            <span class="value role-badge">{sessionInfo.role}</span>
+          </div>
+          <div class="info-item full-width">
+            <span class="label">Session Expires</span>
+            <span class="value">{new Date(sessionInfo.expiresAt).toLocaleTimeString()}</span>
+          </div>
         </div>
       </div>
 
@@ -198,7 +209,7 @@
             <polyline points="4 17 10 11 4 5"/>
             <line x1="12" y1="19" x2="20" y2="19"/>
           </svg>
-          Open Terminal
+          Connect Now
         </button>
       </div>
     {/if}
@@ -210,42 +221,60 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 60vh;
+    min-height: 80vh;
     padding: 20px;
+    background: linear-gradient(180deg, rgba(0, 255, 136, 0.02) 0%, transparent 50%);
   }
 
   .join-card {
     background: var(--bg-card);
     border: 1px solid var(--border);
     width: 100%;
-    max-width: 400px;
+    max-width: 420px;
     padding: 32px;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
   }
 
   .join-header {
     text-align: center;
-    margin-bottom: 24px;
+    margin-bottom: 28px;
   }
 
-  .join-header svg {
-    color: var(--accent);
+  .join-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    background: rgba(0, 255, 136, 0.1);
+    border: 1px solid rgba(0, 255, 136, 0.2);
+    border-radius: 12px;
     margin-bottom: 16px;
   }
 
+  .join-icon svg {
+    color: var(--accent);
+  }
+
   .join-header h1 {
-    font-size: 20px;
+    font-size: 18px;
     text-transform: uppercase;
     letter-spacing: 2px;
     margin: 0 0 12px;
+    color: var(--text);
   }
 
   .code-display {
     font-family: var(--font-mono);
-    font-size: 28px;
+    font-size: 24px;
     font-weight: 700;
-    letter-spacing: 4px;
+    letter-spacing: 6px;
     color: var(--accent);
     margin: 0;
+    padding: 12px 20px;
+    background: rgba(0, 255, 136, 0.05);
+    border: 1px dashed rgba(0, 255, 136, 0.3);
+    display: inline-block;
   }
 
   .loading {
@@ -253,12 +282,12 @@
     flex-direction: column;
     align-items: center;
     gap: 16px;
-    padding: 32px 0;
+    padding: 40px 0;
   }
 
   .spinner {
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
     border: 2px solid var(--border);
     border-top-color: var(--accent);
     border-radius: 50%;
@@ -271,7 +300,8 @@
 
   .loading p {
     color: var(--text-muted);
-    font-size: 14px;
+    font-size: 13px;
+    margin: 0;
   }
 
   .error-state {
@@ -279,7 +309,7 @@
     flex-direction: column;
     align-items: center;
     gap: 16px;
-    padding: 24px 0;
+    padding: 32px 0;
     text-align: center;
   }
 
@@ -291,91 +321,135 @@
   .error-state p {
     color: var(--text-secondary);
     margin: 0;
+    font-size: 14px;
   }
 
   .session-info {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding: 20px;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
     margin-bottom: 24px;
   }
 
   .terminal-card {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 12px;
+    gap: 14px;
+    padding: 16px;
     background: rgba(0, 255, 65, 0.05);
     border: 1px solid rgba(0, 255, 65, 0.2);
-    margin-bottom: 8px;
+    margin-bottom: 16px;
   }
 
   .terminal-icon {
-    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    background: rgba(0, 255, 136, 0.1);
+    border-radius: 8px;
+  }
+
+  .terminal-icon svg {
+    color: var(--accent);
   }
 
   .terminal-details {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 4px;
+    flex: 1;
   }
 
   .terminal-name {
     font-size: 16px;
     font-weight: 600;
-    color: var(--accent);
+    color: var(--text);
     font-family: var(--font-mono);
   }
 
   .terminal-shared {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .shared-badge {
+    padding: 2px 6px;
+    background: var(--accent);
+    color: #000;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    animation: pulse-badge 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-badge {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+  }
+
+  .info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .info-item.full-width {
+    grid-column: span 2;
+  }
+
+  .label {
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: var(--text-muted);
   }
 
-  .info-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .label {
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--text-muted);
-  }
-
   .value {
-    font-size: 14px;
+    font-size: 13px;
     color: var(--text);
   }
 
   .mode-badge {
-    padding: 4px 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
     background: var(--bg-card);
     border: 1px solid var(--border);
-    font-size: 12px;
+    font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    width: fit-content;
   }
 
   .mode-badge.control {
     border-color: var(--accent);
     color: var(--accent);
+    background: rgba(0, 255, 136, 0.05);
   }
 
   .role-badge {
-    padding: 4px 10px;
+    display: inline-block;
+    padding: 6px 12px;
     background: var(--accent);
     color: #000;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
     text-transform: capitalize;
+    width: fit-content;
   }
 
   .actions {
@@ -392,11 +466,11 @@
     align-items: center;
     justify-content: center;
     gap: 8px;
-    padding: 12px 20px;
-    font-size: 14px;
-    font-weight: 500;
+    padding: 14px 24px;
+    font-size: 13px;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 1px;
     border: 1px solid var(--border);
     cursor: pointer;
     transition: all 0.2s;
@@ -425,7 +499,7 @@
   .auth-prompt {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 20px;
   }
 
   .auth-description {
@@ -433,6 +507,7 @@
     font-size: 14px;
     text-align: center;
     margin: 0;
+    line-height: 1.5;
   }
 
   .form-group {
@@ -442,7 +517,7 @@
   }
 
   .form-group label {
-    font-size: 12px;
+    font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: var(--text-muted);
@@ -450,7 +525,7 @@
 
   .form-group input {
     width: 100%;
-    padding: 12px 14px;
+    padding: 14px 16px;
     background: var(--bg-secondary);
     border: 1px solid var(--border);
     color: var(--text);

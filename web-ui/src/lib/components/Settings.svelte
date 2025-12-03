@@ -106,7 +106,7 @@
           <div class="setting-info">
             <label>⚠️ Guest Account</label>
             <span class="setting-description">
-              Your session is temporary. Sign in to save your data.
+              Your terminals are temporary. Sign in to save your data.
             </span>
           </div>
           <div class="setting-value">

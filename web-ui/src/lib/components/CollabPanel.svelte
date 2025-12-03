@@ -65,7 +65,10 @@
 </script>
 
 {#if isOpen}
-  <div class="collab-panel" class:compact transition:slide={{ duration: 200 }}>
+  <!-- svelte-ignore a11y-click-events-have-key-events -->
+  <!-- svelte-ignore a11y-no-static-element-interactions -->
+  <div class="panel-overlay" on:click|self={close}>
+    <div class="collab-panel" class:compact transition:slide={{ duration: 200 }}>
     <div class="panel-header">
       <div class="header-left">
         <span class="collab-icon">👥</span>
@@ -129,13 +132,13 @@
         </div>
 
         <div class="share-section">
-          <div class="code-box">
-            <span class="share-code">{shareCode}</span>
-            <button class="copy-btn" on:click={copyCode}>
-              {copied ? '✓' : '📋'}
+          <div class="share-link-box">
+            <input class="share-url" readonly value={shareUrl} on:click|stopPropagation={(e) => e.currentTarget.select()} />
+            <button class="copy-link-btn" on:click={copyLink}>
+              {copied ? '✓ Copied' : '📋 Copy Link'}
             </button>
           </div>
-          <input class="share-url" readonly value={shareUrl} on:click|stopPropagation={(e) => e.currentTarget.select()} />
+          <p class="share-hint">Share this link with collaborators</p>
         </div>
 
         <div class="participants-section">
@@ -169,22 +172,32 @@
         <button class="end-btn" on:click={endSession}>End Sharing</button>
       </div>
     {/if}
+    </div>
   </div>
 {/if}
 
 <style>
+  .panel-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10001;
+  }
+
   .collab-panel {
-    position: absolute;
-    right: 8px;
-    top: 40px;
-    width: 280px;
+    width: 340px;
+    max-width: 95vw;
+    max-height: 85vh;
     background: #0c0c10;
     border: 1px solid #1e1e28;
-    border-radius: 6px;
-    z-index: 100;
+    border-radius: 8px;
     font-size: 11px;
     font-family: var(--font-mono, 'JetBrains Mono', monospace);
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.02);
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.9), 0 0 20px rgba(0, 255, 136, 0.1);
     overflow: hidden;
   }
 
@@ -421,53 +434,50 @@
     margin-bottom: 14px;
   }
 
-  .code-box {
+  .share-link-box {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 12px;
-    background: rgba(0, 255, 136, 0.05);
-    border: 1px solid rgba(0, 255, 136, 0.2);
-    border-radius: 4px;
+    gap: 8px;
     margin-bottom: 6px;
   }
 
-  .share-code {
-    font-size: 18px;
-    font-weight: 700;
-    letter-spacing: 3px;
-    color: var(--accent, #00ff88);
-  }
-
-  .copy-btn {
-    background: #0a0a0c;
-    border: 1px solid #1e1e28;
-    border-radius: 3px;
-    cursor: pointer;
-    font-size: 12px;
-    padding: 4px 8px;
-    transition: all 0.15s;
-  }
-
-  .copy-btn:hover {
-    background: rgba(0, 255, 136, 0.1);
-    border-color: rgba(0, 255, 136, 0.3);
-  }
-
   .share-url {
-    width: 100%;
-    padding: 6px 8px;
+    flex: 1;
+    padding: 10px 12px;
     background: #0a0a0c;
-    border: 1px solid #1e1e28;
+    border: 1px solid rgba(0, 255, 136, 0.2);
     border-radius: 4px;
-    color: #555;
-    font-size: 9px;
+    color: var(--accent, #00ff88);
+    font-size: 10px;
     font-family: inherit;
   }
 
   .share-url:focus {
     outline: none;
-    border-color: rgba(0, 255, 136, 0.3);
+    border-color: rgba(0, 255, 136, 0.5);
+  }
+
+  .copy-link-btn {
+    padding: 8px 14px;
+    background: var(--accent, #00ff88);
+    border: none;
+    border-radius: 4px;
+    color: #000;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+
+  .copy-link-btn:hover {
+    background: #00cc6a;
+  }
+
+  .share-hint {
+    margin: 0;
+    font-size: 9px;
+    color: #555;
+    text-align: center;
   }
 
   .participants-section {

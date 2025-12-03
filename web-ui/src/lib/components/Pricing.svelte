@@ -17,11 +17,11 @@
       period: 'forever',
       description: 'For trying out Rexec',
       features: [
-        '1 terminal session',
+        '1 terminal',
         '512MB memory',
         '0.5 vCPU',
         '2GB storage',
-        '1 hour session limit',
+        '1 hour limit',
         'Community support'
       ],
       cta: 'Current Plan',
@@ -34,11 +34,11 @@
       period: '/month',
       description: 'For individual developers',
       features: [
-        '10 terminal sessions',
+        '10 terminals',
         'Up to 4GB memory',
         'Up to 2 vCPU',
         '20GB storage',
-        '24 hour session limit',
+        '24 hour limit',
         'Recording & playback',
         'Share with 5 collaborators',
         'Priority support'
@@ -57,7 +57,7 @@
         'Up to 16GB memory',
         'Up to 8 vCPU',
         '100GB storage',
-        'Persistent sessions',
+        'Persistent terminals',
         'Team recordings library',
         'Unlimited collaborators',
         'GPU access (coming soon)',

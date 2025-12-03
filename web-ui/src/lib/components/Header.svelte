@@ -34,9 +34,9 @@
 
         if (remaining <= 0) {
             timeRemaining = "Expired";
-            // Close all terminal sessions when guest session expires
+            // Close all terminals when guest access expires
             terminal.closeAllSessionsForce();
-            toast.error("Guest session expired. Please sign in again.");
+            toast.error("Guest access expired. Please sign in again.");
             auth.logout();
             return;
         }
@@ -131,7 +131,7 @@
             {#if $sessionCount > 0}
                 <span class="terminal-status">
                     <span class="terminal-dot"></span>
-                    {$sessionCount} Session{$sessionCount > 1 ? 's' : ''}
+                    {$sessionCount} Terminal{$sessionCount > 1 ? 's' : ''}
                 </span>
             {/if}
 
