@@ -23,6 +23,7 @@ export interface SplitPane {
   fitAddon: FitAddon;
   webglAddon: WebglAddon | null;
   resizeObserver: ResizeObserver | null;
+  ws: WebSocket | null; // Each split pane has its own independent WebSocket
 }
 
 export interface SplitPaneLayout {
@@ -474,15 +475,8 @@ function createTerminalStore() {
           // Sanitize before writing to terminal
           const sanitized = sanitizeOutput(outputBuffer);
           if (sanitized) {
-            // Write to main terminal and all split panes
+            // Write to main terminal only (split panes have their own WebSocket connections)
             session.terminal.write(sanitized);
-            // Also write to any split panes
-            const currentSession = getState().sessions.get(sessionId);
-            if (currentSession?.splitPanes) {
-              currentSession.splitPanes.forEach((pane) => {
-                pane.terminal.write(sanitized);
-              });
-            }
           }
           outputBuffer = '';
         }
@@ -690,13 +684,8 @@ function createTerminalStore() {
       };
 
       // Filter out mouse tracking sequences (SGR mouse mode: \x1b[<...M or \x1b[<...m)
-      // These are sent by xterm.js when mouse tracking is enabled by applications
-      // Also filter fragmented mouse data that might appear without the escape prefix
-      // Pattern: \x1b[<button;x;y M/m  (complete sequence)
-      // Fragmented: just digits;digits;digitsM (incomplete/split sequence)
-      const mouseTrackingRegex = /\x1b\[<[\d;]+[Mm]/g;
-      const fragmentedMouseRegex = /(?:^|(?<=\s))[\d]+;[\d]+;[\d]+[Mm](?:\s|$)?/g;
       // Also catch pure mouse coordinate spam (e.g., "35;166;10M35;165;10M...")
+      const mouseTrackingRegex = /\x1b\[<[\d;]+[Mm]/g;
       const mouseSpamRegex = /(?:\d+;\d+;\d+[Mm])+/g;
       
       session.terminal.onData((data) => {
@@ -1175,13 +1164,16 @@ function createTerminalStore() {
       return `pane-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     },
 
-    // Split the current terminal view (creates a new pane sharing the same connection)
+    // Split the current terminal view (creates a new INDEPENDENT terminal session to the same container)
     splitPane(sessionId: string, direction: SplitDirection = "horizontal"): string | null {
       const state = getState();
       const session = state.sessions.get(sessionId);
       if (!session) return null;
 
-      // Create a new terminal instance that shares the same WebSocket connection
+      const authToken = get(token);
+      if (!authToken) return null;
+
+      // Create a new terminal instance with its OWN WebSocket connection
       const newTerminal = new Terminal(TERMINAL_OPTIONS);
       const newFitAddon = new FitAddon();
       newTerminal.loadAddon(newFitAddon);
@@ -1195,6 +1187,7 @@ function createTerminalStore() {
         fitAddon: newFitAddon,
         webglAddon: null,
         resizeObserver: null,
+        ws: null, // Each pane gets its own WebSocket
       };
 
       // Update session with new pane
@@ -1239,9 +1232,118 @@ function createTerminalStore() {
         };
       });
 
-      // Sync the new terminal with the WebSocket - forward output to all panes
-      // The main terminal handles input, all panes receive output
+      // Connect the split pane to its own WebSocket session
+      this.connectSplitPaneWebSocket(sessionId, paneId);
+
       return paneId;
+    },
+
+    // Connect a split pane to its own independent WebSocket session
+    connectSplitPaneWebSocket(sessionId: string, paneId: string) {
+      const state = getState();
+      const session = state.sessions.get(sessionId);
+      if (!session) return;
+
+      const pane = session.splitPanes.get(paneId);
+      if (!pane) return;
+
+      const authToken = get(token);
+      if (!authToken) return;
+
+      // Create independent WebSocket connection for this pane
+      const wsUrl = `${getWsUrl()}/ws/terminal/${session.containerId}?token=${authToken}`;
+      const ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        // Send initial resize
+        ws.send(
+          JSON.stringify({
+            type: "resize",
+            cols: pane.terminal.cols,
+            rows: pane.terminal.rows,
+          }),
+        );
+
+        // Show connected message in split pane
+        pane.terminal.writeln("\x1b[32m› Split session connected\x1b[0m\r\n");
+      };
+
+      // Output buffer for batching writes
+      let outputBuffer = '';
+      let flushTimeout: ReturnType<typeof setTimeout> | null = null;
+      const FLUSH_INTERVAL = 16;
+      const MAX_BUFFER_SIZE = 64 * 1024;
+
+      const flushBuffer = () => {
+        if (outputBuffer && pane.terminal) {
+          // Filter mouse tracking spam
+          const sanitized = outputBuffer.replace(/(?:\d+;\d+;\d+[Mm])+/g, '');
+          if (sanitized) {
+            pane.terminal.write(sanitized);
+          }
+          outputBuffer = '';
+        }
+        flushTimeout = null;
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === "output") {
+            outputBuffer += msg.data;
+            if (outputBuffer.length >= MAX_BUFFER_SIZE) {
+              if (flushTimeout) clearTimeout(flushTimeout);
+              flushBuffer();
+            } else if (!flushTimeout) {
+              flushTimeout = setTimeout(flushBuffer, FLUSH_INTERVAL);
+            }
+          } else if (msg.type === "error") {
+            pane.terminal.writeln(`\r\n\x1b[31mError: ${msg.data}\x1b[0m`);
+          } else if (msg.type === "ping") {
+            ws.send(JSON.stringify({ type: "pong" }));
+          }
+        } catch {
+          outputBuffer += event.data;
+          if (outputBuffer.length >= MAX_BUFFER_SIZE) {
+            if (flushTimeout) clearTimeout(flushTimeout);
+            flushBuffer();
+          } else if (!flushTimeout) {
+            flushTimeout = setTimeout(flushBuffer, FLUSH_INTERVAL);
+          }
+        }
+      };
+
+      ws.onclose = () => {
+        pane.terminal.writeln("\r\n\x1b[33m› Split session disconnected\x1b[0m");
+      };
+
+      ws.onerror = () => {
+        console.log("[Terminal] Split pane WebSocket error");
+      };
+
+      // Handle terminal input for split pane
+      const mouseTrackingRegex = /\x1b\[<[\d;]+[Mm]/g;
+      const mouseSpamRegex = /(?:\d+;\d+;\d+[Mm])+/g;
+
+      pane.terminal.onData((data) => {
+        if (ws.readyState !== WebSocket.OPEN) return;
+
+        let filteredData = data.replace(mouseTrackingRegex, '');
+        filteredData = filteredData.replace(mouseSpamRegex, '');
+        if (!filteredData) return;
+
+        ws.send(JSON.stringify({ type: "input", data: filteredData }));
+      });
+
+      // Store the WebSocket on the pane
+      pane.ws = ws;
+
+      // Update the pane in the session
+      updateSession(sessionId, (s) => {
+        const newPanes = new Map(s.splitPanes);
+        newPanes.set(paneId, pane);
+        return { ...s, splitPanes: newPanes };
+      });
     },
 
     // Close a split pane
@@ -1254,6 +1356,7 @@ function createTerminalStore() {
       if (!pane) return;
 
       // Cleanup pane resources
+      if (pane.ws) pane.ws.close();
       if (pane.resizeObserver) pane.resizeObserver.disconnect();
       if (pane.webglAddon) pane.webglAddon.dispose();
       if (pane.terminal) pane.terminal.dispose();
@@ -1272,8 +1375,7 @@ function createTerminalStore() {
               // Only main pane left, remove split layout
               layout = null;
             } else {
-              // Redistribute sizes
-              const removedSize = layout.sizes[paneIndex];
+              // Redistribute sizes evenly
               const newSizes = layout.sizes.filter((_, i) => i !== paneIndex);
               const totalRemaining = newSizes.reduce((a, b) => a + b, 0);
               layout = {
@@ -1394,21 +1496,6 @@ function createTerminalStore() {
             this.fitSplitPane(sessionId, paneId);
           });
         }
-      });
-    },
-
-    // Write to all split panes (used when receiving WebSocket output)
-    writeToAllPanes(sessionId: string, data: string) {
-      const state = getState();
-      const session = state.sessions.get(sessionId);
-      if (!session) return;
-
-      // Write to main terminal
-      session.terminal.write(data);
-
-      // Write to all split panes
-      session.splitPanes.forEach((pane) => {
-        pane.terminal.write(data);
       });
     },
   };
