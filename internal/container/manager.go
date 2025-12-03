@@ -1439,6 +1439,13 @@ type ContainerResourceStats struct {
 
 // StreamContainerStats streams container stats to the provided channel
 func (m *Manager) StreamContainerStats(ctx context.Context, containerID string, statsCh chan<- ContainerResourceStats) error {
+	// Get container's configured memory limit first (Docker stats may return host memory)
+	var configuredMemoryLimit int64
+	inspectInfo, err := m.client.ContainerInspect(ctx, containerID)
+	if err == nil && inspectInfo.HostConfig != nil && inspectInfo.HostConfig.Memory > 0 {
+		configuredMemoryLimit = inspectInfo.HostConfig.Memory
+	}
+
 	stats, err := m.client.ContainerStats(ctx, containerID, true)
 	if err != nil {
 		return err
@@ -1514,10 +1521,17 @@ func (m *Manager) StreamContainerStats(ctx context.Context, containerID string, 
 				netTx += float64(netStats.TxBytes)
 			}
 
+			// Use configured memory limit if Docker stats returns host memory (common with gVisor)
+			memLimit := float64(v.MemoryStats.Limit)
+			if configuredMemoryLimit > 0 && (memLimit == 0 || memLimit > float64(configuredMemoryLimit)*2) {
+				// Docker returned 0 or host memory, use our configured limit
+				memLimit = float64(configuredMemoryLimit)
+			}
+
 			statsCh <- ContainerResourceStats{
 				CPUPercent:  cpuPercent,
 				Memory:      memUsage,
-				MemoryLimit: float64(v.MemoryStats.Limit),
+				MemoryLimit: memLimit,
 				DiskRead:    diskRead,
 				DiskWrite:   diskWrite,
 				NetRx:       netRx,
