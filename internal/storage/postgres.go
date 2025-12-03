@@ -159,11 +159,18 @@ func (s *PostgresStore) migrate() error {
 		title VARCHAR(255) NOT NULL,
 		duration_ms BIGINT DEFAULT 0,
 		size_bytes BIGINT DEFAULT 0,
+		data BYTEA,
 		share_token VARCHAR(64) UNIQUE,
 		is_public BOOLEAN DEFAULT false,
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 		expires_at TIMESTAMP WITH TIME ZONE
 	);
+	
+	-- Add data column if missing (for existing installations)
+	DO $$ BEGIN
+		ALTER TABLE terminal_recordings ADD COLUMN IF NOT EXISTS data BYTEA;
+	EXCEPTION WHEN duplicate_column THEN NULL;
+	END $$;
 
 	CREATE TABLE IF NOT EXISTS collab_sessions (
 		id VARCHAR(36) PRIMARY KEY,
@@ -763,6 +770,7 @@ type RecordingRecord struct {
 	Title       string     `db:"title"`
 	Duration    int64      `db:"duration_ms"`    // Duration in milliseconds
 	Size        int64      `db:"size_bytes"`     // Size of recording data
+	Data        []byte     `db:"data"`           // Recording data (gzipped asciicast)
 	ShareToken  string     `db:"share_token"`    // Public share link token
 	IsPublic    bool       `db:"is_public"`      // Whether publicly accessible
 	CreatedAt   time.Time  `db:"created_at"`
@@ -772,8 +780,8 @@ type RecordingRecord struct {
 // CreateRecording creates a new recording record
 func (s *PostgresStore) CreateRecording(ctx context.Context, rec *RecordingRecord) error {
 	query := `
-		INSERT INTO terminal_recordings (id, user_id, container_id, title, duration_ms, size_bytes, share_token, is_public, created_at, expires_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		INSERT INTO terminal_recordings (id, user_id, container_id, title, duration_ms, size_bytes, data, share_token, is_public, created_at, expires_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	`
 	_, err := s.db.ExecContext(ctx, query,
 		rec.ID,
@@ -782,6 +790,7 @@ func (s *PostgresStore) CreateRecording(ctx context.Context, rec *RecordingRecor
 		rec.Title,
 		rec.Duration,
 		rec.Size,
+		rec.Data,
 		rec.ShareToken,
 		rec.IsPublic,
 		rec.CreatedAt,
@@ -897,6 +906,28 @@ func (s *PostgresStore) DeleteRecording(ctx context.Context, id string) error {
 	query := `DELETE FROM terminal_recordings WHERE id = $1`
 	_, err := s.db.ExecContext(ctx, query, id)
 	return err
+}
+
+// GetRecordingData retrieves only the recording data for streaming
+func (s *PostgresStore) GetRecordingData(ctx context.Context, id string) ([]byte, error) {
+	var data []byte
+	query := `SELECT data FROM terminal_recordings WHERE id = $1`
+	err := s.db.QueryRowContext(ctx, query, id).Scan(&data)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	return data, err
+}
+
+// GetRecordingDataByToken retrieves recording data by share token
+func (s *PostgresStore) GetRecordingDataByToken(ctx context.Context, token string) ([]byte, error) {
+	var data []byte
+	query := `SELECT data FROM terminal_recordings WHERE share_token = $1 AND (expires_at IS NULL OR expires_at > NOW())`
+	err := s.db.QueryRowContext(ctx, query, token).Scan(&data)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	return data, err
 }
 
 // ============================================================================

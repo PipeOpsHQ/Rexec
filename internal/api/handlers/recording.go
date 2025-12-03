@@ -1,16 +1,13 @@
 package handlers
 
 import (
-	"compress/gzip"
+	"bytes"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -25,7 +22,6 @@ type RecordingHandler struct {
 	store           *storage.PostgresStore
 	recordings      map[string]*ActiveRecording // containerID -> recording
 	mu              sync.RWMutex
-	storagePath     string
 }
 
 // ActiveRecording represents an in-progress recording
@@ -61,39 +57,12 @@ type RecordingMetadata struct {
 
 // NewRecordingHandler creates a new recording handler
 func NewRecordingHandler(store *storage.PostgresStore, storagePath string) *RecordingHandler {
-	if storagePath == "" {
-		storagePath = "/app/recordings"
-	}
-	
-	// Ensure storage directory exists and is writable
-	if err := os.MkdirAll(storagePath, 0755); err != nil {
-		log.Printf("[Recording] Warning: failed to create storage directory %s: %v", storagePath, err)
-	}
-	
-	// Test if directory is writable
-	testFile := filepath.Join(storagePath, ".write_test")
-	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
-		log.Printf("[Recording] WARNING: Storage directory %s is not writable: %v", storagePath, err)
-		log.Printf("[Recording] Hint: If using a mounted volume, ensure the host directory is owned by uid 1000")
-		log.Printf("[Recording] Run: chown -R 1000:1000 /path/to/recordings on the host")
-		
-		// Fallback to temp directory
-		fallbackPath := "/tmp/rexec-recordings"
-		if err := os.MkdirAll(fallbackPath, 0755); err == nil {
-			log.Printf("[Recording] Using fallback storage path: %s (recordings will NOT persist across restarts)", fallbackPath)
-			storagePath = fallbackPath
-		}
-	} else {
-		os.Remove(testFile)
-	}
-
 	handler := &RecordingHandler{
 		store:       store,
 		recordings:  make(map[string]*ActiveRecording),
-		storagePath: storagePath,
 	}
 	
-	log.Printf("[Recording] Handler initialized with storage path: %s", storagePath)
+	log.Printf("[Recording] Handler initialized (storing in database)")
 	return handler
 }
 
@@ -221,46 +190,44 @@ func (h *RecordingHandler) StopRecording(c *gin.Context) {
 	// Generate share token
 	shareToken := generateRecordingToken()
 
-	// Save recording to file (asciinema format)
-	filePath := filepath.Join(h.storagePath, recording.ID+".cast")
-	log.Printf("[Recording] Attempting to save to: %s (storage path: %s, events: %d)", filePath, h.storagePath, len(recording.Events))
-	if err := h.saveRecording(recording, filePath); err != nil {
-		log.Printf("[Recording] Failed to save recording to %s: %v", filePath, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to save recording: %v", err)})
+	// Convert recording to asciicast format and store in database
+	recordingData, err := h.convertToAsciicast(recording)
+	if err != nil {
+		log.Printf("[Recording] Failed to convert recording: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to process recording"})
 		return
 	}
-	log.Printf("[Recording] Successfully saved recording to: %s", filePath)
 
-	// Get file size
-	fileInfo, _ := os.Stat(filePath)
-	var size int64
-	if fileInfo != nil {
-		size = fileInfo.Size()
-	}
+	log.Printf("[Recording] Converted recording: %d bytes, %d events", len(recordingData), len(recording.Events))
 
-	// Save to database
+	// Save to database with data
 	record := &storage.RecordingRecord{
 		ID:          recording.ID,
 		UserID:      userID.(string),
 		ContainerID: containerID,
 		Title:       recording.Title,
 		Duration:    duration.Milliseconds(),
-		Size:        size,
+		Size:        int64(len(recordingData)),
+		Data:        recordingData,
 		ShareToken:  shareToken,
 		IsPublic:    false,
 		CreatedAt:   recording.StartedAt,
 	}
 
 	if err := h.store.CreateRecording(c.Request.Context(), record); err != nil {
-		log.Printf("Failed to save recording metadata: %v", err)
+		log.Printf("[Recording] Failed to save recording: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save recording"})
+		return
 	}
+
+	log.Printf("[Recording] Successfully saved recording %s to database", recording.ID)
 
 	c.JSON(http.StatusOK, gin.H{
 		"recording_id": recording.ID,
 		"duration_ms":  duration.Milliseconds(),
 		"duration":     formatDuration(duration),
 		"events_count": len(recording.Events),
-		"size_bytes":   size,
+		"size_bytes":   len(recordingData),
 		"share_token":  shareToken,
 		"message":      "Recording saved",
 	})
@@ -359,41 +326,32 @@ func (h *RecordingHandler) StreamRecording(c *gin.Context) {
 		return
 	}
 
-	// Read and stream the file
-	filePath := filepath.Join(h.storagePath, recordingID+".cast")
-	file, err := os.Open(filePath)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "recording file not found"})
+	// Get recording data from database
+	data, err := h.store.GetRecordingData(c.Request.Context(), recordingID)
+	if err != nil || data == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "recording data not found"})
 		return
 	}
-	defer file.Close()
 
 	c.Header("Content-Type", "application/x-asciicast")
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s.cast", recording.Title))
-
-	io.Copy(c.Writer, file)
+	
+	// Decompress if gzipped
+	c.Data(http.StatusOK, "application/x-asciicast", data)
 }
 
 // StreamRecordingByToken streams recording by share token
 func (h *RecordingHandler) StreamRecordingByToken(c *gin.Context) {
 	token := c.Param("token")
 
-	recording, err := h.store.GetRecordingByShareToken(c.Request.Context(), token)
-	if err != nil || recording == nil {
+	data, err := h.store.GetRecordingDataByToken(c.Request.Context(), token)
+	if err != nil || data == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "recording not found"})
 		return
 	}
 
-	filePath := filepath.Join(h.storagePath, recording.ID+".cast")
-	file, err := os.Open(filePath)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "recording file not found"})
-		return
-	}
-	defer file.Close()
-
 	c.Header("Content-Type", "application/x-asciicast")
-	io.Copy(c.Writer, file)
+	c.Data(http.StatusOK, "application/x-asciicast", data)
 }
 
 // UpdateRecording updates recording settings
@@ -448,11 +406,7 @@ func (h *RecordingHandler) DeleteRecording(c *gin.Context) {
 		return
 	}
 
-	// Delete file
-	filePath := filepath.Join(h.storagePath, recordingID+".cast")
-	os.Remove(filePath)
-
-	// Delete from database
+	// Delete from database (data is stored in DB, no file to delete)
 	if err := h.store.DeleteRecording(c.Request.Context(), recordingID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete"})
 		return
@@ -495,36 +449,9 @@ func (h *RecordingHandler) GetRecordingStatus(c *gin.Context) {
 	})
 }
 
-// saveRecording saves recording in asciinema v2 format
-func (h *RecordingHandler) saveRecording(recording *ActiveRecording, filePath string) error {
-	// Ensure directory exists
-	dir := filepath.Dir(filePath)
-	if err := os.MkdirAll(dir, 0777); err != nil {
-		return fmt.Errorf("failed to create recordings directory %s: %w", dir, err)
-	}
-	
-	log.Printf("[Recording] Saving recording to: %s (events: %d)", filePath, len(recording.Events))
-	
-	file, err := os.Create(filePath)
-	if err != nil {
-		// Try fallback to /tmp if primary fails
-		fallbackPath := filepath.Join("/tmp/rexec-recordings", filepath.Base(filePath))
-		if mkErr := os.MkdirAll("/tmp/rexec-recordings", 0777); mkErr == nil {
-			file, err = os.Create(fallbackPath)
-			if err == nil {
-				log.Printf("[Recording] Using fallback path: %s", fallbackPath)
-				filePath = fallbackPath
-			}
-		}
-		if err != nil {
-			return fmt.Errorf("failed to create file %s: %w", filePath, err)
-		}
-	}
-	defer file.Close()
-
-	// Use gzip compression
-	gzWriter := gzip.NewWriter(file)
-	defer gzWriter.Close()
+// convertToAsciicast converts recording to asciicast v2 format
+func (h *RecordingHandler) convertToAsciicast(recording *ActiveRecording) ([]byte, error) {
+	var buf bytes.Buffer
 
 	// Write header (asciinema v2 format)
 	header := RecordingMetadata{
@@ -537,8 +464,8 @@ func (h *RecordingHandler) saveRecording(recording *ActiveRecording, filePath st
 	}
 
 	headerJSON, _ := json.Marshal(header)
-	gzWriter.Write(headerJSON)
-	gzWriter.Write([]byte("\n"))
+	buf.Write(headerJSON)
+	buf.WriteByte('\n')
 
 	// Write events
 	recording.mu.Lock()
@@ -549,11 +476,11 @@ func (h *RecordingHandler) saveRecording(recording *ActiveRecording, filePath st
 		timeInSeconds := float64(event.Time) / 1000.0
 		eventData := []interface{}{timeInSeconds, event.Type, event.Data}
 		eventJSON, _ := json.Marshal(eventData)
-		gzWriter.Write(eventJSON)
-		gzWriter.Write([]byte("\n"))
+		buf.Write(eventJSON)
+		buf.WriteByte('\n')
 	}
 
-	return nil
+	return buf.Bytes(), nil
 }
 
 func generateRecordingToken() string {

@@ -294,9 +294,10 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 		}
 	}
 
-	// Apply resource limits to container config
+	// Apply resource limits to container config (use validated request values)
 	cfg.MemoryLimit = limits.MemoryMB * 1024 * 1024 // Convert MB to bytes
 	cfg.CPULimit = limits.CPUShares                 // Already in millicores (500 = 0.5 CPU)
+	cfg.DiskQuota = limits.DiskMB * 1024 * 1024     // Convert MB to bytes
 
 	// Start async container creation (pull image + create container)
 	go h.createContainerAsync(record.ID, cfg, req.Image, req.CustomImage, req.Role, isGuest || tier == "guest")
@@ -1186,6 +1187,7 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 	limits := models.ValidateTrialResources(&req, tier)
 	cfg.MemoryLimit = limits.MemoryMB * 1024 * 1024
 	cfg.CPULimit = limits.CPUShares // Already in millicores
+	cfg.DiskQuota = limits.DiskMB * 1024 * 1024 // Convert MB to bytes
 
 	info, err := h.manager.CreateContainer(ctx, cfg)
 	if err != nil {
