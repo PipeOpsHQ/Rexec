@@ -2,24 +2,29 @@
 set -e
 
 # =============================================================================
-# Rexec Remote Container Host Setup with TLS
+# Rexec Remote Docker Host Setup with TLS + gVisor
 # =============================================================================
-# This script sets up a VM to serve as a remote container host for Rexec.
-# Supports Docker or Podman with optional Kata Containers for microVM isolation.
+# This script sets up a VM to serve as a remote Docker host for Rexec.
+# Supports optional sandboxing via gVisor for enhanced security.
 # Run this on a fresh Ubuntu/Debian VM (Hetzner, DigitalOcean, Linode, etc.)
+#
+# Port: 2377 (non-standard to avoid attacks on default Docker port 2376)
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/your-repo/rexec/main/docker/docker-host/setup.sh | sudo bash
 #   # or
 #   sudo ./setup.sh                    # Docker + containerd only
-#   sudo ./setup.sh --podman           # Podman (Docker-compatible, better Kata support)
-#   sudo ./setup.sh --with-kata        # Docker + Kata/Firecracker microVMs
-#   sudo ./setup.sh --podman --kata    # Podman + Kata (recommended for isolation)
+#   sudo ./setup.sh --with-gvisor      # Docker + gVisor sandboxing (recommended)
 #
-# Requirements for Kata/Firecracker:
-#   - KVM support (check: ls -la /dev/kvm)
-#   - At least 4GB RAM recommended
-#   - x86_64 or aarch64 architecture
+# Runtime Options (set via CONTAINER_RUNTIME env var in Rexec):
+#   - runc (default): Standard Docker runtime
+#   - runsc: gVisor sandbox (user-space kernel, no VM overhead)
+#   - runsc-kvm: gVisor with KVM acceleration (requires /dev/kvm)
+#
+# Security:
+#   - TLS required for all connections
+#   - Non-standard port 2377 (not 2376)
+#   - gVisor provides syscall filtering and isolation
 #
 # =============================================================================
 
@@ -33,11 +38,16 @@ NC='\033[0m'
 
 # Parse arguments
 INSTALL_KATA=false
+INSTALL_GVISOR=false
 USE_PODMAN=false
 for arg in "$@"; do
     case $arg in
         --with-kata|--kata|--firecracker)
             INSTALL_KATA=true
+            shift
+            ;;
+        --with-gvisor|--gvisor)
+            INSTALL_GVISOR=true
             shift
             ;;
         --podman)
@@ -54,6 +64,9 @@ if [ "$USE_PODMAN" = true ]; then
 fi
 if [ "$INSTALL_KATA" = true ]; then
     echo -e "${CYAN}  + Kata Containers with Firecracker${NC}"
+fi
+if [ "$INSTALL_GVISOR" = true ]; then
+    echo -e "${CYAN}  + gVisor (runsc) for sandboxed isolation${NC}"
 fi
 echo -e "${BLUE}=============================================${NC}"
 echo ""
@@ -93,7 +106,10 @@ echo ""
 STEP_NUM=1
 TOTAL_STEPS=5
 if [ "$INSTALL_KATA" = true ]; then
-    TOTAL_STEPS=7
+    TOTAL_STEPS=$((TOTAL_STEPS + 2))
+fi
+if [ "$INSTALL_GVISOR" = true ]; then
+    TOTAL_STEPS=$((TOTAL_STEPS + 1))
 fi
 
 if [ "$USE_PODMAN" = true ]; then
@@ -277,6 +293,124 @@ CONTAINERDEOF
 fi
 
 # =============================================================================
+# Install gVisor (Optional)
+# =============================================================================
+if [ "$INSTALL_GVISOR" = true ]; then
+    STEP_NUM=$((STEP_NUM + 1))
+    echo -e "${YELLOW}[$STEP_NUM/$TOTAL_STEPS] Installing gVisor (runsc)...${NC}"
+    
+    # Detect architecture
+    ARCH=$(uname -m)
+    case "$ARCH" in
+        x86_64) 
+            GVISOR_ARCH="x86_64"
+            GVISOR_APT_ARCH="amd64"
+            ;;
+        aarch64) 
+            GVISOR_ARCH="aarch64"
+            GVISOR_APT_ARCH="arm64"
+            ;;
+        *) 
+            echo -e "${RED}Unsupported architecture for gVisor: $ARCH${NC}"
+            exit 1
+            ;;
+    esac
+    
+    # Install gVisor from official release
+    echo -e "${CYAN}Downloading gVisor...${NC}"
+    
+    # Try apt-based installation first (Ubuntu/Debian)
+    if command -v apt-get &> /dev/null; then
+        # Add gVisor repo
+        curl -fsSL https://gvisor.dev/archive.key | gpg --batch --yes --dearmor -o /usr/share/keyrings/gvisor-archive-keyring.gpg 2>/dev/null || true
+        echo "deb [arch=${GVISOR_APT_ARCH} signed-by=/usr/share/keyrings/gvisor-archive-keyring.gpg] https://storage.googleapis.com/gvisor/releases release main" | tee /etc/apt/sources.list.d/gvisor.list > /dev/null
+        apt-get update -qq
+        if apt-get install -y runsc 2>/dev/null; then
+            echo -e "${GREEN}✓ gVisor installed via apt${NC}"
+        else
+            echo -e "${YELLOW}apt install failed, trying direct download...${NC}"
+            # Direct download as fallback
+            curl -fsSL "https://storage.googleapis.com/gvisor/releases/release/latest/${GVISOR_ARCH}/runsc" -o /usr/local/bin/runsc
+            curl -fsSL "https://storage.googleapis.com/gvisor/releases/release/latest/${GVISOR_ARCH}/containerd-shim-runsc-v1" -o /usr/local/bin/containerd-shim-runsc-v1
+            chmod +x /usr/local/bin/runsc /usr/local/bin/containerd-shim-runsc-v1
+        fi
+    else
+        # Manual installation for other distros
+        curl -fsSL "https://storage.googleapis.com/gvisor/releases/release/latest/${GVISOR_ARCH}/runsc" -o /usr/local/bin/runsc
+        curl -fsSL "https://storage.googleapis.com/gvisor/releases/release/latest/${GVISOR_ARCH}/containerd-shim-runsc-v1" -o /usr/local/bin/containerd-shim-runsc-v1
+        chmod +x /usr/local/bin/runsc /usr/local/bin/containerd-shim-runsc-v1
+    fi
+    
+    # Verify installation and create symlinks
+    RUNSC_PATH=""
+    if command -v runsc &> /dev/null; then
+        RUNSC_PATH=$(which runsc)
+    elif [ -f /usr/bin/runsc ]; then
+        RUNSC_PATH="/usr/bin/runsc"
+    elif [ -f /usr/local/bin/runsc ]; then
+        RUNSC_PATH="/usr/local/bin/runsc"
+    fi
+    
+    if [ -n "$RUNSC_PATH" ]; then
+        echo -e "${GREEN}✓ gVisor installed successfully at $RUNSC_PATH${NC}"
+        $RUNSC_PATH --version
+        
+        # Ensure symlink exists at /usr/local/bin for Docker
+        if [ "$RUNSC_PATH" != "/usr/local/bin/runsc" ]; then
+            ln -sf "$RUNSC_PATH" /usr/local/bin/runsc
+            echo -e "${CYAN}Created symlink /usr/local/bin/runsc -> $RUNSC_PATH${NC}"
+        fi
+        
+        # Also ensure containerd-shim-runsc-v1 is available
+        if [ -f /usr/bin/containerd-shim-runsc-v1 ] && [ ! -f /usr/local/bin/containerd-shim-runsc-v1 ]; then
+            ln -sf /usr/bin/containerd-shim-runsc-v1 /usr/local/bin/containerd-shim-runsc-v1
+        fi
+    else
+        echo -e "${RED}✗ gVisor installation failed - runsc not found${NC}"
+        exit 1
+    fi
+    
+    # Configure gVisor for Docker
+    # gVisor supports ptrace (default) and KVM platforms
+    # KVM provides better performance but requires /dev/kvm
+    GVISOR_PLATFORM="systrap"
+    if [ -e /dev/kvm ] && [ -r /dev/kvm ]; then
+        GVISOR_PLATFORM="kvm"
+        echo -e "${CYAN}KVM available - using KVM platform for better performance${NC}"
+    fi
+    
+    # Add gVisor to containerd config if containerd is used
+    if [ -f /etc/containerd/config.toml ]; then
+        # Check if gVisor config already exists
+        if ! grep -q "containerd.runtimes.runsc" /etc/containerd/config.toml; then
+            cat >> /etc/containerd/config.toml <<GVISOREOF
+
+# gVisor (runsc) sandboxed runtime
+[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runsc]
+  runtime_type = "io.containerd.runsc.v1"
+  [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runsc.options]
+    TypeUrl = "io.containerd.runsc.v1.options"
+    ConfigPath = "/etc/gvisor/runsc.toml"
+GVISOREOF
+        fi
+        
+        # Create gVisor config
+        mkdir -p /etc/gvisor
+        cat > /etc/gvisor/runsc.toml <<EOF
+# gVisor runsc configuration
+platform = "${GVISOR_PLATFORM}"
+network = "sandbox"
+EOF
+        
+        systemctl restart containerd
+        echo -e "${GREEN}✓ gVisor added to containerd${NC}"
+    fi
+    
+    echo -e "${GREEN}✓ gVisor (runsc) installed and configured${NC}"
+    echo ""
+fi
+
+# =============================================================================
 # Next Step: Generate TLS Certificates
 # =============================================================================
 STEP_NUM=$((STEP_NUM + 1))
@@ -365,8 +499,8 @@ if [ "$USE_PODMAN" = true ]; then
     systemctl stop podman-tcp.socket podman.socket podman-api.service podman-tls.service 2>/dev/null || true
     systemctl disable podman-tcp.socket podman.socket 2>/dev/null || true
     
-    # Kill any process holding port 2376
-    fuser -k 2376/tcp 2>/dev/null || true
+    # Kill any process holding port 2377
+    fuser -k 2377/tcp 2>/dev/null || true
     sleep 1
     
     # Create Podman system service with TLS
@@ -398,8 +532,8 @@ setgid = root
 foreground = yes
 
 [podman-api]
-accept = 0.0.0.0:2376
-connect = 127.0.0.1:2375
+accept = 0.0.0.0:2377
+connect = 127.0.0.1:2376
 cert = /etc/stunnel/podman.pem
 CAfile = /etc/stunnel/ca.pem
 verify = 2
@@ -413,7 +547,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/podman system service --time=0 tcp://127.0.0.1:2375
+ExecStart=/usr/bin/podman system service --time=0 tcp://127.0.0.1:2376
 Restart=always
 RestartSec=5
 
@@ -448,7 +582,7 @@ EOF
     # Wait for Podman API to be ready
     echo -e "${CYAN}Waiting for Podman API to start...${NC}"
     for i in {1..10}; do
-        if curl -s http://127.0.0.1:2375/_ping > /dev/null 2>&1; then
+        if curl -s http://127.0.0.1:2376/_ping > /dev/null 2>&1; then
             echo -e "${GREEN}✓ Podman API is ready${NC}"
             break
         fi
@@ -463,7 +597,7 @@ EOF
     sleep 2
     
     if systemctl is-active --quiet podman-api.service && systemctl is-active --quiet podman-tls.service; then
-        echo -e "${GREEN}✓ Podman API + TLS proxy running on port 2376${NC}"
+        echo -e "${GREEN}✓ Podman API + TLS proxy running on port 2377${NC}"
     else
         echo -e "${RED}✗ Podman services failed to start${NC}"
         echo "Podman API status:"
@@ -472,8 +606,8 @@ EOF
         echo "TLS proxy status:"
         systemctl status podman-tls.service --no-pager -l | head -10
         echo ""
-        echo "Checking port 2376:"
-        ss -tlnp | grep 2376 || echo "Port 2376 not listening"
+        echo "Checking port 2377:"
+        ss -tlnp | grep 2377 || echo "Port 2377 not listening"
     fi
     
     echo -e "${GREEN}Podman configured for remote TLS access${NC}"
@@ -486,7 +620,9 @@ else
         cp /etc/docker/daemon.json /etc/docker/daemon.json.bak
     fi
 
-    # Write daemon config with optional Kata runtime
+    # Build runtimes JSON based on what's installed
+    RUNTIMES_JSON=""
+    
     if [ "$INSTALL_KATA" = true ]; then
         # Create wrapper scripts for kata-runtime with different configs
         cat > /usr/local/bin/kata-fc-runtime <<'WRAPPER'
@@ -500,7 +636,19 @@ WRAPPER
 exec /opt/kata/bin/kata-runtime --config /opt/kata/share/defaults/kata-containers/configuration-qemu.toml "$@"
 WRAPPER
         chmod +x /usr/local/bin/kata-qemu-runtime
-
+        
+        RUNTIMES_JSON="\"kata\": {\"path\": \"/opt/kata/bin/kata-runtime\"}, \"kata-fc\": {\"path\": \"/usr/local/bin/kata-fc-runtime\"}, \"kata-qemu\": {\"path\": \"/usr/local/bin/kata-qemu-runtime\"}"
+    fi
+    
+    if [ "$INSTALL_GVISOR" = true ]; then
+        if [ -n "$RUNTIMES_JSON" ]; then
+            RUNTIMES_JSON="${RUNTIMES_JSON}, "
+        fi
+        RUNTIMES_JSON="${RUNTIMES_JSON}\"runsc\": {\"path\": \"/usr/local/bin/runsc\"}, \"runsc-kvm\": {\"path\": \"/usr/local/bin/runsc\", \"runtimeArgs\": [\"--platform=kvm\"]}"
+    fi
+    
+    # Write daemon config with optional runtimes
+    if [ -n "$RUNTIMES_JSON" ]; then
         cat > /etc/docker/daemon.json <<EOF
 {
   "tls": true,
@@ -515,19 +663,11 @@ WRAPPER
   },
   "storage-driver": "overlay2",
   "runtimes": {
-    "kata": {
-      "path": "/opt/kata/bin/kata-runtime"
-    },
-    "kata-fc": {
-      "path": "/usr/local/bin/kata-fc-runtime"
-    },
-    "kata-qemu": {
-      "path": "/usr/local/bin/kata-qemu-runtime"
-    }
+    ${RUNTIMES_JSON}
   }
 }
 EOF
-        echo -e "${CYAN}Docker configured with Kata/Firecracker runtimes${NC}"
+        echo -e "${CYAN}Docker configured with additional runtimes${NC}"
     else
         cat > /etc/docker/daemon.json <<EOF
 {
@@ -552,7 +692,7 @@ EOF
     cat > /etc/systemd/system/docker.service.d/override.conf <<EOF
 [Service]
 ExecStart=
-ExecStart=/usr/bin/dockerd -H fd:// -H unix:///var/run/docker.sock -H tcp://0.0.0.0:2376
+ExecStart=/usr/bin/dockerd -H fd:// -H unix:///var/run/docker.sock -H tcp://0.0.0.0:2377
 EOF
 
     # Reload and restart Docker
@@ -588,19 +728,19 @@ echo -e "${YELLOW}[$STEP_NUM/$TOTAL_STEPS] Configuring firewall...${NC}"
 
 # Try UFW first (Ubuntu/Debian)
 if command -v ufw &> /dev/null; then
-    ufw allow 2376/tcp
-    echo -e "${GREEN}UFW: Opened port 2376${NC}"
+    ufw allow 2377/tcp
+    echo -e "${GREEN}UFW: Opened port 2377${NC}"
 # Try firewalld (CentOS/RHEL/Fedora)
 elif command -v firewall-cmd &> /dev/null; then
-    firewall-cmd --permanent --add-port=2376/tcp
+    firewall-cmd --permanent --add-port=2377/tcp
     firewall-cmd --reload
-    echo -e "${GREEN}firewalld: Opened port 2376${NC}"
+    echo -e "${GREEN}firewalld: Opened port 2377${NC}"
 # Fall back to iptables
 elif command -v iptables &> /dev/null; then
-    iptables -A INPUT -p tcp --dport 2376 -j ACCEPT
-    echo -e "${GREEN}iptables: Opened port 2376${NC}"
+    iptables -A INPUT -p tcp --dport 2377 -j ACCEPT
+    echo -e "${GREEN}iptables: Opened port 2377${NC}"
 else
-    echo -e "${YELLOW}No firewall detected. Make sure port 2376 is accessible.${NC}"
+    echo -e "${YELLOW}No firewall detected. Make sure port 2377 is accessible.${NC}"
 fi
 
 echo ""
@@ -619,17 +759,17 @@ if [ "$USE_PODMAN" = true ]; then
     if curl -s --cacert "$CERT_DIR/ca.pem" \
         --cert "$CERT_DIR/client/cert.pem" \
         --key "$CERT_DIR/client/key.pem" \
-        "https://127.0.0.1:2376/v4.0.0/libpod/info" > /dev/null 2>&1; then
+        "https://127.0.0.1:2377/v4.0.0/libpod/info" > /dev/null 2>&1; then
         echo -e "${GREEN}✓ Podman TLS connection successful!${NC}"
     elif curl -s --cacert "$CERT_DIR/ca.pem" \
         --cert "$CERT_DIR/client/cert.pem" \
         --key "$CERT_DIR/client/key.pem" \
-        "https://127.0.0.1:2376/_ping" > /dev/null 2>&1; then
+        "https://127.0.0.1:2377/_ping" > /dev/null 2>&1; then
         echo -e "${GREEN}✓ Podman TLS connection successful!${NC}"
     else
         echo -e "${YELLOW}⚠ TLS connection test - checking services...${NC}"
         echo "Podman API (local):"
-        curl -s http://127.0.0.1:2375/_ping && echo " - Local API works" || echo " - Local API failed"
+        curl -s http://127.0.0.1:2376/_ping && echo " - Local API works" || echo " - Local API failed"
         echo "Stunnel proxy:"
         systemctl status podman-tls.service --no-pager -l | head -5
     fi
@@ -638,7 +778,7 @@ else
         --tlscacert=$CERT_DIR/ca.pem \
         --tlscert=$CERT_DIR/client/cert.pem \
         --tlskey=$CERT_DIR/client/key.pem \
-        -H=tcp://127.0.0.1:2376 version > /dev/null 2>&1; then
+        -H=tcp://127.0.0.1:2377 version > /dev/null 2>&1; then
         echo -e "${GREEN}✓ TLS connection successful!${NC}"
     else
         echo -e "${RED}✗ TLS connection failed${NC}"
@@ -658,7 +798,7 @@ echo -e "${GREEN}=============================================${NC}"
 echo ""
 echo -e "${YELLOW}Set these environment variables in your Railway/PipeOps deployment:${NC}"
 echo ""
-echo -e "${BLUE}DOCKER_HOST${NC}=tcp://${PUBLIC_IP}:2376"
+echo -e "${BLUE}DOCKER_HOST${NC}=tcp://${PUBLIC_IP}:2377"
 echo -e "${BLUE}DOCKER_TLS_VERIFY${NC}=1"
 if [ "$USE_PODMAN" = true ]; then
     echo -e "${BLUE}CONTAINER_ENGINE${NC}=podman"
@@ -685,7 +825,7 @@ if [ "$USE_PODMAN" = true ]; then
 # Generated on $(date)
 # Podman Host: $PUBLIC_IP
 
-DOCKER_HOST=tcp://${PUBLIC_IP}:2376
+DOCKER_HOST=tcp://${PUBLIC_IP}:2377
 DOCKER_TLS_VERIFY=1
 CONTAINER_ENGINE=podman
 
@@ -704,7 +844,7 @@ else
 # Generated on $(date)
 # Docker Host: $PUBLIC_IP
 
-DOCKER_HOST=tcp://${PUBLIC_IP}:2376
+DOCKER_HOST=tcp://${PUBLIC_IP}:2377
 DOCKER_TLS_VERIFY=1
 
 # CA Certificate
@@ -727,11 +867,11 @@ echo "3. Test the connection from your Rexec instance"
 echo ""
 
 if [ "$USE_PODMAN" = true ]; then
-    echo -e "${GREEN}Your Podman host is ready at: tcp://${PUBLIC_IP}:2376${NC}"
+    echo -e "${GREEN}Your Podman host is ready at: tcp://${PUBLIC_IP}:2377${NC}"
     echo ""
     echo -e "${BLUE}Summary:${NC}"
     echo "  - Local access: podman commands work normally"
-    echo "  - Remote access (TLS): tcp://${PUBLIC_IP}:2376"
+    echo "  - Remote access (TLS): tcp://${PUBLIC_IP}:2377"
     echo ""
     echo -e "${CYAN}Podman Benefits:${NC}"
     echo "  - Docker-compatible API (works with Docker SDK)"
@@ -739,11 +879,11 @@ if [ "$USE_PODMAN" = true ]; then
     echo "  - Daemonless architecture"
     echo "  - Better Kata Containers integration"
 else
-    echo -e "${GREEN}Your Docker host is ready at: tcp://${PUBLIC_IP}:2376${NC}"
+    echo -e "${GREEN}Your Docker host is ready at: tcp://${PUBLIC_IP}:2377${NC}"
     echo ""
     echo -e "${BLUE}Summary:${NC}"
     echo "  - Local access (SSH/console): docker commands work normally"
-    echo "  - Remote access (TLS): tcp://${PUBLIC_IP}:2376"
+    echo "  - Remote access (TLS): tcp://${PUBLIC_IP}:2377"
 fi
 
 if [ "$INSTALL_KATA" = true ]; then
@@ -770,3 +910,31 @@ if [ "$INSTALL_KATA" = true ]; then
         echo "Debug with: kata-runtime check"
     fi
 fi
+
+if [ "$INSTALL_GVISOR" = true ]; then
+    echo ""
+    echo -e "${CYAN}gVisor (runsc) Usage:${NC}"
+    echo "  - Run containers with gVisor sandboxing:"
+    echo "    docker run --runtime=runsc -it alpine sh"
+    echo ""
+    echo "  - In Rexec, set CONTAINER_RUNTIME=runsc to use gVisor"
+    echo "  - For KVM acceleration: CONTAINER_RUNTIME=runsc-kvm"
+    echo ""
+    echo -e "${CYAN}Benefits:${NC}"
+    echo "  - User-space kernel intercepts syscalls"
+    echo "  - No VM overhead (faster than Kata/Firecracker)"
+    echo "  - Strong security boundary without hardware virtualization"
+    echo "  - Ideal for untrusted workloads"
+    echo ""
+    echo -e "${YELLOW}Testing gVisor runtime...${NC}"
+    if docker run --rm --runtime=runsc hello-world > /dev/null 2>&1; then
+        echo -e "${GREEN}✓ gVisor runtime works!${NC}"
+    else
+        echo -e "${YELLOW}⚠ gVisor test failed - checking...${NC}"
+        echo "Try manually: docker run --runtime=runsc hello-world"
+        echo "Check logs: runsc --debug --alsologtostderr ..."
+    fi
+fi
+
+echo ""
+echo -e "${GREEN}Setup complete!${NC}"

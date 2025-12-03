@@ -458,9 +458,11 @@ type Manager struct {
 // NewManager creates a new container manager
 // Supports local Docker socket or remote Docker host via DOCKER_HOST environment variable.
 // For remote connections, set:
-//   - DOCKER_HOST=tcp://host:2376 (TLS) or tcp://host:2375 (no TLS)
+//   - DOCKER_HOST=tcp://host:2377 (Docker TLS) or tcp://host:2378 (Podman TLS)
 //   - DOCKER_TLS_VERIFY=1 (for TLS connections)
 //   - DOCKER_CERT_PATH=/path/to/certs (for TLS connections)
+//
+// Note: Rexec uses non-standard ports (2377/2378) instead of 2376 for security.
 //
 // Works with both Docker and Podman (Podman implements Docker's API).
 // Set CONTAINER_RUNTIME=podman to enable Podman-specific features.
@@ -494,7 +496,8 @@ func NewManager(volumePaths ...string) (*Manager, error) {
 				runtimeName = "Podman"
 			}
 			errMsg := fmt.Sprintf("failed to connect to remote %s daemon at %s", runtimeName, dockerHost)
-			if strings.Contains(dockerHost, ":2376") {
+			// Check for TLS ports (standard 2376 or our custom 2377/2378)
+			if strings.Contains(dockerHost, ":2376") || strings.Contains(dockerHost, ":2377") || strings.Contains(dockerHost, ":2378") {
 				errMsg += " (TLS enabled - check DOCKER_TLS_VERIFY and DOCKER_CERT_PATH)"
 			} else if strings.Contains(dockerHost, "ssh://") {
 				errMsg += " (SSH connection - check SSH_PRIVATE_KEY and host accessibility)"
@@ -816,10 +819,10 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 	if containerRuntime == "" {
 		containerRuntime = "runc" // Default to runc
 	}
-	// Valid runtimes: "runc" (default), "kata", "kata-fc"
+	// Valid runtimes: "runc" (default), "kata", "kata-fc", "runsc" (gVisor), "runsc-kvm"
 	
 	hostConfig := &container.HostConfig{
-		Runtime: containerRuntime, // "runc" (default), "kata", or "kata-fc"
+		Runtime: containerRuntime, // "runc" (default), "kata", "kata-fc", "runsc" (gVisor)
 		Resources: container.Resources{
 			Memory:   cfg.MemoryLimit,
 			NanoCPUs: nanoCPUs,

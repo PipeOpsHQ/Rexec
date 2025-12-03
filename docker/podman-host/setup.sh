@@ -3,9 +3,20 @@
 # Podman Remote Host Setup Script with TLS
 # More secure than Docker: rootless, daemonless, no exposed socket
 #
+# Port: 2378 (non-standard to avoid attacks on default Docker port 2376)
+#
 # Usage: ./setup.sh [OPTIONS]
 #   --certs-only    Only generate certificates
 #   --no-certs      Skip certificate generation (reuse existing)
+#   --rootless      Run Podman in rootless mode (more secure, recommended)
+#   --user=NAME     Specify user for rootless mode (default: rexec)
+#
+# Security advantages over Docker:
+#   - Rootless containers by default
+#   - No always-running privileged daemon  
+#   - Fork/exec model - better process isolation
+#   - Native user namespace support
+#   - Non-standard port 2378 (not 2376)
 #
 
 set -e
@@ -31,10 +42,15 @@ HOST_IP=$(curl -s ifconfig.me || hostname -I | awk '{print $1}')
 # Parse arguments
 CERTS_ONLY=false
 NO_CERTS=false
+ROOTLESS=false
+PODMAN_USER="rexec"
+
 for arg in "$@"; do
     case $arg in
         --certs-only) CERTS_ONLY=true ;;
         --no-certs) NO_CERTS=true ;;
+        --rootless) ROOTLESS=true ;;
+        --user=*) PODMAN_USER="${arg#*=}" ;;
     esac
 done
 
@@ -50,6 +66,12 @@ echo "║  • Native user namespace support                            ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
 
+if [ "$ROOTLESS" = true ]; then
+    echo -e "${GREEN}Running in ROOTLESS mode (recommended for security)${NC}"
+    echo -e "${YELLOW}User: $PODMAN_USER${NC}"
+    echo ""
+fi
+
 # ============================================================================
 # STEP 1: Install Podman
 # ============================================================================
@@ -58,31 +80,86 @@ install_podman() {
     
     if command -v podman &> /dev/null; then
         log_info "Podman already installed: $(podman --version)"
-        return 0
+    else
+        # Detect OS
+        if [ -f /etc/os-release ]; then
+            . /etc/os-release
+            OS=$ID
+            VERSION=$VERSION_ID
+        fi
+        
+        case $OS in
+            ubuntu|debian)
+                apt-get update -qq
+                apt-get install -y -qq podman podman-docker uidmap slirp4netns fuse-overlayfs
+                ;;
+            fedora|centos|rhel|rocky|almalinux)
+                dnf install -y podman podman-docker uidmap slirp4netns fuse-overlayfs
+                ;;
+            *)
+                log_error "Unsupported OS: $OS"
+                exit 1
+                ;;
+        esac
+        
+        log_info "Podman installed: $(podman --version)"
     fi
     
-    # Detect OS
-    if [ -f /etc/os-release ]; then
-        . /etc/os-release
-        OS=$ID
-        VERSION=$VERSION_ID
+    # Setup rootless user if requested
+    if [ "$ROOTLESS" = true ]; then
+        setup_rootless_user
+    fi
+}
+
+# ============================================================================
+# STEP 1b: Setup Rootless User
+# ============================================================================
+setup_rootless_user() {
+    log_step "Setting up rootless user: $PODMAN_USER..."
+    
+    # Create user if doesn't exist
+    if ! id "$PODMAN_USER" &>/dev/null; then
+        useradd -m -s /bin/bash "$PODMAN_USER"
+        log_info "Created user: $PODMAN_USER"
+    else
+        log_info "User $PODMAN_USER already exists"
     fi
     
-    case $OS in
-        ubuntu|debian)
-            apt-get update -qq
-            apt-get install -y -qq podman podman-docker uidmap slirp4netns
-            ;;
-        fedora|centos|rhel|rocky|almalinux)
-            dnf install -y podman podman-docker
-            ;;
-        *)
-            log_error "Unsupported OS: $OS"
-            exit 1
-            ;;
-    esac
+    # Configure subuid/subgid for user namespaces
+    if ! grep -q "^$PODMAN_USER:" /etc/subuid; then
+        echo "$PODMAN_USER:100000:65536" >> /etc/subuid
+        echo "$PODMAN_USER:100000:65536" >> /etc/subgid
+        log_info "Configured subuid/subgid for $PODMAN_USER"
+    fi
     
-    log_info "Podman installed: $(podman --version)"
+    # Enable lingering so user services run without login
+    loginctl enable-linger "$PODMAN_USER"
+    log_info "Enabled lingering for $PODMAN_USER"
+    
+    # Create XDG_RUNTIME_DIR if needed
+    PODMAN_USER_UID=$(id -u "$PODMAN_USER")
+    RUNTIME_DIR="/run/user/$PODMAN_USER_UID"
+    if [ ! -d "$RUNTIME_DIR" ]; then
+        mkdir -p "$RUNTIME_DIR"
+        chown "$PODMAN_USER:$PODMAN_USER" "$RUNTIME_DIR"
+        chmod 700 "$RUNTIME_DIR"
+    fi
+    
+    # Setup podman storage for rootless
+    PODMAN_USER_HOME=$(eval echo ~$PODMAN_USER)
+    mkdir -p "$PODMAN_USER_HOME/.config/containers"
+    cat > "$PODMAN_USER_HOME/.config/containers/storage.conf" <<EOF
+[storage]
+driver = "overlay"
+runroot = "/run/user/$PODMAN_USER_UID/containers"
+graphroot = "$PODMAN_USER_HOME/.local/share/containers/storage"
+
+[storage.options.overlay]
+mount_program = "/usr/bin/fuse-overlayfs"
+EOF
+    chown -R "$PODMAN_USER:$PODMAN_USER" "$PODMAN_USER_HOME/.config"
+    
+    log_info "Rootless user $PODMAN_USER configured"
 }
 
 # ============================================================================
@@ -154,42 +231,93 @@ EOF
 configure_podman_service() {
     log_step "Configuring Podman API service with TLS..."
     
-    # Create systemd service for Podman API with native TLS
-    cat > /etc/systemd/system/podman-api-tls.service <<EOF
+    if [ "$ROOTLESS" = true ]; then
+        configure_rootless_service
+    else
+        configure_rootful_service
+    fi
+}
+
+# ============================================================================
+# STEP 3a: Configure Rootless Podman Service
+# ============================================================================
+configure_rootless_service() {
+    log_step "Configuring rootless Podman service for $PODMAN_USER..."
+    
+    PODMAN_USER_UID=$(id -u "$PODMAN_USER")
+    PODMAN_USER_HOME=$(eval echo ~$PODMAN_USER)
+    
+    # Create user systemd directory
+    mkdir -p "$PODMAN_USER_HOME/.config/systemd/user"
+    
+    # Create rootless Podman API service (runs as user)
+    cat > "$PODMAN_USER_HOME/.config/systemd/user/podman-api.service" <<EOF
 [Unit]
-Description=Podman API Service with TLS
+Description=Podman API Service (Rootless)
 Wants=network-online.target
 After=network-online.target
-RequiresMountsFor=%t/containers
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/podman system service \\
-    --time=0 \\
-    tcp://0.0.0.0:2376
-Environment=CONTAINER_TLS_VERIFY=true
+ExecStart=/usr/bin/podman system service --time=0 tcp://127.0.0.1:2377
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+EOF
+    
+    chown -R "$PODMAN_USER:$PODMAN_USER" "$PODMAN_USER_HOME/.config/systemd"
+    
+    # Enable and start the user service
+    sudo -u "$PODMAN_USER" XDG_RUNTIME_DIR="/run/user/$PODMAN_USER_UID" \
+        systemctl --user daemon-reload
+    sudo -u "$PODMAN_USER" XDG_RUNTIME_DIR="/run/user/$PODMAN_USER_UID" \
+        systemctl --user enable --now podman-api.service
+    
+    log_info "Rootless Podman API service started"
+    
+    # Setup nginx TLS proxy (runs as root to bind to privileged port)
+    setup_nginx_proxy
+}
+
+# ============================================================================
+# STEP 3b: Configure Rootful Podman Service  
+# ============================================================================
+configure_rootful_service() {
+    log_step "Configuring rootful Podman service..."
+    
+    # Create Podman local service (no TLS, only localhost)
+    cat > /etc/systemd/system/podman-api-local.service <<EOF
+[Unit]
+Description=Podman API Service (Local only)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/podman system service --time=0 tcp://127.0.0.1:2377
 Restart=always
 RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
 EOF
+    
+    # Reload and start services
+    systemctl daemon-reload
+    systemctl enable --now podman-api-local
+    
+    log_info "Rootful Podman API service started"
+    
+    # Setup nginx TLS proxy
+    setup_nginx_proxy
+}
 
-    # Alternative: Use socket activation for on-demand start
-    cat > /etc/systemd/system/podman-api.socket <<EOF
-[Unit]
-Description=Podman API Socket
-
-[Socket]
-ListenStream=2376
-Accept=no
-
-[Install]
-WantedBy=sockets.target
-EOF
-
-    # Since Podman's native TLS is limited, we'll use a reverse proxy with TLS
-    # Install nginx as TLS termination proxy
+# ============================================================================
+# STEP 3c: Setup Nginx TLS Proxy
+# ============================================================================
+setup_nginx_proxy() {
     log_step "Setting up TLS proxy..."
     
     if ! command -v nginx &> /dev/null; then
@@ -197,13 +325,15 @@ EOF
     fi
     
     # Create nginx config for TLS proxy
+    mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
+    
     cat > /etc/nginx/sites-available/podman-tls <<EOF
 upstream podman {
-    server 127.0.0.1:2375;
+    server 127.0.0.1:2377;
 }
 
 server {
-    listen 2376 ssl;
+    listen 2378 ssl;
     
     ssl_certificate $CERT_DIR/server-cert.pem;
     ssl_certificate_key $CERT_DIR/server-key.pem;
@@ -236,39 +366,10 @@ EOF
     ln -sf /etc/nginx/sites-available/podman-tls /etc/nginx/sites-enabled/
     rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
     
-    # Create Podman local service (no TLS, only localhost)
-    cat > /etc/systemd/system/podman-api-local.service <<EOF
-[Unit]
-Description=Podman API Service (Local only)
-Wants=network-online.target
-After=network-online.target
-
-[Service]
-Type=simple
-ExecStart=/usr/bin/podman system service --time=0 tcp://127.0.0.1:2375
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-EOF
-    
-    # Reload and start services
-    systemctl daemon-reload
-    systemctl enable --now podman-api-local
-    sleep 2
-    
-    # Test local API
-    if curl -s --max-time 5 http://127.0.0.1:2375/_ping | grep -q "OK"; then
-        log_info "Podman API running on localhost:2375"
-    else
-        log_warn "Podman API may not be responding yet"
-    fi
-    
     # Start nginx
     nginx -t && systemctl enable --now nginx
     
-    log_info "TLS proxy configured on port 2376"
+    log_info "TLS proxy configured on port 2378"
 }
 
 # ============================================================================
@@ -278,12 +379,12 @@ configure_firewall() {
     log_step "Configuring firewall..."
     
     if command -v ufw &> /dev/null; then
-        ufw allow 2376/tcp comment "Podman API TLS"
-        log_info "UFW rule added for port 2376"
+        ufw allow 2378/tcp comment "Podman API TLS"
+        log_info "UFW rule added for port 2378"
     elif command -v firewall-cmd &> /dev/null; then
-        firewall-cmd --permanent --add-port=2376/tcp
+        firewall-cmd --permanent --add-port=2378/tcp
         firewall-cmd --reload
-        log_info "Firewalld rule added for port 2376"
+        log_info "Firewalld rule added for port 2378"
     fi
 }
 
@@ -300,7 +401,7 @@ test_connection() {
             --cert "$CERT_DIR/client-cert.pem" \
             --key "$CERT_DIR/client-key.pem" \
             --max-time 10 \
-            "https://$HOST_IP:2376/_ping" | grep -q "OK"; then
+            "https://$HOST_IP:2378/_ping" | grep -q "OK"; then
         log_info "TLS connection successful!"
     else
         log_warn "TLS test inconclusive - service may still be starting"
@@ -316,6 +417,19 @@ output_client_config() {
     echo -e "${GREEN}Podman Remote Host Setup Complete!${NC}"
     echo -e "${CYAN}═══════════════════════════════════════════════════════════════${NC}"
     echo ""
+    
+    if [ "$ROOTLESS" = true ]; then
+        echo -e "${GREEN}ROOTLESS MODE ENABLED${NC}"
+        echo "Containers run as unprivileged user: $PODMAN_USER"
+        echo ""
+        echo "Security benefits:"
+        echo "  • No root daemon running"
+        echo "  • Containers isolated via user namespaces"
+        echo "  • UID mapping: container root → host UID 100000+"
+        echo "  • Limited blast radius if container escapes"
+        echo ""
+    fi
+    
     echo -e "${YELLOW}Client certificates are in: $CLIENT_CERT_DIR${NC}"
     echo ""
     echo "Copy these files to your Rexec server:"
@@ -324,18 +438,25 @@ output_client_config() {
     echo "  • client-key.pem (rename to key.pem)"
     echo ""
     echo "Environment variables for Rexec:"
-    echo "  DOCKER_HOST=tcp://$HOST_IP:2376"
+    echo "  DOCKER_HOST=tcp://$HOST_IP:2378"
     echo "  DOCKER_TLS_VERIFY=1"
     echo "  DOCKER_CERT_PATH=/path/to/certs"
     echo ""
     echo "Or use with podman-remote:"
-    echo "  podman --remote --url tcp://$HOST_IP:2376 \\"
+    echo "  podman --remote --url tcp://$HOST_IP:2378 \\"
     echo "    --identity $CLIENT_CERT_DIR/client-key.pem info"
     echo ""
     echo "Test connection:"
     echo "  curl --cacert ca.pem --cert client-cert.pem --key client-key.pem \\"
-    echo "    https://$HOST_IP:2376/_ping"
+    echo "    https://$HOST_IP:2378/_ping"
     echo ""
+    
+    if [ "$ROOTLESS" = true ]; then
+        echo "Verify rootless mode:"
+        echo "  sudo -u $PODMAN_USER podman info | grep rootless"
+        echo "  sudo -u $PODMAN_USER podman run --rm alpine cat /proc/self/uid_map"
+        echo ""
+    fi
 }
 
 # ============================================================================
