@@ -34,6 +34,7 @@ type TerminalHandler struct {
 	sessions         map[string]*TerminalSession
 	mu               sync.RWMutex
 	recordingHandler *RecordingHandler
+	collabHandler    *CollabHandler
 }
 
 // TerminalSession represents an active terminal session
@@ -75,6 +76,33 @@ func (h *TerminalHandler) SetRecordingHandler(rh *RecordingHandler) {
 	h.recordingHandler = rh
 }
 
+// SetCollabHandler sets the collab handler to check for shared session access
+func (h *TerminalHandler) SetCollabHandler(ch *CollabHandler) {
+	h.collabHandler = ch
+}
+
+// HasCollabAccess checks if a user has collab access to a container
+func (h *TerminalHandler) HasCollabAccess(userID, containerID string) bool {
+	if h.collabHandler == nil {
+		return false
+	}
+	
+	h.collabHandler.mu.RLock()
+	defer h.collabHandler.mu.RUnlock()
+	
+	for _, session := range h.collabHandler.sessions {
+		if session.ContainerID == containerID {
+			session.mu.RLock()
+			_, hasAccess := session.Participants[userID]
+			session.mu.RUnlock()
+			if hasAccess {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // HandleWebSocket handles WebSocket connections for terminal access
 func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 	dockerID := c.Param("containerId")
@@ -97,9 +125,13 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 	}
 
 	// Verify ownership
+	// Verify ownership or collab access
 	if containerInfo.UserID != userID.(string) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
-		return
+		// Check if user has collab access
+		if !h.HasCollabAccess(userID.(string), dockerID) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+			return
+		}
 	}
 
 	// Check if container actually exists in Docker (may have been removed externally)

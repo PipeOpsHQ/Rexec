@@ -113,6 +113,8 @@ func main() {
 	recordingHandler := handlers.NewRecordingHandler(store, os.Getenv("RECORDINGS_PATH"))
 	// Connect recording handler to terminal handler to capture events
 	terminalHandler.SetRecordingHandler(recordingHandler)
+	// Connect collab handler to terminal handler for shared session access
+	terminalHandler.SetCollabHandler(collabHandler)
 	var billingHandler *handlers.BillingHandler
 	if billingService != nil {
 		billingHandler = handlers.NewBillingHandler(billingService, store)

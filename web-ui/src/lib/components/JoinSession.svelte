@@ -10,6 +10,9 @@
 
   let isLoading = true;
   let error = '';
+  let needsAuth = false;
+  let guestEmail = '';
+  let isSubmittingGuest = false;
   let sessionInfo: {
     sessionId: string;
     containerId: string;
@@ -18,16 +21,16 @@
     expiresAt: string;
   } | null = null;
 
-  onMount(async () => {
+  async function attemptJoin() {
     if (!code) {
       error = 'Invalid session code';
       isLoading = false;
       return;
     }
 
-    // If not authenticated, prompt for guest login
+    // If not authenticated, show guest login form
     if (!$isAuthenticated) {
-      error = 'Please sign in or start a guest session to join';
+      needsAuth = true;
       isLoading = false;
       return;
     }
@@ -36,7 +39,13 @@
     try {
       const result = await collab.joinSession(code);
       if (result) {
-        sessionInfo = result;
+        sessionInfo = {
+          sessionId: result.id,
+          containerId: result.containerId,
+          mode: result.mode,
+          role: result.role,
+          expiresAt: result.expiresAt
+        };
         // Connect to the collab websocket
         collab.connectWebSocket(code);
         toast.success(`Joined session as ${result.role}`);
@@ -48,7 +57,48 @@
     }
     
     isLoading = false;
+  }
+
+  onMount(() => {
+    attemptJoin();
   });
+
+  // React to auth changes - retry join when user authenticates
+  $: if ($isAuthenticated && needsAuth) {
+    needsAuth = false;
+    isLoading = true;
+    attemptJoin();
+  }
+
+  async function handleGuestSubmit() {
+    if (!guestEmail.trim()) {
+      toast.error('Please enter your email');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(guestEmail.trim())) {
+      toast.error('Please enter a valid email');
+      return;
+    }
+
+    isSubmittingGuest = true;
+    const result = await auth.guestLogin(guestEmail.trim());
+    isSubmittingGuest = false;
+
+    if (result.success) {
+      // attemptJoin will be triggered by the reactive statement above
+      toast.success('Guest session started!');
+    } else {
+      toast.error('Failed to start guest session');
+    }
+  }
+
+  function handleKeydown(e: KeyboardEvent) {
+    if (e.key === 'Enter' && !isSubmittingGuest) {
+      handleGuestSubmit();
+    }
+  }
 
   function joinTerminal() {
     if (sessionInfo) {
@@ -81,6 +131,27 @@
       <div class="loading">
         <div class="spinner"></div>
         <p>Connecting to session...</p>
+      </div>
+    {:else if needsAuth}
+      <div class="auth-prompt">
+        <p class="auth-description">Enter your email to join this terminal session</p>
+        <div class="form-group">
+          <label for="guest-email">Email Address</label>
+          <input
+            type="email"
+            id="guest-email"
+            bind:value={guestEmail}
+            on:keydown={handleKeydown}
+            placeholder="you@example.com"
+            disabled={isSubmittingGuest}
+          />
+        </div>
+        <div class="actions">
+          <button class="btn btn-secondary" on:click={cancel} disabled={isSubmittingGuest}>Cancel</button>
+          <button class="btn btn-primary" on:click={handleGuestSubmit} disabled={isSubmittingGuest || !guestEmail.trim()}>
+            {isSubmittingGuest ? 'Connecting...' : 'Join Session'}
+          </button>
+        </div>
       </div>
     {:else if error}
       <div class="error-state">
@@ -305,5 +376,51 @@
 
   .btn-primary:hover {
     filter: brightness(1.1);
+  }
+
+  .auth-prompt {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .auth-description {
+    color: var(--text-secondary);
+    font-size: 14px;
+    text-align: center;
+    margin: 0;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .form-group label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+  }
+
+  .form-group input {
+    width: 100%;
+    padding: 12px 14px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 14px;
+  }
+
+  .form-group input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .form-group input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 </style>
