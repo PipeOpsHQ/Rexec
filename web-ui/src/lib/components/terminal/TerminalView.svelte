@@ -445,6 +445,14 @@
                 <div class="fullscreen-actions">
                     <button
                         class="btn btn-secondary btn-sm"
+                        on:click={() => activeId && popOutTerminal(activeId, window.innerWidth / 2 - 300, window.innerHeight / 2 - 200)}
+                        title="Pop out to new window"
+                        disabled={!activeId}
+                    >
+                        ↗
+                    </button>
+                    <button
+                        class="btn btn-secondary btn-sm"
                         on:click={toggleFullscreen}
                         title="Exit Fullscreen"
                     >
@@ -542,6 +550,11 @@
                     </div>
 
                     <div class="floating-actions">
+                        <button 
+                            on:click={() => activeId && popOutTerminal(activeId, floatingPosition.x + 100, floatingPosition.y + 100)} 
+                            title="Pop out to new window"
+                            disabled={!activeId}
+                        >↗</button>
                         <button on:click={minimize} title="Minimize">−</button>
                         <button on:click={toggleFullscreen} title="Fullscreen">
                             ⛶
@@ -683,6 +696,14 @@
                     <div class="docked-spacer"></div>
 
                     <div class="docked-actions">
+                        <button
+                            class="btn btn-secondary btn-sm"
+                            on:click={() => activeId && popOutTerminal(activeId, window.innerWidth / 2 - 300, window.innerHeight / 2 - 200)}
+                            title="Pop out to new window"
+                            disabled={!activeId}
+                        >
+                            ↗
+                        </button>
                         <button
                             class="btn btn-secondary btn-sm"
                             on:click={minimize}

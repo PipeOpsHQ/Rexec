@@ -4,6 +4,7 @@
     import { recordings } from "$stores/recordings";
     import { toast } from "$stores/toast";
     import { formatMemoryBytes } from "$utils/api";
+    import SplitTerminalView from "./SplitTerminalView.svelte";
 
     export let session: TerminalSession;
 
@@ -172,6 +173,17 @@
         dispatch('openRecordings', { containerId: session.containerId });
     }
 
+    // Split pane handlers
+    function handleSplitHorizontal() {
+        terminal.splitPane(session.id, "horizontal");
+        toast.success("Split terminal horizontally");
+    }
+
+    function handleSplitVertical() {
+        terminal.splitPane(session.id, "vertical");
+        toast.success("Split terminal vertically");
+    }
+
     // Focus terminal when clicking on container
     function handleContainerClick() {
         if (session.terminal) {
@@ -186,6 +198,9 @@
     $: isDisconnected = status === "disconnected" || status === "error";
     $: isSettingUp = session?.isSettingUp || false;
     $: setupMessage = session?.setupMessage || "";
+    $: hasSplitPanes = session?.splitPanes?.size > 0;
+    $: splitPanes = session?.splitPanes ? Array.from(session.splitPanes.values()) : [];
+    $: splitLayout = session?.splitLayout;
 </script>
 
 <div class="terminal-panel-wrapper">
@@ -338,6 +353,31 @@
                 <span class="btn-text">Clear</span>
             </button>
             <span class="toolbar-divider"></span>
+            <!-- Split Terminal Buttons -->
+            <button
+                class="toolbar-btn split-btn"
+                on:click={handleSplitHorizontal}
+                title="Split Horizontal (same terminal, new view)"
+            >
+                <svg class="toolbar-icon" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>
+                    <path d="M8 1v14"/>
+                    <line x1="8" y1="1" x2="8" y2="15" stroke="currentColor" stroke-width="1"/>
+                </svg>
+                <span class="btn-text">Split H</span>
+            </button>
+            <button
+                class="toolbar-btn split-btn"
+                on:click={handleSplitVertical}
+                title="Split Vertical (same terminal, new view)"
+            >
+                <svg class="toolbar-icon" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>
+                    <line x1="1" y1="8" x2="15" y2="8" stroke="currentColor" stroke-width="1"/>
+                </svg>
+                <span class="btn-text">Split V</span>
+            </button>
+            <span class="toolbar-divider"></span>
             <!-- Recording Button -->
             <button
                 class="toolbar-btn"
@@ -391,15 +431,50 @@
         </div>
     </div>
 
-    <!-- Terminal Container -->
-    <div
-        class="terminal-container"
-        bind:this={containerElement}
-        on:click={handleContainerClick}
-        on:keydown={() => {}}
-        role="textbox"
-        tabindex="0"
-    ></div>
+    <!-- Terminal Container with Split Panes -->
+    {#if hasSplitPanes && splitLayout}
+        <div 
+            class="split-container" 
+            class:horizontal={splitLayout.direction === 'horizontal'}
+            class:vertical={splitLayout.direction === 'vertical'}
+        >
+            <!-- Main terminal pane -->
+            <div 
+                class="split-pane-wrapper main-pane"
+                style="flex: {splitLayout.sizes[0] || 50};"
+            >
+                <div
+                    class="terminal-container"
+                    bind:this={containerElement}
+                    on:click={handleContainerClick}
+                    on:keydown={() => {}}
+                    role="textbox"
+                    tabindex="0"
+                ></div>
+            </div>
+            
+            <!-- Additional split panes -->
+            {#each splitPanes as pane, index (pane.id)}
+                <div class="split-resizer"></div>
+                <div 
+                    class="split-pane-wrapper"
+                    style="flex: {splitLayout.sizes[index + 1] || 50};"
+                >
+                    <SplitTerminalView {session} {pane} />
+                </div>
+            {/each}
+        </div>
+    {:else}
+        <!-- Single terminal view (no splits) -->
+        <div
+            class="terminal-container"
+            bind:this={containerElement}
+            on:click={handleContainerClick}
+            on:keydown={() => {}}
+            role="textbox"
+            tabindex="0"
+        ></div>
+    {/if}
 
     <!-- Connection status - minimal, non-blocking -->
     {#if isConnecting}
@@ -715,6 +790,75 @@
         color: var(--green);
         border-color: var(--green);
         background: rgba(0, 255, 136, 0.1);
+    }
+
+    /* Split Button */
+    .toolbar-btn.split-btn:hover {
+        color: var(--cyan, #00d9ff);
+        border-color: var(--cyan, #00d9ff);
+        background: rgba(0, 217, 255, 0.1);
+    }
+
+    /* Split Container */
+    .split-container {
+        flex: 1;
+        display: flex;
+        width: 100%;
+        height: 0;
+        min-height: 100px;
+        overflow: hidden;
+    }
+
+    .split-container.horizontal {
+        flex-direction: row;
+    }
+
+    .split-container.vertical {
+        flex-direction: column;
+    }
+
+    .split-pane-wrapper {
+        display: flex;
+        flex-direction: column;
+        min-width: 100px;
+        min-height: 50px;
+        overflow: hidden;
+    }
+
+    .split-pane-wrapper.main-pane {
+        border-right: 1px solid var(--border);
+    }
+
+    .split-container.vertical .split-pane-wrapper.main-pane {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .split-pane-wrapper .terminal-container {
+        flex: 1;
+        height: 100%;
+        min-height: 0;
+    }
+
+    .split-resizer {
+        flex-shrink: 0;
+        background: var(--border);
+        transition: background 0.2s;
+        cursor: col-resize;
+    }
+
+    .split-container.horizontal .split-resizer {
+        width: 4px;
+        cursor: col-resize;
+    }
+
+    .split-container.vertical .split-resizer {
+        height: 4px;
+        cursor: row-resize;
+    }
+
+    .split-resizer:hover {
+        background: var(--accent);
     }
 
     /* Terminal Container */

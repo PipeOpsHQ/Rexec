@@ -13,6 +13,24 @@ export type SessionStatus =
   | "error";
 export type ViewMode = "floating" | "docked" | "fullscreen";
 
+// Split pane configuration
+export type SplitDirection = "horizontal" | "vertical";
+
+export interface SplitPane {
+  id: string;
+  sessionId: string; // Reference to the parent session
+  terminal: Terminal;
+  fitAddon: FitAddon;
+  webglAddon: WebglAddon | null;
+  resizeObserver: ResizeObserver | null;
+}
+
+export interface SplitPaneLayout {
+  direction: SplitDirection;
+  panes: string[]; // Pane IDs
+  sizes: number[]; // Percentage sizes for each pane
+}
+
 export interface TerminalSession {
   id: string;
   containerId: string;
@@ -43,6 +61,10 @@ export interface TerminalSession {
   detachedPosition: { x: number; y: number };
   detachedSize: { width: number; height: number };
   detachedZIndex: number;
+  // Split pane support - multiple views into the same terminal
+  splitPanes: Map<string, SplitPane>;
+  splitLayout: SplitPaneLayout | null;
+  activePaneId: string | null; // Which pane is focused
 }
 
 export interface TerminalState {
@@ -104,7 +126,7 @@ const TERMINAL_OPTIONS = {
   },
   allowProposedApi: true,
   scrollback: 50000,            // Large scrollback for heavy output (e.g., opencode)
-  fastScrollModifier: "alt",    // Alt+scroll for fast scrolling
+  fastScrollModifier: "alt" as const,    // Alt+scroll for fast scrolling
   fastScrollSensitivity: 15,    // Faster scroll speed
   scrollSensitivity: 5,         // Improved normal scroll speed
   smoothScrollDuration: 0,      // Disable smooth scrolling for performance
@@ -314,6 +336,10 @@ function createTerminalStore() {
         detachedPosition: { x: 150, y: 150 },
         detachedSize: { width: 600, height: 400 },
         detachedZIndex: 1000,
+        // Split pane support
+        splitPanes: new Map(),
+        splitLayout: null,
+        activePaneId: null,
       };
 
       update((state) => {
@@ -429,7 +455,15 @@ function createTerminalStore() {
           // Sanitize before writing to terminal
           const sanitized = sanitizeOutput(outputBuffer);
           if (sanitized) {
+            // Write to main terminal and all split panes
             session.terminal.write(sanitized);
+            // Also write to any split panes
+            const currentSession = getState().sessions.get(sessionId);
+            if (currentSession?.splitPanes) {
+              currentSession.splitPanes.forEach((pane) => {
+                pane.terminal.write(sanitized);
+              });
+            }
           }
           outputBuffer = '';
         }
@@ -1094,6 +1128,250 @@ function createTerminalStore() {
         ...s,
         detachedSize: { width, height },
       }));
+    },
+
+    // ============ SPLIT PANE METHODS ============
+
+    // Generate a unique pane ID
+    _generatePaneId(): string {
+      return `pane-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    },
+
+    // Split the current terminal view (creates a new pane sharing the same connection)
+    splitPane(sessionId: string, direction: SplitDirection = "horizontal"): string | null {
+      const state = getState();
+      const session = state.sessions.get(sessionId);
+      if (!session) return null;
+
+      // Create a new terminal instance that shares the same WebSocket connection
+      const newTerminal = new Terminal(TERMINAL_OPTIONS);
+      const newFitAddon = new FitAddon();
+      newTerminal.loadAddon(newFitAddon);
+      newTerminal.loadAddon(new WebLinksAddon());
+
+      const paneId = this._generatePaneId();
+      const newPane: SplitPane = {
+        id: paneId,
+        sessionId,
+        terminal: newTerminal,
+        fitAddon: newFitAddon,
+        webglAddon: null,
+        resizeObserver: null,
+      };
+
+      // Update session with new pane
+      updateSession(sessionId, (s) => {
+        const newPanes = new Map(s.splitPanes);
+        newPanes.set(paneId, newPane);
+
+        // If this is the first split, set up the layout
+        let layout = s.splitLayout;
+        if (!layout) {
+          // First split - create initial layout with main terminal + new pane
+          layout = {
+            direction,
+            panes: ["main", paneId],
+            sizes: [50, 50],
+          };
+        } else if (layout.direction === direction) {
+          // Same direction - add to existing layout
+          const numPanes = layout.panes.length;
+          const newSize = 100 / (numPanes + 1);
+          layout = {
+            ...layout,
+            panes: [...layout.panes, paneId],
+            sizes: layout.sizes.map(() => newSize).concat([newSize]),
+          };
+        } else {
+          // Different direction - need to nest (simplified: just add to end)
+          const numPanes = layout.panes.length;
+          const newSize = 100 / (numPanes + 1);
+          layout = {
+            direction,
+            panes: [...layout.panes, paneId],
+            sizes: layout.sizes.map(() => newSize).concat([newSize]),
+          };
+        }
+
+        return {
+          ...s,
+          splitPanes: newPanes,
+          splitLayout: layout,
+          activePaneId: paneId,
+        };
+      });
+
+      // Sync the new terminal with the WebSocket - forward output to all panes
+      // The main terminal handles input, all panes receive output
+      return paneId;
+    },
+
+    // Close a split pane
+    closeSplitPane(sessionId: string, paneId: string) {
+      const state = getState();
+      const session = state.sessions.get(sessionId);
+      if (!session) return;
+
+      const pane = session.splitPanes.get(paneId);
+      if (!pane) return;
+
+      // Cleanup pane resources
+      if (pane.resizeObserver) pane.resizeObserver.disconnect();
+      if (pane.webglAddon) pane.webglAddon.dispose();
+      if (pane.terminal) pane.terminal.dispose();
+
+      updateSession(sessionId, (s) => {
+        const newPanes = new Map(s.splitPanes);
+        newPanes.delete(paneId);
+
+        // Update layout
+        let layout = s.splitLayout;
+        if (layout) {
+          const paneIndex = layout.panes.indexOf(paneId);
+          if (paneIndex !== -1) {
+            const newPanesList = layout.panes.filter((p) => p !== paneId);
+            if (newPanesList.length <= 1) {
+              // Only main pane left, remove split layout
+              layout = null;
+            } else {
+              // Redistribute sizes
+              const removedSize = layout.sizes[paneIndex];
+              const newSizes = layout.sizes.filter((_, i) => i !== paneIndex);
+              const totalRemaining = newSizes.reduce((a, b) => a + b, 0);
+              layout = {
+                ...layout,
+                panes: newPanesList,
+                sizes: newSizes.map((s) => (s / totalRemaining) * 100),
+              };
+            }
+          }
+        }
+
+        return {
+          ...s,
+          splitPanes: newPanes,
+          splitLayout: layout,
+          activePaneId: s.activePaneId === paneId ? null : s.activePaneId,
+        };
+      });
+    },
+
+    // Set active pane within a session
+    setActivePaneId(sessionId: string, paneId: string | null) {
+      updateSession(sessionId, (s) => ({
+        ...s,
+        activePaneId: paneId,
+      }));
+    },
+
+    // Attach a split pane terminal to a DOM element
+    attachSplitPane(sessionId: string, paneId: string, element: HTMLElement) {
+      const state = getState();
+      const session = state.sessions.get(sessionId);
+      if (!session) return;
+
+      const pane = session.splitPanes.get(paneId);
+      if (!pane || !element) return;
+
+      // Clean up old resize observer
+      if (pane.resizeObserver) {
+        pane.resizeObserver.disconnect();
+      }
+
+      pane.terminal.open(element);
+
+      // Try to load WebGL addon
+      try {
+        const webglAddon = new WebglAddon();
+        webglAddon.onContextLoss(() => {
+          webglAddon.dispose();
+        });
+        pane.terminal.loadAddon(webglAddon);
+        pane.webglAddon = webglAddon;
+      } catch (e) {
+        console.warn("WebGL addon not available for split pane:", e);
+      }
+
+      // Setup resize observer
+      if (window.ResizeObserver) {
+        const resizeObserver = new ResizeObserver(() => {
+          this.fitSplitPane(sessionId, paneId);
+        });
+        resizeObserver.observe(element);
+        pane.resizeObserver = resizeObserver;
+      }
+
+      // Initial fit
+      requestAnimationFrame(() => this.fitSplitPane(sessionId, paneId));
+    },
+
+    // Fit a split pane terminal
+    fitSplitPane(sessionId: string, paneId: string) {
+      const state = getState();
+      const session = state.sessions.get(sessionId);
+      if (!session) return;
+
+      const pane = session.splitPanes.get(paneId);
+      if (!pane) return;
+
+      try {
+        pane.fitAddon.fit();
+      } catch (e) {
+        console.error("Failed to fit split pane:", e);
+      }
+    },
+
+    // Update split pane sizes (during resize)
+    setSplitPaneSizes(sessionId: string, sizes: number[]) {
+      updateSession(sessionId, (s) => {
+        if (!s.splitLayout) return s;
+        return {
+          ...s,
+          splitLayout: {
+            ...s.splitLayout,
+            sizes,
+          },
+        };
+      });
+    },
+
+    // Toggle split direction
+    toggleSplitDirection(sessionId: string) {
+      updateSession(sessionId, (s) => {
+        if (!s.splitLayout) return s;
+        return {
+          ...s,
+          splitLayout: {
+            ...s.splitLayout,
+            direction: s.splitLayout.direction === "horizontal" ? "vertical" : "horizontal",
+          },
+        };
+      });
+      // Fit all panes after direction change
+      requestAnimationFrame(() => {
+        const session = getState().sessions.get(sessionId);
+        if (session) {
+          this.fitSession(sessionId);
+          session.splitPanes.forEach((_, paneId) => {
+            this.fitSplitPane(sessionId, paneId);
+          });
+        }
+      });
+    },
+
+    // Write to all split panes (used when receiving WebSocket output)
+    writeToAllPanes(sessionId: string, data: string) {
+      const state = getState();
+      const session = state.sessions.get(sessionId);
+      if (!session) return;
+
+      // Write to main terminal
+      session.terminal.write(data);
+
+      // Write to all split panes
+      session.splitPanes.forEach((pane) => {
+        pane.terminal.write(data);
+      });
     },
   };
 }
