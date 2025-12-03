@@ -373,7 +373,8 @@ function createContainersStore() {
         // Container creation is async - poll for status
         const containerId = data.db_id || data.id;
 
-        // Initial progress update (WebSocket will provide real-time updates)
+        // Initial progress update - validation complete, now pulling
+        // This ensures immediate UI update without waiting for WebSocket
         update((state) => ({
           ...state,
           creating: state.creating
@@ -385,6 +386,13 @@ function createContainersStore() {
             }
             : null,
         }));
+
+        // Notify callback immediately so UI updates
+        onProgress?.({
+          stage: "pulling",
+          message: "Pulling image...",
+          progress: 15,
+        });
 
         // Poll for container status (as backup/timeout mechanism)
         // WebSocket events will provide real-time progress updates

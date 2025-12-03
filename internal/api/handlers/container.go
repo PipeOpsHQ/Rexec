@@ -321,6 +321,17 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 		shellCfg = container.ShellSetupConfig{Enhanced: false}
 	}
 
+	// Send validating complete progress event via WebSocket immediately
+	// This ensures the frontend UI updates before the async creation starts
+	if h.eventsHub != nil {
+		h.eventsHub.NotifyContainerProgress(userID, gin.H{
+			"id":       record.ID,
+			"stage":    "validating",
+			"message":  "Validation complete",
+			"progress": 10,
+		})
+	}
+
 	// Start async container creation (pull image + create container)
 	go h.createContainerAsync(record.ID, cfg, req.Image, req.CustomImage, req.Role, shellCfg, isGuest || tier == "guest")
 
