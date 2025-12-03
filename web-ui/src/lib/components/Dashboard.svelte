@@ -545,7 +545,7 @@
                                 >
                                     <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
                                 </svg>
-                                {container.resources.cpu_shares}
+                                {(container.resources.cpu_shares / 1000).toFixed(1)} vCPU
                             </span>
                             <span class="resource-divider">/</span>
                             <span class="resource-spec">

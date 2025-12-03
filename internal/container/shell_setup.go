@@ -178,14 +178,31 @@ alias dpsa='docker ps -a'
 # Welcome message with system stats (like DigitalOcean)
 # Shows container-specific resources, not host resources
 show_system_stats() {
-    # Get container info (hide kernel to prevent host info leak)
-    local hostname=$(hostname)
+    # Get container info - use multiple methods for hostname
+    local container_id=""
+    # Try hostname command first
+    if command -v hostname >/dev/null 2>&1; then
+        container_id=$(hostname 2>/dev/null)
+    fi
+    # Fallback to /etc/hostname
+    if [ -z "$container_id" ] && [ -f /etc/hostname ]; then
+        container_id=$(cat /etc/hostname 2>/dev/null)
+    fi
+    # Fallback to HOSTNAME env var
+    if [ -z "$container_id" ]; then
+        container_id="${HOSTNAME:-unknown}"
+    fi
+    
     local os_name="Linux"
     # Try to get container OS info instead of kernel
     if [ -f /etc/os-release ]; then
-        os_name=$(grep -E "^PRETTY_NAME=" /etc/os-release | cut -d'"' -f2 | head -1)
+        os_name=$(grep -E "^PRETTY_NAME=" /etc/os-release 2>/dev/null | cut -d'"' -f2 | head -1)
+        [ -z "$os_name" ] && os_name=$(grep -E "^NAME=" /etc/os-release 2>/dev/null | cut -d'"' -f2 | head -1)
     fi
+    [ -z "$os_name" ] && os_name="Linux"
+    
     local uptime_raw=$(cat /proc/uptime 2>/dev/null | cut -d. -f1)
+    [ -z "$uptime_raw" ] && uptime_raw=0
     local uptime_days=$((uptime_raw / 86400))
     local uptime_hours=$(((uptime_raw % 86400) / 3600))
     local uptime_mins=$(((uptime_raw % 3600) / 60))
@@ -249,7 +266,14 @@ show_system_stats() {
     local disk_quota="${REXEC_DISK_QUOTA:-2G}"
     # Get container's actual disk usage (not host)
     # Use du on root to measure container layer size, exclude virtual filesystems
-    local disk_used_bytes=$(du -sx --exclude=/proc --exclude=/sys --exclude=/dev / 2>/dev/null | awk '{print $1}')
+    local disk_used_bytes=0
+    # Try du with --exclude (GNU coreutils)
+    if du --version >/dev/null 2>&1; then
+        disk_used_bytes=$(du -sx --exclude=/proc --exclude=/sys --exclude=/dev / 2>/dev/null | awk '{print $1}')
+    else
+        # Fallback for busybox/alpine du without --exclude
+        disk_used_bytes=$(du -sx / 2>/dev/null | awk '{print $1}')
+    fi
     local disk_used="N/A"
     if [ -n "$disk_used_bytes" ] && [ "$disk_used_bytes" -gt 0 ] 2>/dev/null; then
         if [ "$disk_used_bytes" -ge 1048576 ]; then
@@ -273,7 +297,7 @@ show_system_stats() {
     echo "\033[38;5;105m  ╰─────────────────────────────────────────────────────────╯\033[0m"
     echo ""
     echo "\033[1;33m  Container:\033[0m"
-    echo "\033[38;5;243m  ├─ ID:\033[0m          ${hostname:0:12}"
+    echo "\033[38;5;243m  ├─ ID:\033[0m          ${container_id:0:12}"
     echo "\033[38;5;243m  ├─ OS:\033[0m          $os_name"
     echo "\033[38;5;243m  └─ Uptime:\033[0m      ${uptime_days}d ${uptime_hours}h ${uptime_mins}m"
     echo ""
