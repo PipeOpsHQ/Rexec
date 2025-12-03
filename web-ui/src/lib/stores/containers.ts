@@ -227,6 +227,17 @@ function createContainersStore() {
       }));
 
       // Set up WebSocket event listeners for progress updates
+      const handleProgress = (e: CustomEvent) => {
+        const data = e.detail;
+        // Call the onProgress callback with WebSocket progress data
+        onProgress?.({
+          stage: data.stage,
+          message: data.message,
+          progress: data.progress,
+          complete: data.complete,
+        });
+      };
+
       const handleCreated = (e: CustomEvent) => {
         const container = e.detail;
         cleanup();
@@ -268,12 +279,14 @@ function createContainersStore() {
 
       const cleanup = () => {
         if (typeof window !== 'undefined') {
+          window.removeEventListener('container-progress', handleProgress as EventListener);
           window.removeEventListener('container-created', handleCreated as EventListener);
           window.removeEventListener('container-error', handleError as EventListener);
         }
       };
 
       if (typeof window !== 'undefined') {
+        window.addEventListener('container-progress', handleProgress as EventListener);
         window.addEventListener('container-created', handleCreated as EventListener);
         window.addEventListener('container-error', handleError as EventListener);
       }
@@ -360,7 +373,7 @@ function createContainersStore() {
         // Container creation is async - poll for status
         const containerId = data.db_id || data.id;
 
-        // Simulate progress through stages
+        // Initial progress update (WebSocket will provide real-time updates)
         update((state) => ({
           ...state,
           creating: state.creating
@@ -373,20 +386,14 @@ function createContainersStore() {
             : null,
         }));
 
-        onProgress?.({
-          stage: "pulling",
-          message: "Pulling image...",
-          progress: 15,
-        });
-
-        // Poll for container status
+        // Poll for container status (as backup/timeout mechanism)
+        // WebSocket events will provide real-time progress updates
         const maxAttempts = 120; // 2 minutes max
         const pollInterval = 1000; // 1 second
         let attempts = 0;
-        let currentStage = "pulling";
-        let lastProgress = 15;
+        let lastWsProgress = 15; // Track last WebSocket-provided progress
 
-        // Stage definitions with progress ranges
+        // Stage definitions (used for fallback when WebSocket isn't working)
         const stageConfig: Record<string, { progress: number; message: string }> = {
           pulling: { progress: 15, message: "Pulling image..." },
           creating: { progress: 35, message: "Creating container..." },
@@ -395,54 +402,15 @@ function createContainersStore() {
           ready: { progress: 100, message: "Ready!" },
         };
 
-        const updateStage = (stage: string) => {
-          if (stage === currentStage) return;
-          currentStage = stage;
-          const config = stageConfig[stage] || { progress: lastProgress + 5, message: `${stage}...` };
-          lastProgress = config.progress;
-          
-          update((state) => ({
-            ...state,
-            creating: state.creating
-              ? {
-                ...state.creating,
-                progress: config.progress,
-                message: config.message,
-                stage: stage,
-              }
-              : null,
-          }));
-          onProgress?.({
-            stage: stage,
-            message: config.message,
-            progress: config.progress,
-          });
-        };
-
-        // Smooth progress animation between stages
-        const animateProgress = () => {
-          const targetProgress = stageConfig[currentStage]?.progress || lastProgress;
-          if (lastProgress < targetProgress - 2) {
-            lastProgress += 2;
-            update((state) => ({
-              ...state,
-              creating: state.creating
-                ? { ...state.creating, progress: lastProgress }
-                : null,
-            }));
-            onProgress?.({
-              stage: currentStage,
-              message: stageConfig[currentStage]?.message || "Processing...",
-              progress: lastProgress,
-            });
-          }
-        };
+        // Track if we're receiving WebSocket progress events
+        let receivedWsProgress = false;
+        const wsProgressHandler = () => { receivedWsProgress = true; };
+        if (typeof window !== 'undefined') {
+          window.addEventListener('container-progress', wsProgressHandler);
+        }
 
         const pollStatus = async (): Promise<void> => {
           attempts++;
-          
-          // Animate progress smoothly
-          animateProgress();
 
           try {
             const statusResponse = await fetch(
@@ -457,7 +425,6 @@ function createContainersStore() {
             if (!statusResponse.ok) {
               if (statusResponse.status === 404 && attempts < 5) {
                 // Container might not be in Docker yet - still pulling
-                updateStage("pulling");
                 setTimeout(pollStatus, pollInterval);
                 return;
               }
@@ -467,46 +434,34 @@ function createContainersStore() {
             const containerData = await statusResponse.json();
             const status = containerData.status;
 
-            // Map container status to our progress stages
-            if (status === "creating") {
-              updateStage("creating");
-            } else if (status === "starting") {
-              updateStage("starting");
-            } else if (status === "running") {
-              // Container is running but environment setup may still be in progress.
-              // The backend sends WebSocket progress events during setup.
-              // Show configuring and wait for WebSocket to send "ready" event with container data.
-              
-              if (currentStage !== "configuring" && currentStage !== "ready") {
-                updateStage("configuring");
+            // Check if creating state was cleared (by WebSocket completing)
+            let creatingCleared = false;
+            const unsub = subscribe((state) => {
+              if (!state.creating) {
+                creatingCleared = true;
               }
-              
-              // Check if we've already been notified via WebSocket by seeing if creating is cleared
-              let creatingCleared = false;
-              const unsub = subscribe((state) => {
-                if (!state.creating) {
-                  creatingCleared = true;
-                }
-              });
-              unsub();
-              
-              if (creatingCleared) {
-                // Already completed via WebSocket event
-                return;
+            });
+            unsub();
+            
+            if (creatingCleared) {
+              // Already completed via WebSocket event
+              if (typeof window !== 'undefined') {
+                window.removeEventListener('container-progress', wsProgressHandler);
               }
-              
-              // Wait for WebSocket to confirm environment setup is complete
-              // The backend will send a progress event with complete:true when ready
-              // Continue polling to update local state, but don't trigger onComplete here
-              // - WebSocket handler will dispatch 'container-created' event when truly ready
-              
-              // However, if WebSocket is not connected, we need a fallback
-              // Give the backend up to 60 more seconds to complete environment setup
+              return;
+            }
+
+            if (status === "running") {
+              // Container is running - wait for WebSocket to confirm setup complete
+              // or use timeout fallback
               const configTimeout = 60;
               if (attempts > (maxAttempts - configTimeout)) {
-                // Fallback: if we've been waiting too long after running, complete anyway
+                // Fallback: if we've been waiting too long, complete anyway
                 console.log("[Containers] Environment setup timeout, completing anyway");
-                updateStage("ready");
+                
+                if (typeof window !== 'undefined') {
+                  window.removeEventListener('container-progress', wsProgressHandler);
+                }
                 
                 const container: Container = {
                   id: containerData.id || containerData.docker_id || containerId,
@@ -515,8 +470,7 @@ function createContainersStore() {
                   name: containerData.name || name,
                   image: containerData.image || image,
                   status: "running",
-                  created_at:
-                    containerData.created_at || new Date().toISOString(),
+                  created_at: containerData.created_at || new Date().toISOString(),
                   ip_address: containerData.ip_address,
                   resources: containerData.resources,
                 };
@@ -545,12 +499,18 @@ function createContainersStore() {
             }
 
             if (status === "error") {
+              if (typeof window !== 'undefined') {
+                window.removeEventListener('container-progress', wsProgressHandler);
+              }
               update((state) => ({ ...state, creating: null }));
               onError?.("Terminal creation failed. Please try again.");
               return;
             }
 
             if (attempts >= maxAttempts) {
+              if (typeof window !== 'undefined') {
+                window.removeEventListener('container-progress', wsProgressHandler);
+              }
               update((state) => ({ ...state, creating: null }));
               onError?.(
                 "Terminal creation timed out. Please check your terminals list.",
@@ -562,6 +522,9 @@ function createContainersStore() {
             setTimeout(pollStatus, pollInterval);
           } catch (e) {
             if (attempts >= maxAttempts) {
+              if (typeof window !== 'undefined') {
+                window.removeEventListener('container-progress', wsProgressHandler);
+              }
               update((state) => ({ ...state, creating: null }));
               onError?.(
                 e instanceof Error
@@ -846,6 +809,19 @@ function handleContainerEvent(event: {
           },
         };
       });
+      
+      // Dispatch progress event for any listeners (e.g., createContainerWithProgress callbacks)
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('container-progress', {
+          detail: {
+            id: containerData.id,
+            stage: containerData.stage,
+            message: containerData.message,
+            progress: containerData.progress,
+            complete: containerData.complete,
+          }
+        }));
+      }
       
       // If this is a completion event with container data, dispatch to any listeners
       if (containerData.complete && containerData.container) {

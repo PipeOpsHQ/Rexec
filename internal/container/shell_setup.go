@@ -32,9 +32,14 @@ install_packages() {
     elif command -v yum >/dev/null 2>&1; then
         yum install -y -q zsh git pcre2 curl wget >/dev/null 2>&1
     elif command -v pacman >/dev/null 2>&1; then
-        pacman -Sy --noconfirm zsh git pcre2 curl wget >/dev/null 2>&1
+        # Arch Linux: initialize keyring if needed, then install packages
+        pacman-key --init 2>/dev/null || true
+        pacman-key --populate archlinux 2>/dev/null || true
+        pacman -Sy --noconfirm --needed zsh git pcre2 curl wget >/dev/null 2>&1
     elif command -v zypper >/dev/null 2>&1; then
-        zypper install -y -q zsh git libpcre2-8-0 curl wget >/dev/null 2>&1
+        # openSUSE/Tumbleweed: refresh repos first
+        zypper --non-interactive refresh >/dev/null 2>&1 || true
+        zypper --non-interactive install -y zsh git libpcre2-8-0 curl wget >/dev/null 2>&1
     else
         echo "Unsupported package manager"
         exit 1
