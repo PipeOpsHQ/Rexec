@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -801,6 +802,9 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 			"rexec.container_name": cfg.ContainerName,
 			"rexec.image_type":     imageType,
 			"rexec.managed":        "true",
+			"rexec.memory_limit":   fmt.Sprintf("%d", cfg.MemoryLimit),
+			"rexec.cpu_limit":      fmt.Sprintf("%d", cfg.CPULimit),
+			"rexec.disk_quota":     fmt.Sprintf("%d", cfg.DiskQuota),
 		}, cfg.Labels),
 		// Expose SSH port
 		ExposedPorts: nat.PortSet{
@@ -1447,9 +1451,20 @@ func (m *Manager) StreamContainerStats(ctx context.Context, containerID string, 
 	if err == nil && inspectInfo.HostConfig != nil && inspectInfo.HostConfig.Memory > 0 {
 		configuredMemoryLimit = inspectInfo.HostConfig.Memory
 		log.Printf("[StreamContainerStats] Container %s has configured memory limit: %d bytes", containerID, configuredMemoryLimit)
-	} else {
-		// Fallback: try to get memory limit from container labels (tier-based)
-		if inspectInfo.Config != nil && inspectInfo.Config.Labels != nil {
+	}
+	
+	// Fallback: try to get memory limit from container labels (stored during creation)
+	if configuredMemoryLimit == 0 && inspectInfo.Config != nil && inspectInfo.Config.Labels != nil {
+		// First try the explicit memory limit label
+		if memLimitStr, ok := inspectInfo.Config.Labels["rexec.memory_limit"]; ok {
+			if memLimit, err := strconv.ParseInt(memLimitStr, 10, 64); err == nil && memLimit > 0 {
+				configuredMemoryLimit = memLimit
+				log.Printf("[StreamContainerStats] Container %s: using label memory limit: %d bytes", containerID, configuredMemoryLimit)
+			}
+		}
+		
+		// If still not set, use tier-based fallback
+		if configuredMemoryLimit == 0 {
 			tier := inspectInfo.Config.Labels["rexec.tier"]
 			switch tier {
 			case "pro":
