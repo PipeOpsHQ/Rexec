@@ -555,6 +555,7 @@
                             title="Pop out to new window"
                             disabled={!activeId}
                         >↗</button>
+                        <button on:click={toggleView} title="Dock window">⊡</button>
                         <button on:click={minimize} title="Minimize">−</button>
                         <button on:click={toggleFullscreen} title="Fullscreen">
                             ⛶
@@ -703,6 +704,13 @@
                             disabled={!activeId}
                         >
                             ↗
+                        </button>
+                        <button
+                            class="btn btn-secondary btn-sm"
+                            on:click={toggleView}
+                            title="Float window"
+                        >
+                            ⧉
                         </button>
                         <button
                             class="btn btn-secondary btn-sm"
