@@ -130,7 +130,7 @@ SAVEHIST=10000
 HISTFILE=~/.zsh_history
 setopt HIST_IGNORE_ALL_DUPS HIST_FIND_NO_DUPS HIST_SAVE_NO_DUPS
 setopt SHARE_HISTORY APPEND_HISTORY INC_APPEND_HISTORY
-setopt PROMPT_SUBST # Enable command substitution in prompt
+# setopt PROMPT_SUBST # Disable command substitution in prompt for stability
 
 # Completion settings
 autoload -Uz compinit
@@ -138,9 +138,9 @@ autoload -Uz compinit
 zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
 zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
 
-# Main prompt - plain text to fix cursor positioning
-PROMPT='%%n@%%m %%~ %%# '
-RPROMPT=''
+# Main prompt - plain text
+export PROMPT='%%n@%%m %%~ %%# '
+export RPROMPT=''
 
 bindkey '^[[A' history-substring-search-up
 bindkey '^[[B' history-substring-search-down
@@ -372,15 +372,14 @@ create_theme() {
     export HOME="${HOME:-/root}"
     mkdir -p "$HOME/.oh-my-zsh/custom/themes"
     cat > "$HOME/.oh-my-zsh/custom/themes/rexec.zsh-theme" << 'THEME'
-ZSH_THEME_GIT_PROMPT_PREFIX="%F{magenta}git:(%F{green}"
-ZSH_THEME_GIT_PROMPT_SUFFIX="%f "
-ZSH_THEME_GIT_PROMPT_DIRTY="%F{magenta}) %F{red}✗"
-ZSH_THEME_GIT_PROMPT_CLEAN="%F{magenta}) %F{green}✓"
+ZSH_THEME_GIT_PROMPT_PREFIX="git:("
+ZSH_THEME_GIT_PROMPT_SUFFIX=") "
+ZSH_THEME_GIT_PROMPT_DIRTY="✗"
+ZSH_THEME_GIT_PROMPT_CLEAN="✓"
 
-# Main prompt - single line
-PROMPT='%%F{cyan}%%n%%f@%%F{blue}%%m%%f %%F{yellow}%%~%%f $(git_prompt_info) %%(%%?:%%F{green}➜:%%F{red}➜) %%f'
-# Right prompt - show time
-RPROMPT='%F{240}%*%f'
+# Main prompt - plain text
+PROMPT='%%n@%%m %%~ %%# '
+RPROMPT=''
 THEME
 }
 
