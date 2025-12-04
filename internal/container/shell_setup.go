@@ -104,8 +104,8 @@ export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 export TERM=xterm-256color
 
-# Theme - using a simple but nice theme
-ZSH_THEME="rexec"
+# Theme - using a modern powerline-style theme
+ZSH_THEME="agnoster"
 
 # Plugins
 plugins=(
@@ -832,12 +832,11 @@ main
 func generatePluginInstallScript(cfg ShellSetupConfig) string {
 	var parts []string
 
-	if cfg.Autosuggestions {
-		parts = append(parts, `
+	// Always install zsh-autosuggestions
+	parts = append(parts, `
     if [ ! -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ]; then
         git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions "$ZSH_CUSTOM/plugins/zsh-autosuggestions" 2>/dev/null
     fi`)
-	}
 
 	if cfg.SyntaxHighlight {
 		parts = append(parts, `
