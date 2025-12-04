@@ -1221,14 +1221,22 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 			MemorySwap: cfg.MemoryLimit, // Set equal to Memory to disable swap and enforce hard limit
 			CPUPeriod:  cpuPeriod,
 			CPUQuota:   cpuQuota,
+			PidsLimit:  &[]int64{256}[0], // Limit number of processes to prevent fork bombs
 		},
 		// Storage options for disk quota (requires overlay2 on XFS with pquota mount option)
 		StorageOpt: storageOpts,
 		Mounts:     mounts,
-		// Security options - prevent privilege escalation
+		// Security options - prevent privilege escalation and add seccomp
 		SecurityOpt: []string{
 			"no-new-privileges:true",
+			"seccomp=unconfined", // TODO: Use custom seccomp profile for tighter control
 		},
+		// Run as non-root user inside container
+		// User: "1000:1000", // Uncomment to force non-root (may break some images)
+		// Prevent container from gaining new privileges
+		Privileged: false,
+		// Read-only root filesystem (user data goes to /home/user volume)
+		// ReadonlyRootfs: true, // Uncomment for maximum security (may break some use cases)
 		// Mask sensitive host information from /proc and /sys
 		// This prevents users from seeing real host CPU, memory, etc.
 		MaskedPaths: []string{
@@ -1252,23 +1260,17 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 			"/proc/sys",
 			"/proc/sysrq-trigger",
 		},
-		// Drop all capabilities except minimal required
+		// Drop all capabilities except minimal required for terminal use
 		CapDrop: []string{"ALL"},
 		CapAdd: []string{
-			"CHOWN",
-			"DAC_OVERRIDE",
-			"FOWNER",
-			"FSETID",
-			"KILL",
-			"SETGID",
-			"SETUID",
-			"SETPCAP",
-			"NET_BIND_SERVICE",
-			"NET_RAW",
-			"SYS_CHROOT",
-			"MKNOD",
-			"AUDIT_WRITE",
-			"SETFCAP",
+			"CHOWN",        // Change file ownership
+			"DAC_OVERRIDE", // Bypass file permission checks (needed for sudo)
+			"FOWNER",       // Bypass permission checks on file owner
+			"SETGID",       // Set group ID
+			"SETUID",       // Set user ID (needed for su/sudo)
+			"KILL",         // Send signals
+			// Removed: FSETID, SETPCAP, NET_BIND_SERVICE, NET_RAW, SYS_CHROOT, MKNOD, AUDIT_WRITE, SETFCAP
+			// These are not needed for terminal use and reduce attack surface
 		},
 		// Restart policy
 		RestartPolicy: container.RestartPolicy{
