@@ -29,7 +29,7 @@
         minCPU: 250,
         maxCPU: isPaidUser ? 4000 : 2000,     // 2 vCPU for trial, 4 for paid
         minDisk: 1024,
-        maxDisk: isPaidUser ? 51200 : 16384   // 16GB for trial, 50GB for paid
+        maxDisk: isPaidUser ? 51200 : 20480   // 20GB for trial, 50GB for paid
     };
 
     // Initialize form values when modal opens
