@@ -138,9 +138,9 @@ autoload -Uz compinit
 zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
 zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
 
-# Main prompt - single line (moved from create_theme to ensure Zsh has it early)
-PROMPT='%%F{cyan}%%n%%f@%%F{blue}%%m%%f %%F{yellow}%%~%%f $(git_prompt_info) %%(%%?:%%F{green}➜:%%F{red}➜) %%f'
-RPROMPT='%%F{240}%%*%%f'
+# Main prompt - simplified to fix cursor positioning issues
+PROMPT='%%F{cyan}%%n%%f@%%F{blue}%%m%%f %%F{yellow}%%~%%f %%# '
+RPROMPT=''
 
 bindkey '^[[A' history-substring-search-up
 bindkey '^[[B' history-substring-search-down
