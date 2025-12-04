@@ -116,6 +116,91 @@ echo -e "Detected public IP: ${GREEN}${PUBLIC_IP}${NC}"
 echo ""
 
 # =============================================================================
+# 0. Setup Disk Quotas for Container Storage Limits
+# =============================================================================
+echo -e "${YELLOW}[0/N] Checking disk quota support for container storage limits...${NC}"
+
+# Find the device for /var/lib/docker
+DOCKER_DIR="/var/lib/docker"
+mkdir -p "$DOCKER_DIR"
+
+# Get the mount point and device for Docker directory
+DOCKER_MOUNT=$(df "$DOCKER_DIR" --output=target 2>/dev/null | tail -1)
+DOCKER_DEVICE=$(df "$DOCKER_DIR" --output=source 2>/dev/null | tail -1)
+
+if [ -n "$DOCKER_DEVICE" ] && [ "$DOCKER_DEVICE" != "-" ]; then
+    echo -e "${CYAN}Docker storage device: $DOCKER_DEVICE mounted at $DOCKER_MOUNT${NC}"
+    
+    # Check if filesystem supports project quotas (xfs or ext4)
+    FS_TYPE=$(df -T "$DOCKER_DIR" --output=fstype 2>/dev/null | tail -1)
+    echo -e "${CYAN}Filesystem type: $FS_TYPE${NC}"
+    
+    # Check current mount options
+    CURRENT_OPTS=$(mount | grep " $DOCKER_MOUNT " | grep -oP '\(\K[^)]+' || echo "")
+    echo -e "${CYAN}Current mount options: $CURRENT_OPTS${NC}"
+    
+    if echo "$FS_TYPE" | grep -qE "^(xfs|ext4)$"; then
+        if echo "$CURRENT_OPTS" | grep -qE "pquota|prjquota"; then
+            echo -e "${GREEN}✓ Project quotas already enabled${NC}"
+        else
+            echo -e "${YELLOW}Enabling project quotas for disk limits...${NC}"
+            
+            # For XFS, we need to remount with pquota
+            if [ "$FS_TYPE" = "xfs" ]; then
+                # Check if pquota is supported (XFS must be formatted with quota support)
+                if xfs_info "$DOCKER_MOUNT" 2>/dev/null | grep -qE "pquotino|crc=1"; then
+                    echo -e "${CYAN}XFS project quota support detected${NC}"
+                    # Try to enable pquota via remount
+                    if mount -o remount,pquota "$DOCKER_MOUNT" 2>/dev/null; then
+                        echo -e "${GREEN}✓ Successfully enabled pquota via remount${NC}"
+                    else
+                        echo -e "${YELLOW}Remount with pquota failed - updating fstab for next boot...${NC}"
+                        # Update fstab to add pquota option
+                        if ! grep -q "pquota" /etc/fstab 2>/dev/null || ! grep "$DOCKER_DEVICE" /etc/fstab | grep -q "pquota"; then
+                            # Backup fstab
+                            cp /etc/fstab /etc/fstab.backup.$(date +%s)
+                            # Add pquota to existing entry or create new one
+                            if grep -q "$DOCKER_DEVICE" /etc/fstab; then
+                                sed -i "/$DOCKER_DEVICE/s/defaults/defaults,pquota/" /etc/fstab 2>/dev/null || \
+                                sed -i "/$DOCKER_DEVICE/s/\(.*\) \([0-9]\) \([0-9]\)/\1,pquota \2 \3/" /etc/fstab 2>/dev/null
+                            fi
+                            echo -e "${YELLOW}Updated /etc/fstab - pquota will be enabled after reboot${NC}"
+                        fi
+                    fi
+                else
+                    echo -e "${YELLOW}XFS not formatted with project quota support.${NC}"
+                    echo -e "${YELLOW}Disk quotas will not be enforced. To enable:${NC}"
+                    echo -e "${YELLOW}  mkfs.xfs -f -m crc=1,finobt=1 $DOCKER_DEVICE${NC}"
+                fi
+            elif [ "$FS_TYPE" = "ext4" ]; then
+                # For ext4, enable project quota feature
+                if tune2fs -l "$DOCKER_DEVICE" 2>/dev/null | grep -q "project"; then
+                    echo -e "${CYAN}ext4 project quota feature detected${NC}"
+                    if mount -o remount,prjquota "$DOCKER_MOUNT" 2>/dev/null; then
+                        echo -e "${GREEN}✓ Successfully enabled prjquota via remount${NC}"
+                    else
+                        echo -e "${YELLOW}Remount with prjquota failed - may need reboot${NC}"
+                    fi
+                else
+                    echo -e "${YELLOW}Enabling ext4 project quota feature...${NC}"
+                    # Enable quota feature (requires unmount or may work on mounted fs with newer kernels)
+                    tune2fs -O project,quota "$DOCKER_DEVICE" 2>/dev/null || {
+                        echo -e "${YELLOW}Could not enable quota feature on mounted filesystem.${NC}"
+                    }
+                fi
+            fi
+        fi
+    else
+        echo -e "${YELLOW}Filesystem $FS_TYPE does not support project quotas.${NC}"
+        echo -e "${YELLOW}Disk quotas will not be enforced for containers.${NC}"
+    fi
+else
+    echo -e "${YELLOW}Could not detect Docker storage device. Skipping quota setup.${NC}"
+fi
+
+echo ""
+
+# =============================================================================
 # 1. Install Container Runtime (Docker or Podman)
 # =============================================================================
 STEP_NUM=1
@@ -735,43 +820,59 @@ WRAPPER
         fi
     fi
 
-    # Write daemon config with optional runtimes
-    if [ -n "$RUNTIMES_JSON" ]; then
-        cat > /etc/docker/daemon.json <<EOF
-{
-  "tls": true,
-  "tlscacert": "$CERT_DIR/ca.pem",
-  "tlscert": "$CERT_DIR/server-cert.pem",
-  "tlskey": "$CERT_DIR/server-key.pem",
-  "tlsverify": true,
-  "log-driver": "json-file",
-  "log-opts": {
-    "max-size": "10m",
-    "max-file": "3"
-  },
-  "storage-driver": "overlay2",
-  "runtimes": {
-    ${RUNTIMES_JSON}
-  }
-}
-EOF
-        echo -e "${CYAN}Docker configured with additional runtimes${NC}"
+    # Check if disk quotas are available for storage-opts
+    # Docker overlay2 storage driver needs backing filesystem with pquota/prjquota support
+    QUOTA_AVAILABLE=false
+    DOCKER_MOUNT=$(df /var/lib/docker --output=target 2>/dev/null | tail -1)
+    
+    # Check mount options for pquota or prjquota
+    if mount | grep " $DOCKER_MOUNT " | grep -qE "pquota|prjquota"; then
+        QUOTA_AVAILABLE=true
+        echo -e "${GREEN}✓ Disk quotas available (mount options) - enabling per-container storage limits${NC}"
+    # Also check XFS quota status directly
+    elif command -v xfs_quota &> /dev/null && xfs_quota -x -c "state" "$DOCKER_MOUNT" 2>/dev/null | grep -q "Project quota state"; then
+        QUOTA_AVAILABLE=true
+        echo -e "${GREEN}✓ Disk quotas available (XFS quota state) - enabling per-container storage limits${NC}"
     else
-        cat > /etc/docker/daemon.json <<EOF
-{
-  "tls": true,
-  "tlscacert": "$CERT_DIR/ca.pem",
-  "tlscert": "$CERT_DIR/server-cert.pem",
-  "tlskey": "$CERT_DIR/server-key.pem",
-  "tlsverify": true,
-  "log-driver": "json-file",
-  "log-opts": {
-    "max-size": "10m",
-    "max-file": "3"
-  },
-  "storage-driver": "overlay2"
-}
-EOF
+        echo -e "${YELLOW}Disk quotas not available - container storage limits disabled${NC}"
+        echo -e "${YELLOW}To enable disk quotas:${NC}"
+        echo -e "${YELLOW}  1. Add 'pquota' to mount options in /etc/fstab${NC}"
+        echo -e "${YELLOW}  2. Reboot or remount the filesystem${NC}"
+    fi
+
+    # Write daemon config with optional runtimes and storage opts
+    # Build the JSON dynamically to handle optional sections
+    {
+        echo '{'
+        echo '  "tls": true,'
+        echo "  \"tlscacert\": \"$CERT_DIR/ca.pem\","
+        echo "  \"tlscert\": \"$CERT_DIR/server-cert.pem\","
+        echo "  \"tlskey\": \"$CERT_DIR/server-key.pem\","
+        echo '  "tlsverify": true,'
+        echo '  "log-driver": "json-file",'
+        echo '  "log-opts": {'
+        echo '    "max-size": "10m",'
+        echo '    "max-file": "3"'
+        echo '  },'
+        echo '  "storage-driver": "overlay2"'
+        
+        # Add storage-opts if quotas available
+        if [ "$QUOTA_AVAILABLE" = true ]; then
+            echo '  ,"storage-opts": ["overlay2.size=10G"]'
+        fi
+        
+        # Add runtimes if configured
+        if [ -n "$RUNTIMES_JSON" ]; then
+            echo '  ,"runtimes": {'
+            echo "    ${RUNTIMES_JSON}"
+            echo '  }'
+        fi
+        
+        echo '}'
+    } > /etc/docker/daemon.json
+    
+    if [ -n "$RUNTIMES_JSON" ]; then
+        echo -e "${CYAN}Docker configured with additional runtimes${NC}"
     fi
 
     # Create systemd override to add TCP listener alongside unix socket
