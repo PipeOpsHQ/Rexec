@@ -821,7 +821,7 @@
         border: 1px solid var(--border);
         border-radius: 6px;
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-        z-index: 100;
+        z-index: 10000;
         overflow: hidden;
         animation: menuFadeIn 0.15s ease;
     }
