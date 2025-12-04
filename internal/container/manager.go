@@ -1099,6 +1099,13 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 		// Do NOT use /home/user working dir - use default
 		log.Printf("[Container] Configuring macOS container (privileged, kvm, default entrypoint)")
 		
+		// Add headless environment variables to prevent GTK/ALSA crashes
+		containerConfig.Env = append(containerConfig.Env,
+			"HEADLESS=1",
+			"genargs=-nographic", // Pass -nographic to QEMU via generator script
+			"DISPLAY=",           // Disable X11
+		)
+		
 		hostConfig.Privileged = true
 		hostConfig.SecurityOpt = nil // Clear security opts to allow KVM
 		hostConfig.CapDrop = nil     // Don't drop caps
