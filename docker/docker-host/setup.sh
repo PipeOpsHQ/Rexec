@@ -122,6 +122,120 @@ echo -e "${YELLOW}[0/N] Checking disk quota support for container storage limits
 
 # Find the device for /var/lib/docker
 DOCKER_DIR="/var/lib/docker"
+
+# Check for available attached volumes that can be used for Docker storage
+# This enables XFS with pquota for proper disk quotas
+ATTACHED_VOLUME=""
+ATTACHED_VOLUME_DEVICE=""
+
+# Look for mounted volumes that could be used for Docker (common cloud provider patterns)
+for mount_path in /mnt/volume* /mnt/data* /mnt/docker* /data /opt/docker; do
+    if [ -d "$mount_path" ] && mountpoint -q "$mount_path" 2>/dev/null; then
+        ATTACHED_VOLUME="$mount_path"
+        ATTACHED_VOLUME_DEVICE=$(df "$mount_path" --output=source 2>/dev/null | tail -1)
+        break
+    fi
+done
+
+# If we found an attached volume, check if we should use it for Docker
+if [ -n "$ATTACHED_VOLUME" ] && [ -n "$ATTACHED_VOLUME_DEVICE" ]; then
+    VOLUME_FS_TYPE=$(df -T "$ATTACHED_VOLUME" --output=fstype 2>/dev/null | tail -1)
+    echo -e "${CYAN}Found attached volume: $ATTACHED_VOLUME ($ATTACHED_VOLUME_DEVICE) - $VOLUME_FS_TYPE${NC}"
+    
+    # Check if Docker is already using this volume
+    if [ -L "$DOCKER_DIR" ] && [ "$(readlink -f "$DOCKER_DIR")" = "$ATTACHED_VOLUME/docker" ]; then
+        echo -e "${GREEN}✓ Docker already configured to use attached volume${NC}"
+    elif [ ! -d "$DOCKER_DIR" ] || [ -z "$(ls -A $DOCKER_DIR 2>/dev/null)" ]; then
+        # Docker dir doesn't exist or is empty - we can set it up
+        
+        # Check if volume needs to be formatted as XFS
+        if [ "$VOLUME_FS_TYPE" != "xfs" ]; then
+            echo -e "${YELLOW}Volume is $VOLUME_FS_TYPE, needs XFS for disk quotas${NC}"
+            echo -e "${YELLOW}Checking if volume can be reformatted...${NC}"
+            
+            # Check if volume is empty or has only lost+found
+            VOLUME_CONTENTS=$(ls -A "$ATTACHED_VOLUME" 2>/dev/null | grep -v "^lost+found$" | wc -l)
+            if [ "$VOLUME_CONTENTS" -eq 0 ]; then
+                echo -e "${CYAN}Volume is empty, formatting as XFS with quota support...${NC}"
+                
+                # Unmount the volume
+                umount "$ATTACHED_VOLUME" 2>/dev/null || true
+                
+                # Format as XFS with quota support
+                if mkfs.xfs -f -m crc=1,finobt=1 "$ATTACHED_VOLUME_DEVICE"; then
+                    echo -e "${GREEN}✓ Formatted volume as XFS${NC}"
+                    
+                    # Update fstab to use XFS with pquota
+                    # Backup fstab first
+                    cp /etc/fstab /etc/fstab.backup.$(date +%s)
+                    
+                    # Get UUID of new XFS filesystem
+                    NEW_UUID=$(blkid -s UUID -o value "$ATTACHED_VOLUME_DEVICE" 2>/dev/null)
+                    
+                    # Remove old entry and add new one
+                    sed -i "\|$ATTACHED_VOLUME_DEVICE|d" /etc/fstab
+                    sed -i "\|$ATTACHED_VOLUME|d" /etc/fstab
+                    echo "UUID=$NEW_UUID $ATTACHED_VOLUME xfs defaults,pquota,nofail 0 2" >> /etc/fstab
+                    
+                    # Mount with pquota
+                    mount -o defaults,pquota "$ATTACHED_VOLUME"
+                    echo -e "${GREEN}✓ Mounted volume with pquota support${NC}"
+                    
+                    VOLUME_FS_TYPE="xfs"
+                else
+                    echo -e "${RED}Failed to format volume as XFS${NC}"
+                fi
+            else
+                echo -e "${YELLOW}Volume contains data ($VOLUME_CONTENTS items), cannot reformat${NC}"
+                echo -e "${YELLOW}To enable disk quotas, backup data and run:${NC}"
+                echo -e "${YELLOW}  umount $ATTACHED_VOLUME${NC}"
+                echo -e "${YELLOW}  mkfs.xfs -f -m crc=1,finobt=1 $ATTACHED_VOLUME_DEVICE${NC}"
+                echo -e "${YELLOW}  mount -o defaults,pquota $ATTACHED_VOLUME${NC}"
+            fi
+        fi
+        
+        # If volume is now XFS, set up Docker to use it
+        if [ "$VOLUME_FS_TYPE" = "xfs" ]; then
+            echo -e "${CYAN}Setting up Docker to use XFS volume at $ATTACHED_VOLUME...${NC}"
+            
+            # Ensure pquota is in fstab
+            if ! grep -q "pquota" /etc/fstab || ! grep -q "$ATTACHED_VOLUME" /etc/fstab; then
+                cp /etc/fstab /etc/fstab.backup.$(date +%s)
+                NEW_UUID=$(blkid -s UUID -o value "$ATTACHED_VOLUME_DEVICE" 2>/dev/null)
+                # Remove old entries
+                sed -i "\|$ATTACHED_VOLUME_DEVICE|d" /etc/fstab
+                sed -i "\|$ATTACHED_VOLUME|d" /etc/fstab
+                sed -i "\|UUID=$NEW_UUID|d" /etc/fstab
+                echo "UUID=$NEW_UUID $ATTACHED_VOLUME xfs defaults,pquota,nofail 0 2" >> /etc/fstab
+            fi
+            
+            # Ensure mounted with pquota
+            if ! mount | grep "$ATTACHED_VOLUME" | grep -q "pquota"; then
+                umount "$ATTACHED_VOLUME" 2>/dev/null || true
+                mount -o defaults,pquota "$ATTACHED_VOLUME"
+            fi
+            
+            # Create Docker directory on volume
+            mkdir -p "$ATTACHED_VOLUME/docker"
+            
+            # Create symlink from /var/lib/docker to volume
+            if [ -d "$DOCKER_DIR" ]; then
+                # Move any existing data
+                if [ -n "$(ls -A $DOCKER_DIR 2>/dev/null)" ]; then
+                    echo -e "${CYAN}Moving existing Docker data to volume...${NC}"
+                    systemctl stop docker 2>/dev/null || true
+                    mv "$DOCKER_DIR"/* "$ATTACHED_VOLUME/docker/" 2>/dev/null || true
+                fi
+                rm -rf "$DOCKER_DIR"
+            fi
+            ln -sf "$ATTACHED_VOLUME/docker" "$DOCKER_DIR"
+            echo -e "${GREEN}✓ Docker directory linked to XFS volume with quota support${NC}"
+        fi
+    else
+        echo -e "${CYAN}Docker directory exists with data, keeping current configuration${NC}"
+    fi
+fi
+
 mkdir -p "$DOCKER_DIR"
 
 # Get the mount point and device for Docker directory
