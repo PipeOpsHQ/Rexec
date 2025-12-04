@@ -382,8 +382,7 @@ ZSH_THEME_GIT_PROMPT_DIRTY="%F{magenta}) %F{red}✗"
 ZSH_THEME_GIT_PROMPT_CLEAN="%F{magenta}) %F{green}✓"
 
 # Main prompt - single line
-PROMPT='%F{cyan}%n%f@%F{blue}%m%f %F{yellow}%~%f $(git_prompt_info) %(?:%F{green}➜:%F{red}➜) %f'
-
+PROMPT='%%F{cyan}%%n%%f@%%F{blue}%%m%%f %%F{yellow}%%~%%f $(git_prompt_info) %%(%%?:%%F{green}➜:%%F{red}➜) %%f'
 # Right prompt - show time
 RPROMPT='%F{240}%*%f'
 THEME
