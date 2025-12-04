@@ -1,6 +1,8 @@
 <script lang="ts">
   import { createEventDispatcher, onMount, onDestroy } from 'svelte';
+  import { get } from 'svelte/store';
   import { recordings, type Recording } from '../stores/recordings';
+  import { token } from '../stores/auth';
   import { slide } from 'svelte/transition';
   import { Terminal } from '@xterm/xterm';
   import { FitAddon } from '@xterm/addon-fit';
@@ -77,9 +79,14 @@
 
   async function downloadRecording(recording: Recording) {
     try {
+      const authToken = get(token);
+      if (!authToken) {
+        console.error('Not authenticated');
+        return;
+      }
       const response = await fetch(`/api/recordings/${recording.id}/stream`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${authToken}`
         }
       });
       
