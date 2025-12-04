@@ -138,8 +138,8 @@ autoload -Uz compinit
 zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
 zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
 
-# Main prompt - simplified to fix cursor positioning issues
-PROMPT='%%F{cyan}%%n%%f@%%F{blue}%%m%%f %%F{yellow}%%~%%f %%# '
+# Main prompt - plain text to fix cursor positioning
+PROMPT='%%n@%%m %%~ %%# '
 RPROMPT=''
 
 bindkey '^[[A' history-substring-search-up
