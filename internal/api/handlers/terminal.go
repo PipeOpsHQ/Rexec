@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 	"unicode/utf8"
+	"strings"
 
 	"github.com/docker/docker/api/types/container"
 	dockerclient "github.com/docker/docker/client"

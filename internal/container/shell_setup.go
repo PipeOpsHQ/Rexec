@@ -137,9 +137,8 @@ setopt APPEND_HISTORY
 setopt INC_APPEND_HISTORY
 setopt PROMPT_SUBST # Enable command substitution in prompt
 
-# Completion settings
 autoload -Uz compinit
-zstyle ':completion:*' menu select
+# zstyle ':completion:*' menu select
 zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
 zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
 zstyle ':completion:*' group-name ''
@@ -522,7 +521,7 @@ func DefaultShellSetupConfig() ShellSetupConfig {
 	return ShellSetupConfig{
 		Enhanced:        true,
 		Theme:           "rexec",
-		Autosuggestions: true,
+		Autosuggestions: false,
 		SyntaxHighlight: false,
 		HistorySearch:   true,
 		GitAliases:      false,
