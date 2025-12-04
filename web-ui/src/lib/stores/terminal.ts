@@ -711,36 +711,24 @@ function createTerminalStore() {
         isProcessingQueue = false;
       };
 
-      // Filter out mouse tracking sequences (SGR mouse mode: \x1b[<...M or \x1b[<...m)
-      // Also catch pure mouse coordinate spam (e.g., "35;166;10M35;165;10M...")
-      const mouseTrackingRegex = /\x1b\[<[\d;]+[Mm]/g;
-      const mouseSpamRegex = /(?:\d+;\d+;\d+[Mm])+/g;
-      
       session.terminal.onData((data) => {
         if (ws.readyState !== WebSocket.OPEN) return;
         
         // Block input if this is a view-only collab session
         const currentSession = getState().sessions.get(sessionId);
         if (currentSession?.isCollabSession && currentSession?.collabMode === 'view') {
-          // Show a subtle message on first blocked input attempt
           return;
         }
 
-        // Filter out mouse tracking sequences to reduce noise
-        let filteredData = data.replace(mouseTrackingRegex, '');
-        // Filter out fragmented/spam mouse data
-        filteredData = filteredData.replace(mouseSpamRegex, '');
-        if (!filteredData) return; // Skip if only mouse data
-        
         // For large pastes, chunk the data
-        if (filteredData.length > CHUNK_SIZE) {
-          for (let i = 0; i < filteredData.length; i += CHUNK_SIZE) {
-            inputQueue.push(filteredData.slice(i, i + CHUNK_SIZE));
+        if (data.length > CHUNK_SIZE) {
+          for (let i = 0; i < data.length; i += CHUNK_SIZE) {
+            inputQueue.push(data.slice(i, i + CHUNK_SIZE));
           }
           processInputQueue();
         } else {
           // Small inputs go directly
-          ws.send(JSON.stringify({ type: "input", data: filteredData }));
+          ws.send(JSON.stringify({ type: "input", data: data }));
         }
       });
     },
