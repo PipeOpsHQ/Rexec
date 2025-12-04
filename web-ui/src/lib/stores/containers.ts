@@ -437,7 +437,7 @@ function createContainersStore() {
                 setTimeout(pollStatus, pollInterval);
                 return;
               }
-              throw new Error("Failed to get container status");
+              throw new Error("Failed to get terminal status");
             }
 
             const containerData = await statusResponse.json();
