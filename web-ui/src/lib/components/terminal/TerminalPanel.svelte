@@ -280,12 +280,12 @@
                         {/if}
                     </span>
                     <span class="stat-divider">|</span>
-                    <span class="stat-item stat-disk" title="Disk I/O: Read {formatMemoryBytes(session.stats.diskRead)} / Write {formatMemoryBytes(session.stats.diskWrite)}">
+                    <span class="stat-item stat-disk" title="Disk: {formatMemoryBytes(session.stats.diskWrite)} used{session.stats.diskLimit > 0 ? ' / ' + formatMemoryBytes(session.stats.diskLimit) + ' limit' : ''} (R:{formatMemoryBytes(session.stats.diskRead)} W:{formatMemoryBytes(session.stats.diskWrite)})">
                         <span class="stat-label">DISK</span>
-                        <span class="stat-io">
-                            <span class="stat-io-item stat-read">R:{formatMemoryBytes(session.stats.diskRead)}</span>
-                            <span class="stat-io-item stat-write">W:{formatMemoryBytes(session.stats.diskWrite)}</span>
-                        </span>
+                        <span class="stat-value">{formatMemoryBytes(session.stats.diskWrite)}</span>
+                        {#if session.stats.diskLimit > 0}
+                            <span class="stat-limit">/ {formatMemoryBytes(session.stats.diskLimit)}</span>
+                        {/if}
                     </span>
                     <span class="stat-divider">|</span>
                     <span class="stat-item stat-net" title="Network: RX {formatMemoryBytes(session.stats.netRx)} / TX {formatMemoryBytes(session.stats.netTx)}">

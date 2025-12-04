@@ -98,13 +98,16 @@
                 const responseData = response.data as { container: Container; restarted?: boolean };
                 
                 // If container was restarted, trigger reconnect after a short delay
-                if (responseData.restarted && container) {
+                if (responseData.restarted && responseData.container) {
                     toast.success("Terminal settings updated - reconnecting...");
-                    // Give the container time to restart, then reconnect
+                    // Give the container time to restart, then reconnect with NEW docker ID
+                    const newDockerID = responseData.container.id;
                     setTimeout(() => {
-                        const dockerId = container?.id;
-                        if (dockerId) {
-                            terminal.reconnectSession(dockerId);
+                        if (newDockerID) {
+                            // First update the session with new container ID
+                            terminal.updateSessionContainerId(container?.id || '', newDockerID);
+                            // Then reconnect
+                            terminal.reconnectSession(newDockerID);
                         }
                     }, 2000);
                 } else {

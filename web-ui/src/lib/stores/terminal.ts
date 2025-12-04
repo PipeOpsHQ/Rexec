@@ -54,6 +54,7 @@ export interface TerminalSession {
     memoryLimit: number;
     diskRead: number;
     diskWrite: number;
+    diskLimit: number;
     netRx: number;
     netTx: number;
   };
@@ -349,6 +350,7 @@ function createTerminalStore() {
           memoryLimit: 0,
           diskRead: 0,
           diskWrite: 0,
+          diskLimit: 0,
           netRx: 0,
           netTx: 0,
         },
@@ -569,6 +571,7 @@ function createTerminalStore() {
                   memoryLimit: statsData.memory_limit || 0,
                   diskRead: statsData.disk_read || 0,
                   diskWrite: statsData.disk_write || 0,
+                  diskLimit: statsData.disk_limit || 0,
                   netRx: statsData.net_rx || 0,
                   netTx: statsData.net_tx || 0,
                 },
@@ -714,6 +717,43 @@ function createTerminalStore() {
     reconnectSession(sessionId: string) {
       updateSession(sessionId, (s) => ({ ...s, reconnectAttempts: 0 }));
       this.connectWebSocket(sessionId);
+    },
+
+    // Update a session's container ID (used when container is recreated with new ID)
+    updateSessionContainerId(oldContainerId: string, newContainerId: string) {
+      const state = getState();
+      
+      // Find session by old container ID
+      let sessionToUpdate: TerminalSession | null = null;
+      let sessionId: string | null = null;
+      
+      for (const [id, session] of state.sessions) {
+        if (session.containerId === oldContainerId) {
+          sessionToUpdate = session;
+          sessionId = id;
+          break;
+        }
+      }
+      
+      if (!sessionToUpdate || !sessionId) {
+        console.log(`[Terminal] No session found for container ${oldContainerId}`);
+        return;
+      }
+      
+      console.log(`[Terminal] Updating session container ID: ${oldContainerId} -> ${newContainerId}`);
+      
+      // Close old WebSocket
+      if (sessionToUpdate.ws) {
+        sessionToUpdate.ws.close();
+      }
+      
+      // Update the session with new container ID
+      updateSession(sessionId, (s) => ({
+        ...s,
+        containerId: newContainerId,
+        status: "connecting",
+        reconnectAttempts: 0,
+      }));
     },
 
     // Close a session

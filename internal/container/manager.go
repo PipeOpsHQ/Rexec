@@ -1628,6 +1628,7 @@ type ContainerResourceStats struct {
 	MemoryLimit float64 `json:"memory_limit"` // in bytes
 	DiskRead    float64 `json:"disk_read"`    // bytes read
 	DiskWrite   float64 `json:"disk_write"`   // bytes written
+	DiskLimit   float64 `json:"disk_limit"`   // bytes (from storage-opt size)
 	NetRx       float64 `json:"net_rx"`       // bytes received
 	NetTx       float64 `json:"net_tx"`       // bytes transmitted
 }
@@ -1636,19 +1637,43 @@ type ContainerResourceStats struct {
 func (m *Manager) StreamContainerStats(ctx context.Context, containerID string, statsCh chan<- ContainerResourceStats) error {
 	// Get container's configured memory limit first (Docker stats may return host memory)
 	var configuredMemoryLimit int64
+	var configuredDiskLimit int64
 	inspectInfo, err := m.client.ContainerInspect(ctx, containerID)
-	if err == nil && inspectInfo.HostConfig != nil && inspectInfo.HostConfig.Memory > 0 {
-		configuredMemoryLimit = inspectInfo.HostConfig.Memory
-		log.Printf("[StreamContainerStats] Container %s has configured memory limit: %d bytes", containerID, configuredMemoryLimit)
+	if err == nil && inspectInfo.HostConfig != nil {
+		if inspectInfo.HostConfig.Memory > 0 {
+			configuredMemoryLimit = inspectInfo.HostConfig.Memory
+			log.Printf("[StreamContainerStats] Container %s has configured memory limit: %d bytes", containerID, configuredMemoryLimit)
+		}
+		
+		// Get disk limit from StorageOpt
+		if sizeStr, ok := inspectInfo.HostConfig.StorageOpt["size"]; ok {
+			// Parse size like "2G", "500M", etc.
+			configuredDiskLimit = parseSizeString(sizeStr)
+			if configuredDiskLimit > 0 {
+				log.Printf("[StreamContainerStats] Container %s has configured disk limit: %d bytes", containerID, configuredDiskLimit)
+			}
+		}
 	}
 	
-	// Fallback: try to get memory limit from container labels (stored during creation)
-	if configuredMemoryLimit == 0 && inspectInfo.Config != nil && inspectInfo.Config.Labels != nil {
-		// First try the explicit memory limit label
-		if memLimitStr, ok := inspectInfo.Config.Labels["rexec.memory_limit"]; ok {
-			if memLimit, err := strconv.ParseInt(memLimitStr, 10, 64); err == nil && memLimit > 0 {
-				configuredMemoryLimit = memLimit
-				log.Printf("[StreamContainerStats] Container %s: using label memory limit: %d bytes", containerID, configuredMemoryLimit)
+	// Fallback: try to get memory/disk limits from container labels (stored during creation)
+	if inspectInfo.Config != nil && inspectInfo.Config.Labels != nil {
+		// Memory limit from label
+		if configuredMemoryLimit == 0 {
+			if memLimitStr, ok := inspectInfo.Config.Labels["rexec.memory_limit"]; ok {
+				if memLimit, err := strconv.ParseInt(memLimitStr, 10, 64); err == nil && memLimit > 0 {
+					configuredMemoryLimit = memLimit
+					log.Printf("[StreamContainerStats] Container %s: using label memory limit: %d bytes", containerID, configuredMemoryLimit)
+				}
+			}
+		}
+		
+		// Disk limit from label
+		if configuredDiskLimit == 0 {
+			if diskLimitStr, ok := inspectInfo.Config.Labels["rexec.disk_quota"]; ok {
+				if diskLimit, err := strconv.ParseInt(diskLimitStr, 10, 64); err == nil && diskLimit > 0 {
+					configuredDiskLimit = diskLimit
+					log.Printf("[StreamContainerStats] Container %s: using label disk limit: %d bytes", containerID, configuredDiskLimit)
+				}
 			}
 		}
 		
@@ -1759,9 +1784,50 @@ func (m *Manager) StreamContainerStats(ctx context.Context, containerID string, 
 				MemoryLimit: memLimit,
 				DiskRead:    diskRead,
 				DiskWrite:   diskWrite,
+				DiskLimit:   float64(configuredDiskLimit),
 				NetRx:       netRx,
 				NetTx:       netTx,
 			}
 		}
 	}
+}
+
+// parseSizeString parses Docker size strings like "2G", "500M", "1024K" to bytes
+func parseSizeString(s string) int64 {
+	s = strings.TrimSpace(strings.ToUpper(s))
+	if len(s) == 0 {
+		return 0
+	}
+	
+	multiplier := int64(1)
+	numStr := s
+	
+	// Check for suffix
+	lastChar := s[len(s)-1]
+	switch lastChar {
+	case 'K':
+		multiplier = 1024
+		numStr = s[:len(s)-1]
+	case 'M':
+		multiplier = 1024 * 1024
+		numStr = s[:len(s)-1]
+	case 'G':
+		multiplier = 1024 * 1024 * 1024
+		numStr = s[:len(s)-1]
+	case 'T':
+		multiplier = 1024 * 1024 * 1024 * 1024
+		numStr = s[:len(s)-1]
+	}
+	
+	// Also handle "GB", "MB" etc.
+	if len(numStr) > 0 && numStr[len(numStr)-1] == 'B' {
+		numStr = numStr[:len(numStr)-1]
+	}
+	
+	val, err := strconv.ParseFloat(numStr, 64)
+	if err != nil {
+		return 0
+	}
+	
+	return int64(val * float64(multiplier))
 }
