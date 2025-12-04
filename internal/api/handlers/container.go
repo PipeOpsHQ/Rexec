@@ -515,6 +515,10 @@ func (h *ContainerHandler) createContainerAsync(recordID string, cfg container.C
 		}
 	}
 
+	// Update status to running now that setup is complete
+	h.manager.UpdateContainerStatus(info.ID, "running")
+	h.store.UpdateContainerStatus(ctx, recordID, "running")
+
 	// Mark container as ready AFTER setup is complete
 	sendProgress("ready", "Terminal ready!", 100)
 

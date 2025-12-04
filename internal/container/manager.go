@@ -1173,7 +1173,7 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 		UserID:        cfg.UserID,
 		ContainerName: cfg.ContainerName,
 		ImageType:     imageType,
-		Status:        "running",
+		Status:        "configuring", // Set to configuring initially so UI waits
 		CreatedAt:     now,
 		LastUsedAt:    now,
 		IPAddress:     inspect.NetworkSettings.IPAddress,

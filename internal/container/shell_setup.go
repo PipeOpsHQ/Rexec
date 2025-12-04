@@ -104,8 +104,8 @@ export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 export TERM=xterm-256color
 
-# Theme - using a modern powerline-style theme
-ZSH_THEME="agnoster"
+# Theme - using a simple but nice theme
+ZSH_THEME="rexec"
 
 # Plugins
 plugins=(
@@ -377,18 +377,13 @@ create_theme() {
     export HOME="${HOME:-/root}"
     mkdir -p "$HOME/.oh-my-zsh/custom/themes"
     cat > "$HOME/.oh-my-zsh/custom/themes/rexec.zsh-theme" << 'THEME'
-# Rexec Terminal Theme
-
-# Git prompt settings - must be defined before use
 ZSH_THEME_GIT_PROMPT_PREFIX="%F{magenta}git:(%F{green}"
 ZSH_THEME_GIT_PROMPT_SUFFIX="%f "
 ZSH_THEME_GIT_PROMPT_DIRTY="%F{magenta}) %F{red}✗"
 ZSH_THEME_GIT_PROMPT_CLEAN="%F{magenta}) %F{green}✓"
 
-# Main prompt using direct function call
-PROMPT='
-%F{cyan}%n%f@%F{blue}%m%f %F{yellow}%~%f $(git_prompt_info)
-%(?:%F{green}➜:%F{red}➜) %f'
+# Main prompt - single line
+PROMPT='%F{cyan}%n%f@%F{blue}%m%f %F{yellow}%~%f $(git_prompt_info) %(?:%F{green}➜:%F{red}➜) %f'
 
 # Right prompt - show time
 RPROMPT='%F{240}%*%f'
