@@ -356,7 +356,13 @@ func (h *TerminalHandler) runTerminalSessionWithRestart(session *TerminalSession
 		}
 
 		// Run the terminal session
+		startTime := time.Now()
 		shellExited := h.runTerminalSession(session, imageType)
+
+		// Reset restart count if session lasted > 1 minute
+		if time.Since(startTime) > 1*time.Minute {
+			restartCount = 0
+		}
 
 		// If shell exited normally (user typed 'exit'), restart it
 		if shellExited && restartCount < maxRestarts {
@@ -365,6 +371,21 @@ func (h *TerminalHandler) runTerminalSessionWithRestart(session *TerminalSession
 				Type: "output",
 				Data: "\r\n\x1b[33m[Shell exited. Starting new session...]\x1b[0m\r\n\r\n",
 			})
+
+			// Check if container stopped (since shell was likely PID 1)
+			ctx := context.Background()
+			inspect, err := h.containerManager.GetClient().ContainerInspect(ctx, session.ContainerID)
+			if err == nil && !inspect.State.Running {
+				session.SendMessage(TerminalMessage{
+					Type: "output",
+					Data: "\r\n\x1b[33m[Container stopped. Restarting...]\x1b[0m\r\n",
+				})
+				if err := h.containerManager.StartContainer(ctx, session.ContainerID); err != nil {
+					log.Printf("Failed to auto-restart container %s: %v", session.ContainerID, err)
+					// Don't return, let the loop fail at runTerminalSession so specific error is shown
+				}
+			}
+
 			continue
 		}
 

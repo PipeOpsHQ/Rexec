@@ -217,62 +217,62 @@ type ImageMetadata struct {
 func GetImageMetadata() []ImageMetadata {
 	return []ImageMetadata{
 		// Debian-based (Popular) - Updated Dec 2025
+		{Name: "debian-11", DisplayName: "Debian 11 (Bullseye)", Description: "Previous stable Debian release", Category: "debian", Tags: []string{"oldstable"}, Popular: false},
+		{Name: "debian-12", DisplayName: "Debian 12 (Bookworm)", Description: "Current stable Debian release", Category: "debian", Tags: []string{"stable"}, Popular: false},
+		{Name: "debian", DisplayName: "Debian 12 (Bookworm)", Description: "Rock-solid stability with extensive packages", Category: "debian", Tags: []string{"stable", "server"}, Popular: true},
+		{Name: "devuan", DisplayName: "Devuan 5 (Excalibur)", Description: "Debian without systemd - init freedom", Category: "debian", Tags: []string{"init-freedom", "advanced"}, Popular: false},
+		{Name: "elementary", DisplayName: "elementary OS", Description: "Beautiful and privacy-focused desktop OS", Category: "debian", Tags: []string{"desktop", "beautiful"}, Popular: false},
+		{Name: "mint", DisplayName: "Linux Mint 22", Description: "User-friendly Ubuntu derivative with Cinnamon", Category: "debian", Tags: []string{"desktop", "beginner-friendly"}, Popular: true},
+		{Name: "ubuntu-20", DisplayName: "Ubuntu 20.04 LTS", Description: "Focal Fossa - Long-term support until 2025", Category: "debian", Tags: []string{"lts", "legacy"}, Popular: false},
+		{Name: "ubuntu-22", DisplayName: "Ubuntu 22.04 LTS", Description: "Jammy Jellyfish - Stable and well-tested", Category: "debian", Tags: []string{"lts", "stable"}, Popular: false},
 		{Name: "ubuntu", DisplayName: "Ubuntu 24.04 LTS", Description: "Latest Ubuntu LTS with best-in-class security", Category: "debian", Tags: []string{"lts", "popular", "beginner-friendly"}, Popular: true},
 		{Name: "ubuntu-24", DisplayName: "Ubuntu 24.04 LTS", Description: "Noble Numbat - Latest Ubuntu LTS release", Category: "debian", Tags: []string{"lts", "latest"}, Popular: true},
-		{Name: "ubuntu-22", DisplayName: "Ubuntu 22.04 LTS", Description: "Jammy Jellyfish - Stable and well-tested", Category: "debian", Tags: []string{"lts", "stable"}, Popular: false},
-		{Name: "ubuntu-20", DisplayName: "Ubuntu 20.04 LTS", Description: "Focal Fossa - Long-term support until 2025", Category: "debian", Tags: []string{"lts", "legacy"}, Popular: false},
-		{Name: "debian", DisplayName: "Debian 12 (Bookworm)", Description: "Rock-solid stability with extensive packages", Category: "debian", Tags: []string{"stable", "server"}, Popular: true},
-		{Name: "debian-12", DisplayName: "Debian 12 (Bookworm)", Description: "Current stable Debian release", Category: "debian", Tags: []string{"stable"}, Popular: false},
-		{Name: "debian-11", DisplayName: "Debian 11 (Bullseye)", Description: "Previous stable Debian release", Category: "debian", Tags: []string{"oldstable"}, Popular: false},
-		{Name: "mint", DisplayName: "Linux Mint 22", Description: "User-friendly Ubuntu derivative with Cinnamon", Category: "debian", Tags: []string{"desktop", "beginner-friendly"}, Popular: true},
-		{Name: "elementary", DisplayName: "elementary OS", Description: "Beautiful and privacy-focused desktop OS", Category: "debian", Tags: []string{"desktop", "beautiful"}, Popular: false},
-		{Name: "devuan", DisplayName: "Devuan 5 (Excalibur)", Description: "Debian without systemd - init freedom", Category: "debian", Tags: []string{"init-freedom", "advanced"}, Popular: false},
 
 		// Security & Penetration Testing
+		{Name: "blackarch", DisplayName: "BlackArch Linux", Description: "Arch-based with 2900+ security tools", Category: "security", Tags: []string{"security", "pentest", "arch"}, Popular: false},
 		{Name: "kali", DisplayName: "Kali Linux", Description: "Industry-standard penetration testing distro", Category: "security", Tags: []string{"security", "pentest", "hacking"}, Popular: true},
 		{Name: "parrot", DisplayName: "Parrot OS", Description: "Security-focused with privacy tools", Category: "security", Tags: []string{"security", "privacy", "pentest"}, Popular: true},
 		{Name: "parrot-security", DisplayName: "Parrot Security", Description: "Full Parrot security edition with all tools", Category: "security", Tags: []string{"security", "pentest", "full"}, Popular: false},
-		{Name: "blackarch", DisplayName: "BlackArch Linux", Description: "Arch-based with 2900+ security tools", Category: "security", Tags: []string{"security", "pentest", "arch"}, Popular: false},
 
 		// Red Hat-based - Updated Dec 2025
-		{Name: "fedora", DisplayName: "Fedora 41", Description: "Latest Fedora with cutting-edge features", Category: "redhat", Tags: []string{"modern", "rhel-upstream", "latest"}, Popular: true},
-		{Name: "fedora-40", DisplayName: "Fedora 40", Description: "Previous stable Fedora release", Category: "redhat", Tags: []string{"stable"}, Popular: false},
-		{Name: "fedora-39", DisplayName: "Fedora 39", Description: "Older Fedora release", Category: "redhat", Tags: []string{"stable"}, Popular: false},
-		{Name: "centos", DisplayName: "CentOS Stream 9", Description: "Upstream for RHEL, community-driven", Category: "redhat", Tags: []string{"enterprise", "rhel-upstream"}, Popular: true},
-		{Name: "centos-stream", DisplayName: "CentOS Stream 9", Description: "Rolling preview of future RHEL", Category: "redhat", Tags: []string{"enterprise", "rolling"}, Popular: false},
-		{Name: "rocky", DisplayName: "Rocky Linux 9.5", Description: "Enterprise-grade 1:1 RHEL-compatible", Category: "redhat", Tags: []string{"enterprise", "rhel-compatible"}, Popular: true},
-		{Name: "rocky-8", DisplayName: "Rocky Linux 8.10", Description: "Rocky Linux 8 branch - stable and tested", Category: "redhat", Tags: []string{"enterprise", "stable"}, Popular: false},
-		{Name: "alma", DisplayName: "AlmaLinux 9.5", Description: "Community-driven RHEL fork with long support", Category: "redhat", Tags: []string{"enterprise", "rhel-compatible"}, Popular: true},
 		{Name: "alma-8", DisplayName: "AlmaLinux 8.10", Description: "AlmaLinux 8 branch - stable enterprise", Category: "redhat", Tags: []string{"enterprise", "stable"}, Popular: false},
+		{Name: "alma", DisplayName: "AlmaLinux 9.5", Description: "Community-driven RHEL fork with long support", Category: "redhat", Tags: []string{"enterprise", "rhel-compatible"}, Popular: true},
+		{Name: "centos-stream", DisplayName: "CentOS Stream 9", Description: "Rolling preview of future RHEL", Category: "redhat", Tags: []string{"enterprise", "rolling"}, Popular: false},
+		{Name: "centos", DisplayName: "CentOS Stream 9", Description: "Upstream for RHEL, community-driven", Category: "redhat", Tags: []string{"enterprise", "rhel-upstream"}, Popular: true},
+		{Name: "fedora-39", DisplayName: "Fedora 39", Description: "Older Fedora release", Category: "redhat", Tags: []string{"stable"}, Popular: false},
+		{Name: "fedora-40", DisplayName: "Fedora 40", Description: "Previous stable Fedora release", Category: "redhat", Tags: []string{"stable"}, Popular: false},
+		{Name: "fedora", DisplayName: "Fedora 41", Description: "Latest Fedora with cutting-edge features", Category: "redhat", Tags: []string{"modern", "rhel-upstream", "latest"}, Popular: true},
+		{Name: "openeuler", DisplayName: "openEuler 24.03 LTS", Description: "Enterprise Linux from Huawei", Category: "redhat", Tags: []string{"enterprise", "lts"}, Popular: false},
 		{Name: "oracle", DisplayName: "Oracle Linux 9", Description: "Oracle's enterprise Linux with Ksplice", Category: "redhat", Tags: []string{"enterprise", "oracle"}, Popular: false},
 		{Name: "rhel", DisplayName: "Red Hat UBI 9", Description: "Official Red Hat Universal Base Image", Category: "redhat", Tags: []string{"enterprise", "commercial"}, Popular: true},
-		{Name: "openeuler", DisplayName: "openEuler 24.03 LTS", Description: "Enterprise Linux from Huawei", Category: "redhat", Tags: []string{"enterprise", "lts"}, Popular: false},
+		{Name: "rocky-8", DisplayName: "Rocky Linux 8.10", Description: "Rocky Linux 8 branch - stable and tested", Category: "redhat", Tags: []string{"enterprise", "stable"}, Popular: false},
+		{Name: "rocky", DisplayName: "Rocky Linux 9.5", Description: "Enterprise-grade 1:1 RHEL-compatible", Category: "redhat", Tags: []string{"enterprise", "rhel-compatible"}, Popular: true},
 
 		// Arch-based
 		{Name: "archlinux", DisplayName: "Arch Linux", Description: "Rolling release with latest packages and AUR", Category: "arch", Tags: []string{"rolling", "bleeding-edge", "aur"}, Popular: true},
-		{Name: "manjaro", DisplayName: "Manjaro", Description: "User-friendly Arch with curated updates", Category: "arch", Tags: []string{"rolling", "beginner-friendly"}, Popular: true},
 		{Name: "artix", DisplayName: "Artix Linux", Description: "Arch without systemd (OpenRC)", Category: "arch", Tags: []string{"rolling", "init-freedom"}, Popular: false},
+		{Name: "manjaro", DisplayName: "Manjaro", Description: "User-friendly Arch with curated updates", Category: "arch", Tags: []string{"rolling", "beginner-friendly"}, Popular: true},
 
 		// SUSE-based - Updated Dec 2025
+		{Name: "mageia", DisplayName: "Mageia 9", Description: "Community-driven Mandriva fork", Category: "suse", Tags: []string{"rpm", "desktop", "stable"}, Popular: false},
 		{Name: "opensuse", DisplayName: "openSUSE Leap 15.6", Description: "Stable enterprise-grade openSUSE", Category: "suse", Tags: []string{"enterprise", "stable", "zypper"}, Popular: true},
 		{Name: "tumbleweed", DisplayName: "openSUSE Tumbleweed", Description: "Rolling release with tested updates", Category: "suse", Tags: []string{"rolling", "tested"}, Popular: false},
-		{Name: "mageia", DisplayName: "Mageia 9", Description: "Community-driven Mandriva fork", Category: "suse", Tags: []string{"rpm", "desktop", "stable"}, Popular: false},
 
 		// Independent Distributions
+		{Name: "crux", DisplayName: "CRUX 3.7", Description: "Lightweight, BSD-style init scripts", Category: "independent", Tags: []string{"lightweight", "bsd-style", "simple"}, Popular: false},
 		{Name: "gentoo", DisplayName: "Gentoo Linux", Description: "Source-based with extreme customization", Category: "independent", Tags: []string{"source-based", "advanced", "performance"}, Popular: false},
-		{Name: "void", DisplayName: "Void Linux", Description: "Independent distro with runit init system", Category: "independent", Tags: []string{"independent", "runit", "rolling"}, Popular: false},
+		{Name: "guix", DisplayName: "Guix System", Description: "Advanced transactional package manager", Category: "independent", Tags: []string{"functional", "gnu", "scheme"}, Popular: false},
 		{Name: "nixos", DisplayName: "NixOS", Description: "Declarative configuration and reproducible builds", Category: "independent", Tags: []string{"declarative", "nix", "reproducible"}, Popular: false},
 		{Name: "slackware", DisplayName: "Slackware 15.0", Description: "Oldest maintained Linux distro, Unix-like", Category: "independent", Tags: []string{"classic", "stable", "unix-like"}, Popular: false},
-		{Name: "crux", DisplayName: "CRUX 3.7", Description: "Lightweight, BSD-style init scripts", Category: "independent", Tags: []string{"lightweight", "bsd-style", "simple"}, Popular: false},
-		{Name: "guix", DisplayName: "Guix System", Description: "Advanced transactional package manager", Category: "independent", Tags: []string{"functional", "gnu", "scheme"}, Popular: false},
+		{Name: "void", DisplayName: "Void Linux", Description: "Independent distro with runit init system", Category: "independent", Tags: []string{"independent", "runit", "rolling"}, Popular: false},
 
 		// Minimal / Embedded - Updated Dec 2025
-		{Name: "alpine", DisplayName: "Alpine 3.21", Description: "Lightweight and security-oriented (6MB)", Category: "minimal", Tags: []string{"minimal", "docker", "security"}, Popular: true},
-		{Name: "alpine-3.20", DisplayName: "Alpine 3.20", Description: "Previous stable Alpine release", Category: "minimal", Tags: []string{"minimal", "stable"}, Popular: false},
 		{Name: "alpine-3.18", DisplayName: "Alpine 3.18", Description: "Older stable Alpine release", Category: "minimal", Tags: []string{"minimal", "legacy"}, Popular: false},
+		{Name: "alpine-3.20", DisplayName: "Alpine 3.20", Description: "Previous stable Alpine release", Category: "minimal", Tags: []string{"minimal", "stable"}, Popular: false},
+		{Name: "alpine", DisplayName: "Alpine 3.21", Description: "Lightweight and security-oriented (6MB)", Category: "minimal", Tags: []string{"minimal", "docker", "security"}, Popular: true},
 		{Name: "busybox", DisplayName: "BusyBox 1.37", Description: "Ultra-minimal Unix utilities (~2MB)", Category: "minimal", Tags: []string{"minimal", "embedded"}, Popular: false},
-		{Name: "tinycore", DisplayName: "TinyCore Linux", Description: "The smallest subset of Linux (~16MB)", Category: "minimal", Tags: []string{"micro", "fast", "ram-only"}, Popular: false},
 		{Name: "openwrt", DisplayName: "OpenWrt 23.05", Description: "Embedded operating system for routers", Category: "minimal", Tags: []string{"network", "embedded", "router"}, Popular: false},
+		{Name: "tinycore", DisplayName: "TinyCore Linux", Description: "The smallest subset of Linux (~16MB)", Category: "minimal", Tags: []string{"micro", "fast", "ram-only"}, Popular: false},
 
 		// Container / Cloud Optimized
 		{Name: "rancheros", DisplayName: "RancherOS (Alpine)", Description: "Lightweight container-optimized OS (Alpine-based)", Category: "container", Tags: []string{"containers", "docker", "minimal"}, Popular: false},
@@ -280,12 +280,12 @@ func GetImageMetadata() []ImageMetadata {
 		// Cloud Provider Specific - Updated Dec 2025
 		{Name: "amazonlinux", DisplayName: "Amazon Linux 2023", Description: "Latest Amazon Linux optimized for AWS", Category: "cloud", Tags: []string{"aws", "cloud", "enterprise"}, Popular: true},
 		{Name: "amazonlinux2", DisplayName: "Amazon Linux 2", Description: "LTS Amazon Linux (EOL Jun 2025)", Category: "cloud", Tags: []string{"aws", "cloud", "legacy"}, Popular: false},
-		{Name: "oracle-slim", DisplayName: "Oracle Linux 9 Slim", Description: "Lightweight Oracle Linux", Category: "cloud", Tags: []string{"oracle", "cloud", "minimal"}, Popular: false},
 		{Name: "azurelinux", DisplayName: "Azure Linux 3.0", Description: "Microsoft's OS for Azure Kubernetes Service", Category: "cloud", Tags: []string{"azure", "microsoft", "cloud"}, Popular: false},
+		{Name: "oracle-slim", DisplayName: "Oracle Linux 9 Slim", Description: "Lightweight Oracle Linux", Category: "cloud", Tags: []string{"oracle", "cloud", "minimal"}, Popular: false},
 
 		// Scientific
-		{Name: "scientific", DisplayName: "Scientific Linux", Description: "For scientific computing and research", Category: "developer", Tags: []string{"scientific", "research", "rhel"}, Popular: false},
 		{Name: "neurodebian", DisplayName: "NeuroDebian", Description: "Neuroscience-oriented Debian", Category: "developer", Tags: []string{"science", "brain", "research"}, Popular: false},
+		{Name: "scientific", DisplayName: "Scientific Linux", Description: "For scientific computing and research", Category: "developer", Tags: []string{"scientific", "research", "rhel"}, Popular: false},
 
 		// Specialized
 		{Name: "clearlinux", DisplayName: "Clear Linux", Description: "Intel-optimized for maximum performance", Category: "specialized", Tags: []string{"performance", "intel", "cloud"}, Popular: false},
