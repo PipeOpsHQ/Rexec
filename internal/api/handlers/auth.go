@@ -18,8 +18,8 @@ import (
 )
 
 const (
-	// GuestSessionDuration is the maximum session time for guest users (1 hour)
-	GuestSessionDuration = 1 * time.Hour
+	// GuestSessionDuration is the maximum session time for guest users (50 hours)
+	GuestSessionDuration = 50 * time.Hour
 )
 
 // AuthHandler handles authentication endpoints
@@ -172,7 +172,7 @@ func (h *AuthHandler) GuestLogin(c *gin.Context) {
 	if isReturningGuest {
 		response["message"] = "Welcome back! Your previous session has been restored."
 	} else {
-		response["message"] = "Guest session active for 1 hour. Sign in with PipeOps for unlimited sessions."
+		response["message"] = "Guest session active for 50 hours. Sign in with PipeOps for unlimited sessions."
 	}
 
 	c.JSON(http.StatusOK, response)
