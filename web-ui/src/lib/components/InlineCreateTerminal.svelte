@@ -72,13 +72,27 @@
 
     $: displayProgress = Math.round(progress);
 
+    // Pre-bundled OS images for instant loading
     let images: Array<{
         name: string;
         display_name: string;
         description: string;
         category: string;
         popular?: boolean;
-    }> = [];
+    }> = [
+        { name: "ubuntu", display_name: "Ubuntu", description: "Popular Linux distribution", category: "linux", popular: true },
+        { name: "debian", display_name: "Debian", description: "Stable Linux distribution", category: "linux", popular: true },
+        { name: "alpine", display_name: "Alpine", description: "Lightweight Linux", category: "linux", popular: true },
+        { name: "arch", display_name: "Arch Linux", description: "Rolling release Linux", category: "linux" },
+        { name: "fedora", display_name: "Fedora", description: "Cutting-edge Linux", category: "linux" },
+        { name: "centos", display_name: "CentOS", description: "Enterprise Linux", category: "linux" },
+        { name: "rocky", display_name: "Rocky Linux", description: "Enterprise Linux", category: "linux" },
+        { name: "opensuse", display_name: "openSUSE", description: "Enterprise Linux", category: "linux" },
+        { name: "kali", display_name: "Kali Linux", description: "Security distribution", category: "security" },
+        { name: "parrot", display_name: "Parrot OS", description: "Security distribution", category: "security" },
+        { name: "blackarch", display_name: "BlackArch", description: "Security distribution", category: "security" },
+        { name: "busybox", display_name: "BusyBox", description: "Minimal utilities", category: "minimal" },
+    ];
 
     const roleToOS: Record<string, string> = {
         "vibe-coder": "ubuntu",
@@ -92,7 +106,7 @@
 
     $: if (selectedRole && roleToOS[selectedRole]) {
         const preferredOS = roleToOS[selectedRole];
-        if (images.length > 0 && images.some((img) => img.name === preferredOS)) {
+        if (images.some((img) => img.name === preferredOS)) {
             selectedImage = preferredOS;
         }
     }
@@ -151,21 +165,12 @@
 
     $: currentRole = roles.find((r) => r.id === selectedRole);
 
-    async function loadImages() {
-        if (images.length > 0) return;
-
-        const { data, error } = await api.get<{
-            images?: typeof images;
-            popular?: typeof images;
-        }>("/api/images?all=true");
-
-        if (data) {
-            images = data.images || data.popular || [];
-        }
-    }
-
+    // Images are pre-bundled, no need to load from API
     onMount(() => {
-        loadImages();
+        // Select default image based on role
+        if (selectedRole && roleToOS[selectedRole]) {
+            selectedImage = roleToOS[selectedRole];
+        }
     });
 
     function selectAndCreate(imageName: string) {

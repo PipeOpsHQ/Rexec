@@ -827,8 +827,8 @@ func (h *TerminalHandler) getOrCreateSharedSession(containerID, ownerID, imageTy
 		Cols:        80,
 		Rows:        24,
 		Done:        make(chan struct{}),
-		InputChan:   make(chan []byte, 256),
-		OutputChan:  make(chan []byte, 256),
+		InputChan:   make(chan []byte, 4096),
+		OutputChan:  make(chan []byte, 4096),
 	}
 	
 	h.sharedSessions[containerID] = sharedSession
@@ -878,11 +878,7 @@ func (h *TerminalHandler) joinSharedSession(session *SharedTerminalSession, conn
 		case "input":
 			// Only owner and editors can send input
 			if isOwner || h.canSendInput(session.ContainerID, userID) {
-				select {
-				case session.InputChan <- []byte(msg.Data):
-				default:
-					// Channel full, drop input
-				}
+				session.InputChan <- []byte(msg.Data)
 			}
 		case "resize":
 			if isOwner {
