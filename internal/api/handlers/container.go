@@ -478,7 +478,8 @@ func (h *ContainerHandler) createContainerAsync(recordID string, cfg container.C
 
 	// Run shell setup synchronously before marking ready
 	// This ensures environment is fully configured before user connects
-	if shellCfg.Enhanced {
+	// Skip enhanced shell for macOS as it's an appliance VM that manages its own environment
+	if shellCfg.Enhanced && imageType != "macos" {
 		sendProgress("configuring", "Setting up enhanced shell...", 90)
 		log.Printf("[Container] Starting shell setup for %s", info.ID[:12])
 		
