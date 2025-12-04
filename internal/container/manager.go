@@ -143,10 +143,10 @@ var SupportedImages = map[string]string{
 	"fedora-39": "fedora:39",       // Older stable
 	"centos":    "quay.io/centos/centos:stream9", // CentOS Stream 9
 	"centos-stream": "quay.io/centos/centos:stream9",
-	"rocky":     "rockylinux:9.5",  // Rocky Linux 9.5 (latest)
-	"rocky-8":   "rockylinux:8.10", // Rocky Linux 8.10
-	"alma":      "almalinux:9.5",   // AlmaLinux 9.5 (latest)
-	"alma-8":    "almalinux:8.10",  // AlmaLinux 8.10
+	"rocky":     "rockylinux:9",    // Rocky Linux 9 (latest)
+	"rocky-8":   "rockylinux:8",    // Rocky Linux 8
+	"alma":      "almalinux:9",     // AlmaLinux 9 (latest)
+	"alma-8":    "almalinux:8",     // AlmaLinux 8
 	"oracle":    "oraclelinux:9",   // Oracle Linux 9
 	"rhel":      "redhat/ubi9:latest", // Red Hat UBI 9
 	"openeuler": "openeuler/openeuler:24.03-lts",

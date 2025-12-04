@@ -428,12 +428,10 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 	// Container output -> WebSocket
 	go func() {
 		defer wg.Done()
-		// Large buffer for handling big output bursts (e.g., cat large files, log dumps)
-		buf := make([]byte, 64*1024) // 64KB buffer
-		// Accumulator for batching small outputs to reduce WebSocket messages
+		// Large buffer for handling big output bursts
+		buf := make([]byte, 64*1024)
+		// Accumulator for batching
 		accumulator := make([]byte, 0, 64*1024)
-		flushTicker := time.NewTicker(16 * time.Millisecond) // ~60fps max update rate
-		defer flushTicker.Stop()
 		
 		flushAccumulator := func() {
 			if len(accumulator) > 0 {
@@ -445,14 +443,16 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 					errChan <- err
 					return
 				}
-				// Record output if recording is active
 				if h.recordingHandler != nil {
 					h.recordingHandler.AddEvent(session.ContainerID, "o", outputData, 0, 0)
 				}
-				accumulator = accumulator[:0] // Reset without reallocating
+				accumulator = accumulator[:0]
 			}
 		}
-		
+
+		// Adaptive buffering state
+		readTimeout := 100 * time.Millisecond // Start with long-ish wait
+
 		for {
 			select {
 			case <-session.Done:
@@ -461,12 +461,9 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 			case <-ctx.Done():
 				flushAccumulator()
 				return
-			case <-flushTicker.C:
-				// Periodic flush to ensure responsiveness
-				flushAccumulator()
 			default:
-				// Set read deadline
-				attachResp.Conn.SetReadDeadline(time.Now().Add(50 * time.Millisecond))
+				// Set dynamic deadline
+				attachResp.Conn.SetReadDeadline(time.Now().Add(readTimeout))
 
 				n, err := attachResp.Reader.Read(buf)
 				if err != nil {
@@ -475,17 +472,31 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 						shellExitChan <- true
 						return
 					}
-					// Timeout is expected, continue
+					
+					// Timeout handling
 					if netErr, ok := err.(interface{ Timeout() bool }); ok && netErr.Timeout() {
+						// Timed out. 
+						// If we were in "short timeout" mode, it means we drained the burst. FLUSH NOW.
+						if len(accumulator) > 0 {
+							flushAccumulator()
+						}
+						// Go back to long wait
+						readTimeout = 100 * time.Millisecond
 						continue
 					}
+					
 					flushAccumulator()
 					errChan <- err
 					return
 				}
+				
 				if n > 0 {
 					accumulator = append(accumulator, buf[:n]...)
-					// Flush immediately if buffer is getting large (>32KB)
+					
+					// We got data! There might be more. Switch to short timeout to drain buffer.
+					readTimeout = 1 * time.Millisecond // Very short check for next byte
+					
+					// Safety valve for huge streams
 					if len(accumulator) > 32*1024 {
 						flushAccumulator()
 					}
