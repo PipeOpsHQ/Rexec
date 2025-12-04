@@ -21,49 +21,49 @@ func AvailableRoles() []RoleInfo {
 			Name:        "The Minimalist",
 			Description: "I use Arch btw. Just give me a shell.",
 			Icon:        "🧘",
-			Packages:    []string{"git", "curl", "wget", "vim", "nano", "htop", "jq", "neofetch"},
+			Packages:    []string{"zsh", "git", "curl", "wget", "vim", "nano", "htop", "jq", "neofetch", "zsh-autosuggestions", "zsh-syntax-highlighting", "zsh-completions"},
 		},
 		{
 			ID:          "node",
 			Name:        "10x JS Ninja",
 			Description: "Ship fast, break things, npm install everything.",
 			Icon:        "🚀",
-			Packages:    []string{"nodejs", "npm", "yarn"},
+			Packages:    []string{"zsh", "git", "nodejs", "npm", "yarn", "zsh-autosuggestions", "zsh-syntax-highlighting", "zsh-completions"},
 		},
 		{
 			ID:          "python",
 			Name:        "Data Wizard",
 			Description: "Import antigravity. I speak in list comprehensions.",
 			Icon:        "🧙‍♂️",
-			Packages:    []string{"python3", "python3-pip", "python3-venv"},
+			Packages:    []string{"zsh", "git", "python3", "python3-pip", "python3-venv", "zsh-autosuggestions", "zsh-syntax-highlighting", "zsh-completions"},
 		},
 		{
 			ID:          "go",
 			Name:        "The Gopher",
 			Description: "If err != nil { panic(err) }. Simplicity is key.",
 			Icon:        "🐹",
-			Packages:    []string{"go", "git", "make"},
+			Packages:    []string{"zsh", "git", "make", "go", "zsh-autosuggestions", "zsh-syntax-highlighting", "zsh-completions"},
 		},
 		{
 			ID:          "neovim",
 			Name:        "Neovim God",
 			Description: "My config is longer than your code. Mouse? What mouse?",
 			Icon:        "⌨️",
-			Packages:    []string{"neovim", "ripgrep", "git", "gcc", "make", "curl"},
+			Packages:    []string{"zsh", "git", "neovim", "ripgrep", "gcc", "make", "curl", "zsh-autosuggestions", "zsh-syntax-highlighting", "zsh-completions"},
 		},
 		{
 			ID:          "devops",
 			Name:        "YAML Herder",
 			Description: "I don't write code, I write config. Prod is my playground.",
 			Icon:        "☸️",
-			Packages:    []string{"docker-cli", "kubectl", "ansible", "terraform"},
+			Packages:    []string{"zsh", "git", "docker-cli", "kubectl", "ansible", "terraform", "zsh-autosuggestions", "zsh-syntax-highlighting", "zsh-completions"},
 		},
 		{
 			ID:          "overemployed",
-			Name:        "The Overemployed",
-			Description: "Working 4 remote jobs. Need max efficiency & automation.",
+			Name:        "Vibe Coder",
+			Description: "Just vibing. I need a terminal that matches my aesthetic.",
 			Icon:        "💼",
-			Packages:    []string{"tmux", "screen", "python3", "cron", "htop", "vim"},
+			Packages:    []string{"zsh", "git", "tmux", "screen", "python3", "cron", "htop", "vim", "zsh-autosuggestions", "zsh-syntax-highlighting", "zsh-completions"},
 		},
 	}
 }
@@ -119,6 +119,58 @@ install_role_packages() {
 }
 
 install_role_packages
+
+# Configure Zsh if installed
+if command -v zsh >/dev/null 2>&1; then
+    echo "Configuring zsh..."
+    
+    # Change default shell
+    if [ -f /etc/passwd ]; then
+        ZSH_PATH=$(which zsh)
+        sed -i "s|root:.*:/bin/.*|root:x:0:0:root:/root:$ZSH_PATH|" /etc/passwd 2>/dev/null || true
+    fi
+    
+    # Create minimal .zshrc
+    cat > /root/.zshrc << 'ZSHRC'
+export TERM=xterm-256color
+export LANG=en_US.UTF-8
+
+# Basic Config
+autoload -Uz compinit && compinit
+setopt HIST_IGNORE_ALL_DUPS SHARE_HISTORY
+HISTFILE=~/.zsh_history
+HISTSIZE=10000
+SAVEHIST=10000
+
+# Autosuggestions (detect path)
+if [ -f /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]; then
+    source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+elif [ -f /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh ]; then
+    source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
+fi
+
+# Syntax Highlighting (detect path)
+if [ -f /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]; then
+    source /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+elif [ -f /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]; then
+    source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+fi
+
+# Bind keys for autosuggestions
+bindkey '^ ' autosuggest-accept
+bindkey '^[[C' autosuggest-accept # Right arrow
+
+# Prompt
+PROMPT='%F{cyan}%n%f@%F{blue}%m%f %F{yellow}%~%f %(?:%F{green}➜:%F{red}➜) %f'
+
+# Aliases
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+alias gs='git status'
+ZSHRC
+fi
+
 echo "Role setup complete!"
 `, role.Name, packages)
 
