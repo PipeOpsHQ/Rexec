@@ -1186,6 +1186,7 @@ func (m *Manager) UpdateContainerStatus(dockerID string, status string) {
 }
 
 // UpdateContainerResources updates a running container's resource limits via Docker API
+// Note: This does NOT work with gVisor runtime - use RecreateContainer instead for gVisor
 // Note: Disk quota cannot be changed on a running container
 func (m *Manager) UpdateContainerResources(ctx context.Context, dockerID string, memoryMB int64, cpuMillicores int64) error {
 	log.Printf("[UpdateContainerResources] Updating container %s: memory=%dMB, cpu=%d millicores", dockerID, memoryMB, cpuMillicores)
@@ -1365,6 +1366,10 @@ type RecreateContainerConfig struct {
 	Image         string // Can be "ubuntu-24" or "custom:image/name"
 	OldDockerID   string
 	Tier          string
+	// Optional custom resource limits (if set, these override tier defaults)
+	MemoryMB      int64 // Memory in MB (0 = use tier default)
+	CPUMillicores int64 // CPU in millicores (0 = use tier default)
+	DiskMB        int64 // Disk quota in MB (0 = use tier default)
 }
 
 // RecreateContainer recreates a container that was removed from Docker
@@ -1416,16 +1421,29 @@ func (m *Manager) RecreateContainer(ctx context.Context, cfg RecreateContainerCo
 	}
 
 	// Apply tier-based resource limits (CPULimit in millicores: 1000 = 1 CPU)
-	switch cfg.Tier {
-	case "pro":
-		containerCfg.MemoryLimit = 2048 * 1024 * 1024 // 2GB
-		containerCfg.CPULimit = 2000                  // 2 CPUs
-	case "enterprise":
-		containerCfg.MemoryLimit = 4096 * 1024 * 1024 // 4GB
-		containerCfg.CPULimit = 4000                  // 4 CPUs
-	default: // free/guest
-		containerCfg.MemoryLimit = 512 * 1024 * 1024 // 512MB
-		containerCfg.CPULimit = 500                  // 0.5 CPU
+	// Use custom limits if provided, otherwise use tier defaults
+	if cfg.MemoryMB > 0 && cfg.CPUMillicores > 0 {
+		containerCfg.MemoryLimit = cfg.MemoryMB * 1024 * 1024
+		containerCfg.CPULimit = cfg.CPUMillicores
+		if cfg.DiskMB > 0 {
+			containerCfg.DiskQuota = cfg.DiskMB * 1024 * 1024
+		}
+		log.Printf("[RecreateContainer] Using custom resource limits: memory=%dMB, cpu=%d millicores, disk=%dMB", cfg.MemoryMB, cfg.CPUMillicores, cfg.DiskMB)
+	} else {
+		switch cfg.Tier {
+		case "pro":
+			containerCfg.MemoryLimit = 2048 * 1024 * 1024 // 2GB
+			containerCfg.CPULimit = 2000                  // 2 CPUs
+			containerCfg.DiskQuota = 20 * 1024 * 1024 * 1024 // 20GB
+		case "enterprise":
+			containerCfg.MemoryLimit = 4096 * 1024 * 1024 // 4GB
+			containerCfg.CPULimit = 4000                  // 4 CPUs
+			containerCfg.DiskQuota = 50 * 1024 * 1024 * 1024 // 50GB
+		default: // free/guest
+			containerCfg.MemoryLimit = 512 * 1024 * 1024 // 512MB
+			containerCfg.CPULimit = 500                  // 0.5 CPU
+			containerCfg.DiskQuota = 5 * 1024 * 1024 * 1024 // 5GB
+		}
 	}
 
 	return m.CreateContainer(ctx, containerCfg)

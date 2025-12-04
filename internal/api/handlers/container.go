@@ -793,6 +793,9 @@ func (h *ContainerHandler) Start(c *gin.Context) {
 			Image:         found.Image,
 			OldDockerID:   dockerID,
 			Tier:          tier,
+			MemoryMB:      int64(found.MemoryMB),
+			CPUMillicores: int64(found.CPUShares),
+			DiskMB:        int64(found.DiskMB),
 		}
 
 		newInfo, err := h.manager.RecreateContainer(ctx, recreateCfg)
@@ -1018,33 +1021,49 @@ func (h *ContainerHandler) UpdateSettings(c *gin.Context) {
 
 	// Track if container was restarted (for frontend auto-reconnect)
 	containerRestarted := false
+	newDockerID := found.DockerID
 	
-	// Update running container - need to recreate with new env vars for MOTD
+	// Update running container - gVisor doesn't support live resource updates, so we need to recreate
 	if found.DockerID != "" && found.Status == "running" {
-		log.Printf("[UpdateSettings] Container %s is running, will update resources: memory=%dMB, cpu=%d millicores (%.1f vCPU)", 
+		log.Printf("[UpdateSettings] Container %s is running, will recreate with new resources: memory=%dMB, cpu=%d millicores (%.1f vCPU)", 
 			found.DockerID, req.MemoryMB, req.CPUShares, float64(req.CPUShares)/1000.0)
 		
-		// Update resources live first
-		// CPUShares is already in millicores (500 = 0.5 CPU, 1000 = 1 CPU, 1900 = 1.9 CPU)
-		if err := h.manager.UpdateContainerResources(ctx, found.DockerID, req.MemoryMB, req.CPUShares); err != nil {
-			log.Printf("[UpdateSettings] Warning: failed to update Docker container resources for %s: %v", found.DockerID, err)
-		} else {
-			log.Printf("[UpdateSettings] Successfully updated Docker container resources for %s", found.DockerID)
+		// Stop the running container first
+		if err := h.manager.StopContainer(ctx, found.DockerID); err != nil {
+			log.Printf("[UpdateSettings] Warning: failed to stop container %s: %v", found.DockerID, err)
 		}
 		
-		// Write config file inside container for MOTD to read (disk quota can't be updated via cgroups)
-		diskQuota := formatDiskQuota(req.DiskMB)
-		configCmd := fmt.Sprintf("mkdir -p /etc/rexec && echo 'DISK=%s' > /etc/rexec/config", diskQuota)
-		if err := h.manager.ExecInContainer(ctx, found.DockerID, []string{"sh", "-c", configCmd}); err != nil {
-			log.Printf("[UpdateSettings] Warning: failed to write config file for %s: %v", found.DockerID, err)
+		// Remove the old container (but keep the volume)
+		if err := h.manager.RemoveContainer(ctx, found.DockerID); err != nil {
+			log.Printf("[UpdateSettings] Warning: failed to remove container %s: %v", found.DockerID, err)
 		}
 		
-		// Restart container to apply new environment variables (for MOTD display)
-		if err := h.manager.RestartContainer(ctx, found.DockerID); err != nil {
-			log.Printf("[UpdateSettings] Warning: failed to restart container %s: %v", found.DockerID, err)
-		} else {
-			log.Printf("[UpdateSettings] Successfully restarted container %s", found.DockerID)
-			containerRestarted = true
+		// Recreate container with new resource limits (tier is already available from context)
+		recreateCfg := container.RecreateContainerConfig{
+			UserID:        userID,
+			ContainerName: found.Name,
+			Image:         found.Image,
+			OldDockerID:   found.DockerID,
+			Tier:          tier,
+			MemoryMB:      req.MemoryMB,
+			CPUMillicores: req.CPUShares,
+			DiskMB:        req.DiskMB,
+		}
+		
+		newInfo, err := h.manager.RecreateContainer(ctx, recreateCfg)
+		if err != nil {
+			log.Printf("[UpdateSettings] Failed to recreate container %s: %v", found.DockerID, err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to recreate container with new settings"})
+			return
+		}
+		
+		newDockerID = newInfo.ID
+		containerRestarted = true
+		log.Printf("[UpdateSettings] Successfully recreated container %s -> %s with new resources", found.DockerID, newDockerID)
+		
+		// Update the DockerID in database
+		if err := h.store.UpdateContainerDockerID(ctx, found.ID, newDockerID); err != nil {
+			log.Printf("[UpdateSettings] Warning: failed to update DockerID in database: %v", err)
 		}
 	}
 
@@ -1062,11 +1081,11 @@ func (h *ContainerHandler) UpdateSettings(c *gin.Context) {
 	// Notify via WebSocket
 	if h.eventsHub != nil {
 		h.eventsHub.NotifyContainerUpdated(userID, gin.H{
-			"id":        found.DockerID,
+			"id":        newDockerID,
 			"db_id":     found.ID,
 			"name":      req.Name,
 			"image":     found.Image,
-			"status":    found.Status,
+			"status":    "running",
 			"restarted": containerRestarted,
 			"resources": gin.H{
 				"memory_mb":  req.MemoryMB,
@@ -1080,11 +1099,11 @@ func (h *ContainerHandler) UpdateSettings(c *gin.Context) {
 		"message":   "settings updated",
 		"restarted": containerRestarted,
 		"container": gin.H{
-			"id":     found.DockerID,
+			"id":     newDockerID,
 			"db_id":  found.ID,
 			"name":   req.Name,
 			"image":  found.Image,
-			"status": found.Status,
+			"status": "running",
 			"resources": gin.H{
 				"memory_mb":  req.MemoryMB,
 				"cpu_shares": req.CPUShares,
