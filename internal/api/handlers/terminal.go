@@ -222,7 +222,35 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 		if hasSharedSession && !sharedSession.closed {
 			h.joinSharedSession(sharedSession, conn, userID.(string), false)
 		} else {
-			// No shared session exists, need owner to start first
+			// No shared session exists. Check if owner is connected in a private session.
+			ownerID := containerInfo.UserID
+			ownerSessionKey := dockerID + ":" + ownerID
+			
+			h.mu.Lock()
+			ownerSession, ownerConnected := h.sessions[ownerSessionKey]
+			h.mu.Unlock()
+
+			if ownerConnected {
+				log.Printf("[Terminal] Upgrading owner %s to shared session for container %s", ownerID, dockerID)
+				
+				// 1. Force owner to reconnect (which will join the shared session we are about to create)
+				// We send a specific close message or just close it.
+				ownerSession.Conn.WriteJSON(TerminalMessage{
+					Type: "reconnect", 
+					Data: "Upgrading to shared session...",
+				})
+				ownerSession.Close()
+				
+				// 2. Create the shared session immediately
+				// The owner isn't in it yet, but will be when they reconnect.
+				sharedSession = h.getOrCreateSharedSession(dockerID, ownerID, containerInfo.ImageType)
+				
+				// 3. Join the collab user now
+				h.joinSharedSession(sharedSession, conn, userID.(string), false)
+				return
+			}
+
+			// No shared session exists, and owner not connected
 			conn.WriteJSON(TerminalMessage{
 				Type: "error",
 				Data: "Session owner must connect first",
