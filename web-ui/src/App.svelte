@@ -83,7 +83,7 @@
                     toast.success("Welcome back!");
                 }
             } else {
-                toast.success("Guest access started! You have 50 hours.");
+                toast.success("Guest access started! You have 1 hour.");
             }
         }
     }

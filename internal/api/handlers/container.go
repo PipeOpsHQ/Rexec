@@ -19,7 +19,7 @@ import (
 
 const (
 	// GuestMaxContainerDuration is the maximum time a guest container can exist
-	GuestMaxContainerDuration = 50 * time.Hour
+	GuestMaxContainerDuration = 1 * time.Hour
 )
 
 // Name generation word lists

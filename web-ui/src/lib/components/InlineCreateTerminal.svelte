@@ -34,7 +34,7 @@
         minCPU: 250,
         maxCPU: 2000,     // 2 vCPU for trial
         minDisk: 1024,
-        maxDisk: 20480    // 20GB for trial
+        maxDisk: 16384    // 16GB for trial
     };
 
     // Slider event handlers

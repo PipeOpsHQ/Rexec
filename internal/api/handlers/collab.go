@@ -160,7 +160,7 @@ func (h *CollabHandler) StartSession(c *gin.Context) {
 		MaxUsers:     req.MaxUsers,
 		ExpiresAt:    expiresAt,
 		Participants: make(map[string]*CollabParticipant),
-		broadcast:    make(chan CollabMessage, 100),
+		broadcast:    make(chan CollabMessage, 1024),
 	}
 
 	// Add owner as first participant
@@ -217,7 +217,7 @@ func (h *CollabHandler) JoinSession(c *gin.Context) {
 			MaxUsers:     record.MaxUsers,
 			ExpiresAt:    record.ExpiresAt,
 			Participants: make(map[string]*CollabParticipant),
-			broadcast:    make(chan CollabMessage, 100),
+			broadcast:    make(chan CollabMessage, 1024),
 		}
 
 		h.mu.Lock()
@@ -390,6 +390,7 @@ func (h *CollabHandler) HandleCollabWebSocket(c *gin.Context) {
 				select {
 				case session.broadcast <- msg:
 				default:
+					log.Printf("Collab broadcast channel full, dropping input message for session %s", shareCode)
 				}
 			}
 
@@ -403,6 +404,7 @@ func (h *CollabHandler) HandleCollabWebSocket(c *gin.Context) {
 			case session.broadcast <- msg:
 			default:
 				// Channel full, drop message to prevent blocking
+				log.Printf("Collab broadcast channel full, dropping message type %s for session %s", msg.Type, shareCode)
 			}
 		}
 	}
@@ -485,7 +487,12 @@ func (s *CollabSession) broadcastLoop() {
 		s.mu.RLock()
 		for _, p := range s.Participants {
 			if p.Conn != nil {
-				p.Conn.WriteJSON(msg)
+				// Use a short deadline to prevent slow clients from blocking the broadcast
+				p.Conn.SetWriteDeadline(time.Now().Add(500 * time.Millisecond))
+				if err := p.Conn.WriteJSON(msg); err != nil {
+					log.Printf("Failed to write to collab participant %s: %v", p.UserID, err)
+					// Don't close here, let the read loop handle disconnection or next write try
+				}
 			}
 		}
 		s.mu.RUnlock()
