@@ -110,7 +110,6 @@ ZSH_THEME="rexec"
 # Plugins
 plugins=(
     git
-    zsh-autosuggestions
     zsh-syntax-highlighting
     zsh-completions
     zsh-history-substring-search
@@ -121,9 +120,9 @@ plugins=(
 )
 
 # Plugin settings
-ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=#666666"
-ZSH_AUTOSUGGEST_STRATEGY=(history completion)
-ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE=20
+# ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=#666666"
+# ZSH_AUTOSUGGEST_STRATEGY=(history completion)
+# ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE=20
 
 # History settings
 HISTSIZE=10000
@@ -147,7 +146,7 @@ bindkey '^[[A' history-substring-search-up
 bindkey '^[[B' history-substring-search-down
 bindkey '^[OA' history-substring-search-up
 bindkey '^[OB' history-substring-search-down
-bindkey '^ ' autosuggest-accept
+# bindkey '^ ' autosuggest-accept
 bindkey '^[[Z' reverse-menu-complete
 
 # Load oh-my-zsh (after custom prompt settings)
