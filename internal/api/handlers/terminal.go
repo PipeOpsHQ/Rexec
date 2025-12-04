@@ -33,9 +33,25 @@ var upgrader = websocket.Upgrader{
 type TerminalHandler struct {
 	containerManager *mgr.Manager
 	sessions         map[string]*TerminalSession
+	sharedSessions   map[string]*SharedTerminalSession // containerID -> shared session for collab
 	mu               sync.RWMutex
 	recordingHandler *RecordingHandler
 	collabHandler    *CollabHandler
+}
+
+// SharedTerminalSession represents a terminal session shared by multiple users (for collaboration)
+type SharedTerminalSession struct {
+	ContainerID   string
+	ExecID        string
+	OwnerID       string
+	Connections   map[string]*websocket.Conn // userID -> connection
+	Cols          uint
+	Rows          uint
+	Done          chan struct{}
+	InputChan     chan []byte              // Channel for input from any participant
+	OutputChan    chan []byte              // Channel for output to broadcast
+	mu            sync.RWMutex
+	closed        bool
 }
 
 // TerminalSession represents an active terminal session
@@ -64,6 +80,7 @@ func NewTerminalHandler(cm *mgr.Manager) *TerminalHandler {
 	h := &TerminalHandler{
 		containerManager: cm,
 		sessions:         make(map[string]*TerminalSession),
+		sharedSessions:   make(map[string]*SharedTerminalSession),
 	}
 
 	// Start keepalive goroutine
@@ -127,15 +144,18 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 	
 	// Use the actual Docker ID from container info
 	dockerID := containerInfo.ID
+	isOwner := containerInfo.UserID == userID.(string)
+	isCollabUser := false
 
 	// Verify ownership
 	// Verify ownership or collab access
-	if containerInfo.UserID != userID.(string) {
+	if !isOwner {
 		// Check if user has collab access
 		if !h.HasCollabAccess(userID.(string), dockerID) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
 			return
 		}
+		isCollabUser = true
 	}
 
 	// Check if container actually exists in Docker (may have been removed externally)
@@ -189,7 +209,45 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 	conn.EnableWriteCompression(true)
 	conn.SetCompressionLevel(6) // Balance between speed and compression
 
-	// Create terminal session
+	// Touch container to update last used time
+	h.containerManager.TouchContainer(dockerID)
+
+	// Check if there's an active collab session for this container
+	h.mu.RLock()
+	sharedSession, hasSharedSession := h.sharedSessions[dockerID]
+	h.mu.RUnlock()
+
+	// If collab user joining, they MUST use shared session
+	if isCollabUser {
+		if hasSharedSession && !sharedSession.closed {
+			h.joinSharedSession(sharedSession, conn, userID.(string), false)
+		} else {
+			// No shared session exists, need owner to start first
+			conn.WriteJSON(TerminalMessage{
+				Type: "error",
+				Data: "Session owner must connect first",
+			})
+			conn.Close()
+		}
+		return
+	}
+
+	// Owner connecting - check if there's an active collab that needs shared session
+	if hasSharedSession && !sharedSession.closed {
+		// Join existing shared session
+		h.joinSharedSession(sharedSession, conn, userID.(string), isOwner)
+		return
+	}
+
+	// Check if owner is starting while there's an active collab session
+	if h.hasActiveCollabSession(dockerID) {
+		// Create shared session for collab
+		sharedSession = h.getOrCreateSharedSession(dockerID, userID.(string), containerInfo.ImageType)
+		h.joinSharedSession(sharedSession, conn, userID.(string), isOwner)
+		return
+	}
+
+	// Regular non-collab session
 	session := &TerminalSession{
 		UserID:      userID.(string),
 		ContainerID: dockerID,
@@ -208,9 +266,6 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 	}
 	h.sessions[sessionKey] = session
 	h.mu.Unlock()
-
-	// Touch container to update last used time
-	h.containerManager.TouchContainer(dockerID)
 
 	// Cleanup on exit
 	defer func() {
@@ -712,15 +767,262 @@ func (h *TerminalHandler) CloseAllContainerSessions(containerID string) {
 	}
 }
 
+// hasActiveCollabSession checks if there's an active collab session for a container
+func (h *TerminalHandler) hasActiveCollabSession(containerID string) bool {
+	if h.collabHandler == nil {
+		return false
+	}
+	h.collabHandler.mu.RLock()
+	defer h.collabHandler.mu.RUnlock()
+	
+	for _, session := range h.collabHandler.sessions {
+		if session.ContainerID == containerID && len(session.Participants) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// getOrCreateSharedSession gets or creates a shared terminal session for collaboration
+func (h *TerminalHandler) getOrCreateSharedSession(containerID, ownerID, imageType string) *SharedTerminalSession {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	
+	if existing, ok := h.sharedSessions[containerID]; ok && !existing.closed {
+		return existing
+	}
+	
+	sharedSession := &SharedTerminalSession{
+		ContainerID: containerID,
+		OwnerID:     ownerID,
+		Connections: make(map[string]*websocket.Conn),
+		Cols:        80,
+		Rows:        24,
+		Done:        make(chan struct{}),
+		InputChan:   make(chan []byte, 256),
+		OutputChan:  make(chan []byte, 256),
+	}
+	
+	h.sharedSessions[containerID] = sharedSession
+	
+	// Start the shared exec session
+	go h.runSharedTerminalSession(sharedSession, imageType)
+	
+	return sharedSession
+}
+
+// joinSharedSession adds a connection to a shared terminal session
+func (h *TerminalHandler) joinSharedSession(session *SharedTerminalSession, conn *websocket.Conn, userID string, isOwner bool) {
+	session.mu.Lock()
+	// Close existing connection for this user if any
+	if oldConn, exists := session.Connections[userID]; exists {
+		oldConn.Close()
+	}
+	session.Connections[userID] = conn
+	session.mu.Unlock()
+	
+	// Send connected message
+	conn.WriteJSON(TerminalMessage{
+		Type: "connected",
+		Data: "Joined shared terminal session",
+	})
+	
+	// Handle this connection's input
+	defer func() {
+		session.mu.Lock()
+		delete(session.Connections, userID)
+		session.mu.Unlock()
+		conn.Close()
+	}()
+	
+	for {
+		_, message, err := conn.ReadMessage()
+		if err != nil {
+			return
+		}
+		
+		var msg TerminalMessage
+		if err := json.Unmarshal(message, &msg); err != nil {
+			continue
+		}
+		
+		switch msg.Type {
+		case "input":
+			// Only owner and editors can send input
+			if isOwner || h.canSendInput(session.ContainerID, userID) {
+				select {
+				case session.InputChan <- []byte(msg.Data):
+				default:
+					// Channel full, drop input
+				}
+			}
+		case "resize":
+			if isOwner {
+				session.Cols = msg.Cols
+				session.Rows = msg.Rows
+				// Resize will be handled by the exec session
+			}
+		case "ping":
+			conn.WriteJSON(TerminalMessage{Type: "pong"})
+		}
+	}
+}
+
+// canSendInput checks if a user can send input (is editor in collab session)
+func (h *TerminalHandler) canSendInput(containerID, userID string) bool {
+	if h.collabHandler == nil {
+		return false
+	}
+	h.collabHandler.mu.RLock()
+	defer h.collabHandler.mu.RUnlock()
+	
+	for _, session := range h.collabHandler.sessions {
+		if session.ContainerID == containerID {
+			if p, ok := session.Participants[userID]; ok {
+				return p.Role == "owner" || p.Role == "editor"
+			}
+		}
+	}
+	return false
+}
+
+// runSharedTerminalSession manages a shared terminal session for collaboration
+func (h *TerminalHandler) runSharedTerminalSession(session *SharedTerminalSession, imageType string) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	defer func() {
+		session.mu.Lock()
+		session.closed = true
+		// Close all connections
+		for _, conn := range session.Connections {
+			conn.WriteJSON(TerminalMessage{
+				Type: "error",
+				Data: "Shared session ended",
+			})
+			conn.Close()
+		}
+		session.Connections = make(map[string]*websocket.Conn)
+		session.mu.Unlock()
+		
+		h.mu.Lock()
+		delete(h.sharedSessions, session.ContainerID)
+		h.mu.Unlock()
+	}()
+	
+	client := h.containerManager.GetClient()
+	shell := h.detectShell(ctx, session.ContainerID, imageType)
+	
+	execConfig := container.ExecOptions{
+		AttachStdin:  true,
+		AttachStdout: true,
+		AttachStderr: true,
+		Tty:          true,
+		Cmd:          []string{shell},
+		Env: []string{
+			"TERM=xterm-256color",
+			"COLORTERM=truecolor",
+		},
+	}
+	
+	execResp, err := client.ContainerExecCreate(ctx, session.ContainerID, execConfig)
+	if err != nil {
+		session.broadcastError("Failed to create shared terminal: " + err.Error())
+		return
+	}
+	
+	session.ExecID = execResp.ID
+	
+	attachResp, err := client.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{
+		Tty: true,
+	})
+	if err != nil {
+		session.broadcastError("Failed to attach to terminal: " + err.Error())
+		return
+	}
+	defer attachResp.Close()
+	
+	var wg sync.WaitGroup
+	wg.Add(2)
+	
+	// Read output and broadcast to all connections
+	go func() {
+		defer wg.Done()
+		buf := make([]byte, 32*1024)
+		for {
+			n, err := attachResp.Reader.Read(buf)
+			if err != nil {
+				return
+			}
+			if n > 0 {
+				session.broadcastOutput(buf[:n])
+			}
+		}
+	}()
+	
+	// Write input from any participant
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-session.Done:
+				return
+			case input := <-session.InputChan:
+				attachResp.Conn.Write(input)
+			}
+		}
+	}()
+	
+	wg.Wait()
+}
+
+// broadcastOutput sends terminal output to all connected participants
+func (s *SharedTerminalSession) broadcastOutput(data []byte) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	
+	msg := TerminalMessage{
+		Type: "output",
+		Data: string(data),
+	}
+	
+	for _, conn := range s.Connections {
+		conn.WriteJSON(msg)
+	}
+}
+
+// broadcastError sends an error to all connected participants
+func (s *SharedTerminalSession) broadcastError(errMsg string) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	
+	msg := TerminalMessage{
+		Type: "error",
+		Data: errMsg,
+	}
+	
+	for _, conn := range s.Connections {
+		conn.WriteJSON(msg)
+	}
+}
+
 // keepAliveLoop sends periodic pings to keep connections alive
 func (h *TerminalHandler) keepAliveLoop() {
-	ticker := time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(15 * time.Second) // More frequent pings for connection stability
 	defer ticker.Stop()
 
 	for range ticker.C {
 		h.mu.RLock()
+		// Ping regular sessions
 		for _, session := range h.sessions {
 			session.SendMessage(TerminalMessage{Type: "ping"})
+		}
+		// Ping shared session connections
+		for _, sharedSession := range h.sharedSessions {
+			sharedSession.mu.RLock()
+			for _, conn := range sharedSession.Connections {
+				conn.WriteJSON(TerminalMessage{Type: "ping"})
+			}
+			sharedSession.mu.RUnlock()
 		}
 		h.mu.RUnlock()
 	}
