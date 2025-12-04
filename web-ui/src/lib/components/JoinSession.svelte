@@ -106,7 +106,9 @@
     if (sessionInfo) {
       dispatch('joined', {
         containerId: sessionInfo.containerId,
-        containerName: `Shared Terminal (${code})`
+        containerName: `Shared Terminal (${code})`,
+        mode: sessionInfo.mode,
+        role: sessionInfo.role
       });
     }
   }
@@ -137,7 +139,20 @@
       </div>
     {:else if needsAuth}
       <div class="auth-prompt">
-        <p class="auth-description">Enter your email to join this shared terminal</p>
+        <p class="auth-description">Login to join this shared terminal session</p>
+        
+        <!-- PipeOps Login Button -->
+        <button class="btn btn-pipeops" on:click={() => auth.login()}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+          </svg>
+          Login with PipeOps
+        </button>
+        
+        <div class="auth-divider">
+          <span>or continue as guest</span>
+        </div>
+        
         <div class="form-group">
           <label for="guest-email">Email Address</label>
           <input
@@ -152,7 +167,7 @@
         <div class="actions">
           <button class="btn btn-secondary" on:click={cancel} disabled={isSubmittingGuest}>Cancel</button>
           <button class="btn btn-primary" on:click={handleGuestSubmit} disabled={isSubmittingGuest || !guestEmail.trim()}>
-            {isSubmittingGuest ? 'Connecting...' : 'Join Terminal'}
+            {isSubmittingGuest ? 'Connecting...' : 'Join as Guest'}
           </button>
         </div>
       </div>
@@ -541,5 +556,36 @@
   .form-group input:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+  }
+
+  .btn-pipeops {
+    width: 100%;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border-color: #6366f1;
+    color: #fff;
+    font-size: 14px;
+    padding: 16px 24px;
+  }
+
+  .btn-pipeops:hover {
+    filter: brightness(1.1);
+  }
+
+  .auth-divider {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    color: var(--text-muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .auth-divider::before,
+  .auth-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
   }
 </style>

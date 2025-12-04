@@ -151,6 +151,99 @@
             });
     }
 
+    // File upload/download handlers
+    let fileInput: HTMLInputElement;
+    let isUploading = false;
+    let showDownloadModal = false;
+    let downloadPath = '/home/user/';
+
+    function handleUploadClick() {
+        fileInput?.click();
+    }
+
+    async function handleFileUpload(event: Event) {
+        const input = event.target as HTMLInputElement;
+        const file = input.files?.[0];
+        if (!file) return;
+
+        // Check file size (max 100MB)
+        if (file.size > 100 * 1024 * 1024) {
+            toast.error('File too large (max 100MB)');
+            return;
+        }
+
+        isUploading = true;
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const token = localStorage.getItem('auth_token');
+            const response = await fetch(`/api/containers/${session.containerId}/files?path=/home/user/`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                toast.success(`Uploaded ${result.filename} to ${result.path}`);
+            } else {
+                const error = await response.json();
+                toast.error(error.error || 'Upload failed');
+            }
+        } catch (err) {
+            toast.error('Upload failed');
+        } finally {
+            isUploading = false;
+            input.value = ''; // Reset input
+        }
+    }
+
+    function handleDownloadClick() {
+        showDownloadModal = true;
+    }
+
+    async function handleDownload() {
+        if (!downloadPath.trim()) {
+            toast.error('Please enter a file path');
+            return;
+        }
+
+        try {
+            const token = localStorage.getItem('auth_token');
+            const response = await fetch(`/api/containers/${session.containerId}/files?path=${encodeURIComponent(downloadPath)}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const filename = downloadPath.split('/').pop() || 'download';
+                
+                // Create download link
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                toast.success(`Downloaded ${filename}`);
+                showDownloadModal = false;
+            } else {
+                const error = await response.json();
+                toast.error(error.error || 'Download failed');
+            }
+        } catch (err) {
+            toast.error('Download failed');
+        }
+    }
+
     // Collab and Recording handlers
     function handleCollab() {
         console.log('[TerminalPanel] Opening collab panel for:', session.containerId);
@@ -256,6 +349,14 @@
     <div class="terminal-toolbar">
         <div class="toolbar-left">
             <span class="terminal-name">{session.name}</span>
+            {#if session.isCollabSession && session.collabMode === 'view'}
+                <span class="view-only-badge" title="View Only - You can watch but cannot type">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                    </svg>
+                    VIEW ONLY
+                </span>
+            {/if}
             <span
                 class="terminal-status"
                 class:connected={isConnected}
@@ -361,6 +462,42 @@
                     <path d="M7 14s-1 0-1-1 1-4 5-4 5 3 5 4-1 1-1 1H7zm4-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>
                     <path fill-rule="evenodd" d="M5.216 14A2.238 2.238 0 0 1 5 13c0-1.355.68-2.75 1.936-3.72A6.325 6.325 0 0 0 5 9c-4 0-5 3-5 4s1 1 1 1h4.216z"/>
                     <path d="M4.5 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"/>
+                </svg>
+            </button>
+            
+            <!-- File Upload -->
+            <input 
+                type="file" 
+                bind:this={fileInput} 
+                on:change={handleFileUpload}
+                style="display: none;"
+            />
+            <button
+                class="toolbar-btn icon-btn"
+                on:click={handleUploadClick}
+                disabled={isUploading || !isConnected}
+                title="Upload File"
+            >
+                {#if isUploading}
+                    <div class="mini-spinner"></div>
+                {:else}
+                    <svg class="toolbar-icon" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                        <path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/>
+                    </svg>
+                {/if}
+            </button>
+            
+            <!-- File Download -->
+            <button
+                class="toolbar-btn icon-btn"
+                on:click={handleDownloadClick}
+                disabled={!isConnected}
+                title="Download File"
+            >
+                <svg class="toolbar-icon" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                    <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
                 </svg>
             </button>
             
@@ -514,6 +651,33 @@
             </div>
         </div>
     {/if}
+    
+    <!-- Download Modal -->
+    {#if showDownloadModal}
+        <div class="download-modal-overlay" on:click={() => showDownloadModal = false} on:keydown={(e) => e.key === 'Escape' && (showDownloadModal = false)} role="presentation">
+            <div class="download-modal" on:click|stopPropagation role="dialog" aria-modal="true">
+                <div class="download-modal-header">
+                    <h3>Download File</h3>
+                    <button class="close-btn" on:click={() => showDownloadModal = false}>×</button>
+                </div>
+                <div class="download-modal-body">
+                    <label for="download-path">File Path</label>
+                    <input 
+                        type="text" 
+                        id="download-path"
+                        bind:value={downloadPath}
+                        placeholder="/home/user/filename.txt"
+                        on:keydown={(e) => e.key === 'Enter' && handleDownload()}
+                    />
+                    <p class="download-hint">Enter the full path to the file you want to download</p>
+                </div>
+                <div class="download-modal-footer">
+                    <button class="btn-cancel" on:click={() => showDownloadModal = false}>Cancel</button>
+                    <button class="btn-download" on:click={handleDownload}>Download</button>
+                </div>
+            </div>
+        </div>
+    {/if}
 </div>
 
 <style>
@@ -645,6 +809,24 @@
         opacity: 0.5;
         font-size: 10px;
         font-weight: 400;
+    }
+
+    .view-only-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        background: rgba(255, 170, 0, 0.15);
+        border: 1px solid rgba(255, 170, 0, 0.3);
+        color: #ffaa00;
+        font-size: 9px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+    }
+
+    .view-only-badge svg {
+        opacity: 0.8;
     }
 
     .stat-io {
@@ -1231,5 +1413,140 @@
             width: 14px;
             height: 14px;
         }
+    }
+
+    /* Mini spinner for upload button */
+    .mini-spinner {
+        width: 12px;
+        height: 12px;
+        border: 2px solid var(--border);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 0.6s linear infinite;
+    }
+
+    /* Download Modal */
+    .download-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+    }
+
+    .download-modal {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        width: 100%;
+        max-width: 400px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    }
+
+    .download-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .download-modal-header h3 {
+        margin: 0;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--text);
+    }
+
+    .close-btn {
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        font-size: 24px;
+        cursor: pointer;
+        padding: 0;
+        line-height: 1;
+    }
+
+    .close-btn:hover {
+        color: var(--text);
+    }
+
+    .download-modal-body {
+        padding: 20px;
+    }
+
+    .download-modal-body label {
+        display: block;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-muted);
+        margin-bottom: 8px;
+    }
+
+    .download-modal-body input {
+        width: 100%;
+        padding: 12px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        color: var(--text);
+        font-family: var(--font-mono);
+        font-size: 13px;
+    }
+
+    .download-modal-body input:focus {
+        outline: none;
+        border-color: var(--accent);
+    }
+
+    .download-hint {
+        margin: 8px 0 0;
+        font-size: 11px;
+        color: var(--text-muted);
+    }
+
+    .download-modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        padding: 16px;
+        border-top: 1px solid var(--border);
+    }
+
+    .btn-cancel, .btn-download {
+        padding: 10px 20px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border: 1px solid var(--border);
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-cancel {
+        background: transparent;
+        color: var(--text-secondary);
+    }
+
+    .btn-cancel:hover {
+        background: var(--bg-secondary);
+        color: var(--text);
+    }
+
+    .btn-download {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #000;
+    }
+
+    .btn-download:hover {
+        filter: brightness(1.1);
     }
 </style>

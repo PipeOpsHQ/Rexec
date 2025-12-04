@@ -140,6 +140,27 @@
         const joinMatch = path.match(/^\/join\/([A-Z0-9]{6})$/i);
         if (joinMatch) {
             joinCode = joinMatch[1].toUpperCase();
+            
+            // If not authenticated, store join code and show landing with join prompt
+            if (!$isAuthenticated) {
+                localStorage.setItem("pendingJoinCode", joinCode);
+                currentView = "landing";
+                // Show a message that they need to login
+                setTimeout(() => {
+                    toast.info("Please login or continue as guest to join the session");
+                }, 500);
+                return;
+            }
+            
+            currentView = "join";
+            return;
+        }
+        
+        // Check for pending join after authentication
+        const pendingJoin = localStorage.getItem("pendingJoinCode");
+        if (pendingJoin && $isAuthenticated) {
+            localStorage.removeItem("pendingJoinCode");
+            joinCode = pendingJoin;
             currentView = "join";
             return;
         }
@@ -319,7 +340,13 @@
                 <SSHKeys on:back={goToDashboard} />
             {:else if currentView === "join"}
                 <JoinSession code={joinCode} on:joined={(e) => {
-                    terminal.createSession(e.detail.containerId, e.detail.containerName);
+                    // Use createCollabSession for shared terminals to track mode/role
+                    terminal.createCollabSession(
+                        e.detail.containerId, 
+                        e.detail.containerName,
+                        e.detail.mode || 'control',
+                        e.detail.role || 'viewer'
+                    );
                     currentView = "dashboard";
                 }} on:cancel={goToDashboard} />
             {/if}

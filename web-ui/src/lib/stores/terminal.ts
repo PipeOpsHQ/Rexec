@@ -47,6 +47,10 @@ export interface TerminalSession {
   resizeObserver: ResizeObserver | null;
   isSettingUp: boolean;
   setupMessage: string;
+  // Collaboration mode
+  isCollabSession: boolean;
+  collabMode: 'view' | 'control' | null; // null if not a collab session
+  collabRole: 'owner' | 'editor' | 'viewer' | null;
   // Stats
   stats: {
     cpu: number;
@@ -344,6 +348,9 @@ function createTerminalStore() {
         resizeObserver: null,
         isSettingUp: false,
         setupMessage: "",
+        isCollabSession: false,
+        collabMode: null,
+        collabRole: null,
         stats: {
           cpu: 0,
           memory: 0,
@@ -379,6 +386,21 @@ function createTerminalStore() {
       // Update URL to reflect active terminal
       this.updateUrl(containerId);
 
+      return sessionId;
+    },
+
+    // Create a collab session (joined via share link)
+    createCollabSession(containerId: string, name: string, mode: 'view' | 'control', role: 'owner' | 'editor' | 'viewer') {
+      const sessionId = this.createSession(containerId, name);
+      
+      // Mark as collab session with mode/role
+      updateSession(sessionId, (s) => ({
+        ...s,
+        isCollabSession: true,
+        collabMode: mode,
+        collabRole: role,
+      }));
+      
       return sessionId;
     },
 
@@ -693,6 +715,13 @@ function createTerminalStore() {
       
       session.terminal.onData((data) => {
         if (ws.readyState !== WebSocket.OPEN) return;
+        
+        // Block input if this is a view-only collab session
+        const currentSession = getState().sessions.get(sessionId);
+        if (currentSession?.isCollabSession && currentSession?.collabMode === 'view') {
+          // Show a subtle message on first blocked input attempt
+          return;
+        }
 
         // Filter out mouse tracking sequences to reduce noise
         let filteredData = data.replace(mouseTrackingRegex, '');
