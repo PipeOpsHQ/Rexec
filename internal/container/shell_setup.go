@@ -129,23 +129,20 @@ ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE=20
 HISTSIZE=10000
 SAVEHIST=10000
 HISTFILE=~/.zsh_history
-setopt HIST_IGNORE_ALL_DUPS
-setopt HIST_FIND_NO_DUPS
-setopt HIST_SAVE_NO_DUPS
-setopt SHARE_HISTORY
-setopt APPEND_HISTORY
-setopt INC_APPEND_HISTORY
+setopt HIST_IGNORE_ALL_DUPS HIST_FIND_NO_DUPS HIST_SAVE_NO_DUPS
+setopt SHARE_HISTORY APPEND_HISTORY INC_APPEND_HISTORY
 setopt PROMPT_SUBST # Enable command substitution in prompt
 
+# Completion settings
 autoload -Uz compinit
 # zstyle ':completion:*' menu select
 zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
 zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
-zstyle ':completion:*' group-name ''
-zstyle ':completion:*:descriptions' format '%F{yellow}-- %d --%f'
-zstyle ':completion:*:warnings' format '%F{red}-- no matches found --%f'
 
-# Key bindings
+# Main prompt - single line (moved from create_theme to ensure Zsh has it early)
+PROMPT='%%F{cyan}%%n%%f@%%F{blue}%%m%%f %%F{yellow}%%~%%f $(git_prompt_info) %%(%%?:%%F{green}➜:%%F{red}➜) %%f'
+RPROMPT='%%F{240}%%*%%f'
+
 bindkey '^[[A' history-substring-search-up
 bindkey '^[[B' history-substring-search-down
 bindkey '^[OA' history-substring-search-up
@@ -153,7 +150,7 @@ bindkey '^[OB' history-substring-search-down
 bindkey '^ ' autosuggest-accept
 bindkey '^[[Z' reverse-menu-complete
 
-# Load oh-my-zsh
+# Load oh-my-zsh (after custom prompt settings)
 source $ZSH/oh-my-zsh.sh
 
 # Aliases

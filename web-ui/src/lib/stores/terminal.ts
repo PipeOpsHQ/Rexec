@@ -104,6 +104,8 @@ const REXEC_BANNER =
   "  ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚══════╝ ╚═════╝\r\n" +
   "\x1b[0m\x1b[38;5;243m  Terminal as a Service · rexec.dev\x1b[0m\r\n\r\n";
 
+
+
 // Calculate responsive font size based on screen dimensions
 function getResponsiveFontSize(): number {
   if (typeof window === "undefined") return 13;
@@ -468,6 +470,7 @@ function createTerminalStore() {
         // Clear terminal and write banner immediately
         session.terminal.clear();
         session.terminal.write(REXEC_BANNER);
+
         session.terminal.writeln("\x1b[32m› Connected\x1b[0m");
         session.terminal.writeln(
           "\x1b[38;5;243m  Type 'help' for tips & shortcuts\x1b[0m\r\n",
