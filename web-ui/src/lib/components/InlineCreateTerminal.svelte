@@ -18,6 +18,7 @@
     let progress = 0;
     let progressMessage = "";
     let progressStage = "";
+    let errorMessage = "";
     
     // Resource customization
     let showResources = false;
@@ -198,14 +199,15 @@
         }
 
         function handleError(error: string) {
-            progressMessage = error || "Failed to create terminal";
-            setTimeout(() => {
-                isCreating = false;
-                progress = 0;
-                progressMessage = "";
-                progressStage = "";
-            }, 3000);
+            isCreating = false;
+            progress = 0;
+            progressMessage = "";
+            progressStage = "";
+            errorMessage = error || "Failed to create terminal";
         }
+
+        // Reset error state when starting
+        errorMessage = "";
 
         // Call with correct parameters: name, image, customImage, role, onProgress, onComplete, onError, resources
         containers.createContainerWithProgress(
@@ -222,7 +224,30 @@
 </script>
 
 <div class="inline-create" class:compact>
-    {#if isCreating}
+    {#if errorMessage}
+        <div class="create-error">
+            <div class="error-header">
+                <span class="error-icon">✖</span>
+                <h2>Terminal Creation Failed</h2>
+            </div>
+            <div class="error-content">
+                <p class="error-message">{errorMessage}</p>
+                {#if errorMessage.includes("tcp://") || errorMessage.includes("docker") || errorMessage.includes("connect")}
+                    <div class="error-hint">
+                        <p>This may indicate an issue with the Docker host. Check that:</p>
+                        <ul>
+                            <li>The Docker daemon is running on the remote host</li>
+                            <li>TLS certificates are properly configured</li>
+                            <li>Firewall rules allow the connection</li>
+                        </ul>
+                    </div>
+                {/if}
+            </div>
+            <button class="retry-btn" on:click={() => { errorMessage = ""; }}>
+                <span>← Try Again</span>
+            </button>
+        </div>
+    {:else if isCreating}
         <div class="create-progress">
             <div class="progress-header">
                 <h2>Creating Terminal</h2>
@@ -415,6 +440,99 @@
 
     .inline-create.compact {
         padding: 12px;
+    }
+
+    /* Error Display */
+    .create-error {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        padding: 40px 24px;
+        text-align: center;
+        min-height: 300px;
+    }
+
+    .error-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .error-header h2 {
+        font-size: 18px;
+        text-transform: uppercase;
+        margin: 0;
+        color: #ff4444;
+        letter-spacing: 1px;
+    }
+
+    .error-icon {
+        font-size: 24px;
+        color: #ff4444;
+    }
+
+    .error-content {
+        max-width: 500px;
+    }
+
+    .error-message {
+        color: var(--text);
+        font-size: 14px;
+        font-family: var(--font-mono);
+        background: var(--bg-card);
+        border: 1px solid #ff4444;
+        border-radius: 4px;
+        padding: 12px 16px;
+        margin: 0;
+        word-break: break-word;
+        text-align: left;
+    }
+
+    .error-hint {
+        margin-top: 16px;
+        padding: 12px;
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        text-align: left;
+    }
+
+    .error-hint p {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin: 0 0 8px 0;
+    }
+
+    .error-hint ul {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin: 0;
+        padding-left: 20px;
+    }
+
+    .error-hint li {
+        margin: 4px 0;
+    }
+
+    .retry-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 20px;
+        background: transparent;
+        border: 1px solid var(--accent);
+        border-radius: 4px;
+        color: var(--accent);
+        font-size: 13px;
+        font-family: var(--font-mono);
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .retry-btn:hover {
+        background: rgba(0, 255, 65, 0.1);
     }
 
     /* Progress */

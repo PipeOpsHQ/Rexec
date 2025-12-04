@@ -15,6 +15,7 @@ set -e
 #   # or
 #   sudo ./setup.sh                    # Docker + containerd only
 #   sudo ./setup.sh --with-gvisor      # Docker + gVisor sandboxing (recommended)
+#   sudo ./setup.sh --with-gvisor --force-xfs  # Enable XFS with disk quotas (wipes volume data)
 #
 # Runtime Options (set via OCI_RUNTIME env var in Rexec):
 #   - runc (default): Standard Docker runtime
@@ -40,6 +41,7 @@ NC='\033[0m'
 INSTALL_KATA=false
 INSTALL_GVISOR=false
 USE_PODMAN=false
+FORCE_XFS=false
 for arg in "$@"; do
     case $arg in
         --with-kata|--kata|--firecracker)
@@ -52,6 +54,10 @@ for arg in "$@"; do
             ;;
         --podman)
             USE_PODMAN=true
+            shift
+            ;;
+        --force-xfs)
+            FORCE_XFS=true
             shift
             ;;
     esac
@@ -145,28 +151,35 @@ if [ -n "$ATTACHED_VOLUME" ] && [ -n "$ATTACHED_VOLUME_DEVICE" ]; then
     # Check if Docker is already using this volume
     if [ -L "$DOCKER_DIR" ] && [ "$(readlink -f "$DOCKER_DIR")" = "$ATTACHED_VOLUME/docker" ]; then
         echo -e "${GREEN}✓ Docker already configured to use attached volume${NC}"
-    elif [ ! -d "$DOCKER_DIR" ] || [ -z "$(ls -A $DOCKER_DIR 2>/dev/null)" ]; then
-        # Docker dir doesn't exist or is empty - we can set it up
+    else
+        # Docker directory exists - check if we should migrate to XFS volume
+        SHOULD_MIGRATE=false
         
         # Check if volume needs to be formatted as XFS
         if [ "$VOLUME_FS_TYPE" != "xfs" ]; then
             echo -e "${YELLOW}Volume is $VOLUME_FS_TYPE, needs XFS for disk quotas${NC}"
-            echo -e "${YELLOW}Checking if volume can be reformatted...${NC}"
             
-            # Check if volume is empty or has only lost+found
+            # Check if volume is empty or has only lost+found, or if force flag is set
             VOLUME_CONTENTS=$(ls -A "$ATTACHED_VOLUME" 2>/dev/null | grep -v "^lost+found$" | wc -l)
-            if [ "$VOLUME_CONTENTS" -eq 0 ]; then
-                echo -e "${CYAN}Volume is empty, formatting as XFS with quota support...${NC}"
+            
+            if [ "$FORCE_XFS" = true ]; then
+                echo -e "${YELLOW}Force XFS enabled - will format volume and migrate Docker data...${NC}"
+                SHOULD_MIGRATE=true
+                
+                # Stop Docker first
+                echo -e "${CYAN}Stopping Docker...${NC}"
+                systemctl stop docker 2>/dev/null || true
+                sleep 2
                 
                 # Unmount the volume
                 umount "$ATTACHED_VOLUME" 2>/dev/null || true
                 
                 # Format as XFS with quota support
+                echo -e "${CYAN}Formatting $ATTACHED_VOLUME_DEVICE as XFS...${NC}"
                 if mkfs.xfs -f -m crc=1,finobt=1 "$ATTACHED_VOLUME_DEVICE"; then
                     echo -e "${GREEN}✓ Formatted volume as XFS${NC}"
                     
                     # Update fstab to use XFS with pquota
-                    # Backup fstab first
                     cp /etc/fstab /etc/fstab.backup.$(date +%s)
                     
                     # Get UUID of new XFS filesystem
@@ -178,31 +191,66 @@ if [ -n "$ATTACHED_VOLUME" ] && [ -n "$ATTACHED_VOLUME_DEVICE" ]; then
                     echo "UUID=$NEW_UUID $ATTACHED_VOLUME xfs defaults,pquota,nofail 0 2" >> /etc/fstab
                     
                     # Mount with pquota
+                    mkdir -p "$ATTACHED_VOLUME"
                     mount -o defaults,pquota "$ATTACHED_VOLUME"
                     echo -e "${GREEN}✓ Mounted volume with pquota support${NC}"
                     
                     VOLUME_FS_TYPE="xfs"
                 else
                     echo -e "${RED}Failed to format volume as XFS${NC}"
+                    SHOULD_MIGRATE=false
+                fi
+            elif [ "$VOLUME_CONTENTS" -eq 0 ]; then
+                echo -e "${CYAN}Volume is empty, formatting as XFS with quota support...${NC}"
+                SHOULD_MIGRATE=true
+                
+                # Stop Docker first
+                systemctl stop docker 2>/dev/null || true
+                
+                # Unmount the volume
+                umount "$ATTACHED_VOLUME" 2>/dev/null || true
+                
+                # Format as XFS with quota support
+                if mkfs.xfs -f -m crc=1,finobt=1 "$ATTACHED_VOLUME_DEVICE"; then
+                    echo -e "${GREEN}✓ Formatted volume as XFS${NC}"
+                    
+                    # Update fstab
+                    cp /etc/fstab /etc/fstab.backup.$(date +%s)
+                    NEW_UUID=$(blkid -s UUID -o value "$ATTACHED_VOLUME_DEVICE" 2>/dev/null)
+                    sed -i "\|$ATTACHED_VOLUME_DEVICE|d" /etc/fstab
+                    sed -i "\|$ATTACHED_VOLUME|d" /etc/fstab
+                    echo "UUID=$NEW_UUID $ATTACHED_VOLUME xfs defaults,pquota,nofail 0 2" >> /etc/fstab
+                    
+                    # Mount with pquota
+                    mkdir -p "$ATTACHED_VOLUME"
+                    mount -o defaults,pquota "$ATTACHED_VOLUME"
+                    echo -e "${GREEN}✓ Mounted volume with pquota support${NC}"
+                    
+                    VOLUME_FS_TYPE="xfs"
+                else
+                    echo -e "${RED}Failed to format volume as XFS${NC}"
+                    SHOULD_MIGRATE=false
                 fi
             else
-                echo -e "${YELLOW}Volume contains data ($VOLUME_CONTENTS items), cannot reformat${NC}"
-                echo -e "${YELLOW}To enable disk quotas, backup data and run:${NC}"
-                echo -e "${YELLOW}  umount $ATTACHED_VOLUME${NC}"
-                echo -e "${YELLOW}  mkfs.xfs -f -m crc=1,finobt=1 $ATTACHED_VOLUME_DEVICE${NC}"
-                echo -e "${YELLOW}  mount -o defaults,pquota $ATTACHED_VOLUME${NC}"
+                echo -e "${YELLOW}Volume contains data ($VOLUME_CONTENTS items)${NC}"
+                echo -e "${YELLOW}To enable disk quotas, run with --force-xfs flag:${NC}"
+                echo -e "${YELLOW}  ./setup.sh --with-gvisor --force-xfs${NC}"
+                echo -e "${YELLOW}WARNING: This will ERASE all data on $ATTACHED_VOLUME${NC}"
+                echo -e "${YELLOW}         (Docker containers will be recreated)${NC}"
             fi
+        else
+            # Volume is already XFS
+            SHOULD_MIGRATE=true
         fi
         
-        # If volume is now XFS, set up Docker to use it
-        if [ "$VOLUME_FS_TYPE" = "xfs" ]; then
+        # If volume is XFS, migrate Docker to use it
+        if [ "$VOLUME_FS_TYPE" = "xfs" ] && [ "$SHOULD_MIGRATE" = true ]; then
             echo -e "${CYAN}Setting up Docker to use XFS volume at $ATTACHED_VOLUME...${NC}"
             
             # Ensure pquota is in fstab
             if ! grep -q "pquota" /etc/fstab || ! grep -q "$ATTACHED_VOLUME" /etc/fstab; then
                 cp /etc/fstab /etc/fstab.backup.$(date +%s)
                 NEW_UUID=$(blkid -s UUID -o value "$ATTACHED_VOLUME_DEVICE" 2>/dev/null)
-                # Remove old entries
                 sed -i "\|$ATTACHED_VOLUME_DEVICE|d" /etc/fstab
                 sed -i "\|$ATTACHED_VOLUME|d" /etc/fstab
                 sed -i "\|UUID=$NEW_UUID|d" /etc/fstab
@@ -218,21 +266,33 @@ if [ -n "$ATTACHED_VOLUME" ] && [ -n "$ATTACHED_VOLUME_DEVICE" ]; then
             # Create Docker directory on volume
             mkdir -p "$ATTACHED_VOLUME/docker"
             
-            # Create symlink from /var/lib/docker to volume
-            if [ -d "$DOCKER_DIR" ]; then
-                # Move any existing data
-                if [ -n "$(ls -A $DOCKER_DIR 2>/dev/null)" ]; then
-                    echo -e "${CYAN}Moving existing Docker data to volume...${NC}"
-                    systemctl stop docker 2>/dev/null || true
-                    mv "$DOCKER_DIR"/* "$ATTACHED_VOLUME/docker/" 2>/dev/null || true
+            # Check if Docker dir is already a symlink to the volume
+            if [ -L "$DOCKER_DIR" ] && [ "$(readlink -f "$DOCKER_DIR")" = "$ATTACHED_VOLUME/docker" ]; then
+                echo -e "${GREEN}✓ Docker already using XFS volume${NC}"
+            else
+                # Stop Docker and migrate
+                echo -e "${CYAN}Stopping Docker for migration...${NC}"
+                systemctl stop docker 2>/dev/null || true
+                sleep 2
+                
+                # Move existing Docker data to volume
+                if [ -d "$DOCKER_DIR" ] && [ ! -L "$DOCKER_DIR" ]; then
+                    if [ -n "$(ls -A $DOCKER_DIR 2>/dev/null)" ]; then
+                        echo -e "${CYAN}Moving existing Docker data to volume (this may take a while)...${NC}"
+                        rsync -a --progress "$DOCKER_DIR"/ "$ATTACHED_VOLUME/docker/" 2>/dev/null || \
+                            cp -a "$DOCKER_DIR"/* "$ATTACHED_VOLUME/docker/" 2>/dev/null || true
+                    fi
+                    rm -rf "$DOCKER_DIR"
                 fi
-                rm -rf "$DOCKER_DIR"
+                
+                # Create symlink
+                ln -sf "$ATTACHED_VOLUME/docker" "$DOCKER_DIR"
+                echo -e "${GREEN}✓ Docker directory linked to XFS volume with quota support${NC}"
             fi
-            ln -sf "$ATTACHED_VOLUME/docker" "$DOCKER_DIR"
-            echo -e "${GREEN}✓ Docker directory linked to XFS volume with quota support${NC}"
+        elif [ "$VOLUME_FS_TYPE" != "xfs" ]; then
+            echo -e "${CYAN}Docker directory exists with data, keeping current configuration${NC}"
+            echo -e "${YELLOW}Disk quotas will NOT be available without XFS${NC}"
         fi
-    else
-        echo -e "${CYAN}Docker directory exists with data, keeping current configuration${NC}"
     fi
 fi
 
@@ -1044,6 +1104,17 @@ WRAPPER
 
     # Write daemon config with optional runtimes and storage opts
     # Build the JSON dynamically to handle optional sections
+    
+    # Determine what optional sections we need to add trailing commas correctly
+    HAS_STORAGE_OPTS=false
+    HAS_RUNTIMES=false
+    if [ "$QUOTA_AVAILABLE" = true ]; then
+        HAS_STORAGE_OPTS=true
+    fi
+    if [ -n "$RUNTIMES_JSON" ]; then
+        HAS_RUNTIMES=true
+    fi
+    
     {
         echo '{'
         echo '  "tls": true,'
@@ -1056,22 +1127,42 @@ WRAPPER
         echo '    "max-size": "10m",'
         echo '    "max-file": "3"'
         echo '  },'
-        echo '  "storage-driver": "overlay2"'
         
-        # Add storage-opts if quotas available
-        if [ "$QUOTA_AVAILABLE" = true ]; then
-            echo '  ,"storage-opts": ["overlay2.size=10G"]'
+        # Add storage-driver with comma if more sections follow
+        if [ "$HAS_STORAGE_OPTS" = true ] || [ "$HAS_RUNTIMES" = true ]; then
+            echo '  "storage-driver": "overlay2",'
+        else
+            echo '  "storage-driver": "overlay2"'
         fi
         
-        # Add runtimes if configured
-        if [ -n "$RUNTIMES_JSON" ]; then
-            echo '  ,"runtimes": {'
+        # Add storage-opts if quotas available
+        if [ "$HAS_STORAGE_OPTS" = true ]; then
+            if [ "$HAS_RUNTIMES" = true ]; then
+                echo '  "storage-opts": ["overlay2.size=10G"],'
+            else
+                echo '  "storage-opts": ["overlay2.size=10G"]'
+            fi
+        fi
+        
+        # Add runtimes if configured (always last, no trailing comma)
+        if [ "$HAS_RUNTIMES" = true ]; then
+            echo '  "runtimes": {'
             echo "    ${RUNTIMES_JSON}"
             echo '  }'
         fi
         
         echo '}'
     } > /etc/docker/daemon.json
+    
+    # Validate JSON syntax
+    if command -v jq &> /dev/null; then
+        if ! jq . /etc/docker/daemon.json > /dev/null 2>&1; then
+            echo -e "${RED}✗ Invalid JSON in daemon.json!${NC}"
+            cat /etc/docker/daemon.json
+            exit 1
+        fi
+        echo -e "${GREEN}✓ daemon.json validated${NC}"
+    fi
     
     if [ -n "$RUNTIMES_JSON" ]; then
         echo -e "${CYAN}Docker configured with additional runtimes${NC}"
@@ -1086,26 +1177,60 @@ ExecStart=
 ExecStart=/usr/bin/dockerd -H fd:// -H unix:///var/run/docker.sock -H tcp://0.0.0.0:2377
 EOF
 
-    # Reload and restart Docker
-    systemctl daemon-reload
-    systemctl restart docker
-
-    # Wait for Docker to be ready
+    # Stop Docker and clean up before restart
+    echo -e "${CYAN}Restarting Docker daemon...${NC}"
+    systemctl stop docker.socket docker.service 2>/dev/null || true
+    
+    # Kill any stale Docker/containerd processes
+    pkill -9 dockerd 2>/dev/null || true
+    pkill -9 containerd-shim 2>/dev/null || true
     sleep 2
-
-    # Verify Docker is running and local socket works
-    if ! systemctl is-active --quiet docker; then
-        echo -e "${RED}✗ Docker failed to start!${NC}"
-        journalctl -u docker -n 20 --no-pager
+    
+    # Clean up stale pid/socket files
+    rm -f /var/run/docker.pid /var/run/docker.sock 2>/dev/null || true
+    
+    # Reset failed state
+    systemctl reset-failed docker.service 2>/dev/null || true
+    
+    # Reload systemd configuration
+    systemctl daemon-reload
+    
+    # Start Docker with timeout to prevent hang
+    echo -e "${CYAN}Starting Docker daemon (timeout: 60s)...${NC}"
+    if ! timeout 60 systemctl start docker; then
+        echo -e "${RED}✗ Docker start timed out or failed!${NC}"
+        echo -e "${YELLOW}Checking Docker status and logs...${NC}"
+        systemctl status docker.service --no-pager -l 2>&1 | head -30 || true
+        echo ""
+        echo -e "${YELLOW}Last 30 lines of Docker journal:${NC}"
+        journalctl -u docker -n 30 --no-pager 2>&1 || true
+        echo ""
+        echo -e "${YELLOW}Checking daemon.json for errors:${NC}"
+        cat /etc/docker/daemon.json 2>&1 || true
+        echo ""
+        echo -e "${RED}Docker failed to start. Please check the logs above and fix any issues.${NC}"
         exit 1
     fi
 
-    # Verify local socket still works (important for SSH access)
-    if docker version > /dev/null 2>&1; then
-        echo -e "${GREEN}✓ Local socket access works (SSH/console)${NC}"
-    else
-        echo -e "${RED}✗ Local socket access failed!${NC}"
+    # Wait for Docker to be fully ready (socket available)
+    echo -e "${CYAN}Waiting for Docker to be ready...${NC}"
+    DOCKER_READY=false
+    for i in {1..30}; do
+        if docker version > /dev/null 2>&1; then
+            DOCKER_READY=true
+            break
+        fi
+        sleep 1
+    done
+    
+    if [ "$DOCKER_READY" = false ]; then
+        echo -e "${RED}✗ Docker started but is not responding!${NC}"
+        systemctl status docker.service --no-pager -l 2>&1 | head -20 || true
+        exit 1
     fi
+
+    echo -e "${GREEN}✓ Docker daemon started and responding${NC}"
+    echo -e "${GREEN}✓ Local socket access works (SSH/console)${NC}"
 
     echo -e "${GREEN}Docker daemon configured for TLS${NC}"
     echo ""
