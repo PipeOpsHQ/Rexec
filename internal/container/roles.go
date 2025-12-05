@@ -111,7 +111,8 @@ wait_for_apt_lock() {
 
 # Function to install packages based on detected manager
 install_role_packages() {
-    PACKAGES="%s"
+    GENERIC_PACKAGES="%s"
+    PACKAGES="$GENERIC_PACKAGES"
 
     if command -v apt-get >/dev/null 2>&1; then
         export DEBIAN_FRONTEND=noninteractive
@@ -119,19 +120,49 @@ install_role_packages() {
         wait_for_apt_lock || true
         # Use flock to prevent concurrent apt-get
         flock -w 120 /var/lib/dpkg/lock-frontend apt-get update -qq 2>/dev/null || apt-get update -qq
-        flock -w 120 /var/lib/dpkg/lock-frontend apt-get install -y -qq $PACKAGES >/dev/null 2>&1 || apt-get install -y -qq $PACKAGES >/dev/null 2>&1
+
+        # Try bulk install first
+        if ! flock -w 120 /var/lib/dpkg/lock-frontend apt-get install -y -qq $PACKAGES >/dev/null 2>&1; then
+            echo "Bulk install failed, trying individual packages..."
+            for pkg in $PACKAGES; do
+                apt-get install -y -qq "$pkg" >/dev/null 2>&1 || echo "Warning: Failed to install $pkg"
+            done
+        fi
     elif command -v apk >/dev/null 2>&1; then
         # Alpine mapping
-        apk add --no-cache $PACKAGES >/dev/null 2>&1
+        PACKAGES=""
+        for pkg in $GENERIC_PACKAGES; do
+            case "$pkg" in
+                python3-pip) PACKAGES="$PACKAGES py3-pip" ;;
+                python3-venv) ;; # Included in python3 or not needed
+                zsh-autosuggestions) PACKAGES="$PACKAGES zsh-autosuggestions" ;;
+                zsh-syntax-highlighting) PACKAGES="$PACKAGES zsh-syntax-highlighting" ;;
+                *) PACKAGES="$PACKAGES $pkg" ;;
+            esac
+        done
+
+        apk update >/dev/null 2>&1
+        if ! apk add --no-cache $PACKAGES >/dev/null 2>&1; then
+            echo "Bulk install failed, trying individual packages..."
+            for pkg in $PACKAGES; do
+                apk add --no-cache "$pkg" >/dev/null 2>&1 || echo "Warning: Failed to install $pkg"
+            done
+        fi
     elif command -v dnf >/dev/null 2>&1; then
-        dnf install -y -q $PACKAGES >/dev/null 2>&1
+        dnf install -y -q $PACKAGES >/dev/null 2>&1 || {
+            for pkg in $PACKAGES; do dnf install -y -q "$pkg" >/dev/null 2>&1 || true; done
+        }
     elif command -v yum >/dev/null 2>&1; then
-        yum install -y -q $PACKAGES >/dev/null 2>&1
+        yum install -y -q $PACKAGES >/dev/null 2>&1 || {
+            for pkg in $PACKAGES; do yum install -y -q "$pkg" >/dev/null 2>&1 || true; done
+        }
     elif command -v pacman >/dev/null 2>&1; then
-        pacman -Sy --noconfirm $PACKAGES >/dev/null 2>&1
+        pacman -Sy --noconfirm $PACKAGES >/dev/null 2>&1 || {
+            for pkg in $PACKAGES; do pacman -S --noconfirm "$pkg" >/dev/null 2>&1 || true; done
+        }
     else
         echo "Unsupported package manager"
-        exit 1
+        # Don't exit, try to continue setup
     fi
 }
 
