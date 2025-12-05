@@ -1149,15 +1149,24 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 
 	// Clean up any existing container with the same name (from failed previous attempts)
 	// This prevents "container name already in use" errors
+	// IMPORTANT: Only remove if it belongs to the same user to prevent accidental deletion
 	existingContainers, err := m.client.ContainerList(ctx, container.ListOptions{
 		All:     true,
 		Filters: filters.NewArgs(filters.Arg("name", "^/"+containerName+"$")),
 	})
 	if err == nil && len(existingContainers) > 0 {
 		for _, existing := range existingContainers {
-			log.Printf("[Container] Removing stale container with same name: %s (%s)", containerName, existing.ID[:12])
-			_ = m.client.ContainerStop(ctx, existing.ID, container.StopOptions{})
-			_ = m.client.ContainerRemove(ctx, existing.ID, container.RemoveOptions{Force: true})
+			// Check if this container belongs to the same user
+			ownerUserID := existing.Labels["rexec.user_id"]
+			if ownerUserID == "" || ownerUserID == cfg.UserID {
+				log.Printf("[Container] Removing stale container with same name: %s (%s) owned by user %s", containerName, existing.ID[:12], ownerUserID)
+				_ = m.client.ContainerStop(ctx, existing.ID, container.StopOptions{})
+				_ = m.client.ContainerRemove(ctx, existing.ID, container.RemoveOptions{Force: true})
+			} else {
+				// Container belongs to a different user - this should never happen but log it
+				log.Printf("[Container] WARNING: Container name conflict! %s (%s) belongs to user %s, not %s", containerName, existing.ID[:12], ownerUserID, cfg.UserID)
+				return nil, fmt.Errorf("container name conflict: name already in use by another user")
+			}
 		}
 	}
 
