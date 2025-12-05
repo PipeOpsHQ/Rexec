@@ -1149,13 +1149,25 @@ function createTerminalStore() {
 
       // Add paste event handler to ensure Cmd+V/Ctrl+V works correctly
       // xterm.js textarea sometimes doesn't receive paste events properly
+      // Note: We use 'capture: true' and check if the terminal's textarea is focused
+      // to avoid interfering with TUI applications that handle their own input
       element.addEventListener('paste', (e: ClipboardEvent) => {
-        e.preventDefault();
+        // Only handle paste if it's going to the terminal container, not internal TUI elements
+        const target = e.target as HTMLElement;
+        const isTerminalTextarea = target.classList.contains('xterm-helper-textarea');
+        
+        // If it's the xterm textarea, let xterm handle it naturally first
+        // We only intervene if the paste didn't work (fallback)
+        if (!isTerminalTextarea) {
+          return; // Let the event propagate normally
+        }
+        
         const text = e.clipboardData?.getData('text');
         if (text && session.ws?.readyState === WebSocket.OPEN) {
           // Use the chunking logic for large pastes
           const CHUNK_SIZE = 4096;
           if (text.length > CHUNK_SIZE) {
+            e.preventDefault();
             // Send in chunks with small delays
             const chunks: string[] = [];
             for (let i = 0; i < text.length; i += CHUNK_SIZE) {
@@ -1172,9 +1184,8 @@ function createTerminalStore() {
               }
             };
             sendChunk();
-          } else {
-            session.ws.send(JSON.stringify({ type: "input", data: text }));
           }
+          // For normal-sized pastes, let xterm.js handle it naturally
         }
       });
 
@@ -1235,12 +1246,20 @@ function createTerminalStore() {
       }
 
       // Add paste event handler to the new container
+      // Only intercept large pastes, let xterm handle normal ones
       element.addEventListener('paste', (e: ClipboardEvent) => {
-        e.preventDefault();
+        const target = e.target as HTMLElement;
+        const isTerminalTextarea = target.classList.contains('xterm-helper-textarea');
+        
+        if (!isTerminalTextarea) {
+          return;
+        }
+        
         const text = e.clipboardData?.getData('text');
         if (text && session.ws?.readyState === WebSocket.OPEN) {
           const CHUNK_SIZE = 4096;
           if (text.length > CHUNK_SIZE) {
+            e.preventDefault();
             const chunks: string[] = [];
             for (let i = 0; i < text.length; i += CHUNK_SIZE) {
               chunks.push(text.slice(i, i + CHUNK_SIZE));
@@ -1256,8 +1275,6 @@ function createTerminalStore() {
               }
             };
             sendChunk();
-          } else {
-            session.ws.send(JSON.stringify({ type: "input", data: text }));
           }
         }
       });

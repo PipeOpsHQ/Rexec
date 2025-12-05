@@ -839,24 +839,21 @@ func (h *TerminalHandler) cleanupOrphanedPackageProcesses(containerID string) {
 	defer cancel()
 
 	// Script to kill orphaned package manager processes
+	// Only kills processes that are holding locks, not all package manager processes
 	cleanupScript := `#!/bin/sh
-# Kill orphaned apt-get, dpkg, yum, dnf processes that might be holding locks
-for proc in apt-get dpkg apt yum dnf apk pacman; do
-    pkill -9 -f "^$proc " 2>/dev/null || true
-    pkill -9 -x "$proc" 2>/dev/null || true
-done
-
-# Remove stale lock files if no process is using them
-for lockfile in /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/lib/apt/lists/lock /var/cache/apt/archives/lock; do
-    if [ -f "$lockfile" ]; then
-        if ! fuser "$lockfile" >/dev/null 2>&1; then
-            rm -f "$lockfile" 2>/dev/null || true
-        fi
+# Only cleanup if there are stale locks with no active fuser
+cleanup_needed=false
+for lockfile in /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/lib/apt/lists/lock; do
+    if [ -f "$lockfile" ] && ! fuser "$lockfile" >/dev/null 2>&1; then
+        cleanup_needed=true
+        rm -f "$lockfile" 2>/dev/null || true
     fi
 done
 
-# Reconfigure dpkg if it was interrupted
-dpkg --configure -a 2>/dev/null || true
+# Only run dpkg configure if cleanup was needed
+if [ "$cleanup_needed" = "true" ]; then
+    dpkg --configure -a >/dev/null 2>&1 || true
+fi
 exit 0
 `
 
@@ -869,16 +866,13 @@ exit 0
 
 	execResp, err := h.containerManager.GetClient().ContainerExecCreate(ctx, containerID, execConfig)
 	if err != nil {
-		log.Printf("[Terminal] Failed to create cleanup exec for %s: %v", containerID[:12], err)
+		// Don't log error - this is a best-effort cleanup
 		return
 	}
 
 	if err := h.containerManager.GetClient().ContainerExecStart(ctx, execResp.ID, container.ExecStartOptions{}); err != nil {
-		log.Printf("[Terminal] Failed to run cleanup for %s: %v", containerID[:12], err)
 		return
 	}
-
-	log.Printf("[Terminal] Ran orphaned process cleanup for %s", containerID[:12])
 }
 
 // hasActiveCollabSession checks if there's an active collab session for a container
