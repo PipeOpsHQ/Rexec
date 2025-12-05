@@ -720,8 +720,8 @@ export const containers = createContainersStore();
 let eventsSocket: WebSocket | null = null;
 let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 15;           // More attempts for resilience
-const RECONNECT_BASE_DELAY = 1000;           // Start with 1s
-const RECONNECT_MAX_DELAY = 30000;           // Max 30s between retries
+const RECONNECT_BASE_DELAY = 250;            // Start with 250ms for fast reconnect
+const RECONNECT_MAX_DELAY = 10000;           // Max 10s between retries
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
 // Get WebSocket URL

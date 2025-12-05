@@ -97,19 +97,17 @@
             if (response.ok) {
                 const responseData = response.data as { container: Container; restarted?: boolean };
                 
-                // If container was restarted, trigger reconnect after a short delay
+                // If container was restarted, trigger immediate reconnect
                 if (responseData.restarted && responseData.container) {
-                    toast.success("Terminal settings updated - reconnecting...");
+                    toast.success("Settings updated - reconnecting...");
                     
                     const oldContainerId = container.id;
                     const newContainerId = responseData.container.id;
 
-                    setTimeout(() => {
-                        if (oldContainerId && newContainerId) {
-                            // Update the session to point to the new container ID and reconnect
-                            terminal.updateSessionContainerId(oldContainerId, newContainerId);
-                        }
-                    }, 2000);
+                    // Immediate reconnect - container is already running
+                    if (oldContainerId && newContainerId) {
+                        terminal.updateSessionContainerId(oldContainerId, newContainerId);
+                    }
                 } else {
                     toast.success("Terminal settings updated");
                 }

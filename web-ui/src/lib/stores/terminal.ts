@@ -89,10 +89,10 @@ export interface TerminalState {
 
 // Constants
 const WS_MAX_RECONNECT = 10;           // More attempts for poor networks
-const WS_RECONNECT_BASE_DELAY = 1000;  // Start with 1s delay
-const WS_RECONNECT_MAX_DELAY = 30000;  // Max 30s between retries
+const WS_RECONNECT_BASE_DELAY = 250;   // Start with 250ms delay for fast reconnect
+const WS_RECONNECT_MAX_DELAY = 10000;  // Max 10s between retries
 const WS_PING_INTERVAL = 25000;
-const WS_SILENT_RECONNECT_THRESHOLD = 3; // Show message only after N silent attempts
+const WS_SILENT_RECONNECT_THRESHOLD = 2; // Show message after 2 silent attempts
 
 const REXEC_BANNER =
   "\x1b[38;5;46m\r\n" +
@@ -649,9 +649,9 @@ function createTerminalStore() {
         if (shouldReconnect) {
           const attemptNum = currentSession.reconnectAttempts + 1;
           
-          // Calculate exponential backoff delay
+          // First attempt is instant, then exponential backoff
           const baseDelay = WS_RECONNECT_BASE_DELAY;
-          const delay = Math.min(baseDelay * Math.pow(1.5, currentSession.reconnectAttempts), WS_RECONNECT_MAX_DELAY);
+          const delay = attemptNum === 1 ? 0 : Math.min(baseDelay * Math.pow(1.5, currentSession.reconnectAttempts - 1), WS_RECONNECT_MAX_DELAY);
           
           // Update status to connecting (not error/disconnected during silent reconnect)
           updateSession(sessionId, (s) => ({
@@ -667,7 +667,7 @@ function createTerminalStore() {
             );
           } else {
             // Silent reconnect - just log to console
-            console.log(`[Terminal] Silent reconnect attempt ${attemptNum}/${WS_MAX_RECONNECT} for ${sessionId}`);
+            console.log(`[Terminal] Silent reconnect attempt ${attemptNum}/${WS_MAX_RECONNECT} for ${sessionId} (delay: ${delay}ms)`);
           }
 
           const timer = setTimeout(() => {
@@ -1480,9 +1480,9 @@ function createTerminalStore() {
         if (shouldReconnect) {
           const attemptNum = currentPane.reconnectAttempts + 1;
           
-          // Calculate exponential backoff delay
+          // First attempt is instant, then exponential backoff
           const baseDelay = WS_RECONNECT_BASE_DELAY;
-          const delay = Math.min(baseDelay * Math.pow(1.5, currentPane.reconnectAttempts), WS_RECONNECT_MAX_DELAY);
+          const delay = attemptNum === 1 ? 0 : Math.min(baseDelay * Math.pow(1.5, currentPane.reconnectAttempts - 1), WS_RECONNECT_MAX_DELAY);
 
           // Update reconnect attempts
           updateSession(sessionId, (s) => {
@@ -1500,7 +1500,7 @@ function createTerminalStore() {
               `\r\n\x1b[33m⟳ Split session reconnecting (${attemptNum}/${WS_MAX_RECONNECT})...\x1b[0m`,
             );
           } else {
-            console.log(`[Terminal] Split pane silent reconnect attempt ${attemptNum}/${WS_MAX_RECONNECT} for ${paneId}`);
+            console.log(`[Terminal] Split pane silent reconnect attempt ${attemptNum}/${WS_MAX_RECONNECT} for ${paneId} (delay: ${delay}ms)`);
           }
 
           const timer = setTimeout(() => {
