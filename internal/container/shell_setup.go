@@ -533,7 +533,7 @@ echo "Minimal shell mode - no enhanced features installed"
 	}
 
 	// Build plugins list based on config
-	plugins := []string{"git", "command-not-found", "colored-man-pages", "extract", "sudo"}
+	plugins := []string{"git", "zsh-completions", "command-not-found", "colored-man-pages", "extract", "sudo"}
 	if cfg.Autosuggestions {
 		plugins = append(plugins, "zsh-autosuggestions")
 	}
