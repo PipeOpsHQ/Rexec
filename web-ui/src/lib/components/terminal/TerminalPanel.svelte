@@ -162,8 +162,31 @@
     function handlePaste() {
         navigator.clipboard.readText().then((text) => {
             if (session.ws && session.ws.readyState === WebSocket.OPEN) {
-                session.ws.send(JSON.stringify({ type: "input", data: text }));
+                const CHUNK_SIZE = 4096;
+                if (text.length > CHUNK_SIZE) {
+                    // Send in chunks for large pastes
+                    const chunks: string[] = [];
+                    for (let i = 0; i < text.length; i += CHUNK_SIZE) {
+                        chunks.push(text.slice(i, i + CHUNK_SIZE));
+                    }
+                    let i = 0;
+                    const sendChunk = () => {
+                        if (i < chunks.length && session.ws?.readyState === WebSocket.OPEN) {
+                            session.ws.send(JSON.stringify({ type: "input", data: chunks[i] }));
+                            i++;
+                            if (i < chunks.length) {
+                                setTimeout(sendChunk, 10);
+                            }
+                        }
+                    };
+                    sendChunk();
+                } else {
+                    session.ws.send(JSON.stringify({ type: "input", data: text }));
+                }
             }
+        }).catch((err) => {
+            console.error("Failed to read clipboard:", err);
+            toast.error("Failed to paste - clipboard access denied");
         });
     }
 

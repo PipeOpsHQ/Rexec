@@ -386,15 +386,29 @@ func (h *TerminalHandler) runTerminalSessionWithRestart(session *TerminalSession
 			// Check if container stopped (since shell was likely PID 1)
 			ctx := context.Background()
 			inspect, err := h.containerManager.GetClient().ContainerInspect(ctx, session.ContainerID)
-			if err == nil && !inspect.State.Running {
+			if err != nil || !inspect.State.Running {
+				// Container doesn't exist or is not running
+				// Try to start it, which may recreate it with a new ID
 				session.SendMessage(TerminalMessage{
 					Type: "output",
 					Data: "\r\n\x1b[33m[Container stopped. Restarting...]\x1b[0m\r\n",
 				})
+				
 				if err := h.containerManager.StartContainer(ctx, session.ContainerID); err != nil {
 					log.Printf("Failed to auto-restart container %s: %v", session.ContainerID, err)
-					// Don't return, let the loop fail at runTerminalSession so specific error is shown
+					// Container might have been recreated with a new ID
+					// Send a special message telling frontend to refresh and reconnect
+					session.SendMessage(TerminalMessage{
+						Type: "container_restart_required",
+						Data: "Container needs to be restarted. Please reconnect.",
+					})
+					// Close with a special code so frontend knows to look up new container ID
+					session.CloseWithCode(4100, "container_restart_required")
+					return
 				}
+				
+				// Wait a moment for container to fully start
+				time.Sleep(500 * time.Millisecond)
 			}
 
 			continue
@@ -749,6 +763,11 @@ func (s *TerminalSession) SendError(message string) {
 
 // Close closes the terminal session
 func (s *TerminalSession) Close() {
+	s.CloseWithCode(websocket.CloseNormalClosure, "session ended")
+}
+
+// CloseWithCode closes the session with a specific code and reason
+func (s *TerminalSession) CloseWithCode(code int, reason string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -767,7 +786,7 @@ func (s *TerminalSession) Close() {
 	// Close WebSocket with proper close message
 	s.Conn.WriteMessage(
 		websocket.CloseMessage,
-		websocket.FormatCloseMessage(websocket.CloseNormalClosure, "session ended"),
+		websocket.FormatCloseMessage(code, reason),
 	)
 	s.Conn.Close()
 }

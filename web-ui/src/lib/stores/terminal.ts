@@ -638,11 +638,25 @@ function createTerminalStore() {
         }
 
         // Determine if we should attempt reconnection
-        // Code 1000 = normal close (intentional), 4000+ = custom error codes (container gone, auth failed, etc)
+        // Code 1000 = normal close (intentional)
+        // Code 4100 = container_restart_required - need to look up new container ID
+        // Code 4000+ (other) = container gone, auth failed, etc
         // Code 1006 = abnormal close (network issue) - SHOULD reconnect
         const isIntentionalClose = event.code === 1000;
-        const isContainerGone = event.code >= 4000;
+        const isContainerRestartRequired = event.code === 4100;
+        const isContainerGone = event.code >= 4000 && event.code !== 4100;
         const maxAttemptsReached = currentSession.reconnectAttempts >= WS_MAX_RECONNECT;
+        
+        // Handle container restart - fetch new container ID and reconnect
+        if (isContainerRestartRequired) {
+          session.terminal.writeln(
+            "\r\n\x1b[33m⟳ Container restarting, reconnecting...\x1b[0m",
+          );
+          
+          // Fetch the container info to get the new ID
+          this.refreshContainerAndReconnect(sessionId, currentSession.containerId);
+          return;
+        }
         
         const shouldReconnect = !isIntentionalClose && !isContainerGone && !maxAttemptsReached;
 
@@ -790,6 +804,63 @@ function createTerminalStore() {
       
       updateSession(sessionId, (s) => ({ ...s, reconnectAttempts: 0, status: 'connecting' }));
       this.connectWebSocket(sessionId);
+    },
+
+    // Refresh container info and reconnect with potentially new container ID
+    async refreshContainerAndReconnect(sessionId: string, oldContainerId: string) {
+      const authToken = get(token);
+      if (!authToken) return;
+
+      try {
+        // Start the container via API - this will recreate if needed and return new ID
+        const response = await fetch(`/api/containers/${oldContainerId}/start`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const newContainerId = data.id || oldContainerId;
+          
+          if (newContainerId !== oldContainerId) {
+            console.log(`[Terminal] Container recreated: ${oldContainerId} -> ${newContainerId}`);
+            // Update session with new container ID
+            updateSession(sessionId, (s) => ({
+              ...s,
+              containerId: newContainerId,
+              reconnectAttempts: 0,
+              status: 'connecting',
+            }));
+          } else {
+            updateSession(sessionId, (s) => ({
+              ...s,
+              reconnectAttempts: 0,
+              status: 'connecting',
+            }));
+          }
+          
+          // Small delay to ensure container is ready
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // Reconnect
+          this.connectWebSocket(sessionId);
+        } else {
+          console.error('[Terminal] Failed to start container:', await response.text());
+          const state = getState();
+          const session = state.sessions.get(sessionId);
+          if (session) {
+            session.terminal.writeln(
+              "\r\n\x1b[31m✖ Failed to restart container. Please try again.\x1b[0m",
+            );
+          }
+          updateSession(sessionId, (s) => ({ ...s, status: 'error' }));
+        }
+      } catch (e) {
+        console.error('[Terminal] Error refreshing container:', e);
+        updateSession(sessionId, (s) => ({ ...s, status: 'error' }));
+      }
     },
 
     // Update a session's container ID (used when container is recreated with new ID)
@@ -1076,6 +1147,37 @@ function createTerminalStore() {
 
       session.terminal.open(element);
 
+      // Add paste event handler to ensure Cmd+V/Ctrl+V works correctly
+      // xterm.js textarea sometimes doesn't receive paste events properly
+      element.addEventListener('paste', (e: ClipboardEvent) => {
+        e.preventDefault();
+        const text = e.clipboardData?.getData('text');
+        if (text && session.ws?.readyState === WebSocket.OPEN) {
+          // Use the chunking logic for large pastes
+          const CHUNK_SIZE = 4096;
+          if (text.length > CHUNK_SIZE) {
+            // Send in chunks with small delays
+            const chunks: string[] = [];
+            for (let i = 0; i < text.length; i += CHUNK_SIZE) {
+              chunks.push(text.slice(i, i + CHUNK_SIZE));
+            }
+            let i = 0;
+            const sendChunk = () => {
+              if (i < chunks.length && session.ws?.readyState === WebSocket.OPEN) {
+                session.ws.send(JSON.stringify({ type: "input", data: chunks[i] }));
+                i++;
+                if (i < chunks.length) {
+                  setTimeout(sendChunk, 10);
+                }
+              }
+            };
+            sendChunk();
+          } else {
+            session.ws.send(JSON.stringify({ type: "input", data: text }));
+          }
+        }
+      });
+
       // Try to load WebGL addon for GPU-accelerated rendering
       // This significantly improves performance with large outputs
       try {
@@ -1131,6 +1233,34 @@ function createTerminalStore() {
         // This should rarely happen, only on first attachment
         session.terminal.open(element);
       }
+
+      // Add paste event handler to the new container
+      element.addEventListener('paste', (e: ClipboardEvent) => {
+        e.preventDefault();
+        const text = e.clipboardData?.getData('text');
+        if (text && session.ws?.readyState === WebSocket.OPEN) {
+          const CHUNK_SIZE = 4096;
+          if (text.length > CHUNK_SIZE) {
+            const chunks: string[] = [];
+            for (let i = 0; i < text.length; i += CHUNK_SIZE) {
+              chunks.push(text.slice(i, i + CHUNK_SIZE));
+            }
+            let i = 0;
+            const sendChunk = () => {
+              if (i < chunks.length && session.ws?.readyState === WebSocket.OPEN) {
+                session.ws.send(JSON.stringify({ type: "input", data: chunks[i] }));
+                i++;
+                if (i < chunks.length) {
+                  setTimeout(sendChunk, 10);
+                }
+              }
+            };
+            sendChunk();
+          } else {
+            session.ws.send(JSON.stringify({ type: "input", data: text }));
+          }
+        }
+      });
 
       // Force a refresh to ensure proper rendering after reattachment
       session.terminal.refresh(0, session.terminal.rows - 1);
