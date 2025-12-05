@@ -911,10 +911,27 @@ function createTerminalStore() {
 
       // Find all sessions by old container ID
       const sessionsToUpdate: string[] = [];
+      const splitPanesToReconnect: Array<{
+        sessionId: string;
+        paneId: string;
+      }> = [];
 
       for (const [id, session] of state.sessions) {
         if (session.containerId === oldContainerId) {
           sessionsToUpdate.push(id);
+
+          // Collect split panes to reconnect
+          session.splitPanes.forEach((pane, paneId) => {
+            if (pane.ws) {
+              pane.ws.close();
+            }
+            splitPanesToReconnect.push({ sessionId: id, paneId });
+          });
+
+          // Close old WebSocket immediately
+          if (session.ws) {
+            session.ws.close();
+          }
         }
       }
 
@@ -929,34 +946,27 @@ function createTerminalStore() {
         `[Terminal] Updating ${sessionsToUpdate.length} sessions from ${oldContainerId} to ${newContainerId}`,
       );
 
+      // Update all sessions first with new container ID
       sessionsToUpdate.forEach((sessionId) => {
-        const session = state.sessions.get(sessionId);
-        if (!session) return;
-
-        // Close old WebSocket
-        if (session.ws) {
-          session.ws.close();
-        }
-
-        // Update the session with new container ID
         updateSession(sessionId, (s) => ({
           ...s,
           containerId: newContainerId,
           status: "connecting",
           reconnectAttempts: 0,
         }));
+      });
 
-        // Connect to new container
-        this.connectWebSocket(sessionId);
+      // Use setTimeout to ensure state is updated before reconnecting
+      setTimeout(() => {
+        sessionsToUpdate.forEach((sessionId) => {
+          this.connectWebSocket(sessionId);
+        });
 
         // Reconnect split panes
-        session.splitPanes.forEach((pane, paneId) => {
-          if (pane.ws) {
-            pane.ws.close();
-          }
+        splitPanesToReconnect.forEach(({ sessionId, paneId }) => {
           this.connectSplitPaneWebSocket(sessionId, paneId);
         });
-      });
+      }, 100);
     },
 
     // Close a session

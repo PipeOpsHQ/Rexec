@@ -25,37 +25,40 @@
     // Trial/free tier limits - generous during 60-day trial period
     $: resourceLimits = {
         minMemory: 256,
-        maxMemory: isPaidUser ? 8192 : 4096,  // 4GB for trial, 8GB for paid
+        maxMemory: isPaidUser ? 8192 : 4096, // 4GB for trial, 8GB for paid
         minCPU: 250,
-        maxCPU: isPaidUser ? 4000 : 2000,     // 2 vCPU for trial, 4 for paid
+        maxCPU: isPaidUser ? 4000 : 2000, // 2 vCPU for trial, 4 for paid
         minDisk: 1024,
-        maxDisk: isPaidUser ? 51200 : 16384   // 16GB for trial, 50GB for paid
+        maxDisk: isPaidUser ? 51200 : 16384, // 16GB for trial, 50GB for paid
     };
 
     // Initialize form values when modal opens
     function initializeValues() {
         if (!container) return;
-        
+
         name = container.name || "";
-        
+
         // Get raw values from container resources
         const rawMemory = container.resources?.memory_mb ?? 512;
         const rawCpu = container.resources?.cpu_shares ?? 512;
         const rawDisk = container.resources?.disk_mb ?? 2048;
-        
+
         // Clamp values to be within slider range
         const maxMem = isPaidUser ? 8192 : 4096;
         const maxCpu = isPaidUser ? 4000 : 2000;
         const maxDisk = isPaidUser ? 51200 : 16384;
-        
+
         memoryMB = Math.max(256, Math.min(rawMemory, maxMem));
         cpuShares = Math.max(250, Math.min(rawCpu, maxCpu));
         diskMB = Math.max(1024, Math.min(rawDisk, maxDisk));
-        
-        console.log('[Settings] Initialized:', { 
-            name, memoryMB, cpuShares, diskMB, 
+
+        console.log("[Settings] Initialized:", {
+            name,
+            memoryMB,
+            cpuShares,
+            diskMB,
             raw: { rawMemory, rawCpu, rawDisk },
-            resources: container.resources 
+            resources: container.resources,
         });
     }
 
@@ -87,31 +90,51 @@
 
         isSaving = true;
         try {
-            const response = await api.patch(`/api/containers/${containerId}/settings`, {
-                name: name.trim(),
-                memory_mb: memoryMB,
-                cpu_shares: cpuShares,
-                disk_mb: diskMB
-            });
+            const response = await api.patch(
+                `/api/containers/${containerId}/settings`,
+                {
+                    name: name.trim(),
+                    memory_mb: memoryMB,
+                    cpu_shares: cpuShares,
+                    disk_mb: diskMB,
+                },
+            );
 
             if (response.ok) {
-                const responseData = response.data as { container: Container; restarted?: boolean };
-                
+                const responseData = response.data as {
+                    container: Container;
+                    restarted?: boolean;
+                };
+
+                console.log("[TerminalSettings] Response:", responseData);
+
                 // If container was restarted, trigger immediate reconnect
                 if (responseData.restarted && responseData.container) {
-                    toast.success("Settings updated - reconnecting...");
-                    
                     const oldContainerId = container.id;
                     const newContainerId = responseData.container.id;
 
-                    // Immediate reconnect - container is already running
+                    console.log("[TerminalSettings] Container recreated:", {
+                        old: oldContainerId,
+                        new: newContainerId,
+                        sameId: oldContainerId === newContainerId,
+                    });
+
+                    // Immediate reconnect - container is already running with new ID
                     if (oldContainerId && newContainerId) {
-                        terminal.updateSessionContainerId(oldContainerId, newContainerId);
+                        toast.success(
+                            "Settings updated - reconnecting to new container...",
+                        );
+                        // Always use updateSessionContainerId - it handles both same and different IDs
+                        // and properly finds sessions by container ID (not session ID)
+                        terminal.updateSessionContainerId(
+                            oldContainerId,
+                            newContainerId,
+                        );
                     }
                 } else {
                     toast.success("Terminal settings updated");
                 }
-                
+
                 if (responseData.container) {
                     dispatch("updated", responseData.container);
                 }
@@ -147,14 +170,26 @@
         >
             <div class="modal-header">
                 <div class="modal-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                    >
                         <circle cx="12" cy="12" r="3" />
-                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                        <path
+                            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
+                        />
                     </svg>
                 </div>
                 <h2 class="modal-title">Terminal Settings</h2>
                 <button class="close-btn" on:click={handleClose}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                    >
                         <path d="M18 6L6 18M6 6l12 12" />
                     </svg>
                 </button>
@@ -182,7 +217,9 @@
                 <div class="form-group">
                     <label for="memory">
                         Memory
-                        <span class="value-display">{formatMemory(memoryMB)}</span>
+                        <span class="value-display"
+                            >{formatMemory(memoryMB)}</span
+                        >
                     </label>
                     <input
                         id="memory"
@@ -202,7 +239,8 @@
                 <div class="form-group">
                     <label for="cpu">
                         CPU
-                        <span class="value-display">{formatCPU(cpuShares)}</span>
+                        <span class="value-display">{formatCPU(cpuShares)}</span
+                        >
                     </label>
                     <input
                         id="cpu"
@@ -222,7 +260,9 @@
                 <div class="form-group">
                     <label for="disk">
                         Disk
-                        <span class="value-display">{formatStorage(diskMB)}</span>
+                        <span class="value-display"
+                            >{formatStorage(diskMB)}</span
+                        >
                     </label>
                     <input
                         id="disk"
@@ -240,7 +280,13 @@
                 </div>
 
                 <p class="note">
-                    <svg class="note-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg
+                        class="note-icon"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                    >
                         <circle cx="12" cy="12" r="10" />
                         <path d="M12 16v-4M12 8h.01" />
                     </svg>
@@ -470,7 +516,9 @@
         border-radius: 50%;
         margin-top: -6px;
         box-shadow: 0 0 8px rgba(0, 255, 65, 0.5);
-        transition: transform 0.15s, box-shadow 0.15s;
+        transition:
+            transform 0.15s,
+            box-shadow 0.15s;
     }
 
     .slider::-webkit-slider-thumb:hover {
@@ -595,7 +643,9 @@
     }
 
     @keyframes spin {
-        to { transform: rotate(360deg); }
+        to {
+            transform: rotate(360deg);
+        }
     }
 
     /* Firefox scrollbar */

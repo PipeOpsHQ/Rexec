@@ -464,7 +464,7 @@ func (h *ContainerHandler) createContainerAsync(recordID string, cfg container.C
 	if imageType == "custom" {
 		imageName = "custom:" + customImage
 	}
-	
+
 	// Get actual resources from the database record
 	record, err := h.store.GetContainerByID(ctx, recordID)
 	memoryMB := int64(512)
@@ -482,12 +482,12 @@ func (h *ContainerHandler) createContainerAsync(recordID string, cfg container.C
 	if shellCfg.Enhanced && imageType != "macos" {
 		sendProgress("configuring", "Setting up enhanced shell...", 90)
 		log.Printf("[Container] Starting shell setup for %s", info.ID[:12])
-		
+
 		// Use a separate context with shorter timeout for shell setup
 		shellCtx, shellCancel := context.WithTimeout(ctx, 2*time.Minute)
 		shellResult, shellErr := container.SetupShellWithConfig(shellCtx, h.manager.GetClient(), info.ID, shellCfg)
 		shellCancel()
-		
+
 		if shellErr != nil {
 			log.Printf("[Container] Shell setup error for %s: %v", info.ID[:12], shellErr)
 			sendProgress("configuring", "Shell setup failed, using basic shell", 92)
@@ -506,7 +506,7 @@ func (h *ContainerHandler) createContainerAsync(recordID string, cfg container.C
 	if role != "" && role != "standard" {
 		sendProgress("configuring", fmt.Sprintf("Setting up %s environment...", role), 95)
 		log.Printf("[Container] Starting role setup for %s (%s)", info.ID[:12], role)
-		
+
 		roleResult, roleErr := container.SetupRole(ctx, h.manager.GetClient(), info.ID, role)
 		if roleErr != nil {
 			log.Printf("[Container] Role setup error for %s (%s): %v", info.ID[:12], role, roleErr)
@@ -853,11 +853,11 @@ func (h *ContainerHandler) Start(c *gin.Context) {
 	// Notify via WebSocket with full container data - use actual record resources
 	if h.eventsHub != nil {
 		h.eventsHub.NotifyContainerStarted(userID, gin.H{
-			"id":       dockerID,
-			"db_id":    found.ID,
-			"name":     found.Name,
-			"image":    found.Image,
-			"status":   "running",
+			"id":     dockerID,
+			"db_id":  found.ID,
+			"name":   found.Name,
+			"image":  found.Image,
+			"status": "running",
 			"resources": gin.H{
 				"memory_mb":  found.MemoryMB,
 				"cpu_shares": found.CPUShares,
@@ -917,11 +917,11 @@ func (h *ContainerHandler) Stop(c *gin.Context) {
 	// Notify via WebSocket with full container data - use actual record resources
 	if h.eventsHub != nil {
 		h.eventsHub.NotifyContainerStopped(userID, gin.H{
-			"id":       dockerID,
-			"db_id":    found.ID,
-			"name":     found.Name,
-			"image":    found.Image,
-			"status":   "stopped",
+			"id":     dockerID,
+			"db_id":  found.ID,
+			"name":   found.Name,
+			"image":  found.Image,
+			"status": "stopped",
 			"resources": gin.H{
 				"memory_mb":  found.MemoryMB,
 				"cpu_shares": found.CPUShares,
@@ -960,7 +960,7 @@ func (h *ContainerHandler) UpdateSettings(c *gin.Context) {
 		return
 	}
 
-	log.Printf("[UpdateSettings] Received request: name=%s, memory_mb=%d, cpu_shares=%d, disk_mb=%d", 
+	log.Printf("[UpdateSettings] Received request: name=%s, memory_mb=%d, cpu_shares=%d, disk_mb=%d",
 		req.Name, req.MemoryMB, req.CPUShares, req.DiskMB)
 
 	// Validate name
@@ -971,13 +971,13 @@ func (h *ContainerHandler) UpdateSettings(c *gin.Context) {
 
 	// Get tier limits
 	limits := models.TierLimits(tier)
-	
+
 	// For trial/free users, enforce limits
 	isPaidUser := tier == "pro" || tier == "enterprise"
 	if !isPaidUser {
 		// Trial limits - generous for 60-day trial period
 		trialLimits := models.GetTrialResourceLimits()
-		
+
 		if req.MemoryMB > trialLimits.MaxMemoryMB {
 			req.MemoryMB = trialLimits.MaxMemoryMB
 		}
@@ -1012,7 +1012,7 @@ func (h *ContainerHandler) UpdateSettings(c *gin.Context) {
 		req.DiskMB = trialLimits.MinDiskMB
 	}
 
-	log.Printf("[UpdateSettings] After validation: memory_mb=%d, cpu_shares=%d, disk_mb=%d", 
+	log.Printf("[UpdateSettings] After validation: memory_mb=%d, cpu_shares=%d, disk_mb=%d",
 		req.MemoryMB, req.CPUShares, req.DiskMB)
 
 	ctx := c.Request.Context()
@@ -1040,22 +1040,22 @@ func (h *ContainerHandler) UpdateSettings(c *gin.Context) {
 	// Track if container was restarted (for frontend auto-reconnect)
 	containerRestarted := false
 	newDockerID := found.DockerID
-	
+
 	// Update running container - gVisor doesn't support live resource updates, so we need to recreate
 	if found.DockerID != "" && found.Status == "running" {
-		log.Printf("[UpdateSettings] Container %s is running, will recreate with new resources: memory=%dMB, cpu=%d millicores (%.1f vCPU)", 
+		log.Printf("[UpdateSettings] Container %s is running, will recreate with new resources: memory=%dMB, cpu=%d millicores (%.1f vCPU)",
 			found.DockerID, req.MemoryMB, req.CPUShares, float64(req.CPUShares)/1000.0)
-		
+
 		// Stop the running container first
 		if err := h.manager.StopContainer(ctx, found.DockerID); err != nil {
 			log.Printf("[UpdateSettings] Warning: failed to stop container %s: %v", found.DockerID, err)
 		}
-		
+
 		// Remove the old container (but keep the volume)
 		if err := h.manager.RemoveContainer(ctx, found.DockerID); err != nil {
 			log.Printf("[UpdateSettings] Warning: failed to remove container %s: %v", found.DockerID, err)
 		}
-		
+
 		// Recreate container with new resource limits (tier is already available from context)
 		recreateCfg := container.RecreateContainerConfig{
 			UserID:        userID,
@@ -1067,21 +1067,26 @@ func (h *ContainerHandler) UpdateSettings(c *gin.Context) {
 			CPUMillicores: req.CPUShares,
 			DiskMB:        req.DiskMB,
 		}
-		
+
 		newInfo, err := h.manager.RecreateContainer(ctx, recreateCfg)
 		if err != nil {
 			log.Printf("[UpdateSettings] Failed to recreate container %s: %v", found.DockerID, err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to recreate container with new settings"})
 			return
 		}
-		
+
 		newDockerID = newInfo.ID
 		containerRestarted = true
 		log.Printf("[UpdateSettings] Successfully recreated container %s -> %s with new resources", found.DockerID, newDockerID)
-		
+
 		// Update the DockerID in database
 		if err := h.store.UpdateContainerDockerID(ctx, found.ID, newDockerID); err != nil {
 			log.Printf("[UpdateSettings] Warning: failed to update DockerID in database: %v", err)
+		}
+
+		// Update status to running (container is created in "configuring" state by default)
+		if err := h.store.UpdateContainerStatus(ctx, found.ID, "running"); err != nil {
+			log.Printf("[UpdateSettings] Warning: failed to update container status to running: %v", err)
 		}
 	}
 
@@ -1093,7 +1098,7 @@ func (h *ContainerHandler) UpdateSettings(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update settings: " + err.Error()})
 		return
 	}
-	
+
 	log.Printf("[UpdateSettings] Successfully updated container %s settings in database", found.ID)
 
 	// Notify via WebSocket
@@ -1178,7 +1183,7 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 
 	// Use request context to detect client disconnection
 	ctx := c.Request.Context()
-	
+
 	// Helper to send SSE events with padding to bypass proxy buffering
 	sendEvent := func(event container.ProgressEvent) {
 		// Check if client disconnected
@@ -1367,7 +1372,7 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 
 	limits := models.ValidateTrialResources(&req, tier)
 	cfg.MemoryLimit = limits.MemoryMB * 1024 * 1024
-	cfg.CPULimit = limits.CPUShares // Already in millicores
+	cfg.CPULimit = limits.CPUShares             // Already in millicores
 	cfg.DiskQuota = limits.DiskMB * 1024 * 1024 // Convert MB to bytes
 
 	info, err := h.manager.CreateContainer(ctx, cfg)
