@@ -750,42 +750,33 @@ func (h *TerminalHandler) detectShell(ctx context.Context, containerID, imageTyp
 func (h *TerminalHandler) isZshSetup(ctx context.Context, containerID string) bool {
 	client := h.containerManager.GetClient()
 
+	// Check both /root and /home/user (standard rexec user home)
+	cmd := "test -f /root/.zshrc || test -f /home/user/.zshrc"
+	
 	execConfig := container.ExecOptions{
-		Cmd:          []string{"/bin/sh", "-c", "test -d /root/.oh-my-zsh && test -f /root/.zshrc"},
+		Cmd:          []string{"/bin/sh", "-c", cmd},
 		AttachStdout: true,
 		AttachStderr: true,
 	}
 
 	execResp, err := client.ContainerExecCreate(ctx, containerID, execConfig)
 	if err != nil {
-		log.Printf("[Terminal] isZshSetup: exec create failed for %s: %v", containerID[:12], err)
 		return false
 	}
 
-	// Must attach to start the exec (Podman compatibility)
+	// Use ContainerExecAttach instead of ContainerExecStart for Podman compatibility
 	attachResp, err := client.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{})
 	if err != nil {
-		log.Printf("[Terminal] isZshSetup: exec attach failed for %s: %v", containerID[:12], err)
 		return false
 	}
 	attachResp.Close()
 
-	// Poll exec status instead of fixed sleep - much faster for quick commands
-	for i := 0; i < 20; i++ { // Max 200ms total
-		inspect, err := client.ContainerExecInspect(ctx, execResp.ID)
-		if err != nil {
-			log.Printf("[Terminal] isZshSetup: exec inspect failed for %s: %v", containerID[:12], err)
-			return false
-		}
-		if !inspect.Running {
-			isSetup := inspect.ExitCode == 0
-			log.Printf("[Terminal] isZshSetup: container %s = %v (exit code: %d, poll: %d)", containerID[:12], isSetup, inspect.ExitCode, i)
-			return isSetup
-		}
-		time.Sleep(10 * time.Millisecond)
+	inspect, err := client.ContainerExecInspect(ctx, execResp.ID)
+	if err != nil {
+		return false
 	}
-	log.Printf("[Terminal] isZshSetup: timeout waiting for exec in %s", containerID[:12])
-	return false
+
+	return inspect.ExitCode == 0
 }
 
 // shellExists checks if a shell exists and is executable

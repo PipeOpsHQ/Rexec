@@ -1836,22 +1836,41 @@ func (m *Manager) StreamContainerStats(ctx context.Context, containerID string, 
 			// Calculate CPU percent
 			// Based on: https://github.com/docker/cli/blob/master/cli/command/container/stats_helpers.go
 			var cpuPercent = 0.0
-			previousCPU = v.PreCPUStats.CPUUsage.TotalUsage
-			previousSystem = v.PreCPUStats.SystemUsage
+			
+			// Use manually tracked previous values if available, otherwise fallback to PreCPUStats
+			// This handles cases where PreCPUStats is missing or zero (common in some Docker environments)
+			prevCPUVal := previousCPU
+			prevSysVal := previousSystem
+			
+			if prevCPUVal == 0 {
+				prevCPUVal = v.PreCPUStats.CPUUsage.TotalUsage
+				prevSysVal = v.PreCPUStats.SystemUsage
+			}
 
-			// If PreCPUStats is empty (first reading), use the values from the struct if available
-			// Docker API sometimes returns 0 for PreCPUStats on the first read
-			if previousCPU == 0 && previousSystem == 0 {
-				// We can't calculate CPU usage without a delta, so skip this reading
-				// or just send 0.
-			} else {
-				cpuDelta := float64(v.CPUStats.CPUUsage.TotalUsage) - float64(previousCPU)
-				systemDelta := float64(v.CPUStats.SystemUsage) - float64(previousSystem)
+			if prevCPUVal > 0 && prevSysVal > 0 {
+				cpuDelta := float64(v.CPUStats.CPUUsage.TotalUsage) - float64(prevCPUVal)
+				systemDelta := float64(v.CPUStats.SystemUsage) - float64(prevSysVal)
 
 				if systemDelta > 0.0 && cpuDelta > 0.0 {
-					cpuPercent = (cpuDelta / systemDelta) * float64(len(v.CPUStats.CPUUsage.PercpuUsage)) * 100.0
+					// Default to number of CPUs reported by stats
+					numCPUs := float64(len(v.CPUStats.CPUUsage.PercpuUsage))
+					
+					// Fallback if PercpuUsage is empty (e.g. cgroup v2 on some hosts)
+					if numCPUs == 0 && v.CPUStats.OnlineCPUs > 0 {
+						numCPUs = float64(v.CPUStats.OnlineCPUs)
+					}
+					// Absolute fallback
+					if numCPUs == 0 {
+						numCPUs = float64(runtime.NumCPU())
+					}
+					
+					cpuPercent = (cpuDelta / systemDelta) * numCPUs * 100.0
 				}
 			}
+			
+			// Update previous values for next iteration
+			previousCPU = v.CPUStats.CPUUsage.TotalUsage
+			previousSystem = v.CPUStats.SystemUsage
 
 			// Calculate Memory usage
 			// On cgroup v1, Cache is included in Usage, so we subtract it
