@@ -62,6 +62,7 @@ export interface TerminalSession {
     memoryLimit: number;
     diskRead: number;
     diskWrite: number;
+    diskUsage?: number; // Real-time storage usage
     diskLimit: number;
     netRx: number;
     netTx: number;
@@ -665,6 +666,7 @@ function createTerminalStore() {
                   memoryLimit: statsData.memory_limit || 0,
                   diskRead: statsData.disk_read || 0,
                   diskWrite: statsData.disk_write || 0,
+                  diskUsage: statsData.disk_usage || 0,
                   diskLimit: statsData.disk_limit || 0,
                   netRx: statsData.net_rx || 0,
                   netTx: statsData.net_tx || 0,

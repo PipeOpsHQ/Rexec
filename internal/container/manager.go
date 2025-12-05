@@ -1746,6 +1746,7 @@ type ContainerResourceStats struct {
 	MemoryLimit float64 `json:"memory_limit"` // in bytes
 	DiskRead    float64 `json:"disk_read"`    // bytes read
 	DiskWrite   float64 `json:"disk_write"`   // bytes written
+	DiskUsage   float64 `json:"disk_usage"`   // bytes stored (rw layer)
 	DiskLimit   float64 `json:"disk_limit"`   // bytes (from storage-opt size)
 	NetRx       float64 `json:"net_rx"`       // bytes received
 	NetTx       float64 `json:"net_tx"`       // bytes transmitted
@@ -1819,6 +1820,8 @@ func (m *Manager) StreamContainerStats(ctx context.Context, containerID string, 
 	decoder := json.NewDecoder(stats.Body)
 	var previousCPU uint64
 	var previousSystem uint64
+	var diskUsage float64
+	var ticks int
 
 	for {
 		select {
@@ -1831,6 +1834,18 @@ func (m *Manager) StreamContainerStats(ctx context.Context, containerID string, 
 					return nil
 				}
 				return err
+			}
+			
+			ticks++
+			// Update disk usage every 10 seconds (approx)
+			if ticks%10 == 0 || ticks == 1 {
+				// Use a short timeout context for disk check to avoid blocking main stats loop too long
+				diskCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+				usage := m.getContainerDiskUsage(diskCtx, containerID)
+				cancel()
+				if usage > 0 {
+					diskUsage = usage
+				}
 			}
 
 			// Calculate CPU percent
@@ -1921,12 +1936,55 @@ func (m *Manager) StreamContainerStats(ctx context.Context, containerID string, 
 				MemoryLimit: memLimit,
 				DiskRead:    diskRead,
 				DiskWrite:   diskWrite,
+				DiskUsage:   diskUsage,
 				DiskLimit:   float64(configuredDiskLimit),
 				NetRx:       netRx,
 				NetTx:       netTx,
 			}
 		}
 	}
+}
+
+// getContainerDiskUsage calculates disk usage of /home/user inside the container
+func (m *Manager) getContainerDiskUsage(ctx context.Context, containerID string) float64 {
+	execConfig := container.ExecOptions{
+		Cmd:          []string{"du", "-sk", "/home/user"},
+		AttachStdout: true,
+		AttachStderr: false,
+	}
+
+	execResp, err := m.client.ContainerExecCreate(ctx, containerID, execConfig)
+	if err != nil {
+		return 0
+	}
+
+	attachResp, err := m.client.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{})
+	if err != nil {
+		return 0
+	}
+	defer attachResp.Close()
+
+	// Read output
+	var output strings.Builder
+	buf := make([]byte, 1024)
+	for {
+		n, err := attachResp.Reader.Read(buf)
+		if n > 0 {
+			output.Write(buf[:n])
+		}
+		if err != nil {
+			break
+		}
+	}
+
+	// Parse output "12345   /home/user"
+	fields := strings.Fields(output.String())
+	if len(fields) > 0 {
+		if sizeKB, err := strconv.ParseFloat(fields[0], 64); err == nil {
+			return sizeKB * 1024 // Convert KB to Bytes
+		}
+	}
+	return 0
 }
 
 // parseSizeString parses Docker size strings like "2G", "500M", "1024K" to bytes

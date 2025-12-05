@@ -441,9 +441,9 @@
                         {/if}
                     </span>
                     <span class="stat-divider">|</span>
-                    <span class="stat-item stat-disk" title="Disk: {formatMemoryBytes(session.stats.diskWrite)} used{session.stats.diskLimit > 0 ? ' / ' + formatMemoryBytes(session.stats.diskLimit) + ' limit' : ''} (R:{formatMemoryBytes(session.stats.diskRead)} W:{formatMemoryBytes(session.stats.diskWrite)})">
+                    <span class="stat-item stat-disk" title="Storage: {formatMemoryBytes(session.stats.diskUsage || session.stats.diskWrite)} used{session.stats.diskLimit > 0 ? ' / ' + formatMemoryBytes(session.stats.diskLimit) + ' limit' : ''} (IO: R:{formatMemoryBytes(session.stats.diskRead)} W:{formatMemoryBytes(session.stats.diskWrite)})">
                         <span class="stat-label">DISK</span>
-                        <span class="stat-value">{formatMemoryBytes(session.stats.diskWrite)}</span>
+                        <span class="stat-value">{formatMemoryBytes(session.stats.diskUsage || session.stats.diskWrite)}</span>
                         {#if session.stats.diskLimit > 0}
                             <span class="stat-limit">/ {formatMemoryBytes(session.stats.diskLimit)}</span>
                         {/if}
