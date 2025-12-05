@@ -211,6 +211,59 @@ install_packages() {
     fi
 }
 
+install_opencode() {
+    # Install opencode AI coding assistant
+    # https://github.com/sst/opencode
+    export HOME="${HOME:-/root}"
+    
+    # Check if already installed
+    if command -v opencode >/dev/null 2>&1; then
+        return 0
+    fi
+    
+    # Detect architecture
+    ARCH=$(uname -m)
+    case "$ARCH" in
+        x86_64|amd64)
+            if ldd /bin/ls 2>/dev/null | grep -q musl; then
+                OPENCODE_ARCH="linux-x64-musl"
+            else
+                OPENCODE_ARCH="linux-x64"
+            fi
+            ;;
+        aarch64|arm64)
+            if ldd /bin/ls 2>/dev/null | grep -q musl; then
+                OPENCODE_ARCH="linux-arm64-musl"
+            else
+                OPENCODE_ARCH="linux-arm64"
+            fi
+            ;;
+        *)
+            echo "Unsupported architecture: $ARCH"
+            return 1
+            ;;
+    esac
+    
+    # Get latest version
+    OPENCODE_VERSION=$(curl -s https://api.github.com/repos/sst/opencode/releases/latest 2>/dev/null | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
+    if [ -z "$OPENCODE_VERSION" ]; then
+        OPENCODE_VERSION="v1.0.133"  # Fallback version
+    fi
+    
+    # Download and install
+    OPENCODE_URL="https://github.com/sst/opencode/releases/download/${OPENCODE_VERSION}/opencode-${OPENCODE_ARCH}.tar.gz"
+    
+    mkdir -p "$HOME/.local/bin"
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL "$OPENCODE_URL" 2>/dev/null | tar -xzf - -C "$HOME/.local/bin" 2>/dev/null || true
+    elif command -v wget >/dev/null 2>&1; then
+        wget -qO- "$OPENCODE_URL" 2>/dev/null | tar -xzf - -C "$HOME/.local/bin" 2>/dev/null || true
+    fi
+    
+    # Make executable
+    chmod +x "$HOME/.local/bin/opencode" 2>/dev/null || true
+}
+
 install_ohmyzsh() {
     export HOME="${HOME:-/root}"
     export ZSH="$HOME/.oh-my-zsh"
@@ -331,17 +384,19 @@ setup_dirs() {
 main() {
     echo "Setting up shell environment..."
     setup_dirs
-    echo "  [1/6] Installing packages..."
+    echo "  [1/7] Installing packages..."
     install_packages
-    echo "  [2/6] Installing oh-my-zsh..."
+    echo "  [2/7] Installing oh-my-zsh..."
     install_ohmyzsh
-    echo "  [3/6] Installing plugins..."
+    echo "  [3/7] Installing plugins..."
     install_plugins
-    echo "  [4/6] Creating configuration..."
+    echo "  [4/7] Installing opencode..."
+    install_opencode
+    echo "  [5/7] Creating configuration..."
     create_zshrc
-    echo "  [5/6] Creating theme..."
+    echo "  [6/7] Creating theme..."
     create_theme
-    echo "  [6/6] Setting default shell..."
+    echo "  [7/7] Setting default shell..."
     create_help
     set_default_shell
     echo "Shell setup complete!"
