@@ -61,9 +61,9 @@ func AvailableRoles() []RoleInfo {
 		{
 			ID:          "overemployed",
 			Name:        "Vibe Coder",
-			Description: "Just vibing. I need a terminal that matches my aesthetic.",
-			Icon:        "💼",
-			Packages:    []string{"zsh", "git", "tmux", "screen", "python3", "cron", "htop", "vim", "zsh-autosuggestions", "zsh-syntax-highlighting", "zsh-completions"},
+			Description: "AI-powered coding with Claude, Aider, OpenCode & more CLI tools.",
+			Icon:        "🤖",
+			Packages:    []string{"zsh", "git", "tmux", "python3", "python3-pip", "python3-venv", "nodejs", "npm", "curl", "wget", "htop", "vim", "neovim", "ripgrep", "fzf", "jq", "zsh-autosuggestions", "zsh-syntax-highlighting", "zsh-completions"},
 		},
 	}
 }
@@ -140,13 +140,13 @@ install_role_packages
 # Configure Zsh if installed
 if command -v zsh >/dev/null 2>&1; then
     echo "Configuring zsh..."
-    
+
     # Change default shell
     if [ -f /etc/passwd ]; then
         ZSH_PATH=$(which zsh)
         sed -i "s|root:.*:/bin/.*|root:x:0:0:root:/root:$ZSH_PATH|" /etc/passwd 2>/dev/null || true
     fi
-    
+
     # Create minimal .zshrc
     cat > /root/.zshrc << 'ZSHRC'
 export TERM=xterm-256color
@@ -189,7 +189,75 @@ ZSHRC
 fi
 
 echo "Role setup complete!"
-`, role.Name, packages)
+
+# Special handling for Vibe Coder role - install AI CLI tools
+if [ "%s" = "Vibe Coder" ]; then
+    echo "Installing AI CLI tools..."
+
+    # Ensure pip is available
+    if command -v pip3 >/dev/null 2>&1; then
+        PIP="pip3"
+    elif command -v pip >/dev/null 2>&1; then
+        PIP="pip"
+    else
+        echo "pip not found, skipping Python-based AI tools"
+        PIP=""
+    fi
+
+    if [ -n "$PIP" ]; then
+        # Install popular AI coding assistants
+        echo "Installing aider (AI pair programming)..."
+        $PIP install --quiet --break-system-packages aider-chat 2>/dev/null || $PIP install --quiet aider-chat 2>/dev/null || true
+
+        echo "Installing opencode (AI coding assistant)..."
+        $PIP install --quiet --break-system-packages opencode-ai 2>/dev/null || $PIP install --quiet opencode-ai 2>/dev/null || true
+
+        echo "Installing claude-cli (Anthropic Claude)..."
+        $PIP install --quiet --break-system-packages anthropic 2>/dev/null || $PIP install --quiet anthropic 2>/dev/null || true
+
+        echo "Installing llm (CLI for LLMs)..."
+        $PIP install --quiet --break-system-packages llm 2>/dev/null || $PIP install --quiet llm 2>/dev/null || true
+
+        echo "Installing gpt-engineer..."
+        $PIP install --quiet --break-system-packages gpt-engineer 2>/dev/null || $PIP install --quiet gpt-engineer 2>/dev/null || true
+
+        echo "Installing interpreter (Open Interpreter)..."
+        $PIP install --quiet --break-system-packages open-interpreter 2>/dev/null || $PIP install --quiet open-interpreter 2>/dev/null || true
+
+        echo "Installing fabric (AI augmentation)..."
+        $PIP install --quiet --break-system-packages fabric-ai 2>/dev/null || $PIP install --quiet fabric-ai 2>/dev/null || true
+    fi
+
+    # Install Node.js based AI tools
+    if command -v npm >/dev/null 2>&1; then
+        echo "Installing AI CLI tools via npm..."
+
+        # Claude Code (Anthropic's official CLI)
+        npm install -g @anthropic-ai/claude-code 2>/dev/null || true
+
+        # GitHub Copilot CLI
+        npm install -g @githubnext/github-copilot-cli 2>/dev/null || true
+    fi
+
+    # Install Go-based tools
+    if command -v go >/dev/null 2>&1; then
+        echo "Installing Go-based AI tools..."
+        go install github.com/charmbracelet/mods@latest 2>/dev/null || true
+    fi
+
+    echo ""
+    echo "AI CLI Tools Installed:"
+    echo "  • aider      - AI pair programming (aider --help)"
+    echo "  • opencode   - AI coding assistant (opencode --help)"
+    echo "  • llm        - CLI for various LLMs (llm --help)"
+    echo "  • interpreter- Open Interpreter (interpreter --help)"
+    echo ""
+    echo "Note: Some tools require API keys. Set them in your environment:"
+    echo "  export ANTHROPIC_API_KEY=your-key"
+    echo "  export OPENAI_API_KEY=your-key"
+    echo ""
+fi
+`, role.Name, packages, role.Name)
 
 	return script, nil
 }

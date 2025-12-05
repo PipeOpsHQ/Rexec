@@ -20,8 +20,8 @@ import (
 )
 
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:  64 * 1024, // 64KB - handles large paste operations
-	WriteBufferSize: 64 * 1024, // 64KB - handles large output bursts
+	ReadBufferSize:  128 * 1024, // 128KB - handles large paste operations
+	WriteBufferSize: 128 * 1024, // 128KB - handles large output bursts
 	CheckOrigin: func(r *http.Request) bool {
 		// In production, you should validate the origin
 		return true
@@ -29,6 +29,18 @@ var upgrader = websocket.Upgrader{
 	HandshakeTimeout:  10 * time.Second,
 	EnableCompression: true, // Enable per-message compression for large data
 }
+
+// Terminal optimization constants
+const (
+	// PTY buffer size - larger buffer for fewer syscalls
+	ptyBufferSize = 64 * 1024 // 64KB
+	// WebSocket write deadline - prevent slow client blocking
+	wsWriteDeadline = 5 * time.Second
+	// Minimum bytes before sending (reduces small packet overhead)
+	minOutputSize = 1
+	// Maximum time to wait for more output before sending
+	outputCoalesceTimeout = 2 * time.Millisecond
+)
 
 // TerminalHandler handles WebSocket terminal connections
 type TerminalHandler struct {
@@ -475,11 +487,11 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 	errChan := make(chan error, 2)
 	shellExitChan := make(chan bool, 1)
 
-	// Container output -> WebSocket
+	// Container output -> WebSocket (optimized for low latency)
 	go func() {
 		defer wg.Done()
-		// 32KB buffer is sufficient for PTY
-		buf := make([]byte, 32*1024)
+		// Large buffer for efficient reads
+		buf := make([]byte, ptyBufferSize)
 
 		for {
 			select {
@@ -488,8 +500,7 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 			case <-ctx.Done():
 				return
 			default:
-				// Blocking read - no timeout, wait for PTY to send data
-				// This is most efficient and lowest latency for interactive use
+				// No read deadline - blocking read is most efficient for PTY
 				attachResp.Conn.SetReadDeadline(time.Time{})
 
 				n, err := attachResp.Reader.Read(buf)
@@ -506,16 +517,22 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 				}
 
 				if n > 0 {
-					// Sanitize UTF-8 to prevent garbled output in TUI applications
-					outputData := sanitizeUTF8(buf[:n])
-					// Filter out mouse tracking sequences that can cause display issues
+					// Fast path: check if already valid UTF-8 (common case)
+					outputData := string(buf[:n])
+					if !isValidUTF8Fast(buf[:n]) {
+						outputData = sanitizeUTF8(buf[:n])
+					}
+					// Filter mouse tracking sequences
 					outputData = filterMouseTracking(outputData)
+
+					// Set write deadline to prevent slow clients from blocking
+					session.Conn.SetWriteDeadline(time.Now().Add(wsWriteDeadline))
 
 					if err := session.SendMessage(TerminalMessage{
 						Type: "output",
 						Data: outputData,
 					}); err != nil {
-						// WebSocket closed
+						// WebSocket closed or write timeout
 						return
 					}
 
@@ -1154,11 +1171,36 @@ func (h *TerminalHandler) GetContainerSessionCount(containerID string) int {
 	return count
 }
 
+// isValidUTF8Fast does a quick check if the data is valid UTF-8
+// This is faster than utf8.Valid for the common case of ASCII-only data
+func isValidUTF8Fast(data []byte) bool {
+	// Quick check: if all bytes are ASCII, it's valid UTF-8
+	for _, b := range data {
+		if b >= 0x80 {
+			// Has non-ASCII bytes, do full validation
+			return utf8.Valid(data)
+		}
+	}
+	return true
+}
+
 // filterMouseTracking removes SGR mouse tracking sequences from terminal output
 // These sequences can cause display issues when split across WebSocket messages
 // SGR format: \x1b[<button;x;yM or \x1b[<button;x;ym
 func filterMouseTracking(data string) string {
-	// Fast path - no escape sequences
+	// Fast path - check for escape character first (most common case: no escapes)
+	hasEscape := false
+	for i := 0; i < len(data); i++ {
+		if data[i] == '\x1b' {
+			hasEscape = true
+			break
+		}
+	}
+	if !hasEscape {
+		return data
+	}
+
+	// Check for mouse sequence specifically
 	if !strings.Contains(data, "\x1b[<") {
 		return data
 	}
@@ -1193,17 +1235,17 @@ func filterMouseTracking(data string) string {
 // sanitizeUTF8 ensures the byte slice is valid UTF-8, replacing invalid sequences
 // while preserving terminal escape sequences (which are valid ASCII/UTF-8)
 func sanitizeUTF8(data []byte) string {
+	// Fast path - already valid (common case)
 	if utf8.Valid(data) {
 		return string(data)
 	}
 
-	// Build a valid UTF-8 string, replacing invalid bytes
+	// Build a valid UTF-8 string, skipping invalid bytes
 	result := make([]byte, 0, len(data))
 	for len(data) > 0 {
 		r, size := utf8.DecodeRune(data)
 		if r == utf8.RuneError && size == 1 {
-			// Invalid byte - replace with replacement character or skip
-			// For terminal output, we'll just skip invalid bytes to avoid display issues
+			// Invalid byte - skip it for clean terminal output
 			data = data[1:]
 			continue
 		}

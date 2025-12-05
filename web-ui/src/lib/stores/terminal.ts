@@ -1,6 +1,7 @@
 import { writable, derived, get } from "svelte/store";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
+import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { token } from "./auth";
@@ -87,12 +88,20 @@ export interface TerminalState {
   topZIndex: number; // Track highest z-index for detached windows
 }
 
-// Constants
-const WS_MAX_RECONNECT = 10; // More attempts for poor networks
-const WS_RECONNECT_BASE_DELAY = 250; // Start with 250ms delay for fast reconnect
-const WS_RECONNECT_MAX_DELAY = 10000; // Max 10s between retries
-const WS_PING_INTERVAL = 25000;
-const WS_SILENT_RECONNECT_THRESHOLD = 2; // Show message after 2 silent attempts
+// Constants - Production-grade terminal settings
+const WS_MAX_RECONNECT = 15; // More attempts for poor networks
+const WS_RECONNECT_BASE_DELAY = 100; // Start with 100ms for instant reconnect feel
+const WS_RECONNECT_MAX_DELAY = 8000; // Max 8s between retries
+const WS_PING_INTERVAL = 20000; // 20s ping to keep connection alive
+const WS_SILENT_RECONNECT_THRESHOLD = 3; // Show message after 3 silent attempts
+
+// Input/Output optimization constants
+const INPUT_THROTTLE_MS = 0; // No throttle - send immediately for responsiveness
+const OUTPUT_FLUSH_INTERVAL = 8; // ~120fps for smooth output
+const OUTPUT_IMMEDIATE_THRESHOLD = 256; // Immediately write small outputs
+const OUTPUT_MAX_BUFFER = 32 * 1024; // 32KB max buffer before force flush
+const CHUNK_SIZE = 8192; // 8KB chunks for large pastes
+const CHUNK_DELAY = 5; // 5ms between chunks - faster paste
 
 const REXEC_BANNER =
   "\x1b[38;5;46m\r\n" +
@@ -123,18 +132,26 @@ function getResponsiveFontSize(): number {
   return 14;
 }
 
-// Terminal configuration - optimized for large data handling
+// Terminal configuration - Production-grade like Google Cloud Shell
 const TERMINAL_OPTIONS = {
   cursorBlink: true,
   cursorStyle: "bar" as const,
+  cursorWidth: 2,
   fontSize: getResponsiveFontSize(),
-  fontFamily: '"JetBrains Mono", "Fira Code", Menlo, Monaco, monospace',
+  fontFamily:
+    '"JetBrains Mono", "Fira Code", "SF Mono", Menlo, Monaco, "Courier New", monospace',
+  fontWeight: "400" as const,
+  fontWeightBold: "600" as const,
+  letterSpacing: 0,
+  lineHeight: 1.2,
   theme: {
     background: "#0a0a0a",
     foreground: "#e0e0e0",
     cursor: "#00ff41",
     cursorAccent: "#0a0a0a",
     selectionBackground: "rgba(0, 255, 65, 0.3)",
+    selectionForeground: "#ffffff",
+    selectionInactiveBackground: "rgba(0, 255, 65, 0.15)",
     black: "#0a0a0a",
     red: "#ff003c",
     green: "#00ff41",
@@ -153,20 +170,28 @@ const TERMINAL_OPTIONS = {
     brightWhite: "#ffffff",
   },
   allowProposedApi: true,
-  scrollback: 50000, // Large scrollback for heavy output (e.g., opencode)
-  fastScrollModifier: "alt" as const, // Alt+scroll for fast scrolling
-  fastScrollSensitivity: 15, // Faster scroll speed
-  scrollSensitivity: 5, // Improved normal scroll speed
-  smoothScrollDuration: 0, // Disable smooth scrolling for performance
-  windowsMode: false, // Optimize for non-Windows
-  convertEol: false, // Don't convert line endings
+  scrollback: 100000, // 100K lines - handles heavy output like builds/logs
+  fastScrollModifier: "alt" as const,
+  fastScrollSensitivity: 20,
+  scrollSensitivity: 3,
+  smoothScrollDuration: 0, // Instant scroll for responsiveness
+  windowsMode: false,
+  convertEol: false,
   rightClickSelectsWord: true,
   drawBoldTextInBrightColors: true,
-  minimumContrastRatio: 1, // Don't adjust colors (faster)
-  // Performance optimizations for large data
+  minimumContrastRatio: 1,
+  // Performance optimizations
   rescaleOverlappingGlyphs: true,
-  scrollOnUserInput: true, // Auto-scroll on new input
-  linkHandler: undefined, // Disable link detection for performance
+  scrollOnUserInput: true,
+  altClickMovesCursor: true, // Alt+click to move cursor (like iTerm2)
+  macOptionIsMeta: true, // Option key as Meta for proper terminal shortcuts
+  macOptionClickForcesSelection: true,
+  // Accessibility
+  screenReaderMode: false,
+  // Bell
+  bellStyle: "none" as const, // Silent bell
+  // Tab stops
+  tabStopWidth: 8,
 };
 
 // Initial state
@@ -331,6 +356,10 @@ function createTerminalStore() {
       const fitAddon = new FitAddon();
       terminal.loadAddon(fitAddon);
       terminal.loadAddon(new WebLinksAddon());
+      // Unicode11 addon for proper Unicode character widths (emojis, CJK, etc.)
+      const unicode11Addon = new Unicode11Addon();
+      terminal.loadAddon(unicode11Addon);
+      terminal.unicode.activeVersion = "11";
       // WebGL addon will be loaded after terminal is attached to DOM
 
       const sessionId = generateSessionId();
@@ -497,39 +526,73 @@ function createTerminalStore() {
         updateSession(sessionId, (s) => ({ ...s, pingInterval }));
       };
 
-      // Output buffer for batching writes (prevents browser freeze on large outputs)
+      // Output buffer for batching writes - optimized for smooth rendering
       let outputBuffer = "";
       let flushTimeout: ReturnType<typeof setTimeout> | null = null;
-      const FLUSH_INTERVAL = 16; // ~60fps
-      const MAX_BUFFER_SIZE = 64 * 1024; // 64KB max before force flush
+      let rafId: number | null = null;
+      let lastFlushTime = 0;
 
       // Filter mouse tracking sequences from output
-      // Only filter complete SGR mouse sequences to avoid breaking other escape codes
       const sanitizeOutput = (data: string): string => {
-        // Only remove complete SGR mouse sequences: \x1b[<button;x;yM or m
-        // Don't be aggressive with partial matches as they may be valid output
+        // Only remove complete SGR mouse sequences
         return data.replace(/\x1b\[<\d+;\d+;\d+[Mm]/g, "");
       };
 
+      // Immediate write for small, interactive output (like keystrokes)
+      const writeImmediate = (data: string) => {
+        if (session.terminal) {
+          const sanitized = sanitizeOutput(data);
+          if (sanitized) {
+            session.terminal.write(sanitized);
+          }
+        }
+      };
+
+      // Flush buffer using requestAnimationFrame for smooth rendering
       const flushBuffer = () => {
         if (outputBuffer && session.terminal) {
-          // Sanitize before writing to terminal
           const sanitized = sanitizeOutput(outputBuffer);
           if (sanitized) {
-            // Write to main terminal only (split panes have their own WebSocket connections)
             session.terminal.write(sanitized);
           }
           outputBuffer = "";
+          lastFlushTime = performance.now();
         }
         flushTimeout = null;
+        rafId = null;
+      };
+
+      // Schedule buffer flush - uses RAF for smooth 60fps rendering
+      const scheduleFlush = () => {
+        if (flushTimeout || rafId) return;
+
+        const timeSinceLastFlush = performance.now() - lastFlushTime;
+
+        // If we haven't flushed recently, use RAF for immediate smooth render
+        if (timeSinceLastFlush > OUTPUT_FLUSH_INTERVAL) {
+          rafId = requestAnimationFrame(flushBuffer);
+        } else {
+          // Otherwise schedule for next frame
+          flushTimeout = setTimeout(() => {
+            rafId = requestAnimationFrame(flushBuffer);
+          }, OUTPUT_FLUSH_INTERVAL);
+        }
       };
 
       ws.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data);
           if (msg.type === "output") {
-            // Check for setup/installation indicators
             const data = msg.data as string;
+
+            // Small interactive output (single chars, escape sequences) - write immediately
+            // This makes typing feel instant like a native terminal
+            if (data.length <= OUTPUT_IMMEDIATE_THRESHOLD) {
+              writeImmediate(data);
+              return;
+            }
+
+            // Check for setup/installation indicators (only for larger outputs)
             const setupPatterns = [
               /installing/i,
               /setting up/i,
@@ -537,17 +600,12 @@ function createTerminalStore() {
               /downloading/i,
               /unpacking/i,
               /processing/i,
-              /apt.*get/i,
-              /apk.*add/i,
-              /yum.*install/i,
-              /dnf.*install/i,
             ];
 
             const isSetupActivity = setupPatterns.some((pattern) =>
               pattern.test(data),
             );
             if (isSetupActivity) {
-              // Extract a short message from the output
               const lines = data.split("\n").filter((l) => l.trim());
               const lastLine = lines[lines.length - 1] || "";
               const setupMsg =
@@ -558,7 +616,6 @@ function createTerminalStore() {
                 setupMessage: setupMsg,
               }));
 
-              // Clear setup state after inactivity
               setTimeout(() => {
                 updateSession(sessionId, (s) => ({
                   ...s,
@@ -568,18 +625,16 @@ function createTerminalStore() {
               }, 3000);
             }
 
-            // Buffer output for batched writes (prevents freeze on large outputs)
+            // Buffer larger outputs for batched writes
             outputBuffer += data;
 
             // Force flush if buffer is too large
-            if (outputBuffer.length >= MAX_BUFFER_SIZE) {
-              if (flushTimeout) {
-                clearTimeout(flushTimeout);
-              }
+            if (outputBuffer.length >= OUTPUT_MAX_BUFFER) {
+              if (flushTimeout) clearTimeout(flushTimeout);
+              if (rafId) cancelAnimationFrame(rafId);
               flushBuffer();
-            } else if (!flushTimeout) {
-              // Schedule flush on next animation frame
-              flushTimeout = setTimeout(flushBuffer, FLUSH_INTERVAL);
+            } else {
+              scheduleFlush();
             }
           } else if (msg.type === "error") {
             session.terminal.writeln(`\r\n\x1b[31mError: ${msg.data}\x1b[0m`);
@@ -622,13 +677,12 @@ function createTerminalStore() {
         } catch {
           // Raw data fallback - also buffer this
           outputBuffer += event.data;
-          if (outputBuffer.length >= MAX_BUFFER_SIZE) {
-            if (flushTimeout) {
-              clearTimeout(flushTimeout);
-            }
+          if (outputBuffer.length >= OUTPUT_MAX_BUFFER) {
+            if (flushTimeout) clearTimeout(flushTimeout);
+            if (rafId) cancelAnimationFrame(rafId);
             flushBuffer();
-          } else if (!flushTimeout) {
-            flushTimeout = setTimeout(flushBuffer, FLUSH_INTERVAL);
+          } else {
+            scheduleFlush();
           }
         }
       };
@@ -766,21 +820,28 @@ function createTerminalStore() {
         }
 
         // Filter out SGR mouse tracking sequences from input
-        // Only filter complete sequences to avoid breaking keyboard input
         const mouseTrackingRegex = /\x1b\[<\d+;\d+;\d+[Mm]/g;
-        let filteredData = data.replace(mouseTrackingRegex, "");
-        if (!filteredData) return; // Skip if only mouse data
+        const filteredData = data.replace(mouseTrackingRegex, "");
+        if (!filteredData) return;
 
-        // For large pastes, chunk the data
+        // Send input immediately for responsiveness
+        // Large pastes are chunked to avoid WebSocket message size limits
         if (filteredData.length > CHUNK_SIZE) {
+          // Large paste - chunk it
           for (let i = 0; i < filteredData.length; i += CHUNK_SIZE) {
             inputQueue.push(filteredData.slice(i, i + CHUNK_SIZE));
           }
           processInputQueue();
         } else {
-          // Small inputs go directly
+          // Normal input - send immediately (no buffering for instant feel)
           ws.send(JSON.stringify({ type: "input", data: filteredData }));
         }
+      });
+
+      // Handle binary data efficiently (for file transfers, etc.)
+      session.terminal.onBinary((data) => {
+        if (ws.readyState !== WebSocket.OPEN) return;
+        ws.send(JSON.stringify({ type: "input", data: data }));
       });
     },
 
@@ -1524,6 +1585,10 @@ function createTerminalStore() {
       const newFitAddon = new FitAddon();
       newTerminal.loadAddon(newFitAddon);
       newTerminal.loadAddon(new WebLinksAddon());
+      // Unicode11 addon for proper Unicode character widths
+      const unicode11Addon = new Unicode11Addon();
+      newTerminal.loadAddon(unicode11Addon);
+      newTerminal.unicode.activeVersion = "11";
 
       const paneId = this._generatePaneId();
       const newPane: SplitPane = {
@@ -1638,34 +1703,69 @@ function createTerminalStore() {
         pane.terminal.writeln("\x1b[32m› Split session connected\x1b[0m\r\n");
       };
 
-      // Output buffer for batching writes
+      // Output buffer for batching writes - optimized like main terminal
       let outputBuffer = "";
       let flushTimeout: ReturnType<typeof setTimeout> | null = null;
-      const FLUSH_INTERVAL = 16;
-      const MAX_BUFFER_SIZE = 64 * 1024;
+      let rafId: number | null = null;
+      let lastFlushTime = 0;
+
+      const sanitizeOutput = (data: string): string => {
+        return data.replace(/\x1b\[<\d+;\d+;\d+[Mm]/g, "");
+      };
+
+      const writeImmediate = (data: string) => {
+        if (pane.terminal) {
+          const sanitized = sanitizeOutput(data);
+          if (sanitized) {
+            pane.terminal.write(sanitized);
+          }
+        }
+      };
 
       const flushBuffer = () => {
         if (outputBuffer && pane.terminal) {
-          // Filter mouse tracking spam
-          const sanitized = outputBuffer.replace(/(?:\d+;\d+;\d+[Mm])+/g, "");
+          const sanitized = sanitizeOutput(outputBuffer);
           if (sanitized) {
             pane.terminal.write(sanitized);
           }
           outputBuffer = "";
+          lastFlushTime = performance.now();
         }
         flushTimeout = null;
+        rafId = null;
+      };
+
+      const scheduleFlush = () => {
+        if (flushTimeout || rafId) return;
+        const timeSinceLastFlush = performance.now() - lastFlushTime;
+        if (timeSinceLastFlush > OUTPUT_FLUSH_INTERVAL) {
+          rafId = requestAnimationFrame(flushBuffer);
+        } else {
+          flushTimeout = setTimeout(() => {
+            rafId = requestAnimationFrame(flushBuffer);
+          }, OUTPUT_FLUSH_INTERVAL);
+        }
       };
 
       ws.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data);
           if (msg.type === "output") {
-            outputBuffer += msg.data;
-            if (outputBuffer.length >= MAX_BUFFER_SIZE) {
+            const data = msg.data as string;
+
+            // Small outputs - write immediately for responsiveness
+            if (data.length <= OUTPUT_IMMEDIATE_THRESHOLD) {
+              writeImmediate(data);
+              return;
+            }
+
+            outputBuffer += data;
+            if (outputBuffer.length >= OUTPUT_MAX_BUFFER) {
               if (flushTimeout) clearTimeout(flushTimeout);
+              if (rafId) cancelAnimationFrame(rafId);
               flushBuffer();
-            } else if (!flushTimeout) {
-              flushTimeout = setTimeout(flushBuffer, FLUSH_INTERVAL);
+            } else {
+              scheduleFlush();
             }
           } else if (msg.type === "error") {
             pane.terminal.writeln(`\r\n\x1b[31mError: ${msg.data}\x1b[0m`);
@@ -1674,11 +1774,12 @@ function createTerminalStore() {
           }
         } catch {
           outputBuffer += event.data;
-          if (outputBuffer.length >= MAX_BUFFER_SIZE) {
+          if (outputBuffer.length >= OUTPUT_MAX_BUFFER) {
             if (flushTimeout) clearTimeout(flushTimeout);
+            if (rafId) cancelAnimationFrame(rafId);
             flushBuffer();
-          } else if (!flushTimeout) {
-            flushTimeout = setTimeout(flushBuffer, FLUSH_INTERVAL);
+          } else {
+            scheduleFlush();
           }
         }
       };
