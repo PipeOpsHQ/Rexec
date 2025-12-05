@@ -117,25 +117,28 @@ install_role_packages() {
     if command -v apt-get >/dev/null 2>&1; then
         export DEBIAN_FRONTEND=noninteractive
         
+        # Apt options for robustness
+        APT_OPTS="-o DPkg::Lock::Timeout=60 -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold"
+        
         # Enable universe repository for Ubuntu (needed for neovim, ripgrep, etc.)
         if grep -q "Ubuntu" /etc/issue 2>/dev/null || grep -q "Ubuntu" /etc/os-release 2>/dev/null; then
-            apt-get update -qq
-            apt-get install -y -qq software-properties-common >/dev/null 2>&1 || true
+            apt-get $APT_OPTS update -qq
+            apt-get $APT_OPTS install -y -qq software-properties-common >/dev/null 2>&1 || true
             add-apt-repository -y universe >/dev/null 2>&1 || true
         fi
 
-        # Wait for any existing apt locks
+        # Wait for any existing apt locks (fallback if Timeout option isn't supported/enough)
         wait_for_apt_lock || true
         
         # Update package lists
-        flock -w 120 /var/lib/dpkg/lock-frontend apt-get update -qq || true
+        flock -w 120 /var/lib/dpkg/lock-frontend apt-get $APT_OPTS update -qq || true
 
         # Try bulk install first
-        if ! flock -w 120 /var/lib/dpkg/lock-frontend apt-get install -y -qq $PACKAGES >/dev/null 2>&1; then
+        if ! flock -w 120 /var/lib/dpkg/lock-frontend apt-get $APT_OPTS install -y -qq $PACKAGES >/dev/null 2>&1; then
             echo "Bulk install failed, trying individual packages..."
             for pkg in $PACKAGES; do
                 echo "Installing $pkg..."
-                apt-get install -y -qq "$pkg" >/dev/null 2>&1 || echo "Warning: Failed to install $pkg"
+                apt-get $APT_OPTS install -y -qq "$pkg" >/dev/null 2>&1 || echo "Warning: Failed to install $pkg"
             done
         fi
     elif command -v apk >/dev/null 2>&1; then

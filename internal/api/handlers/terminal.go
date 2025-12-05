@@ -919,19 +919,24 @@ func (h *TerminalHandler) cleanupOrphanedPackageProcesses(containerID string) {
 	defer cancel()
 
 	// Script to kill orphaned package manager processes
-	// Only kills processes that are holding locks, not all package manager processes
+	// Aggressively kills processes holding locks to ensure terminal usability
 	cleanupScript := `#!/bin/sh
-# Only cleanup if there are stale locks with no active fuser
-cleanup_needed=false
+# Check for lock files
 for lockfile in /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/lib/apt/lists/lock; do
-    if [ -f "$lockfile" ] && ! fuser "$lockfile" >/dev/null 2>&1; then
-        cleanup_needed=true
+    if [ -f "$lockfile" ]; then
+        # Try to find and kill the process holding the lock
+        if command -v fuser >/dev/null 2>&1; then
+            fuser -k -KILL "$lockfile" >/dev/null 2>&1 || true
+        fi
+        # Remove the lock file
         rm -f "$lockfile" 2>/dev/null || true
+        cleanup_needed=true
     fi
 done
 
-# Only run dpkg configure if cleanup was needed
-if [ "$cleanup_needed" = "true" ]; then
+# Run dpkg configure to fix interrupted installs
+if [ "$cleanup_needed" = "true" ] || [ -f /var/lib/dpkg/updates/0000 ]; then
+    export DEBIAN_FRONTEND=noninteractive
     dpkg --configure -a >/dev/null 2>&1 || true
 fi
 exit 0
