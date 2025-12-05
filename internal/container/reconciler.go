@@ -152,15 +152,27 @@ func (r *ReconcilerService) reconcile() {
 		// Map Docker state to our status
 		newStatus := mapDockerState(dockerStatus)
 
-		// Check if container is stuck in transitional state (starting/restarting)
-		if newStatus == "starting" || dockerStatus == "restarting" {
+		// Check if container is stuck in transitional state (starting/restarting/configuring)
+		if newStatus == "starting" || dockerStatus == "restarting" || dbContainer.Status == "configuring" {
 			timeSinceUpdate := time.Since(dbContainer.LastUsedAt)
 			if timeSinceUpdate > stuckContainerTimeout {
-				// Container has been stuck in starting/restarting for too long
-				log.Printf("🔄 Reconciler: container %s stuck in '%s' state for %v, stopping it",
-					dbContainer.DockerID[:12], dockerStatus, timeSinceUpdate.Round(time.Second))
+				// Container has been stuck in starting/restarting/configuring for too long
+				log.Printf("🔄 Reconciler: container %s stuck in '%s' state for %v, marking as running",
+					dbContainer.DockerID[:12], dbContainer.Status, timeSinceUpdate.Round(time.Second))
 
-				// Try to stop the container
+				// If Docker says it's running, just update DB status
+				if dockerStatus == "running" {
+					if err := r.store.UpdateContainerStatus(ctx, dbContainer.ID, "running"); err != nil {
+						log.Printf("🔄 Reconciler: failed to update status for stuck container %s: %v", dbContainer.ID, err)
+					} else {
+						updated++
+					}
+					r.manager.UpdateContainerStatus(dbContainer.DockerID, "running")
+					continue
+				}
+
+				// Otherwise try to stop the container
+				log.Printf("🔄 Reconciler: container %s not running in Docker, stopping it", dbContainer.DockerID[:12])
 				stopCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 				if err := r.dockerClient.ContainerStop(stopCtx, dbContainer.DockerID, container.StopOptions{}); err != nil {
 					log.Printf("🔄 Reconciler: failed to stop stuck container %s: %v", dbContainer.DockerID[:12], err)

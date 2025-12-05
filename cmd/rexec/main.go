@@ -87,7 +87,7 @@ func main() {
 	reconcilerService := container.NewReconcilerService(
 		containerManager,
 		store,
-		5*time.Minute, // Check every 5 minutes
+		1*time.Minute, // Check every minute
 	)
 	reconcilerService.Start()
 	defer reconcilerService.Stop()

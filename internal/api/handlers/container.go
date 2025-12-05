@@ -483,10 +483,14 @@ func (h *ContainerHandler) createContainerAsync(recordID string, cfg container.C
 		sendProgress("configuring", "Setting up enhanced shell...", 90)
 		log.Printf("[Container] Starting shell setup for %s", info.ID[:12])
 		
-		shellResult, shellErr := container.SetupShellWithConfig(ctx, h.manager.GetClient(), info.ID, shellCfg)
+		// Use a separate context with shorter timeout for shell setup
+		shellCtx, shellCancel := context.WithTimeout(ctx, 2*time.Minute)
+		shellResult, shellErr := container.SetupShellWithConfig(shellCtx, h.manager.GetClient(), info.ID, shellCfg)
+		shellCancel()
+		
 		if shellErr != nil {
 			log.Printf("[Container] Shell setup error for %s: %v", info.ID[:12], shellErr)
-			sendProgress("configuring", "Shell setup failed: "+shellErr.Error(), 92)
+			sendProgress("configuring", "Shell setup failed, using basic shell", 92)
 		} else if !shellResult.Success {
 			log.Printf("[Container] Shell setup incomplete for %s: %s", info.ID[:12], shellResult.Message)
 			sendProgress("configuring", "Shell setup warning: "+shellResult.Message, 92)

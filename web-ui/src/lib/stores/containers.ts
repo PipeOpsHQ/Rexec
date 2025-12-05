@@ -481,6 +481,43 @@ function createContainersStore() {
               });
             }
 
+            // If stuck in configuring for too long (30+ seconds), treat as ready
+            // Shell setup continues in background but user can connect
+            if (status === "configuring" && attempts >= 30) {
+              console.log("[Containers] Container stuck in configuring, treating as ready");
+              if (typeof window !== 'undefined') {
+                window.removeEventListener('container-progress', wsProgressHandler);
+              }
+              
+              const container: Container = {
+                id: containerData.id || containerData.docker_id || containerId,
+                db_id: containerData.db_id || containerId,
+                user_id: containerData.user_id,
+                name: containerData.name || name,
+                image: containerData.image || image,
+                status: "running",
+                created_at: containerData.created_at || new Date().toISOString(),
+                ip_address: containerData.ip_address,
+                resources: containerData.resources,
+              };
+
+              update((state) => ({
+                ...state,
+                containers: [container, ...state.containers.filter(c => c.id !== container.id && c.db_id !== container.id)],
+                creating: null,
+              }));
+
+              onProgress?.({
+                stage: "ready",
+                message: "Terminal ready (setup continuing in background)",
+                progress: 100,
+                complete: true,
+              });
+
+              onComplete?.(container);
+              return;
+            }
+
             if (status === "running") {
               // Container is running - complete immediately
               // Shell setup runs in background, user can connect right away

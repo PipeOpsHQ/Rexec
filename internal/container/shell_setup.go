@@ -11,7 +11,7 @@ import (
 )
 
 // ShellSetupTimeout is the maximum time allowed for shell setup
-const ShellSetupTimeout = 5 * time.Minute
+const ShellSetupTimeout = 2 * time.Minute
 
 // ShellSetupScript contains the script to install and configure zsh with oh-my-zsh
 const ShellSetupScript = `#!/bin/sh
