@@ -7,6 +7,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -458,6 +459,25 @@ func (h *ContainerHandler) createContainerAsync(recordID string, cfg container.C
 	// Update the record with Docker container info
 	h.store.UpdateContainerDockerID(ctx, recordID, info.ID)
 	h.store.UpdateContainerStatus(ctx, recordID, info.Status)
+
+	// Sync database resources with actual container resources (e.g. macOS minimums)
+	if info.Labels != nil {
+		var newMem, newCPU, newDisk int64
+		if val, err := strconv.ParseInt(info.Labels["rexec.memory_limit"], 10, 64); err == nil {
+			newMem = val / 1024 / 1024 // Bytes to MB
+		}
+		if val, err := strconv.ParseInt(info.Labels["rexec.cpu_limit"], 10, 64); err == nil {
+			newCPU = val
+		}
+		if val, err := strconv.ParseInt(info.Labels["rexec.disk_quota"], 10, 64); err == nil {
+			newDisk = val / 1024 / 1024 // Bytes to MB
+		}
+
+		if newMem > 0 && newCPU > 0 && newDisk > 0 {
+			// Update DB so subsequent fetching uses correct values
+			h.store.UpdateContainerSettings(ctx, recordID, cfg.ContainerName, newMem, newCPU, newDisk)
+		}
+	}
 
 	// Determine the image name for response
 	imageName := imageType
