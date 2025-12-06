@@ -190,7 +190,8 @@ var SupportedImages = map[string]string{
 	// Raspberry Pi / ARM
 	"raspberrypi": "balenalib/raspberry-pi-debian:bookworm",
 	// macOS (VM-based)
-	"macos": "sickcodes/docker-osx:latest",
+	"macos":        "sickcodes/docker-osx:auto",        // Catalina (optimized for automation)
+	"macos-legacy": "sickcodes/docker-osx:high-sierra", // High Sierra (lighter)
 }
 
 // CustomImages maps to rexec custom images with SSH pre-installed
@@ -297,7 +298,8 @@ func GetImageMetadata() []ImageMetadata {
 		{Name: "raspberrypi", DisplayName: "Raspberry Pi OS", Description: "Debian-based OS for Raspberry Pi/ARM", Category: "embedded", Tags: []string{"raspberry-pi", "arm", "iot"}, Popular: false},
 
 		// macOS
-		{Name: "macos", DisplayName: "macOS", Description: "Apple macOS in a VM container", Category: "macos", Tags: []string{"macos", "apple", "vm"}, Popular: true},
+		{Name: "macos", DisplayName: "macOS (Catalina)", Description: "Apple macOS (VM-based, heavy)", Category: "macos", Tags: []string{"macos", "apple", "vm"}, Popular: true},
+		{Name: "macos-legacy", DisplayName: "macOS (High Sierra)", Description: "Lighter macOS version (VM-based)", Category: "macos", Tags: []string{"macos", "apple", "vm", "legacy"}, Popular: false},
 	}
 }
 
@@ -506,7 +508,8 @@ var ImageShells = map[string]string{
 	"clearlinux": "/bin/bash",
 	"photon":     "/bin/bash",
 	// macOS
-	"macos": "/bin/bash",
+	"macos":        "/bin/bash",
+	"macos-legacy": "/bin/bash",
 }
 
 // ImageFallbackShells provides fallback shells to try if the primary fails
