@@ -56,7 +56,7 @@ func AvailableRoles() []RoleInfo {
 			Name:        "YAML Herder",
 			Description: "I don't write code, I write config. AI assists.",
 			Icon:        "☸️",
-			Packages:    []string{"zsh", "git", "docker-cli", "kubectl", "ansible", "terraform", "tgpt", "aichat", "mods", "zsh-autosuggestions", "zsh-syntax-highlighting"},
+			Packages:    []string{"zsh", "git", "docker", "kubectl", "ansible", "terraform", "tgpt", "aichat", "mods", "zsh-autosuggestions", "zsh-syntax-highlighting"},
 		},
 		{
 			ID:          "overemployed",
@@ -97,7 +97,6 @@ func GenerateRoleScript(roleID string) (string, error) {
 		"opencode":                       true,
 		"llm":                            true,
 		"sgpt":                           true,
-		"neofetch":                       true, // Often not in base repos or needs contrib
 	}
 
 	packages := ""
@@ -178,6 +177,16 @@ install_role_packages() {
             apt-get $APT_OPTS install -y -qq software-properties-common >/dev/null 2>&1 || true
             add-apt-repository -y universe >/dev/null 2>&1 || true
         fi
+
+        # Map generic package names to apt names
+        APT_PACKAGES=""
+        for pkg in $PACKAGES; do
+            case "$pkg" in
+                docker) APT_PACKAGES="$APT_PACKAGES docker.io" ;;
+                *) APT_PACKAGES="$APT_PACKAGES $pkg" ;;
+            esac
+        done
+        PACKAGES="$APT_PACKAGES"
         
         # Update package lists
         flock -w 120 /var/lib/dpkg/lock-frontend apt-get $APT_OPTS update -qq || true
