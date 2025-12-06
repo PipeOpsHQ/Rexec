@@ -245,6 +245,20 @@ alias ll='ls -alF'
 alias la='ls -A'
 alias l='ls -CF'
 alias gs='git status'
+
+# Welcome message on first login (only show once per session)
+if [ -z "$REXEC_WELCOMED" ]; then
+    export REXEC_WELCOMED=1
+    echo ""
+    echo "\033[1;36m Welcome to Rexec Terminal \033[0m"
+    echo ""
+    echo " \033[1;33mQuick Commands:\033[0m"
+    echo "   rexec tools    - See installed tools"
+    echo "   rexec info     - Container info"
+    echo "   ai-help        - AI tools guide"
+    echo "   tgpt \"question\" - Free AI (no API key)"
+    echo ""
+fi
 ZSHRC
 fi
 

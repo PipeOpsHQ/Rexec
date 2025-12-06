@@ -88,8 +88,25 @@ alias glog='git log --oneline --graph --decorate'
 `
 	}
 
+	// Welcome message - always show rexec CLI info on first login
+	welcomeMessage := `
+# Welcome message on first login (only show once per session)
+if [ -z "$REXEC_WELCOMED" ]; then
+    export REXEC_WELCOMED=1
+    echo ""
+    echo "\033[1;36m Welcome to Rexec Terminal \033[0m"
+    echo ""
+    echo " \033[1;33mQuick Commands:\033[0m"
+    echo "   rexec tools    - See installed tools"
+    echo "   rexec info     - Container info"
+    echo "   ai-help        - AI tools guide"
+    echo "   tgpt \"question\" - Free AI (no API key)"
+    echo ""
+fi
+`
+
 	// System stats section (conditional) - includes both the function and the call
-	systemStats := ""
+	systemStats := welcomeMessage
 	if cfg.SystemStats {
 		systemStats = `
 # Welcome message with system stats
