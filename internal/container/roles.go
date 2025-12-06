@@ -21,49 +21,49 @@ func AvailableRoles() []RoleInfo {
 			Name:        "The Minimalist",
 			Description: "I use Arch btw. Just give me a shell + free AI tools.",
 			Icon:        "🧘",
-			Packages:    []string{"zsh", "git", "curl", "wget", "vim", "nano", "htop", "jq"},
+			Packages:    []string{"zsh", "git", "curl", "wget", "vim", "nano", "htop", "jq", "neofetch", "tgpt", "aichat", "mods", "zsh-autosuggestions", "zsh-syntax-highlighting"},
 		},
 		{
 			ID:          "node",
 			Name:        "10x JS Ninja",
 			Description: "Ship fast, break things, npm install everything + free AI.",
 			Icon:        "🚀",
-			Packages:    []string{"zsh", "git", "nodejs", "npm", "yarn"},
+			Packages:    []string{"zsh", "git", "nodejs", "npm", "yarn", "tgpt", "aichat", "mods", "zsh-autosuggestions", "zsh-syntax-highlighting"},
 		},
 		{
 			ID:          "python",
 			Name:        "Data Wizard",
 			Description: "Import antigravity. I speak in list comprehensions + AI.",
 			Icon:        "🧙‍♂️",
-			Packages:    []string{"zsh", "git", "python3", "python3-pip", "python3-venv"},
+			Packages:    []string{"zsh", "git", "python3", "python3-pip", "python3-venv", "tgpt", "aichat", "mods", "zsh-autosuggestions", "zsh-syntax-highlighting"},
 		},
 		{
 			ID:          "go",
 			Name:        "The Gopher",
 			Description: "If err != nil { panic(err) }. Simplicity + AI tools.",
 			Icon:        "🐹",
-			Packages:    []string{"zsh", "git", "make", "go"},
+			Packages:    []string{"zsh", "git", "make", "go", "tgpt", "aichat", "mods", "zsh-autosuggestions", "zsh-syntax-highlighting"},
 		},
 		{
 			ID:          "neovim",
 			Name:        "Neovim God",
 			Description: "My config is longer than your code. Mouse? AI helps.",
 			Icon:        "⌨️",
-			Packages:    []string{"zsh", "git", "neovim", "ripgrep", "gcc", "make", "curl"},
+			Packages:    []string{"zsh", "git", "neovim", "ripgrep", "gcc", "make", "curl", "tgpt", "aichat", "mods", "zsh-autosuggestions", "zsh-syntax-highlighting"},
 		},
 		{
 			ID:          "devops",
 			Name:        "YAML Herder",
 			Description: "I don't write code, I write config. AI assists.",
 			Icon:        "☸️",
-			Packages:    []string{"zsh", "git", "docker-cli", "kubectl", "ansible", "terraform"},
+			Packages:    []string{"zsh", "git", "docker-cli", "kubectl", "ansible", "terraform", "tgpt", "aichat", "mods", "zsh-autosuggestions", "zsh-syntax-highlighting"},
 		},
 		{
 			ID:          "overemployed",
 			Name:        "Vibe Coder",
 			Description: "AI-powered coding: tgpt, aichat, mods, aider, opencode & more.",
 			Icon:        "🤖",
-			Packages:    []string{"zsh", "git", "tmux", "python3", "python3-pip", "python3-venv", "nodejs", "npm", "curl", "wget", "htop", "vim", "neovim", "ripgrep", "fzf", "jq"},
+			Packages:    []string{"zsh", "git", "tmux", "python3", "python3-pip", "python3-venv", "nodejs", "npm", "curl", "wget", "htop", "vim", "neovim", "ripgrep", "fzf", "jq", "tgpt", "aichat", "mods", "aider", "opencode", "llm", "sgpt", "zsh-autosuggestions", "zsh-syntax-highlighting"},
 		},
 	}
 }
@@ -84,13 +84,30 @@ func GenerateRoleScript(roleID string) (string, error) {
 
 	// Build the script reusing the package manager detection from shell_setup.go
 	// We'll inject the specific packages for this role
+	// Filter out non-system packages that are handled separately
+	excludedPackages := map[string]bool{
+		"tgpt":                           true,
+		"aichat":                         true,
+		"mods":                           true,
+		"zsh-autosuggestions":            true,
+		"zsh-syntax-highlighting":        true,
+		"zsh-history-substring-search":   true,
+		"aider":                          true,
+		"opencode":                       true,
+		"llm":                            true,
+		"sgpt":                           true,
+		"neofetch":                       true, // Often not in base repos or needs contrib
+	}
+
 	packages := ""
 	for _, p := range role.Packages {
-		packages += p + " "
+		if !excludedPackages[p] {
+			packages += p + " "
+		}
 	}
 
 	script := fmt.Sprintf(`#!/bin/sh
-set -e
+# set -e removed to allow partial failures
 
 echo "Installing tools for role: %s..."
 
