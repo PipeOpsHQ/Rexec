@@ -836,13 +836,18 @@ export function startContainerEvents() {
       const isIntentionalClose = event.code === 1000;
       const isAuthError = event.code === 4001 || event.code === 4003;
       
-
+      if (isIntentionalClose || isAuthError) {
+        reconnectAttempts = 0;
         return;
       }
 
       // Attempt silent reconnect with exponential backoff
-
-
+      if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+        reconnectAttempts++;
+        const delay = getReconnectDelay();
+        reconnectTimer = setTimeout(startContainerEvents, delay);
+      } else {
+        // Reset after a longer delay to allow manual refresh or page reload
         reconnectTimer = setTimeout(() => {
           reconnectAttempts = 0;
           startContainerEvents();
