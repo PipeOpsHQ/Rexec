@@ -891,10 +891,9 @@
     }
 
     .stat-limit {
-        opacity: 0.7;
         font-size: 10px;
         font-weight: 400;
-        color: #888888;
+        color: #8a8a8a;
     }
 
     .view-only-badge {

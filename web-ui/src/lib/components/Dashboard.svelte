@@ -463,9 +463,9 @@
                             <PlatformIcon platform={getDistro(creatingInfo.image || '')} size={32} />
                         </span>
                         <div class="container-info">
-                            <h3 class="container-name">
+                            <h2 class="container-name">
                                 {creatingInfo.name || "New Terminal"}
-                            </h3>
+                            </h2>
                             <span class="container-image"
                                 >{creatingInfo.image}</span
                             >
@@ -530,7 +530,7 @@
                             <PlatformIcon platform={getDistro(container.image)} size={32} />
                         </span>
                         <div class="container-info">
-                            <h3 class="container-name">{container.name}</h3>
+                            <h2 class="container-name">{container.name}</h2>
                             <span class="container-image"
                                 >{container.image}</span
                             >
@@ -1152,7 +1152,7 @@
         min-width: 0;
     }
 
-    .container-name {
+    h2.container-name {
         font-size: 14px;
         font-weight: 600;
         margin: 0 0 4px;
