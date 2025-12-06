@@ -1056,11 +1056,18 @@ func (h *ContainerHandler) UpdateSettings(c *gin.Context) {
 			log.Printf("[UpdateSettings] Warning: failed to remove container %s: %v", found.DockerID, err)
 		}
 
+		// Get old container labels to preserve role
+		var oldRole string
+		if oldInfo, ok := h.manager.GetContainer(found.DockerID); ok && oldInfo != nil {
+			oldRole = oldInfo.Labels["rexec.role"]
+		}
+
 		// Recreate container with new resource limits (tier is already available from context)
 		recreateCfg := container.RecreateContainerConfig{
 			UserID:        userID,
 			ContainerName: found.Name,
 			Image:         found.Image,
+			Role:          oldRole,
 			OldDockerID:   found.DockerID,
 			Tier:          tier,
 			MemoryMB:      req.MemoryMB,
@@ -1084,13 +1091,41 @@ func (h *ContainerHandler) UpdateSettings(c *gin.Context) {
 			log.Printf("[UpdateSettings] Warning: failed to update DockerID in database: %v", err)
 		}
 
-		// Update status to running (container is created in "configuring" state by default)
-		if err := h.store.UpdateContainerStatus(ctx, found.ID, "running"); err != nil {
-			log.Printf("[UpdateSettings] Warning: failed to update container status to running: %v", err)
+		// If we need to reinstall tools, do it in background and keep status as 'configuring'
+		if oldRole != "" {
+			log.Printf("[UpdateSettings] Restoring role %s for recreated container %s", oldRole, newDockerID)
+			
+			// Run setup in background
+			go func() {
+				setupCtx := context.Background()
+				
+				// Basic shell setup first
+				container.SetupEnhancedShell(setupCtx, h.manager.GetClient(), newDockerID)
+				
+				// Install tools
+				container.SetupRole(setupCtx, h.manager.GetClient(), newDockerID, oldRole)
+				
+				// Now set to running
+				h.manager.UpdateContainerStatus(newDockerID, "running")
+				h.store.UpdateContainerStatus(setupCtx, found.ID, "running")
+				
+				// Notify via WebSocket that setup is complete
+				if h.eventsHub != nil {
+					h.eventsHub.NotifyContainerUpdated(userID, gin.H{
+						"id":        newDockerID,
+						"db_id":     found.ID,
+						"status":    "running",
+						"message":   "Container tools restored",
+					})
+				}
+			}()
+		} else {
+			// No tools to install, set to running immediately
+			if err := h.store.UpdateContainerStatus(ctx, found.ID, "running"); err != nil {
+				log.Printf("[UpdateSettings] Warning: failed to update container status to running: %v", err)
+			}
+			h.manager.UpdateContainerStatus(newDockerID, "running")
 		}
-
-		// Also update in-memory status so WebSocket connections work immediately
-		h.manager.UpdateContainerStatus(newDockerID, "running")
 	}
 
 	log.Printf("[UpdateSettings] Updating container %s with memory=%d, cpu=%d, disk=%d", found.ID, req.MemoryMB, req.CPUShares, req.DiskMB)

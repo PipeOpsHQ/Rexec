@@ -517,6 +517,7 @@ type ContainerConfig struct {
 	ContainerName string            // User-provided name for the container
 	ImageType     string            // ubuntu, debian, arch, alpine, or "custom:imagename"
 	CustomImage   string            // Custom Docker image name (if ImageType is "custom")
+	Role          string            // Role ID (e.g. "standard", "node", "python")
 	MemoryLimit   int64             // in bytes, default 512MB
 	CPULimit      int64             // CPU quota, default 100000 (1 CPU)
 	DiskQuota     int64             // in bytes
@@ -976,6 +977,7 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 			"rexec.user_id":        cfg.UserID,
 			"rexec.container_name": cfg.ContainerName,
 			"rexec.image_type":     imageType,
+			"rexec.role":           cfg.Role,
 			"rexec.managed":        "true",
 			"rexec.memory_limit":   fmt.Sprintf("%d", cfg.MemoryLimit),
 			"rexec.cpu_limit":      fmt.Sprintf("%d", cfg.CPULimit),
@@ -1202,6 +1204,7 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 		"rexec.user_id":        cfg.UserID,
 		"rexec.container_name": cfg.ContainerName,
 		"rexec.image_type":     imageType,
+		"rexec.role":           cfg.Role,
 		"rexec.managed":        "true",
 	}, cfg.Labels)
 
@@ -1674,6 +1677,7 @@ type RecreateContainerConfig struct {
 	UserID        string
 	ContainerName string
 	Image         string // Can be "ubuntu-24" or "custom:image/name"
+	Role          string // Role to restore
 	OldDockerID   string
 	Tier          string
 	// Optional custom resource limits (if set, these override tier defaults)
@@ -1727,6 +1731,7 @@ func (m *Manager) RecreateContainer(ctx context.Context, cfg RecreateContainerCo
 		ContainerName: cfg.ContainerName,
 		ImageType:     imageType,
 		CustomImage:   customImage,
+		Role:          cfg.Role,
 		Labels:        labels,
 	}
 
