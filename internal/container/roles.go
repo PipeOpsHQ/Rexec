@@ -524,7 +524,9 @@ show_help() {
 
 # Main
 CMD="$1"
-shift
+if [ $# -gt 0 ]; then
+    shift
+fi
 
 case "$CMD" in
     install|i) do_install "$@" ;;
