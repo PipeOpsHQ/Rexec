@@ -32,10 +32,10 @@ FROM node:20-alpine AS frontend-builder
 WORKDIR /app/web-ui
 
 # Copy package files and install dependencies
-COPY web-ui/package.json web-ui/package-lock.json ./
+COPY web-ui/package.json ./
 
-# Install dependencies using ci for reproducible builds
-RUN npm ci
+# Install dependencies (use install instead of ci to resolve platform-specific optionals)
+RUN npm install
 
 # Copy source files
 COPY web-ui/ ./
