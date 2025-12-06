@@ -11,13 +11,13 @@ export interface Role {
 
 // Default roles to show while loading or on error
 export const defaultRoles: Role[] = [
-    { id: "standard", name: "The Minimalist", description: "Just give me a shell + free AI tools.", icon: "🧘", packages: ["zsh", "git", "curl", "vim", "tgpt", "aichat", "mods"] },
-    { id: "node", name: "10x JS Ninja", description: "Ship fast with Node.js + free AI.", icon: "🚀", packages: ["nodejs", "npm", "yarn", "git", "tgpt", "aichat", "mods"] },
-    { id: "python", name: "Data Wizard", description: "Python environment + AI tools.", icon: "🧙‍♂️", packages: ["python3", "pip", "venv", "git", "tgpt", "aichat", "mods"] },
-    { id: "go", name: "The Gopher", description: "Go development + AI tools.", icon: "🐹", packages: ["go", "git", "make", "tgpt", "aichat", "mods"] },
-    { id: "neovim", name: "Neovim God", description: "Neovim setup + AI tools.", icon: "⌨️", packages: ["neovim", "ripgrep", "git", "tgpt", "aichat", "mods"] },
-    { id: "devops", name: "YAML Herder", description: "DevOps tools + AI.", icon: "☸️", packages: ["kubectl", "docker", "terraform", "tgpt", "aichat", "mods"] },
-    { id: "overemployed", name: "Vibe Coder", description: "AI-powered coding with aider, opencode & more.", icon: "🤖", packages: ["python3", "nodejs", "neovim", "aider", "opencode", "tgpt", "aichat", "mods"] },
+    { id: "standard", name: "The Minimalist", description: "I use Arch btw. Just give me a shell + free AI tools.", icon: "🧘", packages: ["zsh", "git", "curl", "wget", "vim", "nano", "htop", "jq", "neofetch", "tgpt", "aichat", "mods", "zsh-autosuggestions", "zsh-syntax-highlighting"] },
+    { id: "node", name: "10x JS Ninja", description: "Ship fast, break things, npm install everything + free AI.", icon: "🚀", packages: ["zsh", "git", "nodejs", "npm", "yarn", "tgpt", "aichat", "mods", "zsh-autosuggestions", "zsh-syntax-highlighting"] },
+    { id: "python", name: "Data Wizard", description: "Import antigravity. I speak in list comprehensions + AI.", icon: "🧙‍♂️", packages: ["zsh", "git", "python3", "python3-pip", "python3-venv", "tgpt", "aichat", "mods", "zsh-autosuggestions", "zsh-syntax-highlighting"] },
+    { id: "go", name: "The Gopher", description: "If err != nil { panic(err) }. Simplicity + AI tools.", icon: "🐹", packages: ["zsh", "git", "make", "go", "tgpt", "aichat", "mods", "zsh-autosuggestions", "zsh-syntax-highlighting"] },
+    { id: "neovim", name: "Neovim God", description: "My config is longer than your code. Mouse? AI helps.", icon: "⌨️", packages: ["zsh", "git", "neovim", "ripgrep", "gcc", "make", "curl", "tgpt", "aichat", "mods", "zsh-autosuggestions", "zsh-syntax-highlighting"] },
+    { id: "devops", name: "YAML Herder", description: "I don't write code, I write config. AI assists.", icon: "☸️", packages: ["zsh", "git", "docker-cli", "kubectl", "ansible", "terraform", "tgpt", "aichat", "mods", "zsh-autosuggestions", "zsh-syntax-highlighting"] },
+    { id: "overemployed", name: "Vibe Coder", description: "AI-powered coding: tgpt, aichat, mods, aider, opencode & more.", icon: "🤖", packages: ["zsh", "git", "tmux", "python3", "python3-pip", "python3-venv", "nodejs", "npm", "curl", "wget", "htop", "vim", "neovim", "ripgrep", "fzf", "jq", "tgpt", "aichat", "mods", "aider", "opencode", "llm", "sgpt", "zsh-autosuggestions", "zsh-syntax-highlighting"] },
 ];
 
 function createRolesStore() {
