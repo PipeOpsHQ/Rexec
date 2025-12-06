@@ -913,6 +913,49 @@ install_free_ai_tools() {
             chmod +x "$HOME/.local/bin/mods" && echo "    ✓ mods installed" || echo "    ! mods install failed"
     fi
     
+    # Install opencode (sst/opencode) - binary release
+    echo "  Installing opencode (AI coding assistant)..."
+    install_opencode() {
+        export HOME="${HOME:-/root}"
+        
+        if command -v opencode >/dev/null 2>&1; then
+            echo "    ✓ opencode already installed"
+            return 0
+        fi
+        
+        ARCH=$(uname -m)
+        case "$ARCH" in
+            x86_64|amd64)
+                if ldd /bin/ls 2>/dev/null | grep -q musl; then
+                    OPENCODE_ARCH="linux-x64-musl"
+                else
+                    OPENCODE_ARCH="linux-x64"
+                fi
+                ;;
+            aarch64|arm64)
+                if ldd /bin/ls 2>/dev/null | grep -q musl; then
+                    OPENCODE_ARCH="linux-arm64-musl"
+                else
+                    OPENCODE_ARCH="linux-arm64"
+                fi
+                ;;
+            *)
+                echo "    ! Unsupported architecture: $ARCH"
+                return 1
+                ;;
+        esac
+        
+        OPENCODE_VERSION=$(curl -s https://api.github.com/repos/sst/opencode/releases/latest 2>/dev/null | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
+        [ -z "$OPENCODE_VERSION" ] && OPENCODE_VERSION="v1.0.133"
+        
+        OPENCODE_URL="https://github.com/sst/opencode/releases/download/${OPENCODE_VERSION}/opencode-${OPENCODE_ARCH}.tar.gz"
+        
+        mkdir -p "$HOME/.local/bin"
+        curl -fsSL "$OPENCODE_URL" 2>/dev/null | tar -xzf - -C "$HOME/.local/bin" 2>/dev/null && \
+            chmod +x "$HOME/.local/bin/opencode" && echo "    ✓ opencode installed" || echo "    ! opencode install failed"
+    }
+    install_opencode
+    
     # Create helper script to show AI tools usage
     cat > "$HOME/.local/bin/ai-help" << 'AIHELP'
 #!/bin/sh
@@ -983,49 +1026,6 @@ if [ "%s" = "Vibe Coder" ]; then
         echo "  Installing shell-gpt (sgpt)..."
         $PIP install --quiet --break-system-packages shell-gpt 2>/dev/null || $PIP install --quiet shell-gpt 2>/dev/null || echo "    ! sgpt install failed"
     fi
-
-    # Install opencode (sst/opencode) - binary release
-    echo "  Installing opencode (AI coding assistant)..."
-    install_opencode() {
-        export HOME="${HOME:-/root}"
-        
-        if command -v opencode >/dev/null 2>&1; then
-            echo "    ✓ opencode already installed"
-            return 0
-        fi
-        
-        ARCH=$(uname -m)
-        case "$ARCH" in
-            x86_64|amd64)
-                if ldd /bin/ls 2>/dev/null | grep -q musl; then
-                    OPENCODE_ARCH="linux-x64-musl"
-                else
-                    OPENCODE_ARCH="linux-x64"
-                fi
-                ;;
-            aarch64|arm64)
-                if ldd /bin/ls 2>/dev/null | grep -q musl; then
-                    OPENCODE_ARCH="linux-arm64-musl"
-                else
-                    OPENCODE_ARCH="linux-arm64"
-                fi
-                ;;
-            *)
-                echo "    ! Unsupported architecture: $ARCH"
-                return 1
-                ;;
-        esac
-        
-        OPENCODE_VERSION=$(curl -s https://api.github.com/repos/sst/opencode/releases/latest 2>/dev/null | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
-        [ -z "$OPENCODE_VERSION" ] && OPENCODE_VERSION="v1.0.133"
-        
-        OPENCODE_URL="https://github.com/sst/opencode/releases/download/${OPENCODE_VERSION}/opencode-${OPENCODE_ARCH}.tar.gz"
-        
-        mkdir -p "$HOME/.local/bin"
-        curl -fsSL "$OPENCODE_URL" 2>/dev/null | tar -xzf - -C "$HOME/.local/bin" 2>/dev/null && \
-            chmod +x "$HOME/.local/bin/opencode" && echo "    ✓ opencode installed" || echo "    ! opencode install failed"
-    }
-    install_opencode
 
     echo ""
     echo "\033[1;32m=== Vibe Coder AI Tools ===\033[0m"
