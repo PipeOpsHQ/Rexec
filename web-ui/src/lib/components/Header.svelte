@@ -127,6 +127,21 @@
         <span class="logo-text">Rexec</span>
     </button>
 
+    <nav class="nav-links">
+        <a href="/ai-tools" class="nav-link" on:click|preventDefault={() => {
+            window.history.pushState({}, "", "/ai-tools");
+            window.dispatchEvent(new PopStateEvent('popstate'));
+        }}>
+            🤖 AI Tools
+        </a>
+        <a href="/agentic" class="nav-link" on:click|preventDefault={() => {
+            window.history.pushState({}, "", "/agentic");
+            window.dispatchEvent(new PopStateEvent('popstate'));
+        }}>
+            ⚡ Agentic
+        </a>
+    </nav>
+
     <nav class="nav-actions">
         {#if $isAuthenticated}
             {#if $sessionCount > 0}
@@ -364,7 +379,31 @@
         color: var(--accent);
     }
 
+    .nav-links {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-left: auto;
+        margin-right: 16px;
+    }
 
+    .nav-link {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 6px 12px;
+        font-size: 12px;
+        color: var(--text-muted);
+        text-decoration: none;
+        border: 1px solid transparent;
+        transition: all 0.15s ease;
+    }
+
+    .nav-link:hover {
+        color: var(--text);
+        border-color: var(--border);
+        background: rgba(255, 255, 255, 0.03);
+    }
 
     .nav-actions {
         display: flex;

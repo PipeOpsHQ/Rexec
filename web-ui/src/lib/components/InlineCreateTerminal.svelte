@@ -27,6 +27,17 @@
     let cpuShares = 512;
     let diskMB = 2048;
 
+    // Default fallback roles in case API fails
+    const defaultRoles = [
+        { id: "standard", name: "The Minimalist", description: "Just give me a shell + free AI tools.", icon: "🧘", packages: ["zsh", "git", "curl", "vim", "tgpt", "aichat", "mods"] },
+        { id: "node", name: "10x JS Ninja", description: "Ship fast with Node.js + free AI.", icon: "🚀", packages: ["nodejs", "npm", "yarn", "git", "tgpt", "aichat", "mods"] },
+        { id: "python", name: "Data Wizard", description: "Python environment + AI tools.", icon: "🧙‍♂️", packages: ["python3", "pip", "venv", "git", "tgpt", "aichat", "mods"] },
+        { id: "go", name: "The Gopher", description: "Go development + AI tools.", icon: "🐹", packages: ["go", "git", "make", "tgpt", "aichat", "mods"] },
+        { id: "neovim", name: "Neovim God", description: "Neovim setup + AI tools.", icon: "⌨️", packages: ["neovim", "ripgrep", "git", "tgpt", "aichat", "mods"] },
+        { id: "devops", name: "YAML Herder", description: "DevOps tools + AI.", icon: "☸️", packages: ["kubectl", "docker", "terraform", "tgpt", "aichat", "mods"] },
+        { id: "overemployed", name: "Vibe Coder", description: "AI-powered coding with aider, opencode & more.", icon: "🤖", packages: ["python3", "nodejs", "neovim", "aider", "opencode", "tgpt", "aichat", "mods"] },
+    ];
+
     // Roles loaded from API
     let roles: Array<{
         id: string;
@@ -411,12 +422,16 @@
         // Load roles from API
         try {
             const response = await api.get("/roles");
-            if (response.roles && Array.isArray(response.roles)) {
+            if (response.roles && Array.isArray(response.roles) && response.roles.length > 0) {
                 roles = response.roles;
+            } else {
+                // Use fallback if API returns empty
+                roles = defaultRoles;
             }
         } catch (e) {
             console.error("Failed to load roles:", e);
-            // Fallback to empty - UI should handle gracefully
+            // Fallback to default roles
+            roles = defaultRoles;
         } finally {
             rolesLoading = false;
         }
@@ -587,6 +602,8 @@
                 <h4>Environment</h4>
                 {#if rolesLoading}
                     <div class="role-loading">Loading environments...</div>
+                {:else if roles.length === 0}
+                    <div class="role-loading">No environments available</div>
                 {:else}
                     <div class="role-grid">
                         {#each roles as role}
@@ -594,7 +611,7 @@
                                 class="role-card"
                                 class:selected={selectedRole === role.id}
                                 on:click={() => (selectedRole = role.id)}
-                                title={role.description}
+                                title={role.description || ''}
                             >
                                 <span class="role-icon">{role.icon || getRoleIcon(role.id)}</span>
                                 <span class="role-name">{role.name}</span>
@@ -615,11 +632,13 @@
                                 {getRoleRecommendedOS(currentRole.id)}
                             </span>
                         </div>
-                        <div class="role-tools">
-                            {#each currentRole.packages as tool}
-                                <span class="tool-badge">{tool}</span>
-                            {/each}
-                        </div>
+                        {#if currentRole.packages && currentRole.packages.length > 0}
+                            <div class="role-tools">
+                                {#each currentRole.packages as tool}
+                                    <span class="tool-badge">{tool}</span>
+                                {/each}
+                            </div>
+                        {/if}
                     </div>
                 {/if}
             </div>

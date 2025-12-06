@@ -32,7 +32,7 @@ Rexec gives “10x” engineers an instantly-available, network-isolated Linux t
 | Frontend    | HTML/CSS/JS, `xterm.js`, Inter + JetBrains Mono fonts |
 | API         | Go 1.22+, Gin, JWT, custom middleware                 |
 | Workers     | Container cleanup service, Stripe webhook handler     |
-| Persistence | PostgreSQL (users/containers) |
+| Persistence | PostgreSQL (users/containers)                         |
 | Billing     | Stripe SDK (`stripe-go`)                              |
 | Containers  | Docker SDK with Ubuntu/Debian/Alpine/Fedora images    |
 
@@ -71,31 +71,31 @@ This spins up the API and PostgreSQL with volumes persisted via Docker.
 
 ## Configuration
 
-| Variable                  | Default / Notes                                                 |
-| ------------------------- | --------------------------------------------------------------- |
-| `PORT`                    | `8080` – API listen port                                        |
-| `DATABASE_URL`            | `postgres://rexec:rexec@localhost:5432/rexec?sslmode=disable`   |
-| `JWT_SECRET`              | **Required** – used for signing auth tokens                     |
-| `STRIPE_SECRET_KEY`       | Enables billing endpoints when set                              |
-| `STRIPE_WEBHOOK_SECRET`   | Required for webhook verification                               |
-| `STRIPE_PRICE_PRO`        | Stripe price ID for the Pro plan                                |
-| `STRIPE_PRICE_ENTERPRISE` | Price ID for Enterprise tier                                    |
-| `WEB_DIR`                 | Directory containing `index.html` (defaults to `./web`)         |
-| `GIN_MODE`                | `release` or `debug` – influences container cleanup thresholds  |
+| Variable                  | Default / Notes                                                |
+| ------------------------- | -------------------------------------------------------------- |
+| `PORT`                    | `8080` – API listen port                                       |
+| `DATABASE_URL`            | `postgres://rexec:rexec@localhost:5432/rexec?sslmode=disable`  |
+| `JWT_SECRET`              | **Required** – used for signing auth tokens                    |
+| `STRIPE_SECRET_KEY`       | Enables billing endpoints when set                             |
+| `STRIPE_WEBHOOK_SECRET`   | Required for webhook verification                              |
+| `STRIPE_PRICE_PRO`        | Stripe price ID for the Pro plan                               |
+| `STRIPE_PRICE_ENTERPRISE` | Price ID for Enterprise tier                                   |
+| `WEB_DIR`                 | Directory containing `index.html` (defaults to `./web`)        |
+| `GIN_MODE`                | `release` or `debug` – influences container cleanup thresholds |
 
 ### S3 Storage for Recordings (Optional)
 
 Store terminal recordings in S3-compatible storage for horizontal scaling:
 
-| Variable              | Description                                              |
-| --------------------- | -------------------------------------------------------- |
-| `S3_BUCKET`           | S3 bucket name (enables S3 storage when set)             |
-| `S3_REGION`           | AWS region (default: `us-east-1`)                        |
-| `S3_ENDPOINT`         | Custom endpoint for S3-compatible services (MinIO, etc.) |
-| `S3_ACCESS_KEY_ID`    | AWS access key ID                                        |
-| `S3_SECRET_ACCESS_KEY`| AWS secret access key                                    |
-| `S3_PREFIX`           | Key prefix for recordings (e.g., `recordings/`)          |
-| `S3_FORCE_PATH_STYLE` | Set to `true` for MinIO and some S3-compatible services  |
+| Variable               | Description                                              |
+| ---------------------- | -------------------------------------------------------- |
+| `S3_BUCKET`            | S3 bucket name (enables S3 storage when set)             |
+| `S3_REGION`            | AWS region (default: `us-east-1`)                        |
+| `S3_ENDPOINT`          | Custom endpoint for S3-compatible services (MinIO, etc.) |
+| `S3_ACCESS_KEY_ID`     | AWS access key ID                                        |
+| `S3_SECRET_ACCESS_KEY` | AWS secret access key                                    |
+| `S3_PREFIX`            | Key prefix for recordings (e.g., `recordings/`)          |
+| `S3_FORCE_PATH_STYLE`  | Set to `true` for MinIO and some S3-compatible services  |
 
 ---
 
@@ -149,4 +149,10 @@ The result should _feel_ like a premium IDE sidebar rather than a generic admin 
 - Optional SSO (SAML/OIDC) for enterprise teams.
 
 Rexec is already production-capable; polish the UI, harden the API responses, and invite your favorite power users to try the new experience.
+
 # rexec
+
+- Subtle addition - Keep existing design, just add a small AI tools section below
+  - Hero variation - Add a secondary tagline mentioning AI tools
+  - Separate page - Create a dedicated /ai-tools or /vibe-coder page
+  - Feature cards - Add AI tools as additional feature cards in existing grid

@@ -17,6 +17,8 @@
     import JoinSession from "$components/JoinSession.svelte";
     import Pricing from "$components/Pricing.svelte";
     import StatusIcon from "$components/icons/StatusIcon.svelte";
+    import AITools from "$components/AITools.svelte";
+    import Agentic from "$components/Agentic.svelte";
 
     // App state
     let currentView:
@@ -25,7 +27,9 @@
         | "create"
         | "settings"
         | "sshkeys"
-        | "join" = "landing";
+        | "join"
+        | "ai-tools"
+        | "agentic" = "landing";
     let isLoading = true;
     let isInitialized = false; // Prevents reactive statements from firing before token validation
     let joinCode = ""; // For /join/:code route
@@ -135,6 +139,18 @@
     async function handleTerminalUrl() {
         const path = window.location.pathname;
         const params = new URLSearchParams(window.location.search);
+
+        // Check for /ai-tools route
+        if (path === "/ai-tools") {
+            currentView = "ai-tools";
+            return;
+        }
+
+        // Check for /agentic route
+        if (path === "/agentic") {
+            currentView = "agentic";
+            return;
+        }
 
         // Check for /join/:code route
         const joinMatch = path.match(/^\/join\/([A-Z0-9]{6})$/i);
@@ -304,6 +320,10 @@
         const path = window.location.pathname;
         if (path === "/" || path === "") {
             currentView = $isAuthenticated ? "dashboard" : "landing";
+        } else if (path === "/ai-tools") {
+            currentView = "ai-tools";
+        } else if (path === "/agentic") {
+            currentView = "agentic";
         }
     }
 </script>
@@ -357,6 +377,26 @@
                     );
                     currentView = "dashboard";
                 }} on:cancel={goToDashboard} />
+            {:else if currentView === "ai-tools"}
+                <AITools 
+                    on:tryNow={openGuestModal}
+                    on:navigate={(e) => {
+                        if (e.detail.view === "agentic") {
+                            currentView = "agentic";
+                            window.history.pushState({}, "", "/agentic");
+                        }
+                    }}
+                />
+            {:else if currentView === "agentic"}
+                <Agentic 
+                    on:tryNow={openGuestModal}
+                    on:navigate={(e) => {
+                        if (e.detail.view === "ai-tools") {
+                            currentView = "ai-tools";
+                            window.history.pushState({}, "", "/ai-tools");
+                        }
+                    }}
+                />
             {/if}
         </main>
 
