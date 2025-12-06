@@ -112,7 +112,8 @@ const REXEC_BANNER =
   "  ██╔══██╗██╔══╝   ██╔██╗ ██╔══╝  ██║\r\n" +
   "  ██║  ██║███████╗██╔╝ ██╗███████╗╚██████╗\r\n" +
   "  ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚══════╝ ╚═════╝\r\n" +
-  "\x1b[0m\x1b[38;5;243m  Terminal as a Service · rexec.dev\x1b[0m\r\n\r\n";
+  "\x1b[0m\x1b[38;5;243m  Terminal as a Service · rexec.dev\x1b[0m\r\n" +
+  "\x1b[38;5;243m  Run 'rexec tools' to see available tools\x1b[0m\r\n\r\n";
 
 // Helper to map macOS Command key to Control key (mirroring native terminal behavior)
 // This allows using Cmd+L, Cmd+K, etc. as Ctrl+L, Ctrl+K
@@ -135,6 +136,13 @@ function createMacKeyHandler(term: Terminal) {
         // Preserve standard clipboard shortcuts (Cmd+C, Cmd+V)
         // Let the browser/xterm handle these naturally
         if (key === 'c' || key === 'v') return true;
+
+        // Ghostty-style shortcuts to pass through to UI handler (TerminalView.svelte)
+        // d = split, t = tab, w = close, n = new window
+        const reserved = ['d', 't', 'w', 'n', 'enter'];
+        if (reserved.includes(key)) {
+            return false;
+        }
         
         // Map A-Z keys: Cmd+X -> Ctrl+X
         if (key.length === 1 && key >= 'a' && key <= 'z') {
