@@ -410,13 +410,12 @@
         {#if showGuestModal}
             <div
                 class="modal-overlay"
-                on:click={closeGuestModal}
+                on:click={(e) => e.target === e.currentTarget && closeGuestModal()}
                 on:keydown={handleGuestKeydown}
                 role="presentation"
             >
                 <div
                     class="modal"
-                    on:click|stopPropagation
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby="guest-modal-title"
