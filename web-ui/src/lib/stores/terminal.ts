@@ -587,11 +587,8 @@ function createTerminalStore() {
       let rafId: number | null = null;
       let lastFlushTime = 0;
 
-      // Filter mouse tracking sequences from output
-      const sanitizeOutput = (data: string): string => {
-        // Only remove complete SGR mouse sequences
-        return data.replace(/\x1b\[<\d+;\d+;\d+[Mm]/g, "");
-      };
+      // Pass output directly (removed aggressive filtering that broke TUI mouse support)
+      const sanitizeOutput = (data: string): string => data;
 
       // Immediate write for small, interactive output (like keystrokes)
       const writeImmediate = (data: string) => {
@@ -914,22 +911,17 @@ function createTerminalStore() {
           return;
         }
 
-        // Filter out SGR mouse tracking sequences from input
-        const mouseTrackingRegex = /\x1b\[<\d+;\d+;\d+[Mm]/g;
-        const filteredData = data.replace(mouseTrackingRegex, "");
-        if (!filteredData) return;
-
         // Send input immediately for responsiveness
         // Large pastes are chunked to avoid WebSocket message size limits
-        if (filteredData.length > CHUNK_SIZE) {
+        if (data.length > CHUNK_SIZE) {
           // Large paste - chunk it
-          for (let i = 0; i < filteredData.length; i += CHUNK_SIZE) {
-            inputQueue.push(filteredData.slice(i, i + CHUNK_SIZE));
+          for (let i = 0; i < data.length; i += CHUNK_SIZE) {
+            inputQueue.push(data.slice(i, i + CHUNK_SIZE));
           }
           processInputQueue();
         } else {
           // Normal input - send immediately (no buffering for instant feel)
-          ws.send(JSON.stringify({ type: "input", data: filteredData }));
+          ws.send(JSON.stringify({ type: "input", data: data }));
         }
       });
 
@@ -1868,9 +1860,7 @@ function createTerminalStore() {
       let rafId: number | null = null;
       let lastFlushTime = 0;
 
-      const sanitizeOutput = (data: string): string => {
-        return data.replace(/\x1b\[<\d+;\d+;\d+[Mm]/g, "");
-      };
+      const sanitizeOutput = (data: string): string => data;
 
       const writeImmediate = (data: string) => {
         if (pane.terminal) {
@@ -2031,16 +2021,9 @@ function createTerminalStore() {
       };
 
       // Handle terminal input for split pane
-      // Only filter complete SGR mouse sequences
-      const mouseTrackingRegex = /\x1b\[<\d+;\d+;\d+[Mm]/g;
-
       pane.terminal.onData((data) => {
         if (ws.readyState !== WebSocket.OPEN) return;
-
-        let filteredData = data.replace(mouseTrackingRegex, "");
-        if (!filteredData) return;
-
-        ws.send(JSON.stringify({ type: "input", data: filteredData }));
+        ws.send(JSON.stringify({ type: "input", data: data }));
       });
 
       // Store the WebSocket on the pane
