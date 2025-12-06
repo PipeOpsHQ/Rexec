@@ -35,7 +35,7 @@ WORKDIR /app/web-ui
 COPY web-ui/package.json ./
 
 # Clean npm cache and node_modules before installing dependencies
-RUN npm cache clean --force && rm -rf node_modules
+RUN npm cache clean --force && rm -rf node_modules && rm -rf node_modules/@rollup
 
 # Install dependencies (use install instead of ci to resolve platform-specific optionals)
 RUN npm install
