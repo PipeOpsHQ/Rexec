@@ -172,7 +172,7 @@ var SupportedImages = map[string]string{
 	"alpine-3.20": "alpine:3.20",  // Previous stable
 	"alpine-3.18": "alpine:3.18",  // Older stable
 	"busybox":     "busybox:1.37", // Latest busybox
-	"tinycore":    "tatocaster/tinycore:latest",
+	"tinycore":    "tatsushid/tinycore:latest",
 	"openwrt":     "openwrt/rootfs:latest",
 	// Container / Cloud Optimized
 	"rancheros": "alpine:3.21", // RancherOS discontinued, using Alpine as lightweight alternative
