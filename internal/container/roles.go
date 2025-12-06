@@ -256,9 +256,8 @@ configure_zsh() {
             sed -i "s|root:.*:/bin/.*|root:x:0:0:root:/root:$ZSH_PATH|" /etc/passwd 2>/dev/null || true
         fi
 
-        # Create minimal .zshrc only if it doesn't exist (preserve oh-my-zsh if installed)
-        if [ ! -f /root/.zshrc ]; then
-            cat > /root/.zshrc << 'ZSHRC'
+        # Create or overwrite .zshrc with full configuration
+        cat > /root/.zshrc << 'ZSHRC'
 export TERM=xterm-256color
 export LANG=en_US.UTF-8
 export PATH="$HOME/.local/bin:$PATH"
@@ -294,7 +293,6 @@ if [ -z "$REXEC_WELCOMED" ]; then
     echo ""
 fi
 ZSHRC
-        fi
     fi
 }
 
