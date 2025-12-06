@@ -815,7 +815,7 @@ export function startContainerEvents() {
   try {
     eventsSocket = new WebSocket(getWebSocketUrl());
 
-
+    eventsSocket.onopen = () => {
       wsConnected.set(true);
     };
 
