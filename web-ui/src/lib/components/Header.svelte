@@ -9,6 +9,7 @@
     import { terminal, sessionCount } from "$stores/terminal";
     import { toast } from "$stores/toast";
     import StatusIcon from "./icons/StatusIcon.svelte";
+    import InstallButton from "./InstallButton.svelte";
 
     const dispatch = createEventDispatcher<{
         home: void;
@@ -145,6 +146,7 @@
     </nav>
 
     <nav class="nav-actions">
+        <InstallButton />
         {#if $isAuthenticated}
             {#if $sessionCount > 0}
                 <span class="terminal-status">
