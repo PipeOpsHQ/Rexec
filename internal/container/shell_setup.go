@@ -321,7 +321,7 @@ SAVEHIST=10000
 HISTFILE=~/.zsh_history
 setopt HIST_IGNORE_ALL_DUPS HIST_FIND_NO_DUPS HIST_SAVE_NO_DUPS
 setopt SHARE_HISTORY APPEND_HISTORY INC_APPEND_HISTORY PROMPT_SUBST
-unsetopt PROMPT_SP # Prevent partial line indicator (%)
+unsetopt PROMPT_SP # Prevent partial line indicator (%%)
 
 autoload -Uz compinit
 zstyle ':completion:*' menu select

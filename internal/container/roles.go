@@ -283,7 +283,7 @@ SAVEHIST=10000
 HISTFILE=~/.zsh_history
 setopt HIST_IGNORE_ALL_DUPS HIST_FIND_NO_DUPS HIST_SAVE_NO_DUPS
 setopt SHARE_HISTORY APPEND_HISTORY INC_APPEND_HISTORY PROMPT_SUBST
-unsetopt PROMPT_SP # Prevent partial line indicator (%)
+unsetopt PROMPT_SP # Prevent partial line indicator (%%)
 
 autoload -Uz compinit && compinit
 
@@ -310,10 +310,18 @@ ZSHRC_TEMPLATE
 )
 
             # Write to /root/.zshrc
-            echo "$ZSHRC_CONTENT" > /root/.zshrc
+            if [ ! -f /root/.zshrc ]; then
+                echo "$ZSHRC_CONTENT" > /root/.zshrc
+            else
+                echo "  .zshrc already exists, skipping overwrite..."
+            fi
 
             # Write to /home/user/.zshrc and correct HOME path
-            echo "$ZSHRC_CONTENT" | sed "s|export HOME=\"\${HOME:-/root}\"|export HOME=\"/home/user\"|" > /home/user/.zshrc
+            if [ ! -f /home/user/.zshrc ]; then
+                echo "$ZSHRC_CONTENT" | sed "s|export HOME=\"\${HOME:-/root}\"|export HOME=\"/home/user\"|" > /home/user/.zshrc
+            else
+                echo "  user .zshrc already exists, skipping overwrite..."
+            fi
             
             # Setup user environment
             if id "user" >/dev/null 2>&1; then
