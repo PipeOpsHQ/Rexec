@@ -421,9 +421,9 @@
     onMount(async () => {
         // Load roles from API
         try {
-            const response = await api.get("/roles");
-            if (response.roles && Array.isArray(response.roles) && response.roles.length > 0) {
-                roles = response.roles;
+            const response = await api.get<{ roles: typeof roles }>("/roles");
+            if (response.data?.roles && Array.isArray(response.data.roles) && response.data.roles.length > 0) {
+                roles = response.data.roles;
             } else {
                 // Use fallback if API returns empty
                 roles = defaultRoles;

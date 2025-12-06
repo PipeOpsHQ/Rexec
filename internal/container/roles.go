@@ -235,7 +235,7 @@ SAVEHIST=10000
 
 # Simple prompt that works reliably across all terminals
 # Format: user@hostname directory $
-PS1='%n@%m %~ $ '
+PS1='%%n@%%m %%~ $ '
 
 # Aliases
 alias ll='ls -alF'
@@ -756,8 +756,8 @@ show_info() {
     if [ -f /proc/uptime ]; then
         UPTIME_SEC=$(cut -d. -f1 /proc/uptime)
         UPTIME_DAYS=$((UPTIME_SEC / 86400))
-        UPTIME_HRS=$(((UPTIME_SEC % 86400) / 3600))
-        UPTIME_MIN=$(((UPTIME_SEC % 3600) / 60))
+        UPTIME_HRS=$(((UPTIME_SEC %% 86400) / 3600))
+        UPTIME_MIN=$(((UPTIME_SEC %% 3600) / 60))
         echo "\033[1;33mUptime:\033[0m ${UPTIME_DAYS}d ${UPTIME_HRS}h ${UPTIME_MIN}m"
     fi
     

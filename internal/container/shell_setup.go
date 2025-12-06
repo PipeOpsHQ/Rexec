@@ -357,13 +357,13 @@ create_theme() {
     # Simple theme that works reliably - avoid complex escape sequences
     cat > "$HOME/.oh-my-zsh/custom/themes/rexec.zsh-theme" << 'THEME'
 # Simple prompt: user@host dir $
-PROMPT='%n@%m %~ $ '
+PROMPT='%%n@%%m %%~ $ '
 RPROMPT=''
 THEME
 
     # Minimal theme (simpler, faster)
     cat > "$HOME/.oh-my-zsh/custom/themes/minimal.zsh-theme" << 'THEME'
-PROMPT='%n@%m %~ $ '
+PROMPT='%%n@%%m %%~ $ '
 RPROMPT=''
 THEME
 }
