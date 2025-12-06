@@ -21,9 +21,18 @@
     }>();
 
     let showUserMenu = false;
+    let showMobileMenu = false;
     let timeRemaining = "";
     let countdownInterval: ReturnType<typeof setInterval> | null = null;
     let isOAuthLoading = false;
+
+    function toggleMobileMenu() {
+        showMobileMenu = !showMobileMenu;
+    }
+
+    function closeMobileMenu() {
+        showMobileMenu = false;
+    }
 
     function updateCountdown() {
         if (!$sessionExpiresAt) {
@@ -123,6 +132,10 @@
 <svelte:window on:click={closeUserMenu} />
 
 <header class="header">
+    <button class="mobile-menu-btn" on:click={toggleMobileMenu}>
+        <StatusIcon status="menu" size={20} />
+    </button>
+
     <button class="logo" on:click={() => dispatch("home")}>
         <span class="logo-icon">R</span>
         <span class="logo-text">Rexec</span>
@@ -312,7 +325,113 @@
     </nav>
 </header>
 
+{#if showMobileMenu}
+    <div class="mobile-menu-overlay" on:click={closeMobileMenu}>
+        <div class="mobile-menu-content" on:click|stopPropagation>
+            <div class="mobile-menu-header">
+                <span class="logo-text">Menu</span>
+                <button class="close-btn" on:click={closeMobileMenu}>
+                    <StatusIcon status="close" size={20} />
+                </button>
+            </div>
+            <div class="mobile-nav-links">
+                <a href="/ai-tools" class="mobile-nav-link" on:click|preventDefault={() => {
+                    closeMobileMenu();
+                    window.history.pushState({}, "", "/ai-tools");
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                }}>
+                    <StatusIcon status="ai" size={18} />
+                    <span>AI Tools</span>
+                </a>
+                <a href="/agentic" class="mobile-nav-link" on:click|preventDefault={() => {
+                    closeMobileMenu();
+                    window.history.pushState({}, "", "/agentic");
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                }}>
+                    <StatusIcon status="zap" size={18} />
+                    <span>Agentic</span>
+                </a>
+            </div>
+        </div>
+    </div>
+{/if}
+
 <style>
+    .mobile-menu-btn {
+        display: none;
+        background: none;
+        border: none;
+        color: var(--text);
+        cursor: pointer;
+        padding: 4px;
+        margin-right: 8px;
+    }
+
+    .mobile-menu-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 1000;
+        display: flex;
+        justify-content: flex-start;
+        animation: fadeIn 0.2s ease;
+    }
+
+    .mobile-menu-content {
+        width: 250px;
+        background: var(--bg-card);
+        height: 100%;
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        animation: slideIn 0.2s ease;
+    }
+
+    .mobile-menu-header {
+        padding: 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .close-btn {
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        cursor: pointer;
+    }
+
+    .mobile-nav-links {
+        display: flex;
+        flex-direction: column;
+        padding: 16px;
+        gap: 12px;
+    }
+
+    .mobile-nav-link {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px;
+        color: var(--text);
+        text-decoration: none;
+        border-radius: 6px;
+        transition: background 0.15s;
+    }
+
+    .mobile-nav-link:hover {
+        background: var(--bg-tertiary);
+    }
+
+    @keyframes slideIn {
+        from { transform: translateX(-100%); }
+        to { transform: translateX(0); }
+    }
+
     .btn-spinner-sm {
         display: inline-block;
         width: 12px;
@@ -630,6 +749,16 @@
     @media (max-width: 768px) {
         .header {
             padding: 10px 12px;
+        }
+
+        .mobile-menu-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .nav-links {
+            display: none;
         }
 
         .logo-text {
