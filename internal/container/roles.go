@@ -228,73 +228,7 @@ install_role_packages() {
     rm -f /tmp/.rexec_installing_system
 }
 
-# Configure Zsh if installed
-configure_zsh() {
-    if command -v zsh >/dev/null 2>&1; then
-        echo "Configuring zsh..."
 
-        # Ensure oh-my-zsh custom plugins directory exists
-        export HOME="${HOME:-/root}"
-        ZSH_CUSTOM="${HOME}/.oh-my-zsh/custom"
-        mkdir -p "$ZSH_CUSTOM/plugins"
-
-        # Install zsh plugins
-        echo "Installing zsh plugins..."
-        if [ ! -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ]; then
-            git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions "$ZSH_CUSTOM/plugins/zsh-autosuggestions" 2>/dev/null || true
-        fi
-        if [ ! -d "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ]; then
-            git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" 2>/dev/null || true
-        fi
-        if [ ! -d "$ZSH_CUSTOM/plugins/zsh-history-substring-search" ]; then
-            git clone --depth=1 https://github.com/zsh-users/zsh-history-substring-search "$ZSH_CUSTOM/plugins/zsh-history-substring-search" 2>/dev/null || true
-        fi
-
-        # Change default shell
-        if [ -f /etc/passwd ]; then
-            ZSH_PATH=$(which zsh)
-            sed -i "s|root:.*:/bin/.*|root:x:0:0:root:/root:$ZSH_PATH|" /etc/passwd 2>/dev/null || true
-        fi
-
-        # Create or overwrite .zshrc with full configuration
-        cat > /root/.zshrc << 'ZSHRC'
-export TERM=xterm-256color
-export LANG=en_US.UTF-8
-export PATH="$HOME/.local/bin:$PATH"
-
-# Basic Config
-autoload -Uz compinit && compinit
-setopt HIST_IGNORE_ALL_DUPS SHARE_HISTORY
-HISTFILE=~/.zsh_history
-HISTSIZE=10000
-SAVEHIST=10000
-
-# Simple prompt that works reliably across all terminals
-# Format: user@hostname directory $
-PS1='%%n@%%m %%~ $ '
-
-# Aliases
-alias ll='ls -alF'
-alias la='ls -A'
-alias l='ls -CF'
-alias gs='git status'
-
-# Welcome message on first login (only show once per session)
-if [ -z "$REXEC_WELCOMED" ]; then
-    export REXEC_WELCOMED=1
-    echo ""
-    echo "\033[1;36m Welcome to Rexec Terminal \033[0m"
-    echo ""
-    echo " \033[1;33mQuick Commands:\033[0m"
-    echo "   rexec tools    - See installed tools"
-    echo "   rexec info     - Container info"
-    echo "   ai-help        - AI tools guide"
-    echo "   tgpt \"question\" - Free AI (no API key)"
-    echo ""
-fi
-ZSHRC
-    fi
-}
 
 # Create rexec CLI command with subcommands
 create_rexec_cli() {
@@ -761,7 +695,8 @@ install_role_packages
 
 # 3. Configure Zsh (if installed)
 echo "[[REXEC_STATUS]]Configuring shell..."
-configure_zsh
+# Call the main setup function from shell_setup.go
+main
 
 # 4. Install AI tools
 echo "[[REXEC_STATUS]]Installing AI tools..."
