@@ -478,21 +478,18 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 	isMacOS := strings.Contains(strings.ToLower(imageType), "macos") || strings.Contains(strings.ToLower(imageType), "osx")
 
 	// Create exec instance
+	// Use login shell (-l) to ensure .zshrc/.bashrc is sourced
 	execConfig := container.ExecOptions{
 		AttachStdin:  true,
 		AttachStdout: true,
 		AttachStderr: true,
 		Tty:          true,
-		Cmd:          []string{shell},
+		Cmd:          []string{shell, "-l"},
 		Env: []string{
 			"TERM=xterm-256color",
 			"COLORTERM=truecolor",
+			"PATH=/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		},
-	}
-
-	// For macOS VMs, use login shell for proper environment
-	if isMacOS {
-		execConfig.Cmd = []string{shell, "-l"}
 	}
 
 	execResp, err := client.ContainerExecCreate(ctx, session.ContainerID, execConfig)
@@ -1101,15 +1098,17 @@ func (h *TerminalHandler) runSharedTerminalSession(session *SharedTerminalSessio
 	client := h.containerManager.GetClient()
 	shell := h.detectShell(ctx, session.ContainerID, imageType)
 
+	// Use login shell (-l) to ensure .zshrc/.bashrc is sourced
 	execConfig := container.ExecOptions{
 		AttachStdin:  true,
 		AttachStdout: true,
 		AttachStderr: true,
 		Tty:          true,
-		Cmd:          []string{shell},
+		Cmd:          []string{shell, "-l"},
 		Env: []string{
 			"TERM=xterm-256color",
 			"COLORTERM=truecolor",
+			"PATH=/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		},
 	}
 

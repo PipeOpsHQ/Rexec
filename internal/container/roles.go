@@ -224,6 +224,7 @@ if command -v zsh >/dev/null 2>&1; then
     cat > /root/.zshrc << 'ZSHRC'
 export TERM=xterm-256color
 export LANG=en_US.UTF-8
+export PATH="$HOME/.local/bin:$PATH"
 
 # Basic Config
 autoload -Uz compinit && compinit
@@ -232,26 +233,9 @@ HISTFILE=~/.zsh_history
 HISTSIZE=10000
 SAVEHIST=10000
 
-# Autosuggestions (detect path) - Disabled for input stability
-# if [ -f /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]; then
-#     source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
-# elif [ -f /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh ]; then
-#     source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
-# fi
-
-# Syntax Highlighting (detect path) - Disabled for input stability
-# if [ -f /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]; then
-#     source /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-# elif [ -f /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]; then
-#     source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-# fi
-
-# Bind keys for autosuggestions
-# bindkey '^ ' autosuggest-accept
-# bindkey '^[[C' autosuggest-accept # Right arrow
-
-# Prompt - commented out to fix xterm parsing errors
-# PROMPT='%%F{cyan}%%n%%f@%%F{blue}%%m%%f %%F{yellow}%%~%%f (?:%%F{green}➜:%%F{red}➜) %%f'
+# Simple prompt that works reliably across all terminals
+# Format: user@hostname directory $
+PS1='%n@%m %~ $ '
 
 # Aliases
 alias ll='ls -alF'
@@ -313,9 +297,22 @@ show_tools() {
     done
 
     echo ""
-    echo "\033[1;33mAI Coding Tools:\033[0m"
+    echo "\033[1;33mAI Tools (Free - No API Key):\033[0m"
+    FREE_AI_FOUND=0
+    for cmd in tgpt aichat mods; do
+        if command -v $cmd >/dev/null 2>&1; then
+            echo "  \033[32m✓\033[0m $cmd"
+            FREE_AI_FOUND=1
+        fi
+    done
+    if [ "$FREE_AI_FOUND" = "0" ]; then
+        echo "  \033[90m(none installed)\033[0m"
+    fi
+
+    echo ""
+    echo "\033[1;33mAI Tools (API Key Required):\033[0m"
     AI_FOUND=0
-    for cmd in aider opencode llm interpreter claude; do
+    for cmd in aider opencode llm sgpt claude; do
         if command -v $cmd >/dev/null 2>&1; then
             echo "  \033[32m✓\033[0m $cmd"
             AI_FOUND=1
@@ -324,7 +321,7 @@ show_tools() {
     
     # Check pip-installed tools that might not be in PATH
     if command -v pip3 >/dev/null 2>&1; then
-        for pkg in aider-chat llm open-interpreter; do
+        for pkg in aider-chat llm shell-gpt; do
             if pip3 show $pkg >/dev/null 2>&1; then
                 # Only show if binary not found above
                 BIN_NAME=$(echo $pkg | cut -d'-' -f1)
@@ -362,7 +359,7 @@ show_tools() {
     fi
 
     echo ""
-    echo "\033[38;5;243mRun 'rexec tools' anytime to see this list\033[0m"
+    echo "\033[38;5;243mRun 'ai-help' for AI tools usage guide\033[0m"
     echo ""
 }
 
@@ -456,9 +453,107 @@ setup_path
 save_role_info
 echo "Role setup complete!"
 
-# Special handling for Vibe Coder role - install AI CLI tools
+# Install free AI tools for ALL roles (no API key required)
+install_free_ai_tools() {
+    echo "Installing free AI terminal tools..."
+    export HOME="${HOME:-/root}"
+    mkdir -p "$HOME/.local/bin"
+    
+    # tgpt - Free GPT in terminal (no API key, uses free providers)
+    # https://github.com/aandrew-me/tgpt
+    echo "  Installing tgpt (free terminal GPT)..."
+    ARCH=$(uname -m)
+    case "$ARCH" in
+        x86_64|amd64) TGPT_ARCH="amd64" ;;
+        aarch64|arm64) TGPT_ARCH="arm64" ;;
+        *) TGPT_ARCH="" ;;
+    esac
+    if [ -n "$TGPT_ARCH" ]; then
+        TGPT_URL="https://github.com/aandrew-me/tgpt/releases/latest/download/tgpt-linux-${TGPT_ARCH}"
+        curl -fsSL "$TGPT_URL" -o "$HOME/.local/bin/tgpt" 2>/dev/null && \
+            chmod +x "$HOME/.local/bin/tgpt" && echo "    ✓ tgpt installed" || echo "    ! tgpt install failed"
+    fi
+    
+    # aichat - Feature-rich AI CLI chat (supports local models via ollama)
+    # https://github.com/sigoden/aichat
+    echo "  Installing aichat (AI terminal chat)..."
+    case "$ARCH" in
+        x86_64|amd64) 
+            if ldd /bin/ls 2>/dev/null | grep -q musl; then
+                AICHAT_ARCH="x86_64-unknown-linux-musl"
+            else
+                AICHAT_ARCH="x86_64-unknown-linux-gnu"
+            fi
+            ;;
+        aarch64|arm64)
+            if ldd /bin/ls 2>/dev/null | grep -q musl; then
+                AICHAT_ARCH="aarch64-unknown-linux-musl"
+            else
+                AICHAT_ARCH="aarch64-unknown-linux-gnu"
+            fi
+            ;;
+        *) AICHAT_ARCH="" ;;
+    esac
+    if [ -n "$AICHAT_ARCH" ]; then
+        AICHAT_VERSION=$(curl -s https://api.github.com/repos/sigoden/aichat/releases/latest 2>/dev/null | grep '"tag_name"' | sed -E 's/.*"v([^"]+)".*/\1/')
+        [ -z "$AICHAT_VERSION" ] && AICHAT_VERSION="0.26.0"
+        AICHAT_URL="https://github.com/sigoden/aichat/releases/download/v${AICHAT_VERSION}/aichat-v${AICHAT_VERSION}-${AICHAT_ARCH}.tar.gz"
+        curl -fsSL "$AICHAT_URL" 2>/dev/null | tar -xzf - -C "$HOME/.local/bin" 2>/dev/null && \
+            chmod +x "$HOME/.local/bin/aichat" && echo "    ✓ aichat installed" || echo "    ! aichat install failed"
+    fi
+    
+    # mods - AI for the command line (works great with ollama)
+    # https://github.com/charmbracelet/mods
+    echo "  Installing mods (AI for CLI)..."
+    case "$ARCH" in
+        x86_64|amd64) MODS_ARCH="Linux_x86_64" ;;
+        aarch64|arm64) MODS_ARCH="Linux_arm64" ;;
+        *) MODS_ARCH="" ;;
+    esac
+    if [ -n "$MODS_ARCH" ]; then
+        MODS_VERSION=$(curl -s https://api.github.com/repos/charmbracelet/mods/releases/latest 2>/dev/null | grep '"tag_name"' | sed -E 's/.*"v([^"]+)".*/\1/')
+        [ -z "$MODS_VERSION" ] && MODS_VERSION="1.6.0"
+        MODS_URL="https://github.com/charmbracelet/mods/releases/download/v${MODS_VERSION}/mods_${MODS_VERSION}_${MODS_ARCH}.tar.gz"
+        curl -fsSL "$MODS_URL" 2>/dev/null | tar -xzf - -C "$HOME/.local/bin" mods 2>/dev/null && \
+            chmod +x "$HOME/.local/bin/mods" && echo "    ✓ mods installed" || echo "    ! mods install failed"
+    fi
+    
+    # Create helper script to show AI tools usage
+    cat > "$HOME/.local/bin/ai-help" << 'AIHELP'
+#!/bin/sh
+echo ""
+echo "\033[1;36m=== Free AI Terminal Tools ===\033[0m"
+echo ""
+echo "\033[1;33mNo API Key Required:\033[0m"
+echo "  tgpt \"your question\"     - Free GPT (uses free providers)"
+echo "  tgpt -i                   - Interactive chat mode"
+echo "  tgpt -c \"code question\"  - Code generation mode"
+echo ""
+echo "\033[1;33mWith Ollama (local LLM):\033[0m"
+echo "  # First install ollama: curl -fsSL https://ollama.com/install.sh | sh"
+echo "  # Then pull a model: ollama pull llama3.2"
+echo "  aichat                    - Interactive AI chat"
+echo "  echo \"question\" | mods   - Pipe to AI"
+echo "  mods -m ollama:llama3.2   - Use specific model"
+echo ""
+echo "\033[1;33mWith API Keys:\033[0m"
+echo "  aider                     - AI pair programming"
+echo "  opencode                  - AI coding assistant"
+echo "  llm \"question\"           - CLI for various LLMs"
+echo ""
+echo "\033[38;5;243mRun 'rexec tools' to see all installed tools\033[0m"
+echo ""
+AIHELP
+    chmod +x "$HOME/.local/bin/ai-help"
+    cp "$HOME/.local/bin/ai-help" /home/user/.local/bin/ai-help 2>/dev/null || true
+}
+
+# Install free AI tools for all roles
+install_free_ai_tools
+
+# Special handling for Vibe Coder role - install additional AI CLI tools
 if [ "%s" = "Vibe Coder" ]; then
-    echo "Installing AI CLI tools..."
+    echo "Installing additional AI coding tools..."
     
     # Ensure pip is available and upgrade it
     if command -v pip3 >/dev/null 2>&1; then
@@ -481,26 +576,26 @@ if [ "%s" = "Vibe Coder" ]; then
         # Upgrade pip first
         $PIP install --quiet --break-system-packages --upgrade pip 2>/dev/null || $PIP install --quiet --upgrade pip 2>/dev/null || true
         
-        # Install aider - the main AI pair programming tool
-        echo "Installing aider (AI pair programming)..."
-        $PIP install --quiet --break-system-packages aider-chat 2>/dev/null || $PIP install --quiet aider-chat 2>/dev/null || echo "  Warning: aider install failed"
+        # Install aider - the main AI pair programming tool (needs API key)
+        echo "  Installing aider (AI pair programming)..."
+        $PIP install --quiet --break-system-packages aider-chat 2>/dev/null || $PIP install --quiet aider-chat 2>/dev/null || echo "    ! aider install failed"
 
         # Install llm - versatile CLI for LLMs
-        echo "Installing llm (CLI for LLMs)..."
-        $PIP install --quiet --break-system-packages llm 2>/dev/null || $PIP install --quiet llm 2>/dev/null || echo "  Warning: llm install failed"
+        echo "  Installing llm (CLI for LLMs)..."
+        $PIP install --quiet --break-system-packages llm 2>/dev/null || $PIP install --quiet llm 2>/dev/null || echo "    ! llm install failed"
 
-        # Install Open Interpreter
-        echo "Installing Open Interpreter..."
-        $PIP install --quiet --break-system-packages open-interpreter 2>/dev/null || $PIP install --quiet open-interpreter 2>/dev/null || echo "  Warning: interpreter install failed"
+        # Install shell-gpt - another great CLI tool
+        echo "  Installing shell-gpt (sgpt)..."
+        $PIP install --quiet --break-system-packages shell-gpt 2>/dev/null || $PIP install --quiet shell-gpt 2>/dev/null || echo "    ! sgpt install failed"
     fi
 
     # Install opencode (sst/opencode) - binary release
-    echo "Installing opencode (AI coding assistant)..."
+    echo "  Installing opencode (AI coding assistant)..."
     install_opencode() {
         export HOME="${HOME:-/root}"
         
         if command -v opencode >/dev/null 2>&1; then
-            echo "  opencode already installed"
+            echo "    ✓ opencode already installed"
             return 0
         fi
         
@@ -521,7 +616,7 @@ if [ "%s" = "Vibe Coder" ]; then
                 fi
                 ;;
             *)
-                echo "  Unsupported architecture: $ARCH"
+                echo "    ! Unsupported architecture: $ARCH"
                 return 1
                 ;;
         esac
@@ -533,24 +628,27 @@ if [ "%s" = "Vibe Coder" ]; then
         
         mkdir -p "$HOME/.local/bin"
         curl -fsSL "$OPENCODE_URL" 2>/dev/null | tar -xzf - -C "$HOME/.local/bin" 2>/dev/null && \
-            chmod +x "$HOME/.local/bin/opencode" && echo "  opencode installed" || echo "  Warning: opencode install failed"
+            chmod +x "$HOME/.local/bin/opencode" && echo "    ✓ opencode installed" || echo "    ! opencode install failed"
     }
     install_opencode
 
     echo ""
-    echo "\033[1;32m=== Vibe Coder Tools Installed ===\033[0m"
+    echo "\033[1;32m=== Vibe Coder AI Tools ===\033[0m"
     echo ""
-    echo "  \033[1;36mAI Coding:\033[0m"
-    command -v aider >/dev/null 2>&1 && echo "    • aider      - AI pair programming" || echo "    • aider      - (run: pip3 install aider-chat)"
-    command -v opencode >/dev/null 2>&1 && echo "    • opencode   - AI coding assistant" || true
-    command -v llm >/dev/null 2>&1 && echo "    • llm        - CLI for various LLMs" || true
-    command -v interpreter >/dev/null 2>&1 && echo "    • interpreter- Open Interpreter" || true
+    echo "  \033[1;36mFree (No API Key):\033[0m"
+    command -v tgpt >/dev/null 2>&1 && echo "    ✓ tgpt      - Free terminal GPT" || true
+    command -v aichat >/dev/null 2>&1 && echo "    ✓ aichat    - AI chat (supports ollama)" || true
+    command -v mods >/dev/null 2>&1 && echo "    ✓ mods      - AI for CLI" || true
     echo ""
-    echo "  \033[1;33mSetup API Keys:\033[0m"
-    echo "    export ANTHROPIC_API_KEY=your-key"
-    echo "    export OPENAI_API_KEY=your-key"
+    echo "  \033[1;36mWith API Keys:\033[0m"
+    command -v aider >/dev/null 2>&1 && echo "    ✓ aider     - AI pair programming" || echo "    · aider     - pip3 install aider-chat"
+    command -v opencode >/dev/null 2>&1 && echo "    ✓ opencode  - AI coding assistant" || true
+    command -v llm >/dev/null 2>&1 && echo "    ✓ llm       - CLI for various LLMs" || true
+    command -v sgpt >/dev/null 2>&1 && echo "    ✓ sgpt      - Shell GPT" || true
     echo ""
-    echo "  Run '\033[1;37mrexec tools\033[0m' to see all installed tools"
+    echo "  \033[1;33mQuick Start:\033[0m"
+    echo "    tgpt \"how do I list files?\"   # Free, no setup"
+    echo "    ai-help                        # Show all AI tools"
     echo ""
 fi
 `, role.Name, packages, role.Name, role.Name)

@@ -337,19 +337,17 @@ ZSHRC
 create_theme() {
     export HOME="${HOME:-/root}"
     mkdir -p "$HOME/.oh-my-zsh/custom/themes"
+    # Simple theme that works reliably - avoid complex escape sequences
     cat > "$HOME/.oh-my-zsh/custom/themes/rexec.zsh-theme" << 'THEME'
-ZSH_THEME_GIT_PROMPT_PREFIX="%%F{magenta}git:(%%F{green}"
-ZSH_THEME_GIT_PROMPT_SUFFIX="%%f "
-ZSH_THEME_GIT_PROMPT_DIRTY="%%F{magenta}) %%F{red}*"
-ZSH_THEME_GIT_PROMPT_CLEAN="%%F{magenta}) %%F{green}ok"
-
-PROMPT='%%F{cyan}%%n%%f@%%F{blue}%%m%%f %%F{yellow}%%~%%f$(git_prompt_info) %%F{green}$%%f '
+# Simple prompt: user@host dir $
+PROMPT='%n@%m %~ $ '
 RPROMPT=''
 THEME
 
     # Minimal theme (simpler, faster)
     cat > "$HOME/.oh-my-zsh/custom/themes/minimal.zsh-theme" << 'THEME'
-PROMPT='%%F{cyan}%%n%%f:%%F{yellow}%%~%%f %%F{green}$%%f '
+PROMPT='%n@%m %~ $ '
+RPROMPT=''
 THEME
 }
 
