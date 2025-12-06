@@ -294,7 +294,7 @@ do_install() {
     fi
     
     if [ -z "$PKG" ]; then
-        echo -e "${RED}Error: No package specified${NC}"
+        printf "${RED}Error: No package specified${NC}\n"
         echo "Usage: rexec install <package>"
         return 1
     fi
@@ -310,7 +310,7 @@ do_install() {
     if [ "$HAS_GUM" -eq 1 ]; then
         gum style --foreground 212 "Installing $PKG ($ACTUAL_PKG)..."
     else
-        echo -e "${CYAN}Installing $PKG ($ACTUAL_PKG)...${NC}"
+        printf "${CYAN}Installing $PKG ($ACTUAL_PKG)...${NC}\n"
     fi
     
     # Run install command
@@ -331,10 +331,10 @@ do_install() {
         if [ "$HAS_GUM" -eq 1 ]; then
             gum style --foreground 82 --bold "✓ $PKG installed successfully"
         else
-            echo -e "${GREEN}✓ $PKG installed successfully${NC}"
+            printf "${GREEN}✓ $PKG installed successfully${NC}\n"
         fi
     else
-        echo -e "${RED}✗ Failed to install $PKG${NC}"
+        printf "${RED}✗ Failed to install $PKG${NC}\n"
         return 1
     fi
 }
@@ -343,14 +343,14 @@ do_install() {
 do_uninstall() {
     PKG="$1"
     if [ -z "$PKG" ]; then
-        echo -e "${RED}Error: No package specified${NC}"
+        printf "${RED}Error: No package specified${NC}\n"
         return 1
     fi
     
     PM=$(detect_pkg_manager)
     ACTUAL_PKG=$(get_pkg_name "$PKG" "$PM")
     
-    echo -e "${CYAN}Uninstalling $PKG...${NC}"
+    printf "${CYAN}Uninstalling $PKG...${NC}\n"
     case "$PM" in
         apt) apt-get remove -y "$ACTUAL_PKG" ;;
         apk) apk del "$ACTUAL_PKG" ;;
@@ -369,12 +369,12 @@ do_search() {
     fi
     
     if [ -z "$TERM" ]; then
-        echo -e "${RED}Error: No search term specified${NC}"
+        printf "${RED}Error: No search term specified${NC}\n"
         return 1
     fi
 
     PM=$(detect_pkg_manager)
-    echo -e "${CYAN}Searching for '$TERM'...${NC}"
+    printf "${CYAN}Searching for '$TERM'...${NC}\n"
     case "$PM" in
         apt) apt-cache search "$TERM" | head -20 ;;
         apk) apk search "$TERM" | head -20 ;;
@@ -390,35 +390,35 @@ show_tools() {
     if [ "$HAS_GUM" -eq 1 ]; then
         gum style --border normal --padding "0 2" --foreground 212 "Installed Tools"
     else
-        echo -e "${CYYAN}=== Installed Tools ===${NC}"
+        printf "${CYAN}=== Installed Tools ===${NC}\n"
     fi
     
     # System
     echo ""
-    echo -e "${YELLOW}System:${NC}"
+    printf "${YELLOW}System:${NC}\n"
     if [ -f /tmp/.rexec_installing_system ]; then
         if [ "$HAS_GUM" -eq 1 ]; then
             gum style --foreground 243 "  (Installing system packages...)"
         else
-            echo -e "\033[38;5;243m  (Installing system packages...)\033[0m"
+            printf "\033[38;5;243m  (Installing system packages...)\033[0m\n"
         fi
     fi
     for cmd in zsh git curl wget vim nano htop jq tmux fzf ripgrep neofetch; do
-        if command -v $cmd >/dev/null 2>&1; then echo -e "  ${GREEN}✓${NC} $cmd"; fi
+        if command -v $cmd >/dev/null 2>&1; then printf "  ${GREEN}✓${NC} $cmd\n"; fi
     done
     
     # AI
     echo ""
-    echo -e "${YELLOW}AI & Dev:${NC}"
+    printf "${YELLOW}AI & Dev:${NC}\n"
     if [ -f /tmp/.rexec_installing_ai ]; then
         if [ "$HAS_GUM" -eq 1 ]; then
             gum style --foreground 243 "  (Installing AI tools...)"
         else
-            echo -e "\033[38;5;243m  (Installing AI tools...)\033[0m"
+            printf "\033[38;5;243m  (Installing AI tools...)\033[0m\n"
         fi
     fi
     for cmd in python3 node go rustc docker kubectl tgpt aichat mods gum aider opencode llm; do
-        if command -v $cmd >/dev/null 2>&1; then echo -e "  ${GREEN}✓${NC} $cmd"; fi
+        if command -v $cmd >/dev/null 2>&1; then printf "  ${GREEN}✓${NC} $cmd\n"; fi
     done
     echo ""
 }
@@ -457,7 +457,7 @@ show_menu() {
 }
 
 show_help() {
-    echo -e "${CYAN}Rexec CLI v${VERSION}${NC}"
+    printf "${CYAN}Rexec CLI v${VERSION}${NC}\n"
     echo "Usage: rexec [command]"
     echo ""
     echo "Commands:"
