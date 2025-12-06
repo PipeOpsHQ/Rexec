@@ -1,11 +1,22 @@
 <script lang="ts">
-  import { canInstall, promptInstall } from '$stores/pwa';
+  import { canInstall, promptInstall, deferredPrompt } from '$stores/pwa';
+  import { onMount } from 'svelte';
 
   let installing = false;
 
+  onMount(() => {
+    // Debug: log state changes
+    const unsub = canInstall.subscribe(val => {
+      console.log('PWA: canInstall changed to:', val);
+    });
+    return unsub;
+  });
+
   async function handleInstall() {
+    console.log('PWA: Install button clicked');
     installing = true;
-    await promptInstall();
+    const result = await promptInstall();
+    console.log('PWA: Install result:', result);
     installing = false;
   }
 </script>
