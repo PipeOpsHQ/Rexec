@@ -292,8 +292,21 @@ func main() {
 		router.StaticFile("/apple-touch-icon.png", filepath.Join(webDir, "favicon.svg"))
 		router.StaticFile("/apple-touch-icon-precomposed.png", filepath.Join(webDir, "favicon.svg"))
 
+		// SPA routes - serve index.html for client-side routing
+		router.GET("/ai-tools", func(c *gin.Context) {
+			c.File(indexFile)
+		})
+		router.GET("/agentic", func(c *gin.Context) {
+			c.File(indexFile)
+		})
+
 		// Terminal URL routes - serve index.html for SPA routing
 		router.GET("/terminal/:id", func(c *gin.Context) {
+			c.File(indexFile)
+		})
+
+		// Join session route
+		router.GET("/join/:code", func(c *gin.Context) {
 			c.File(indexFile)
 		})
 

@@ -1,5 +1,6 @@
 <script lang="ts">
     import { createEventDispatcher } from "svelte";
+    import StatusIcon from "./icons/StatusIcon.svelte";
     
     const dispatch = createEventDispatcher<{
         navigate: { view: string };
@@ -17,7 +18,7 @@
     const useCases = [
         {
             title: "Autonomous Code Generation",
-            icon: "🤖",
+            iconType: "ai",
             description: "Let AI agents write, test, and refactor code autonomously. Describe what you want, and watch it build.",
             tools: ["aider", "opencode", "tgpt"],
             example: {
@@ -31,7 +32,7 @@
         },
         {
             title: "Automated Bug Fixing",
-            icon: "🔧",
+            iconType: "wrench",
             description: "Paste error logs, stack traces, or describe the bug. AI agents analyze and fix issues automatically.",
             tools: ["aider", "mods", "tgpt"],
             example: {
@@ -45,7 +46,7 @@
         },
         {
             title: "Code Review Agent",
-            icon: "👀",
+            iconType: "code",
             description: "Automated code reviews that catch bugs, suggest improvements, and ensure best practices.",
             tools: ["mods", "aichat", "llm"],
             example: {
@@ -59,7 +60,7 @@
         },
         {
             title: "Documentation Generator",
-            icon: "📚",
+            iconType: "info",
             description: "Automatically generate documentation, README files, API docs, and inline comments.",
             tools: ["aider", "mods", "tgpt"],
             example: {
@@ -73,7 +74,7 @@
         },
         {
             title: "DevOps Automation",
-            icon: "☸️",
+            iconType: "settings",
             description: "Generate Dockerfiles, Kubernetes manifests, CI/CD pipelines, and infrastructure as code.",
             tools: ["tgpt", "mods", "aichat"],
             example: {
@@ -87,7 +88,7 @@
         },
         {
             title: "Data Pipeline Assistant",
-            icon: "📊",
+            iconType: "chart",
             description: "Build ETL pipelines, write SQL queries, analyze data, and generate visualizations.",
             tools: ["aichat", "mods", "tgpt"],
             example: {
@@ -139,16 +140,18 @@
         </p>
         <div class="header-actions">
             <button class="btn btn-primary" on:click={handleTryNow}>
-                🤖 Start Building with Agents
+                <StatusIcon status="ai" size={14} />
+                <span>Start Building with Agents</span>
             </button>
             <button class="btn btn-secondary" on:click={goToAITools}>
-                🛠️ View All AI Tools →
+                <StatusIcon status="wrench" size={14} />
+                <span>View All AI Tools →</span>
             </button>
         </div>
     </div>
 
     <section class="workflows-section">
-        <h2>🔄 Agentic Workflows</h2>
+        <h2><StatusIcon status="workflow" size={20} /> Agentic Workflows</h2>
         <div class="workflows-grid">
             {#each workflows as workflow}
                 <div class="workflow-card">
@@ -168,14 +171,14 @@
     </section>
 
     <section class="use-cases-section">
-        <h2>💡 Agentic Use Cases</h2>
+        <h2><StatusIcon status="sparkles" size={20} /> Agentic Use Cases</h2>
         <p class="section-desc">Real-world examples of AI agents automating development tasks</p>
         
         <div class="use-cases-grid">
             {#each useCases as useCase}
                 <div class="use-case-card">
                     <div class="use-case-header">
-                        <span class="use-case-icon">{useCase.icon}</span>
+                        <span class="use-case-icon"><StatusIcon status={useCase.iconType} size={32} /></span>
                         <div>
                             <h3>{useCase.title}</h3>
                             <div class="use-case-tools">
@@ -189,7 +192,7 @@
                     
                     <div class="use-case-example">
                         <div class="example-header">
-                            <span class="example-icon">📋</span>
+                            <StatusIcon status="terminal" size={14} />
                             <span>Example: {useCase.example.scenario}</span>
                         </div>
                         <div class="example-commands">
@@ -207,7 +210,7 @@
     </section>
 
     <section class="getting-started-section">
-        <h2>🚀 Get Started in 60 Seconds</h2>
+        <h2><StatusIcon status="rocket" size={20} /> Get Started in 60 Seconds</h2>
         <div class="terminal-demo">
             <div class="terminal-header">
                 <span class="dot red"></span>
@@ -221,14 +224,14 @@
                     <span class="cmd">tgpt "create a todo app in Python with SQLite"</span>
                 </div>
                 <div class="term-output">
-                    <span class="ai-badge">🤖 AI</span> Here's a complete todo app with SQLite...
+                    <span class="ai-badge"><StatusIcon status="ai" size={12} /> AI</span> Here's a complete todo app with SQLite...
                 </div>
                 <div class="term-line">
                     <span class="prompt">$</span>
                     <span class="cmd">aider todo.py</span>
                 </div>
                 <div class="term-output">
-                    <span class="ai-badge">🤖 Aider</span> Added todo.py to the chat. What would you like to change?
+                    <span class="ai-badge"><StatusIcon status="ai" size={12} /> Aider</span> Added todo.py to the chat. What would you like to change?
                 </div>
                 <div class="term-line">
                     <span class="prompt">$</span>
@@ -244,10 +247,12 @@
         <p>No setup. No configuration. Just describe and build.</p>
         <div class="cta-buttons">
             <button class="btn btn-primary btn-lg" on:click={handleTryNow}>
-                🤖 Launch Agentic Terminal
+                <StatusIcon status="ai" size={16} />
+                <span>Launch Agentic Terminal</span>
             </button>
             <button class="btn btn-secondary btn-lg" on:click={goToAITools}>
-                📖 Explore All Tools
+                <StatusIcon status="info" size={16} />
+                <span>Explore All Tools</span>
             </button>
         </div>
     </section>

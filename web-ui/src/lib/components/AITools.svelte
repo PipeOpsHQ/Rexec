@@ -1,5 +1,6 @@
 <script lang="ts">
     import { createEventDispatcher } from "svelte";
+    import StatusIcon from "./icons/StatusIcon.svelte";
     
     const dispatch = createEventDispatcher<{
         navigate: { view: string };
@@ -17,7 +18,7 @@
     const freeTools = [
         {
             name: "tgpt",
-            icon: "🆓",
+            iconType: "free",
             tagline: "Free GPT in your terminal",
             description: "Ask questions, generate code, get explanations - all without an API key. Uses free AI providers.",
             examples: [
@@ -30,7 +31,7 @@
         },
         {
             name: "aichat",
-            icon: "💬",
+            iconType: "chat",
             tagline: "Feature-rich AI chat with Ollama support",
             description: "A powerful AI chat CLI that supports local models via Ollama, multiple providers, and advanced features like roles and sessions.",
             examples: [
@@ -43,7 +44,7 @@
         },
         {
             name: "mods",
-            icon: "⚡",
+            iconType: "zap",
             tagline: "Pipe anything to AI",
             description: "By Charm. Pipe any command output to AI for analysis, transformation, or explanation. Perfect for CLI workflows.",
             examples: [
@@ -59,7 +60,7 @@
     const proTools = [
         {
             name: "aider",
-            icon: "👨‍💻",
+            iconType: "code",
             tagline: "AI pair programming in your terminal",
             description: "The most popular AI coding assistant. Edit multiple files, understands your codebase, works with git. Supports Claude, GPT-4, and more.",
             examples: [
@@ -73,7 +74,7 @@
         },
         {
             name: "opencode",
-            icon: "🔧",
+            iconType: "wrench",
             tagline: "AI coding assistant by SST",
             description: "A terminal-based AI coding assistant with a beautiful TUI. Designed for developers who want a modern, fast coding experience.",
             examples: [
@@ -85,7 +86,7 @@
         },
         {
             name: "llm",
-            icon: "🤖",
+            iconType: "ai",
             tagline: "CLI for large language models",
             description: "Access various LLMs from the command line. Supports plugins for different providers and local models.",
             examples: [
@@ -99,7 +100,7 @@
         },
         {
             name: "sgpt",
-            icon: "🐚",
+            iconType: "terminal",
             tagline: "Shell GPT - AI in your shell",
             description: "Command-line productivity tool powered by AI. Generate shell commands, code, and get answers directly in your terminal.",
             examples: [
@@ -127,17 +128,19 @@
         </p>
         <div class="header-actions">
             <button class="btn btn-primary" on:click={handleTryNow}>
-                🚀 Try Now — Free
+                <StatusIcon status="rocket" size={14} />
+                <span>Try Now — Free</span>
             </button>
             <button class="btn btn-secondary" on:click={goToAgentic}>
-                🤖 Agentic Use Cases →
+                <StatusIcon status="ai" size={14} />
+                <span>Agentic Use Cases →</span>
             </button>
         </div>
     </div>
 
     <section class="tools-section">
         <div class="section-header">
-            <h2>🆓 Free Tools — No API Key Required</h2>
+            <h2><StatusIcon status="free" size={20} /> Free Tools — No API Key Required</h2>
             <p>These tools work immediately without any configuration. Just type and go.</p>
         </div>
         
@@ -145,7 +148,7 @@
             {#each freeTools as tool}
                 <div class="tool-card free">
                     <div class="tool-header">
-                        <span class="tool-icon">{tool.icon}</span>
+                        <span class="tool-icon"><StatusIcon status={tool.iconType} size={28} /></span>
                         <div class="tool-title">
                             <h3>{tool.name}</h3>
                             <span class="tool-tagline">{tool.tagline}</span>
@@ -166,7 +169,7 @@
                     
                     <div class="tool-features">
                         {#each tool.features as feature}
-                            <span class="feature-tag">✓ {feature}</span>
+                            <span class="feature-tag"><StatusIcon status="check" size={10} /> {feature}</span>
                         {/each}
                     </div>
                 </div>
@@ -176,7 +179,7 @@
 
     <section class="tools-section">
         <div class="section-header">
-            <h2>🔥 Pro Tools — Vibe Coder Environment</h2>
+            <h2><StatusIcon status="bolt" size={20} /> Pro Tools — Vibe Coder Environment</h2>
             <p>Advanced AI coding tools for serious development. Available in the Vibe Coder environment.</p>
         </div>
         
@@ -184,7 +187,7 @@
             {#each proTools as tool}
                 <div class="tool-card pro">
                     <div class="tool-header">
-                        <span class="tool-icon">{tool.icon}</span>
+                        <span class="tool-icon"><StatusIcon status={tool.iconType} size={28} /></span>
                         <div class="tool-title">
                             <h3>{tool.name}</h3>
                             <span class="tool-tagline">{tool.tagline}</span>
@@ -205,13 +208,13 @@
                     
                     <div class="tool-features">
                         {#each tool.features as feature}
-                            <span class="feature-tag">✓ {feature}</span>
+                            <span class="feature-tag"><StatusIcon status="check" size={10} /> {feature}</span>
                         {/each}
                     </div>
                     
                     {#if tool.requiresKey}
                         <div class="api-key-note">
-                            <span class="key-icon">🔑</span>
+                            <StatusIcon status="key" size={14} />
                             <span>Requires: <code>{tool.requiresKey}</code></span>
                         </div>
                     {/if}
@@ -221,7 +224,7 @@
     </section>
 
     <section class="quick-start-section">
-        <h2>⚡ Quick Start</h2>
+        <h2><StatusIcon status="zap" size={20} /> Quick Start</h2>
         <div class="quick-start-grid">
             <div class="quick-start-card">
                 <h3>1. Launch Terminal</h3>
@@ -242,7 +245,8 @@
         <h2>Ready to Code with AI?</h2>
         <p>Get a cloud terminal with all these tools in seconds.</p>
         <button class="btn btn-primary btn-lg" on:click={handleTryNow}>
-            🤖 Launch AI Terminal — Free
+            <StatusIcon status="ai" size={16} />
+            <span>Launch AI Terminal — Free</span>
         </button>
     </section>
 </div>

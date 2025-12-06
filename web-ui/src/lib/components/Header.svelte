@@ -132,13 +132,15 @@
             window.history.pushState({}, "", "/ai-tools");
             window.dispatchEvent(new PopStateEvent('popstate'));
         }}>
-            🤖 AI Tools
+            <StatusIcon status="ai" size={14} />
+            <span>AI Tools</span>
         </a>
         <a href="/agentic" class="nav-link" on:click|preventDefault={() => {
             window.history.pushState({}, "", "/agentic");
             window.dispatchEvent(new PopStateEvent('popstate'));
         }}>
-            ⚡ Agentic
+            <StatusIcon status="zap" size={14} />
+            <span>Agentic</span>
         </a>
     </nav>
 
