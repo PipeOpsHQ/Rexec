@@ -233,13 +233,19 @@ install_role_packages() {
         if command -v zsh >/dev/null 2>&1; then
             echo "Configuring zsh..."
     
-            # Ensure oh-my-zsh custom plugins directory exists
+            # Install Oh My Zsh
             export HOME="${HOME:-/root}"
-            ZSH_CUSTOM="${HOME}/.oh-my-zsh/custom"
-            mkdir -p "$ZSH_CUSTOM/plugins"
+            export ZSH="$HOME/.oh-my-zsh"
+            if [ ! -d "$ZSH" ]; then
+                echo "Installing Oh My Zsh..."
+                git clone --depth=1 https://github.com/ohmyzsh/ohmyzsh.git "$ZSH" 2>/dev/null || true
+            fi
     
-            # Install zsh plugins
+            # Install Plugins
+            ZSH_CUSTOM="$ZSH/custom"
+            mkdir -p "$ZSH_CUSTOM/plugins"
             echo "Installing zsh plugins..."
+            
             if [ ! -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ]; then
                 git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions "$ZSH_CUSTOM/plugins/zsh-autosuggestions" 2>/dev/null || true
             fi
@@ -249,9 +255,11 @@ install_role_packages() {
             if [ ! -d "$ZSH_CUSTOM/plugins/zsh-history-substring-search" ]; then
                 git clone --depth=1 https://github.com/zsh-users/zsh-history-substring-search "$ZSH_CUSTOM/plugins/zsh-history-substring-search" 2>/dev/null || true
             fi
+            if [ ! -d "$ZSH_CUSTOM/plugins/zsh-completions" ]; then
+                git clone --depth=1 https://github.com/zsh-users/zsh-completions "$ZSH_CUSTOM/plugins/zsh-completions" 2>/dev/null || true
+            fi
     
-            # Change default shell
-            if [ -f /etc/passwd ]; then
+            # Change default shell            if [ -f /etc/passwd ]; then
                 ZSH_PATH=$(which zsh)
                 sed -i "s|root:.*:/bin/.*|root:x:0:0:root:/root:$ZSH_PATH|" /etc/passwd 2>/dev/null || true
             fi
