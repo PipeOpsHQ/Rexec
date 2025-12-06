@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
@@ -937,6 +938,8 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 
 	// Generate unique container name: rexec-{userID}-{containerName}
 	containerName := fmt.Sprintf("rexec-%s-%s", cfg.UserID, cfg.ContainerName)
+	// Consistent volume name for data persistence
+	volumeName := containerName
 
 	// Get the appropriate shell for this image - use /bin/sh as it's universally available
 	shell := ImageShells[cfg.ImageType]
@@ -1140,8 +1143,16 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 		}
 	} else {
 		// Standard Linux container setup
-		// Create /home/user directory on startup since we're not mounting a volume
-		// Add || true to chmod to prevent failure if permissions are restricted (e.g. read-only root)
+		// Mount persistent volume for user data
+		hostConfig.Mounts = []mount.Mount{
+			{
+				Type:   mount.TypeVolume,
+				Source: volumeName,
+				Target: "/home/user",
+			},
+		}
+
+		// Ensure permissions on volume mount
 		containerConfig.Entrypoint = []string{"/bin/sh", "-c", "mkdir -p /home/user && (chmod 777 /home/user || true) && exec " + shell}
 		containerConfig.WorkingDir = "/home/user"
 	}
