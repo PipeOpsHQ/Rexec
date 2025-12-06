@@ -115,22 +115,30 @@ const REXEC_BANNER =
   "\x1b[0m\x1b[38;5;243m  Terminal as a Service · rexec.dev\x1b[0m\r\n" +
   "\x1b[38;5;243m  Run 'rexec tools' to see available tools\x1b[0m\r\n\r\n";
 
-// Helper to map macOS Command key to Control key (mirroring native terminal behavior)
-// This allows using Cmd+L, Cmd+K, etc. as Ctrl+L, Ctrl+K
-function createMacKeyHandler(term: Terminal) {
+// Helper to handle custom key events (prevent browser defaults, map macOS keys)
+function createCustomKeyHandler(term: Terminal) {
   return (event: KeyboardEvent): boolean => {
-    // Only handle keydown events
     if (event.type !== 'keydown') return true;
-    
-    // Check if running on macOS - robust check
+
     const platform = typeof navigator !== 'undefined' ? (navigator.platform || '') : '';
     const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
     const isMac = /Mac|iPod|iPhone|iPad/.test(platform) || /Macintosh/.test(userAgent);
-    
-    if (!isMac) return true;
 
-    // If Command (Meta) is pressed without other modifiers
-    if (event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey) {
+    // Prevent browser defaults for common terminal shortcuts on ALL platforms
+    // Ctrl+S (save/xoff), Ctrl+P (print/up), Ctrl+F (find/forward), Ctrl+R (refresh/search), etc.
+    if (event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey) {
+        const key = event.key.toLowerCase();
+        // Block browser defaults for keys essential to terminal usage
+        const preventedKeys = ['s', 'p', 'f', 'r', 'o', 'g', 'b', 'h', 'i'];
+        if (preventedKeys.includes(key)) {
+             event.preventDefault();
+             // Return true to let xterm process it
+             return true;
+        }
+    }
+
+    // macOS specific handling: Map Cmd+Key -> Ctrl+Key
+    if (isMac && event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey) {
         const key = event.key.toLowerCase();
         
         // Preserve standard clipboard shortcuts (Cmd+C, Cmd+V)
@@ -412,8 +420,8 @@ function createTerminalStore() {
       terminal.loadAddon(unicode11Addon);
       terminal.unicode.activeVersion = "11";
       
-      // Attach macOS Command key handler
-      terminal.attachCustomKeyEventHandler(createMacKeyHandler(terminal));
+      // Attach custom key handler (browser overrides + macOS mapping)
+      terminal.attachCustomKeyEventHandler(createCustomKeyHandler(terminal));
 
       // WebGL addon will be loaded after terminal is attached to DOM
 
@@ -1732,8 +1740,8 @@ function createTerminalStore() {
       newTerminal.loadAddon(unicode11Addon);
       newTerminal.unicode.activeVersion = "11";
       
-      // Attach macOS Command key handler
-      newTerminal.attachCustomKeyEventHandler(createMacKeyHandler(newTerminal));
+      // Attach custom key handler (browser overrides + macOS mapping)
+      newTerminal.attachCustomKeyEventHandler(createCustomKeyHandler(newTerminal));
 
       const paneId = this._generatePaneId();
       const newPane: SplitPane = {
