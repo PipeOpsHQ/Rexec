@@ -360,10 +360,42 @@
         }
     }
 
+    // Global keyboard shortcuts
+    function handleGlobalKeydown(event: KeyboardEvent) {
+        // Only handle Alt key combinations to avoid conflict with browser/terminal
+        if (!event.altKey) return;
+
+        // Number keys 1-9 for tab switching
+        if (event.key >= '1' && event.key <= '9') {
+            const index = parseInt(event.key) - 1;
+            if (index >= 0 && index < dockedSessions.length) {
+                event.preventDefault();
+                setActive(dockedSessions[index][0]);
+            }
+            return;
+        }
+
+        switch (event.key.toLowerCase()) {
+            case 'd': // Alt+D: Toggle Dock/Float
+                event.preventDefault();
+                toggleView();
+                break;
+            case 'f': // Alt+F: Toggle Fullscreen
+                event.preventDefault();
+                toggleFullscreen();
+                break;
+            case 'm': // Alt+M: Minimize
+                event.preventDefault();
+                if (isMinimized) restore(); else minimize();
+                break;
+        }
+    }
+
     // Window event listeners
     onMount(() => {
         // Listen for container deletions
         window.addEventListener("container-deleted", handleContainerDeleted);
+        window.addEventListener("keydown", handleGlobalKeydown);
 
         // Force docked mode on mobile
         if (isMobile && $isFloating) {
@@ -402,6 +434,7 @@
         window.removeEventListener("mouseup", handleTabDragEnd);
         window.removeEventListener("mousemove", handleDetachedMouseMove);
         window.removeEventListener("mouseup", handleDetachedMouseUp);
+        window.removeEventListener("keydown", handleGlobalKeydown);
     });
 </script>
 
