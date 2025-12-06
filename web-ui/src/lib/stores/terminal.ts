@@ -114,6 +114,44 @@ const REXEC_BANNER =
   "  ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚══════╝ ╚═════╝\r\n" +
   "\x1b[0m\x1b[38;5;243m  Terminal as a Service · rexec.dev\x1b[0m\r\n\r\n";
 
+// Helper to map macOS Command key to Control key (mirroring native terminal behavior)
+// This allows using Cmd+L, Cmd+K, etc. as Ctrl+L, Ctrl+K
+function createMacKeyHandler(term: Terminal) {
+  return (event: KeyboardEvent): boolean => {
+    // Only handle keydown events
+    if (event.type !== 'keydown') return true;
+    
+    // Check if running on macOS
+    const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+    if (!isMac) return true;
+
+    // If Command (Meta) is pressed without other modifiers
+    if (event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey) {
+        const key = event.key.toLowerCase();
+        
+        // Preserve standard clipboard shortcuts (Cmd+C, Cmd+V)
+        // Let the browser/xterm handle these naturally
+        if (key === 'c' || key === 'v') return true;
+        
+        // Map A-Z keys: Cmd+X -> Ctrl+X
+        if (key.length === 1 && key >= 'a' && key <= 'z') {
+             // Calculate control character (a=1, z=26)
+             const charCode = key.charCodeAt(0) - 96;
+             
+             // Prevent default browser actions (e.g., Cmd+S, Cmd+F, Cmd+P)
+             event.preventDefault();
+             
+             // Send control character to terminal
+             term.input(String.fromCharCode(charCode));
+             
+             // Stop xterm from processing the original event
+             return false;
+        }
+    }
+    return true;
+  };
+}
+
 // Calculate responsive font size based on screen dimensions
 function getResponsiveFontSize(): number {
   if (typeof window === "undefined") return 10;
@@ -361,6 +399,10 @@ function createTerminalStore() {
       const unicode11Addon = new Unicode11Addon();
       terminal.loadAddon(unicode11Addon);
       terminal.unicode.activeVersion = "11";
+      
+      // Attach macOS Command key handler
+      terminal.attachCustomKeyEventHandler(createMacKeyHandler(terminal));
+
       // WebGL addon will be loaded after terminal is attached to DOM
 
       const sessionId = generateSessionId();
@@ -1591,6 +1633,9 @@ function createTerminalStore() {
       const unicode11Addon = new Unicode11Addon();
       newTerminal.loadAddon(unicode11Addon);
       newTerminal.unicode.activeVersion = "11";
+      
+      // Attach macOS Command key handler
+      newTerminal.attachCustomKeyEventHandler(createMacKeyHandler(newTerminal));
 
       const paneId = this._generatePaneId();
       const newPane: SplitPane = {
