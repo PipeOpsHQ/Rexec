@@ -33,6 +33,7 @@ export function initInstallPrompt() {
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt.set(e as BeforeInstallPromptEvent);
+    console.log('PWA: Install prompt captured, Install App button should now be visible');
   });
 
   // Listen for successful installation
