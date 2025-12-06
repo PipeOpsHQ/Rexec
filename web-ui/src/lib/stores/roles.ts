@@ -37,7 +37,7 @@ function createRolesStore() {
             update(s => ({ ...s, loading: true, error: null }));
 
             try {
-                const response = await api.get<{ roles: Role[] }>("/roles");
+                const response = await api.get<{ roles: Role[] }>("/api/roles");
                 if (response.data?.roles && Array.isArray(response.data.roles) && response.data.roles.length > 0) {
                     set({ roles: response.data.roles, loading: false, error: null });
                     loaded = true;
