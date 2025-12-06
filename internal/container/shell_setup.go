@@ -334,8 +334,7 @@ bindkey '^[OB' history-substring-search-down
 bindkey '^ ' autosuggest-accept
 bindkey '^[[Z' reverse-menu-complete
 
-source $ZSH/oh-my-zsh.sh
-
+# Aliases
 alias ll='ls -alF --color=auto'
 alias la='ls -A --color=auto'
 alias l='ls -CF --color=auto'
@@ -349,6 +348,10 @@ alias hg='history | grep'
 alias myip='curl -s ifconfig.me'
 %s
 %s
+
+unset PS1 # Ensure themes can set their own PS1
+source $ZSH/oh-my-zsh.sh
+
 ZSHRC
 }
 
