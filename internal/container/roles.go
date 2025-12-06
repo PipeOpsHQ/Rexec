@@ -264,7 +264,19 @@ install_role_packages() {
                 sed -i "s|root:.*:/bin/.*|root:x:0:0:root:/root:$ZSH_PATH|" /etc/passwd 2>/dev/null || true
             fi
     
-                    # Define ZSHRC content once\n        ZSHRC_CONTENT=$(cat << 'ZSHRC_TEMPLATE'\nexport TERM=xterm-256color\nexport LANG=en_US.UTF-8\nexport LC_ALL=en_US.UTF-8\nexport PATH=\"$HOME/.local/bin:$PATH\"\nexport ZSH=\"$HOME/.oh-my-zsh\"\n\nZSH_THEME=\"robbyrussell\"\n\nplugins=(git zsh-completions command-not-found colored-man-pages extract sudo)\n\nHISTSIZE=10000\nSAVEHIST=10000\nHISTFILE=~/.zsh_history\nsetopt HIST_IGNORE_ALL_DUPS HIST_FIND_NO_DUPS HIST_SAVE_NO_DUPS\nsetopt SHARE_HISTORY APPEND_HISTORY INC_APPEND_HISTORY PROMPT_SUBST\nunsetopt PROMPT_SP # Prevent partial line indicator (%)\n\nautoload -Uz compinit && compinit\n\nunset PS1 # Ensure themes can set their own PS1\nsource $ZSH/oh-my-zsh.sh\n\nalias ll='ls -alF --color=auto'\nalias ls='ls --color=auto'\nalias gs='git status'\n\nif [ -z \"$REXEC_WELCOMED\" ]; then\n    export REXEC_WELCOMED=1\n    echo \"\"\n    echo -e \"\\033[1;36m Welcome to Rexec Terminal \\033[0m\"\n    echo \"\"\n    echo -e \" \\033[1;33mQuick Commands:\\033[0m\"\n    echo \"   rexec tools    - See installed tools\"\n    echo \"   rexec info     - Container info\"\n    echo \"   ai-help        - AI tools guide\"\n    echo \"   tgpt \\\"question\\\" - Free AI (no API key)\"\n    echo \"\"\nfi\nZSHRC_TEMPLATE\n)\n\n        # Write to /root/.zshrc\n        echo \"$ZSHRC_CONTENT\" > /root/.zshrc\n\n        # Write to /home/user/.zshrc and correct HOME path\n        echo \"$ZSHRC_CONTENT\" | sed \"s|export HOME=\\\"\${HOME:-/root}\\\"|export HOME=\\\"/home/user\\\"|\" > /home/user/.zshrc\n        chown user:user /home/user/.zshrc 2>/dev/null || true\n        chmod 644 /home/user/.zshrc 2>/dev/null || true\n    fi    }
+                    # Define ZSHRC content once\n        ZSHRC_CONTENT=$(cat << 'ZSHRC_TEMPLATE'\nexport TERM=xterm-256color\nexport LANG=en_US.UTF-8\nexport LC_ALL=en_US.UTF-8\nexport PATH=\"$HOME/.local/bin:$PATH\"\nexport ZSH=\"$HOME/.oh-my-zsh\"\n\nZSH_THEME=\"robbyrussell\"\n\nplugins=(git zsh-completions command-not-found colored-man-pages extract sudo)\n\nHISTSIZE=10000\nSAVEHIST=10000\nHISTFILE=~/.zsh_history\nsetopt HIST_IGNORE_ALL_DUPS HIST_FIND_NO_DUPS HIST_SAVE_NO_DUPS\nsetopt SHARE_HISTORY APPEND_HISTORY INC_APPEND_HISTORY PROMPT_SUBST\nunsetopt PROMPT_SP # Prevent partial line indicator (%)\n\nautoload -Uz compinit && compinit\n\nunset PS1 # Ensure themes can set their own PS1\nsource $ZSH/oh-my-zsh.sh\n\nalias ll='ls -alF --color=auto'\nalias ls='ls --color=auto'\nalias gs='git status'\n\nif [ -z \"$REXEC_WELCOMED\" ]; then\n    export REXEC_WELCOMED=1\n    echo \"\"\n    echo -e \"\\033[1;36m Welcome to Rexec Terminal \\033[0m\"\n    echo \"\"\n    echo -e \" \\033[1;33mQuick Commands:\\033[0m\"\n    echo \"   rexec tools    - See installed tools\"\n    echo \"   rexec info     - Container info\"\n    echo \"   ai-help        - AI tools guide\"\n    echo \"   tgpt \\\"question\\\" - Free AI (no API key)\"\n    echo \"\"\nfi\nZSHRC_TEMPLATE\n)\n\n        # Write to /root/.zshrc\n        echo \"$ZSHRC_CONTENT\" > /root/.zshrc\n\n        # Write to /home/user/.zshrc and correct HOME path\n        echo \"$ZSHRC_CONTENT\" | sed \"s|export HOME=\\\"\${HOME:-/root}\\\"|export HOME=\\\"/home/user\\\"|\" > /home/user/.zshrc\n        chown user:user /home/user/.zshrc 2>/dev/null || true\n        chmod 644 /home/user/.zshrc 2>/dev/null || true\n    fi
+    ZSHRC
+        # Setup for user 'user'
+        if id "user" >/dev/null 2>&1; then
+            mkdir -p /home/user
+            cp /root/.zshrc /home/user/.zshrc
+            if [ -d /root/.oh-my-zsh ]; then
+                cp -r /root/.oh-my-zsh /home/user/.oh-my-zsh
+            fi
+            chown -R user:user /home/user
+        fi
+        fi
+    }
     
     # Create rexec CLI command with subcommands
 create_rexec_cli() {
