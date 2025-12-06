@@ -21,49 +21,49 @@ func AvailableRoles() []RoleInfo {
 			Name:        "The Minimalist",
 			Description: "I use Arch btw. Just give me a shell + free AI tools.",
 			Icon:        "🧘",
-			Packages:    []string{"zsh", "git", "curl", "wget", "vim", "nano", "htop", "jq", "neofetch", "tgpt", "aichat", "mods", "zsh-autosuggestions", "zsh-syntax-highlighting"},
+			Packages:    []string{"zsh", "git", "curl", "wget", "vim", "nano", "htop", "jq"},
 		},
 		{
 			ID:          "node",
 			Name:        "10x JS Ninja",
 			Description: "Ship fast, break things, npm install everything + free AI.",
 			Icon:        "🚀",
-			Packages:    []string{"zsh", "git", "nodejs", "npm", "yarn", "tgpt", "aichat", "mods", "zsh-autosuggestions", "zsh-syntax-highlighting"},
+			Packages:    []string{"zsh", "git", "nodejs", "npm", "yarn"},
 		},
 		{
 			ID:          "python",
 			Name:        "Data Wizard",
 			Description: "Import antigravity. I speak in list comprehensions + AI.",
 			Icon:        "🧙‍♂️",
-			Packages:    []string{"zsh", "git", "python3", "python3-pip", "python3-venv", "tgpt", "aichat", "mods", "zsh-autosuggestions", "zsh-syntax-highlighting"},
+			Packages:    []string{"zsh", "git", "python3", "python3-pip", "python3-venv"},
 		},
 		{
 			ID:          "go",
 			Name:        "The Gopher",
 			Description: "If err != nil { panic(err) }. Simplicity + AI tools.",
 			Icon:        "🐹",
-			Packages:    []string{"zsh", "git", "make", "go", "tgpt", "aichat", "mods", "zsh-autosuggestions", "zsh-syntax-highlighting"},
+			Packages:    []string{"zsh", "git", "make", "go"},
 		},
 		{
 			ID:          "neovim",
 			Name:        "Neovim God",
 			Description: "My config is longer than your code. Mouse? AI helps.",
 			Icon:        "⌨️",
-			Packages:    []string{"zsh", "git", "neovim", "ripgrep", "gcc", "make", "curl", "tgpt", "aichat", "mods", "zsh-autosuggestions", "zsh-syntax-highlighting"},
+			Packages:    []string{"zsh", "git", "neovim", "ripgrep", "gcc", "make", "curl"},
 		},
 		{
 			ID:          "devops",
 			Name:        "YAML Herder",
 			Description: "I don't write code, I write config. AI assists.",
 			Icon:        "☸️",
-			Packages:    []string{"zsh", "git", "docker-cli", "kubectl", "ansible", "terraform", "tgpt", "aichat", "mods", "zsh-autosuggestions", "zsh-syntax-highlighting"},
+			Packages:    []string{"zsh", "git", "docker-cli", "kubectl", "ansible", "terraform"},
 		},
 		{
 			ID:          "overemployed",
 			Name:        "Vibe Coder",
 			Description: "AI-powered coding: tgpt, aichat, mods, aider, opencode & more.",
 			Icon:        "🤖",
-			Packages:    []string{"zsh", "git", "tmux", "python3", "python3-pip", "python3-venv", "nodejs", "npm", "curl", "wget", "htop", "vim", "neovim", "ripgrep", "fzf", "jq", "tgpt", "aichat", "mods", "aider", "opencode", "llm", "sgpt", "zsh-autosuggestions", "zsh-syntax-highlighting"},
+			Packages:    []string{"zsh", "git", "tmux", "python3", "python3-pip", "python3-venv", "nodejs", "npm", "curl", "wget", "htop", "vim", "neovim", "ripgrep", "fzf", "jq"},
 		},
 	}
 }
@@ -213,6 +213,23 @@ install_role_packages
 # Configure Zsh if installed
 if command -v zsh >/dev/null 2>&1; then
     echo "Configuring zsh..."
+
+    # Ensure oh-my-zsh custom plugins directory exists
+    export HOME="${HOME:-/root}"
+    ZSH_CUSTOM="${HOME}/.oh-my-zsh/custom"
+    mkdir -p "$ZSH_CUSTOM/plugins"
+
+    # Install zsh plugins
+    echo "Installing zsh plugins..."
+    if [ ! -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ]; then
+        git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions "$ZSH_CUSTOM/plugins/zsh-autosuggestions" 2>/dev/null || true
+    fi
+    if [ ! -d "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ]; then
+        git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" 2>/dev/null || true
+    fi
+    if [ ! -d "$ZSH_CUSTOM/plugins/zsh-history-substring-search" ]; then
+        git clone --depth=1 https://github.com/zsh-users/zsh-history-substring-search "$ZSH_CUSTOM/plugins/zsh-history-substring-search" 2>/dev/null || true
+    fi
 
     # Change default shell
     if [ -f /etc/passwd ]; then
