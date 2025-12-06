@@ -220,8 +220,9 @@ if command -v zsh >/dev/null 2>&1; then
         sed -i "s|root:.*:/bin/.*|root:x:0:0:root:/root:$ZSH_PATH|" /etc/passwd 2>/dev/null || true
     fi
 
-    # Create minimal .zshrc
-    cat > /root/.zshrc << 'ZSHRC'
+    # Create minimal .zshrc only if it doesn't exist (preserve oh-my-zsh if installed)
+    if [ ! -f /root/.zshrc ]; then
+        cat > /root/.zshrc << 'ZSHRC'
 export TERM=xterm-256color
 export LANG=en_US.UTF-8
 export PATH="$HOME/.local/bin:$PATH"
@@ -257,6 +258,7 @@ if [ -z "$REXEC_WELCOMED" ]; then
     echo ""
 fi
 ZSHRC
+    fi
 fi
 
 # Create rexec CLI command with subcommands
@@ -822,6 +824,10 @@ REXECCLI
     chmod +x /root/.local/bin/rexec
     cp /root/.local/bin/rexec /home/user/.local/bin/rexec 2>/dev/null || true
     chmod +x /home/user/.local/bin/rexec 2>/dev/null || true
+    
+    # Symlink to global path to ensure it's always found
+    ln -sf /root/.local/bin/rexec /usr/local/bin/rexec 2>/dev/null || true
+    ln -sf /root/.local/bin/rexec /usr/bin/rexec 2>/dev/null || true
 }
 
 # Setup PATH for all roles - ensures installed tools are found
