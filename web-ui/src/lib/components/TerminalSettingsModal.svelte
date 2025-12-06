@@ -27,7 +27,7 @@
         minMemory: 256,
         maxMemory: isPaidUser ? 8192 : 4096, // 4GB for trial, 8GB for paid
         minCPU: 250,
-        maxCPU: isPaidUser ? 4000 : 2000, // 2 vCPU for trial, 4 for paid
+        maxCPU: 4000, // 4 vCPU for all users
         minDisk: 1024,
         maxDisk: isPaidUser ? 51200 : 16384, // 16GB for trial, 50GB for paid
     };
@@ -45,7 +45,7 @@
 
         // Clamp values to be within slider range
         const maxMem = isPaidUser ? 8192 : 4096;
-        const maxCpu = isPaidUser ? 4000 : 2000;
+        const maxCpu = 4000;
         const maxDisk = isPaidUser ? 51200 : 16384;
 
         memoryMB = Math.max(256, Math.min(rawMemory, maxMem));

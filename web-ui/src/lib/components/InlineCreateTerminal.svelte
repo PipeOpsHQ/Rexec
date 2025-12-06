@@ -33,7 +33,7 @@
         minMemory: 256,
         maxMemory: 4096, // 4GB for trial
         minCPU: 250,
-        maxCPU: 2000, // 2 vCPU for trial
+        maxCPU: 4000, // 4 vCPU for trial
         minDisk: 1024,
         maxDisk: 16384, // 16GB for trial
     };
