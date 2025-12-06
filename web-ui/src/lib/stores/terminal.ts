@@ -1696,8 +1696,7 @@ function createTerminalStore() {
       } else { // Default to vertical if not explicitly horizontal
         if (direction === 'up') {
           nextIndex = (currentIndex - 1 + panes.length) % panes.length;
-        } else if (direction === 'down
-') {
+        } else if (direction === 'down') {
           nextIndex = (currentIndex + 1) % panes.length;
         }
       }
