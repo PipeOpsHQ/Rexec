@@ -366,6 +366,11 @@ func (h *AuthHandler) OAuthCallback(c *gin.Context) {
 		user.LastName = userInfo.LastName
 		user.Avatar = userInfo.Avatar
 		user.Verified = userInfo.Verified
+
+		// Ensure OAuth users are at least on the free tier (upgrade from guest)
+		if user.Tier == "guest" {
+			user.Tier = "free"
+		}
 		
 		// Update PipeOps ID if not set
 		if user.PipeOpsID == "" {
