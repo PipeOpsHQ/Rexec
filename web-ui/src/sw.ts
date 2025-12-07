@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 import { precacheAndRoute, cleanupOutdatedCaches, createHandlerBoundToURL } from 'workbox-precaching';
 import { registerRoute, NavigationRoute } from 'workbox-routing';
-import { NetworkFirst } from 'workbox-strategies';
+import { NetworkFirst, StaleWhileRevalidate } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 
@@ -21,7 +21,23 @@ try {
   console.error("SW: Precache error", e);
 }
 
-// Network-first for API calls (don't cache WebSocket or real-time data)
+// Cache static API data (roles, images, plans) with StaleWhileRevalidate
+// These change infrequently, so we show cached version immediately and update in background
+registerRoute(
+  ({ url }) => 
+    url.pathname === '/api/roles' || 
+    url.pathname === '/api/images' || 
+    url.pathname === '/api/billing/plans',
+  new StaleWhileRevalidate({
+    cacheName: 'api-static-data',
+    plugins: [
+      new CacheableResponsePlugin({ statuses: [0, 200] }),
+      new ExpirationPlugin({ maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 }), // 24 hours
+    ],
+  })
+);
+
+// Network-first for other API calls (don't cache WebSocket or real-time data)
 registerRoute(
   ({ url }) => url.pathname.startsWith('/api/') && !url.pathname.includes('/ws'),
   new NetworkFirst({
