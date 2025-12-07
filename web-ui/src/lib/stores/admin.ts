@@ -1,9 +1,7 @@
 import { writable, derived, get } from "svelte/store";
-import { api, type ApiResponse } from "../utils/api";
+import { api, type ApiResponse, getWebSocketUrl } from "../utils/api";
 import type { User } from "./auth";
 import type { Container } from "./containers";
-import { PUBLIC_API_URL } from "$env/static/public";
-import { browser } from "$app/environment";
 
 // Types
 export interface AdminUser extends User {
@@ -82,7 +80,7 @@ function createAdminStore() {
       error: null,
     }));
 
-    if (!browser) return;
+    if (typeof window === 'undefined') return;
 
     const token = localStorage.getItem("rexec_token"); // Assuming token is stored here
     if (!token) {
@@ -91,10 +89,7 @@ function createAdminStore() {
       return;
     }
 
-    const wsProtocol = PUBLIC_API_URL.startsWith("https") ? "wss" : "ws";
-    const wsUrl = `${wsProtocol}://${
-      new URL(PUBLIC_API_URL).host
-    }/ws/admin/events?token=${token}`;
+    const wsUrl = getWebSocketUrl(`/ws/admin/events?token=${token}`);
 
     ws = new WebSocket(wsUrl);
     update((state) => ({ ...state, ws }));
