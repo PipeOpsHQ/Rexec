@@ -138,21 +138,27 @@ func (s *PKCEOAuthService) GetAuthorizationURL(state, codeChallenge string) stri
 
 // ExchangeCodeForToken exchanges an authorization code for tokens
 func (s *PKCEOAuthService) ExchangeCodeForToken(code, codeVerifier string) (*TokenResponse, error) {
-	// Use form-encoded data for token exchange (standard OAuth2)
-	data := url.Values{
-		"grant_type":    {"authorization_code"},
-		"code":          {code},
-		"redirect_uri":  {s.config.RedirectURI},
-		"client_id":     {s.config.ClientID},
-		"code_verifier": {codeVerifier},
+	// Use JSON data for token exchange (PipeOps specific)
+	tokenReq := map[string]string{
+		"grant_type":    "authorization_code",
+		"code":          code,
+		"redirect_uri":  s.config.RedirectURI,
+		"client_id":     s.config.ClientID,
+		"code_verifier": codeVerifier,
+		"token_format":  "jwt",
 	}
 
-	req, err := http.NewRequest("POST", s.config.BaseURL+"/oauth/token", strings.NewReader(data.Encode()))
+	jsonData, err := json.Marshal(tokenReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal token request: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", s.config.BaseURL+"/oauth/token", strings.NewReader(string(jsonData)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create token request: %w", err)
 	}
 
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := s.client.Do(req)
@@ -180,18 +186,23 @@ func (s *PKCEOAuthService) ExchangeCodeForToken(code, codeVerifier string) (*Tok
 
 // RefreshToken uses the refresh token to obtain a new access token
 func (s *PKCEOAuthService) RefreshToken(refreshToken string) (*TokenResponse, error) {
-	data := url.Values{
-		"grant_type":    {"refresh_token"},
-		"refresh_token": {refreshToken},
-		"client_id":     {s.config.ClientID},
+	refreshReq := map[string]string{
+		"grant_type":    "refresh_token",
+		"refresh_token": refreshToken,
+		"client_id":     s.config.ClientID,
 	}
 
-	req, err := http.NewRequest("POST", s.config.BaseURL+"/oauth/token", strings.NewReader(data.Encode()))
+	jsonData, err := json.Marshal(refreshReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal refresh request: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", s.config.BaseURL+"/oauth/token", strings.NewReader(string(jsonData)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create refresh request: %w", err)
 	}
 
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := s.client.Do(req)
