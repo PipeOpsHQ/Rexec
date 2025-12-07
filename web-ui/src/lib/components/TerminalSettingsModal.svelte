@@ -3,6 +3,7 @@
     import { fade, scale } from "svelte/transition";
     import { api, formatMemory, formatStorage, formatCPU } from "$utils/api";
     import { toast } from "$stores/toast";
+    import { userTier, subscriptionActive } from "$stores/auth";
     import { containers, type Container, type PortForward } from "$stores/containers";
     import { terminal } from "$stores/terminal";
     import ConfirmModal from "./ConfirmModal.svelte";
@@ -38,15 +39,24 @@
     let forwardToDelete: { id: string; name: string } | null = null;
 
 
-    // Trial/free tier limits - generous during 60-day trial period
-    $: resourceLimits = {
-        minMemory: 256,
-        maxMemory: isPaidUser ? 8192 : 4096, // 4GB for trial, 8GB for paid
-        minCPU: 250,
-        maxCPU: 4000, // 4 vCPU for all users
-        minDisk: 1024,
-        maxDisk: isPaidUser ? 51200 : 16384, // 16GB for trial, 50GB for paid
-    };
+    // Dynamic resource limits based on plan tier
+    $: resourceLimits = (() => {
+        if ($subscriptionActive) {
+            return { minMemory: 256, maxMemory: 4096, minCPU: 250, maxCPU: 4000, minDisk: 1024, maxDisk: 20480 };
+        }
+        switch ($userTier) {
+            case "guest":
+                return { minMemory: 256, maxMemory: 512, minCPU: 250, maxCPU: 500, minDisk: 1024, maxDisk: 2048 };
+            case "free":
+                return { minMemory: 256, maxMemory: 2048, minCPU: 250, maxCPU: 2000, minDisk: 1024, maxDisk: 10240 };
+            case "pro":
+                return { minMemory: 256, maxMemory: 4096, minCPU: 250, maxCPU: 4000, minDisk: 1024, maxDisk: 20480 };
+            case "enterprise":
+                return { minMemory: 256, maxMemory: 8192, minCPU: 250, maxCPU: 8000, minDisk: 1024, maxDisk: 51200 };
+            default: // Free fallback
+                return { minMemory: 256, maxMemory: 2048, minCPU: 250, maxCPU: 2000, minDisk: 1024, maxDisk: 10240 };
+        }
+    })();
 
     // Initialize form values when modal opens
     function initializeValues() {
@@ -59,15 +69,11 @@
         const rawCpu = container.resources?.cpu_shares ?? 512;
         const rawDisk = container.resources?.disk_mb ?? 2048;
 
-        // Clamp values to be within slider range
-        const maxMem = isPaidUser ? 8192 : 4096;
-        const maxCpu = 4000;
-        const maxDisk = isPaidUser ? 51200 : 16384;
-
-        memoryMB = Math.max(256, Math.min(rawMemory, maxMem));
-        cpuShares = Math.max(250, Math.min(rawCpu, maxCpu));
-                diskMB = Math.max(1024, Math.min(rawDisk, maxDisk));
-            }
+        // Clamp values to be within current plan limits
+        memoryMB = Math.max(resourceLimits.minMemory, Math.min(rawMemory, resourceLimits.maxMemory));
+        cpuShares = Math.max(resourceLimits.minCPU, Math.min(rawCpu, resourceLimits.maxCPU));
+        diskMB = Math.max(resourceLimits.minDisk, Math.min(rawDisk, resourceLimits.maxDisk));
+    }
         
             // React to modal opening
             $: if (show && container && !initialized) {
@@ -428,6 +434,12 @@
                         </svg>
                         Resource changes require terminal restart to take effect.
                     </p>
+                    
+                    {#if !isPaidUser && $userTier === 'free'}
+                         <p class="upgrade-hint">
+                            Upgrade to Pro for more resources (4GB RAM, 4 vCPU, 20GB Disk).
+                        </p>
+                    {/if}
                 {:else}
                     <div class="port-forwards-header">
                         <p class="section-description">
@@ -977,6 +989,14 @@
         height: 14px;
         flex-shrink: 0;
         color: #ffc800;
+    }
+    
+    .upgrade-hint {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-top: 8px;
+        text-align: center;
+        font-style: italic;
     }
 
     .modal-actions {

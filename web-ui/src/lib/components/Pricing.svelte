@@ -15,17 +15,98 @@
   }
   
   $: currentTier = $userTier || 'guest';
-  // Show all plans in page mode, filtering only applies to modal context logic if needed
-  // But actually the filter logic was: if guest, show all except free? Or similar.
-  // Original logic: guest sees all except 'free', others see all except 'guest'.
-  // For a public pricing page, we probably want to show ALL plans.
-  // Let's adjust logic: if mode is page, show all relevant plans (maybe filter 'guest' if we want to sell paid plans).
-  // Actually the original filter `p.id !== 'guest'` for non-guests makes sense.
-  // For public page, showing 'guest' plan is fine too.
-  // Let's keep existing filter logic for now but ensure it works.
-  $: plans = mode === 'page' 
-      ? allPlans.filter(p => p.id !== 'guest') // On pricing page, usually show standard tiers
-      : (currentTier === 'guest' ? allPlans.filter(p => p.id !== 'free') : allPlans.filter(p => p.id !== 'guest'));
+
+  // Restore allPlans definition
+  const allPlans = [
+    {
+      id: 'guest',
+      name: 'Anonymous',
+      price: 'Free',
+      period: '1 hour',
+      description: 'Instant access, no signup',
+      features: [
+        '1 terminal',
+        '512MB memory',
+        '0.5 vCPU',
+        '2GB storage',
+        '1 hour session limit',
+        'No persistence'
+      ],
+      cta: 'Continue as Guest',
+      current: false,
+      accent: false
+    },
+    {
+      id: 'free',
+      name: 'Free',
+      price: '$0',
+      period: 'forever',
+      description: 'For trying out Rexec with PipeOps',
+      features: [
+        '5 terminals',
+        '2GB memory',
+        '2 vCPU',
+        '10GB storage',
+        '50 hour session limit',
+        'Community support'
+      ],
+      cta: 'Upgrade to Free',
+      current: false,
+      accent: false
+    },
+    {
+      id: 'pro',
+      name: 'Pro',
+      price: '$12',
+      period: '/month',
+      description: 'For individual developers',
+      features: [
+        '10 terminals',
+        '4GB memory',
+        '4 vCPU',
+        '20GB storage',
+        'Unlimited sessions',
+        'Recording & playback',
+        'Share with 5 collaborators',
+        'Priority support'
+      ],
+      cta: 'Upgrade to Pro',
+      current: false,
+      accent: true
+    },
+    {
+      id: 'enterprise',
+      name: 'Team',
+      price: '$49',
+      period: '/month',
+      description: 'For teams & organizations',
+      features: [
+        'Unlimited terminals',
+        'Up to 32GB memory',
+        'Up to 16 vCPU',
+        '1TB storage',
+        'Persistent terminals',
+        'Team recordings library',
+        'Unlimited collaborators',
+        'GPU access',
+        'SSO & SAML',
+        'Dedicated support'
+      ],
+      cta: 'Contact Sales',
+      current: false,
+      accent: false
+    }
+  ];
+
+  // Helper to augment plans with current state
+  $: plans = (mode === 'page' 
+      ? allPlans.filter(p => p.id !== 'guest') 
+      : (currentTier === 'guest' ? allPlans.filter(p => p.id !== 'free') : allPlans.filter(p => p.id !== 'guest')))
+      .map(p => ({
+          ...p,
+          current: p.id === currentTier,
+          cta: p.id === currentTier ? 'Current Plan' : p.cta
+      }));
 </script>
 
 {#if isOpen || mode === 'page'}

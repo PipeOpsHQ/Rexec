@@ -3,6 +3,7 @@
     import { slide } from "svelte/transition";
     import { containers, type ProgressEvent } from "$stores/containers";
     import { roles } from "$stores/roles";
+    import { userTier, subscriptionActive } from "$stores/auth";
     import { api, formatMemory, formatStorage, formatCPU } from "$utils/api";
     import PlatformIcon from "./icons/PlatformIcon.svelte";
     import StatusIcon from "./icons/StatusIcon.svelte";
@@ -30,15 +31,31 @@
     let cpuShares = 512;
     let diskMB = 2048;
 
-    // Trial limits - generous during 60-day trial period
-    const resourceLimits = {
-        minMemory: 256,
-        maxMemory: 4096, // 4GB for trial
-        minCPU: 250,
-        maxCPU: 4000, // 4 vCPU for trial
-        minDisk: 1024,
-        maxDisk: 16384, // 16GB for trial
-    };
+    // Resource limits based on plan tier
+    $: resourceLimits = (() => {
+        if ($subscriptionActive) {
+            return { minMemory: 256, maxMemory: 4096, minCPU: 250, maxCPU: 4000, minDisk: 1024, maxDisk: 20480 };
+        }
+        switch ($userTier) {
+            case "guest":
+                return { minMemory: 256, maxMemory: 512, minCPU: 250, maxCPU: 500, minDisk: 1024, maxDisk: 2048 };
+            case "free":
+                return { minMemory: 256, maxMemory: 2048, minCPU: 250, maxCPU: 2000, minDisk: 1024, maxDisk: 10240 };
+            case "pro":
+                return { minMemory: 256, maxMemory: 4096, minCPU: 250, maxCPU: 4000, minDisk: 1024, maxDisk: 20480 };
+            case "enterprise":
+                return { minMemory: 256, maxMemory: 8192, minCPU: 250, maxCPU: 8000, minDisk: 1024, maxDisk: 51200 };
+            default: // Free fallback
+                return { minMemory: 256, maxMemory: 2048, minCPU: 250, maxCPU: 2000, minDisk: 1024, maxDisk: 10240 };
+        }
+    })();
+
+    // Clamp values when limits change
+    $: {
+        if (memoryMB > resourceLimits.maxMemory) memoryMB = resourceLimits.maxMemory;
+        if (cpuShares > resourceLimits.maxCPU) cpuShares = resourceLimits.maxCPU;
+        if (diskMB > resourceLimits.maxDisk) diskMB = resourceLimits.maxDisk;
+    }
 
     // Slider event handlers
     function handleMemoryChange(e: Event) {
