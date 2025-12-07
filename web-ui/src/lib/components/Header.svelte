@@ -147,7 +147,10 @@
     </button>
 
     <nav class="nav-links">
-        <button class="nav-link" on:click={() => dispatch("pricing")}>Pricing</button>
+        <button class="nav-link" on:click={() => dispatch("pricing")}>
+            <StatusIcon status="pricing" size={14} />
+            <span>Pricing</span>
+        </button>
     </nav>
 
     <nav class="nav-actions">
@@ -213,7 +216,7 @@
                                 dispatch("pricing");
                             }}
                         >
-                            <StatusIcon status="diamond" size={14} />
+                            <StatusIcon status="pricing" size={14} />
                             Pricing
                         </button>
 
@@ -356,7 +359,7 @@
             </div>
             <div class="mobile-nav-links">
                 <button class="mobile-nav-link" on:click={() => { closeMobileMenu(); dispatch("pricing"); }}>
-                    <StatusIcon status="diamond" size={16} /> Pricing
+                    <StatusIcon status="pricing" size={16} /> Pricing
                 </button>
                 <button class="mobile-nav-link" on:click={() => { closeMobileMenu(); dispatch("home"); }}>
                     <StatusIcon status="chart" size={16} /> Dashboard
