@@ -46,11 +46,18 @@ type TokenResponse struct {
 
 // UserInfo represents user information from PipeOps
 type UserInfo struct {
-	ID       int    `json:"id"`
-	Email    string `json:"email"`
-	Username string `json:"username,omitempty"`
-	Name     string `json:"name,omitempty"`
-	Picture  string `json:"picture,omitempty"`
+	ID                 int       `json:"id"`       // Server returns number
+	UUID               string    `json:"uuid"`     // Server returns UUID
+	Username           string    `json:"username,omitempty"` // May not be in response
+	Email              string    `json:"email"`
+	Name               string    `json:"name,omitempty"`                // May not be in response
+	FirstName          string    `json:"first_name,omitempty"`          // Server field
+	LastName           string    `json:"last_name,omitempty"`           // Server field
+	Avatar             string    `json:"avatar,omitempty"`              // Server field
+	Verified           bool      `json:"email_verified"`      // Server field (email_verified)
+	SubscriptionActive bool      `json:"subscription_active"` // Server field
+	Roles              []string  `json:"roles,omitempty"`               // May not be in response
+	Permissions        []string  `json:"permissions,omitempty"`         // May not be in response
 }
 
 // PKCEOAuthService handles OAuth2 authentication with PKCE
