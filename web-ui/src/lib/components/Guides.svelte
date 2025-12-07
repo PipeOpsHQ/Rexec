@@ -45,6 +45,13 @@
     ];
 </script>
 
+<svelte:head>
+    <title>Rexec Product Guide - Instant Terminal Architecture</title>
+    <meta name="description" content="Learn how Rexec delivers instant access to Linux terminals while silently provisioning complex environments in the background." />
+    <meta property="og:title" content="Rexec Product Guide" />
+    <meta property="og:description" content="Learn how Rexec delivers instant access to Linux terminals while silently provisioning complex environments in the background." />
+</svelte:head>
+
 <div class="guides-page">
     <div class="page-header">
         <div class="header-badge">

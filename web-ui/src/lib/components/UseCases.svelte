@@ -54,9 +54,38 @@
                 "Zero friction for workshop attendees",
                 "Focus on learning, not configuring"
             ]
+        },
+        {
+            title: "Technical Interviews",
+            icon: "terminal",
+            description: "Conduct real-time coding interviews in a real Linux environment, not a constrained web editor.",
+            points: [
+                "Full shell access for realistic assessment",
+                "Multiplayer mode for pair programming",
+                "Pre-install custom challenges/repos",
+                "Review candidate approach in real-time"
+            ]
+        },
+        {
+            title: "Open Source Review",
+            icon: "connected",
+            description: "Review Pull Requests by instantly spinning up the branch in a clean container. Test without polluting your local machine.",
+            points: [
+                "One-click environment for any PR",
+                "Verify build/test scripts safely",
+                "No dependency conflicts with local setup",
+                "Dispose immediately after review"
+            ]
         }
     ];
 </script>
+
+<svelte:head>
+    <title>Rexec Use Cases - The Future of Development</title>
+    <meta name="description" content="Discover how Rexec powers ephemeral development environments, AI agent execution, collaborative coding, and secure cloud access." />
+    <meta property="og:title" content="Rexec Use Cases" />
+    <meta property="og:description" content="Discover how Rexec powers ephemeral development environments, AI agent execution, collaborative coding, and secure cloud access." />
+</svelte:head>
 
 <div class="usecases-page">
     <div class="page-header">
