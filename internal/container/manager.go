@@ -1669,7 +1669,9 @@ func mergeLabels(base, custom map[string]string) map[string]string {
 // UserContainerLimit returns the max containers allowed for a tier
 func UserContainerLimit(tier string) int {
 	switch tier {
-	case "trial", "guest", "free": // Unified 60-day trial experience
+	case "guest":
+		return 1
+	case "trial", "free": // Unified 60-day trial experience
 		return 5 // Generous trial limit
 	case "pro":
 		return 10 // Increased pro limit

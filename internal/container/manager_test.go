@@ -11,7 +11,7 @@ func TestUserContainerLimit(t *testing.T) {
 		want int
 	}{
 		{"trial", 5},
-		{"guest", 5},
+		{"guest", 1},
 		{"free", 5},
 		{"pro", 10},
 		{"enterprise", 20},
