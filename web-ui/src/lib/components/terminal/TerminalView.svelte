@@ -6,6 +6,7 @@
     import InlineCreateTerminal from "../InlineCreateTerminal.svelte";
     import RecordingPanel from "../RecordingPanel.svelte";
     import CollabPanel from "../CollabPanel.svelte";
+    import SnippetsModal from "../SnippetsModal.svelte";
 
     // Track view mode changes to force terminal re-render
     let viewModeKey = 0;
@@ -13,25 +14,50 @@
     // Panel states
     let showRecordingsPanel = false;
     let showCollabPanel = false;
+    let showSnippetsModal = false;
     let panelContainerId: string | null = null;
     
     function handleOpenRecordings(e: CustomEvent<{containerId: string}>) {
-
         panelContainerId = e.detail.containerId;
         showRecordingsPanel = true;
         showCollabPanel = false;
+        showSnippetsModal = false;
     }
     
     function handleOpenCollab(e: CustomEvent<{containerId: string}>) {
-
         panelContainerId = e.detail.containerId;
         showCollabPanel = true;
         showRecordingsPanel = false;
+        showSnippetsModal = false;
+    }
+
+    function handleOpenSnippets(e: CustomEvent<{containerId: string}>) {
+        panelContainerId = e.detail.containerId;
+        showSnippetsModal = true;
+        showRecordingsPanel = false;
+        showCollabPanel = false;
+    }
+
+    function handleRunSnippet(e: CustomEvent<{snippet: any}>) {
+        const snippet = e.detail.snippet;
+        if (panelContainerId && snippet) {
+            // Find session by container ID
+            const session = Array.from($terminal.sessions.values()).find(s => s.containerId === panelContainerId);
+            if (session) {
+                // Send the snippet content to the terminal
+                terminal.sendInput(session.id, snippet.content);
+                // Auto-submit if it doesn't end with newline
+                if (!snippet.content.endsWith('\n')) {
+                    terminal.sendInput(session.id, '\n');
+                }
+            }
+        }
     }
     
     function closePanels() {
         showRecordingsPanel = false;
         showCollabPanel = false;
+        showSnippetsModal = false;
         panelContainerId = null;
     }
 
@@ -617,7 +643,7 @@
                 {:else}
                     {#each dockedSessions as [id, session] (`full-${viewModeKey}-${id}`)}
                         <div class="terminal-panel" class:active={id === activeId}>
-                            <TerminalPanel {session} on:openRecordings={handleOpenRecordings} on:openCollab={handleOpenCollab} />
+                            <TerminalPanel {session} on:openRecordings={handleOpenRecordings} on:openCollab={handleOpenCollab} on:openSnippets={handleOpenSnippets} />
                         </div>
                     {/each}
                 {/if}
@@ -764,7 +790,7 @@
                                 class="terminal-panel"
                                 class:active={id === activeId}
                             >
-                                <TerminalPanel {session} on:openRecordings={handleOpenRecordings} on:openCollab={handleOpenCollab} />
+                                <TerminalPanel {session} on:openRecordings={handleOpenRecordings} on:openCollab={handleOpenCollab} on:openSnippets={handleOpenSnippets} />
                             </div>
                         {/each}
                     {/if}
@@ -969,7 +995,7 @@
                                 class="terminal-panel"
                                 class:active={id === activeId}
                             >
-                                <TerminalPanel {session} on:openRecordings={handleOpenRecordings} on:openCollab={handleOpenCollab} />
+                                <TerminalPanel {session} on:openRecordings={handleOpenRecordings} on:openCollab={handleOpenCollab} on:openSnippets={handleOpenSnippets} />
                             </div>
                         {/each}
                     {/if}
@@ -1018,7 +1044,7 @@
             </div>
         </div>
         <div class="detached-body" id="detached-terminal-{id}">
-            <TerminalPanel {session} on:openRecordings={handleOpenRecordings} on:openCollab={handleOpenCollab} />
+            <TerminalPanel {session} on:openRecordings={handleOpenRecordings} on:openCollab={handleOpenCollab} on:openSnippets={handleOpenSnippets} />
         </div>
         <div
             class="detached-resize-handle"
@@ -1037,6 +1063,16 @@
 <!-- Collab Panel Modal -->
 {#if panelContainerId}
     <CollabPanel containerId={panelContainerId} isOpen={showCollabPanel} on:close={closePanels} />
+{/if}
+
+<!-- Snippets Modal -->
+{#if panelContainerId}
+    <SnippetsModal 
+        containerId={panelContainerId} 
+        show={showSnippetsModal} 
+        on:close={closePanels} 
+        on:run={handleRunSnippet} 
+    />
 {/if}
 
 <style>
