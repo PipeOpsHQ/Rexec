@@ -21,17 +21,12 @@ try {
   console.error("SW: Precache error", e);
 }
 
-// Fallback for other assets (scripts, styles, images) not in precache
-registerRoute(
-  ({ request }) => request.destination === 'script' || request.destination === 'style' || request.destination === 'image',
-  new StaleWhileRevalidate({
-    cacheName: 'assets-runtime-cache',
-    plugins: [
-      new CacheableResponsePlugin({ statuses: [0, 200] }),
-      new ExpirationPlugin({ maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 * 30 }), // 30 days
-    ],
-  })
-);
+// Fallback for other assets - let browser handle network request
+// This prevents SW errors from breaking script loading
+// registerRoute(
+//   ({ request }) => request.destination === 'script' || request.destination === 'style' || request.destination === 'image',
+//   new NetworkOnly()
+// );
 
 // Network-first for API calls (don't cache WebSocket or real-time data)
 registerRoute(
