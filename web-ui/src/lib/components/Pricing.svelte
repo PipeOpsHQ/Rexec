@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
+  import { userTier } from "$stores/auth";
   import StatusIcon from "./icons/StatusIcon.svelte";
   
   const dispatch = createEventDispatcher();
@@ -11,62 +12,67 @@
     dispatch('close');
   }
   
-  const plans = [
+  $: currentTier = $userTier || 'guest';
+
+  $: plans = [
     {
+      id: 'free',
       name: 'Free',
       price: '$0',
       period: 'forever',
       description: 'For trying out Rexec',
       features: [
-        '1 terminal',
-        '512MB memory',
-        '0.5 vCPU',
-        '2GB storage',
-        '1 hour limit',
+        '5 terminals',
+        '4GB memory',
+        '4 vCPU',
+        '16GB storage',
+        'Unlimited sessions',
         'Community support'
       ],
-      cta: 'Current Plan',
-      current: true,
+      cta: currentTier === 'free' ? 'Current Plan' : 'Sign in to Start',
+      current: currentTier === 'free',
       accent: false
     },
     {
+      id: 'pro',
       name: 'Pro',
       price: '$12',
       period: '/month',
       description: 'For individual developers',
       features: [
         '10 terminals',
-        'Up to 4GB memory',
-        'Up to 2 vCPU',
-        '20GB storage',
-        '24 hour limit',
+        'Up to 8GB memory',
+        'Up to 4 vCPU',
+        '50GB storage',
+        'Always-on terminals',
         'Recording & playback',
         'Share with 5 collaborators',
         'Priority support'
       ],
-      cta: 'Upgrade to Pro',
-      current: false,
+      cta: currentTier === 'pro' ? 'Current Plan' : 'Upgrade to Pro',
+      current: currentTier === 'pro',
       accent: true
     },
     {
+      id: 'enterprise',
       name: 'Team',
       price: '$49',
       period: '/month',
       description: 'For teams & organizations',
       features: [
         'Unlimited terminals',
-        'Up to 16GB memory',
-        'Up to 8 vCPU',
-        '100GB storage',
+        'Up to 32GB memory',
+        'Up to 16 vCPU',
+        '1TB storage',
         'Persistent terminals',
         'Team recordings library',
         'Unlimited collaborators',
-        'GPU access (coming soon)',
+        'GPU access',
         'SSO & SAML',
         'Dedicated support'
       ],
-      cta: 'Contact Sales',
-      current: false,
+      cta: currentTier === 'enterprise' ? 'Current Plan' : 'Contact Sales',
+      current: currentTier === 'enterprise',
       accent: false
     }
   ];
@@ -117,10 +123,6 @@
             </button>
           </div>
         {/each}
-      </div>
-      
-      <div class="pricing-footer">
-        <p><StatusIcon status="rocket" size={14} /> <strong>60-day trial:</strong> All features unlocked during our beta period</p>
       </div>
     </div>
   </div>
