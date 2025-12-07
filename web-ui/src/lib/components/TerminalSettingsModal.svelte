@@ -3,8 +3,9 @@
     import { fade, scale } from "svelte/transition";
     import { api, formatMemory, formatStorage, formatCPU } from "$utils/api";
     import { toast } from "$stores/toast";
-    import { containers, type Container } from "$stores/containers";
+    import { containers, type Container, type PortForward } from "$stores/containers";
     import { terminal } from "$stores/terminal";
+    import ConfirmModal from "./ConfirmModal.svelte";
 
     export let show: boolean = false;
     export let container: Container | null = null;
@@ -15,12 +16,26 @@
         updated: Container;
     }>();
 
+    let activeTab: "settings" | "port-forwards" = "settings";
     let name = "";
     let memoryMB = 512;
     let cpuShares = 512;
     let diskMB = 2048;
     let isSaving = false;
     let initialized = false;
+
+    // Port Forwarding state
+    let portForwards: PortForward[] = [];
+    let isLoadingForwards = false;
+    let showAddForwardModal = false;
+    let newForwardName = "";
+    let newContainerPort: number | string = "";
+    let newLocalPort: number | string = "";
+    let isAddingForward = false;
+
+    let showDeleteConfirm = false;
+    let forwardToDelete: { id: string; name: string } | null = null;
+
 
     // Trial/free tier limits - generous during 60-day trial period
     $: resourceLimits = {
@@ -50,106 +65,219 @@
 
         memoryMB = Math.max(256, Math.min(rawMemory, maxMem));
         cpuShares = Math.max(250, Math.min(rawCpu, maxCpu));
-        diskMB = Math.max(1024, Math.min(rawDisk, maxDisk));
-
-
-    }
-
-    // React to modal opening
-    $: if (show && container && !initialized) {
-        initializeValues();
-        initialized = true;
-    }
-
-    // Reset initialized flag when modal closes
-    $: if (!show) {
-        initialized = false;
-    }
-
-    function handleClose() {
-        dispatch("close");
-        show = false;
-    }
-
-    async function handleSave() {
-        if (!container) return;
-
-        // Use db_id if available, fallback to id (docker_id)
-        const containerId = container.db_id || container.id;
-        if (!containerId) {
-            toast.error("Terminal ID not found");
-            return;
-        }
-
-        isSaving = true;
-        try {
-            const response = await api.patch(
-                `/api/containers/${containerId}/settings`,
-                {
-                    name: name.trim(),
-                    memory_mb: memoryMB,
-                    cpu_shares: cpuShares,
-                    disk_mb: diskMB,
-                },
-            );
-
-            if (response.ok) {
-                const responseData = response.data as {
-                    container: Container;
-                    restarted?: boolean;
-                };
-
-
-
-                // If container was restarted, trigger immediate reconnect
-                if (responseData.restarted && responseData.container) {
-                    const oldContainerId = container.id;
-                    const newContainerId = responseData.container.id;
-
-
-
-                    // Immediate reconnect - container is already running with new ID
-                    if (oldContainerId && newContainerId) {
-                        toast.success(
-                            "Settings updated - reconnecting to new container...",
-                        );
-                        // Always use updateSessionContainerId - it handles both same and different IDs
-                        // and properly finds sessions by container ID (not session ID)
-                        terminal.updateSessionContainerId(
-                            oldContainerId,
-                            newContainerId,
-                        );
-                    }
-                } else {
-                    toast.success("Terminal settings updated");
-                }
-
-                if (responseData.container) {
-                    dispatch("updated", responseData.container);
-                }
-                handleClose();
-                // Refresh containers to get latest data
-                containers.fetchContainers();
-            } else {
-                toast.error(response.error || "Failed to update settings");
+                diskMB = Math.max(1024, Math.min(rawDisk, maxDisk));
             }
-        } catch (err) {
-            console.error("Settings update error:", err);
-            toast.error("Failed to update settings");
-        } finally {
-            isSaving = false;
-        }
-    }
-
-    function handleKeydown(e: KeyboardEvent) {
-        if (!show) return;
-        if (e.key === "Escape") {
-            handleClose();
-        }
-    }
+        
+            // React to modal opening
+            $: if (show && container && !initialized) {
+                initializeValues();
+                initialized = true;
+            }
+        
+            // Reset initialized flag when modal closes
+            $: if (!show) {
+                initialized = false;
+            }
+        
+            // Load port forwards when tab changes or modal opens
+            $: if (show && container && activeTab === "port-forwards") {
+                loadPortForwards();
+            }
+        
+            async function loadPortForwards() {
+                if (!container?.id) return;
+                isLoadingForwards = true;
+                const { data, error } = await api.get<{ forwards: PortForward[] }>(
+                    `/api/containers/${container.id}/port-forwards`,
+                );
+        
+                if (data) {
+                    portForwards = data.forwards || [];
+                } else if (error) {
+                    toast.error(error || "Failed to load port forwards");
+                }
+                isLoadingForwards = false;
+            }
+        
+            function openAddForwardModal() {
+                newForwardName = "";
+                newContainerPort = "";
+                newLocalPort = "";
+                showAddForwardModal = true;
+            }
+        
+            function closeAddForwardModal() {
+                showAddForwardModal = false;
+                newForwardName = "";
+                newContainerPort = "";
+                newLocalPort = "";
+            }
+        
+            async function addPortForward() {
+                if (!container?.id) return;
+                if (!newContainerPort || !newLocalPort) {
+                    toast.error("Please specify both container and local ports");
+                    return;
+                }
+        
+                const containerPortNum = parseInt(newContainerPort.toString(), 10);
+                const localPortNum = parseInt(newLocalPort.toString(), 10);
+        
+                if (
+                    isNaN(containerPortNum) ||
+                    containerPortNum <= 0 ||
+                    containerPortNum > 65535 ||
+                    isNaN(localPortNum) ||
+                    localPortNum <= 0 ||
+                    localPortNum > 65535
+                ) {
+                    toast.error("Invalid port numbers. Must be between 1 and 65535.");
+                    return;
+                }
+        
+                isAddingForward = true;
+                const { data, error } = await api.post<PortForward>(
+                    `/api/containers/${container.id}/port-forwards`,
+                    {
+                        name: newForwardName.trim(),
+                        container_id: container.id,
+                        container_port: containerPortNum,
+                        local_port: localPortNum,
+                    },
+                );
+        
+                if (data) {
+                    portForwards = [...portForwards, data];
+                    toast.success("Port forward added");
+                    closeAddForwardModal();
+                    // TODO: Start local proxy for this forward
+                } else {
+                    toast.error(error || "Failed to add port forward");
+                }
+                isAddingForward = false;
+            }
+        
+            function deletePortForward(id: string, name: string) {
+                forwardToDelete = { id, name };
+                showDeleteConfirm = true;
+            }
+        
+            async function confirmDeleteForward() {
+                if (!container?.id || !forwardToDelete) return;
+        
+                const { id } = forwardToDelete;
+                forwardToDelete = null;
+        
+                const { error } = await api.delete(
+                    `/api/containers/${container.id}/port-forwards/${id}`,
+                );
+        
+                if (!error) {
+                    portForwards = portForwards.filter((pf) => pf.id !== id);
+                    toast.success("Port forward stopped");
+                    // TODO: Stop local proxy for this forward
+                } else {
+                    toast.error(error || "Failed to stop port forward");
+                }
+            }
+        
+            function cancelDeleteForward() {
+                forwardToDelete = null;
+            }
+        
+            function handleClose() {
+                dispatch("close");
+                show = false;
+            }
+        
+            async function handleSave() {
+                if (!container) return;
+        
+                // Use db_id if available, fallback to id (docker_id)
+                const containerId = container.db_id || container.id;
+                if (!containerId) {
+                    toast.error("Terminal ID not found");
+                    return;
+                }
+        
+                isSaving = true;
+                try {
+                    const response = await api.patch(
+                        `/api/containers/${containerId}/settings`,
+                        {
+                            name: name.trim(),
+                            memory_mb: memoryMB,
+                            cpu_shares: cpuShares,
+                            disk_mb: diskMB,
+                        },
+                    );
+        
+                    if (response.ok) {
+                        const responseData = response.data as {
+                            container: Container;
+                            restarted?: boolean;
+                        };
+        
+                        // If container was restarted, trigger immediate reconnect
+                        if (responseData.restarted && responseData.container) {
+                            const oldContainerId = container.id;
+                            const newContainerId = responseData.container.id;
+        
+                            // Immediate reconnect - container is already running with new ID
+                            if (oldContainerId && newContainerId) {
+                                toast.success(
+                                    "Settings updated - reconnecting to new container...",
+                                );
+                                // Always use updateSessionContainerId - it handles both same and different IDs
+                                // and properly finds sessions by container ID (not session ID)
+                                terminal.updateSessionContainerId(
+                                    oldContainerId,
+                                    newContainerId,
+                                );
+                            }
+                        } else {
+                            toast.success("Terminal settings updated");
+                        }
+        
+                        if (responseData.container) {
+                            dispatch("updated", responseData.container);
+                        }
+                        handleClose();
+                        // Refresh containers to get latest data
+                        containers.fetchContainers();
+                    } else {
+                        toast.error(response.error || "Failed to update settings");
+                    }
+                } catch (err) {
+                    console.error("Settings update error:", err);
+                    toast.error("Failed to update settings");
+                } finally {
+                    isSaving = false;
+                }
+            }
+        
+            function handleKeydown(e: KeyboardEvent) {
+                if (!show) return;
+                if (e.key === "Escape") {
+                    handleClose();
+                }
+            }
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
+
+<ConfirmModal
+    bind:show={showDeleteConfirm}
+    title="Stop Port Forwarding"
+    message={forwardToDelete
+        ? `Are you sure you want to stop forwarding port ${forwardToDelete.name}?`
+        : ""}
+    confirmText="Stop"
+    cancelText="Cancel"
+    variant="danger"
+    on:confirm={confirmDeleteForward}
+    on:cancel={cancelDeleteForward}
+/>
 
 {#if show && container}
     <div class="modal-backdrop" transition:fade={{ duration: 150 }}>
@@ -184,126 +312,251 @@
                 </button>
             </div>
 
+            <div class="tabs">
+                <button
+                    class="tab-btn"
+                    class:active={activeTab === "settings"}
+                    on:click={() => (activeTab = "settings")}
+                >
+                    General
+                </button>
+                <button
+                    class="tab-btn"
+                    class:active={activeTab === "port-forwards"}
+                    on:click={() => (activeTab = "port-forwards")}
+                >
+                    Port Forwarding
+                </button>
+            </div>
+
             <div class="modal-body">
-                <div class="form-group">
-                    <label for="terminal-name">Terminal Name</label>
-                    <input
-                        id="terminal-name"
-                        type="text"
-                        bind:value={name}
-                        placeholder="my-terminal"
-                        class="input"
-                    />
-                </div>
+                {#if activeTab === "settings"}
+                    <div class="form-group">
+                        <label for="terminal-name">Terminal Name</label>
+                        <input
+                            id="terminal-name"
+                            type="text"
+                            bind:value={name}
+                            placeholder="my-terminal"
+                            class="input"
+                        />
+                    </div>
 
-                <div class="section-header">
-                    <span class="section-title">Resources</span>
-                    {#if !isPaidUser}
-                        <span class="trial-badge">Trial Limits</span>
+                    <div class="section-header">
+                        <span class="section-title">Resources</span>
+                        {#if !isPaidUser}
+                            <span class="trial-badge">Trial Limits</span>
+                        {/if}
+                    </div>
+
+                    <div class="form-group">
+                        <label for="memory">
+                            Memory
+                            <span class="value-display"
+                                >{formatMemory(memoryMB)}</span
+                            >
+                        </label>
+                        <input
+                            id="memory"
+                            type="range"
+                            bind:value={memoryMB}
+                            min={resourceLimits.minMemory}
+                            max={resourceLimits.maxMemory}
+                            step="128"
+                            class="slider"
+                        />
+                        <div class="range-labels">
+                            <span>{formatMemory(resourceLimits.minMemory)}</span>
+                            <span>{formatMemory(resourceLimits.maxMemory)}</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cpu">
+                            CPU
+                            <span class="value-display">{formatCPU(cpuShares)}</span
+                            >
+                        </label>
+                        <input
+                            id="cpu"
+                            type="range"
+                            bind:value={cpuShares}
+                            min={resourceLimits.minCPU}
+                            max={resourceLimits.maxCPU}
+                            step="128"
+                            class="slider"
+                        />
+                        <div class="range-labels">
+                            <span>{formatCPU(resourceLimits.minCPU)}</span>
+                            <span>{formatCPU(resourceLimits.maxCPU)}</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="disk">
+                            Disk
+                            <span class="value-display"
+                                >{formatStorage(diskMB)}</span
+                            >
+                        </label>
+                        <input
+                            id="disk"
+                            type="range"
+                            bind:value={diskMB}
+                            min={resourceLimits.minDisk}
+                            max={resourceLimits.maxDisk}
+                            step="512"
+                            class="slider"
+                        />
+                        <div class="range-labels">
+                            <span>{formatStorage(resourceLimits.minDisk)}</span>
+                            <span>{formatStorage(resourceLimits.maxDisk)}</span>
+                        </div>
+                    </div>
+
+                    <p class="note">
+                        <svg
+                            class="note-icon"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 16v-4M12 8h.01" />
+                        </svg>
+                        Resource changes require terminal restart to take effect.
+                    </p>
+                {:else}
+                    <div class="port-forwards-header">
+                        <p class="section-description">
+                            Access services running in your terminal (like localhost:8080) directly from your browser.
+                        </p>
+                        <button class="btn btn-primary btn-sm" on:click={openAddForwardModal}>
+                            + Add Forward
+                        </button>
+                    </div>
+
+                    {#if isLoadingForwards}
+                        <div class="loading-state">
+                            <div class="spinner-sm"></div>
+                            <p>Loading...</p>
+                        </div>
+                    {:else if portForwards.length === 0}
+                        <div class="empty-state">
+                            <div class="empty-icon">🔌</div>
+                            <p>No active port forwards.</p>
+                        </div>
+                    {:else}
+                        <div class="forwards-list">
+                            {#each portForwards as pf (pf.id)}
+                                <div class="forward-card">
+                                    <div class="forward-info">
+                                        <div class="forward-name">{pf.name || `Port ${pf.container_port}`}</div>
+                                        <div class="forward-details">
+                                            <span class="port-badge">Container: {pf.container_port}</span>
+                                            <span class="arrow">→</span>
+                                            <span class="port-badge">Local: {pf.local_port}</span>
+                                        </div>
+                                    </div>
+                                    <div class="forward-actions">
+                                        <button 
+                                            class="btn btn-danger btn-xs"
+                                            on:click={() => deletePortForward(pf.id, pf.name || String(pf.container_port))}
+                                        >
+                                            Stop
+                                        </button>
+                                    </div>
+                                </div>
+                            {/each}
+                        </div>
                     {/if}
-                </div>
-
-                <div class="form-group">
-                    <label for="memory">
-                        Memory
-                        <span class="value-display"
-                            >{formatMemory(memoryMB)}</span
-                        >
-                    </label>
-                    <input
-                        id="memory"
-                        type="range"
-                        bind:value={memoryMB}
-                        min={resourceLimits.minMemory}
-                        max={resourceLimits.maxMemory}
-                        step="128"
-                        class="slider"
-                    />
-                    <div class="range-labels">
-                        <span>{formatMemory(resourceLimits.minMemory)}</span>
-                        <span>{formatMemory(resourceLimits.maxMemory)}</span>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="cpu">
-                        CPU
-                        <span class="value-display">{formatCPU(cpuShares)}</span
-                        >
-                    </label>
-                    <input
-                        id="cpu"
-                        type="range"
-                        bind:value={cpuShares}
-                        min={resourceLimits.minCPU}
-                        max={resourceLimits.maxCPU}
-                        step="128"
-                        class="slider"
-                    />
-                    <div class="range-labels">
-                        <span>{formatCPU(resourceLimits.minCPU)}</span>
-                        <span>{formatCPU(resourceLimits.maxCPU)}</span>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="disk">
-                        Disk
-                        <span class="value-display"
-                            >{formatStorage(diskMB)}</span
-                        >
-                    </label>
-                    <input
-                        id="disk"
-                        type="range"
-                        bind:value={diskMB}
-                        min={resourceLimits.minDisk}
-                        max={resourceLimits.maxDisk}
-                        step="512"
-                        class="slider"
-                    />
-                    <div class="range-labels">
-                        <span>{formatStorage(resourceLimits.minDisk)}</span>
-                        <span>{formatStorage(resourceLimits.maxDisk)}</span>
-                    </div>
-                </div>
-
-                <p class="note">
-                    <svg
-                        class="note-icon"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                    >
-                        <circle cx="12" cy="12" r="10" />
-                        <path d="M12 16v-4M12 8h.01" />
-                    </svg>
-                    Resource changes require terminal restart to take effect.
-                </p>
+                {/if}
             </div>
 
             <div class="modal-actions">
-                <button class="btn btn-cancel" on:click={handleClose}>
-                    Cancel
-                </button>
-                <button
-                    class="btn btn-confirm"
-                    on:click={handleSave}
-                    disabled={isSaving || !name.trim()}
-                >
-                    {#if isSaving}
-                        <span class="spinner-sm"></span>
-                        Saving...
-                    {:else}
-                        Save Changes
-                    {/if}
-                </button>
+                {#if activeTab === "settings"}
+                    <button class="btn btn-cancel" on:click={handleClose}>
+                        Cancel
+                    </button>
+                    <button
+                        class="btn btn-confirm"
+                        on:click={handleSave}
+                        disabled={isSaving || !name.trim()}
+                    >
+                        {#if isSaving}
+                            <span class="spinner-sm"></span>
+                            Saving...
+                        {:else}
+                            Save Changes
+                        {/if}
+                    </button>
+                {:else}
+                    <button class="btn btn-cancel" on:click={handleClose}>
+                        Close
+                    </button>
+                {/if}
             </div>
 
             <div class="modal-border-glow"></div>
         </div>
     </div>
+
+    <!-- Add Forward Modal Overlay -->
+    {#if showAddForwardModal}
+        <div class="modal-overlay-nested" on:click|stopPropagation>
+            <div class="modal-container-nested">
+                <div class="modal-header">
+                    <h3 class="modal-title">Add Port Forward</h3>
+                    <button class="close-btn" on:click={closeAddForwardModal}>×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="pf-name">Name (Optional)</label>
+                        <input
+                            id="pf-name"
+                            type="text"
+                            bind:value={newForwardName}
+                            placeholder="e.g. Web Server"
+                            class="input"
+                        />
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="pf-container">Container Port</label>
+                            <input
+                                id="pf-container"
+                                type="number"
+                                bind:value={newContainerPort}
+                                placeholder="8080"
+                                class="input"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label for="pf-local">Local Port</label>
+                            <input
+                                id="pf-local"
+                                type="number"
+                                bind:value={newLocalPort}
+                                placeholder="8080"
+                                class="input"
+                            />
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-cancel" on:click={closeAddForwardModal}>Cancel</button>
+                    <button 
+                        class="btn btn-confirm" 
+                        on:click={addPortForward}
+                        disabled={isAddingForward}
+                    >
+                        {isAddingForward ? "Adding..." : "Add Forward"}
+                    </button>
+                </div>
+            </div>
+        </div>
+    {/if}
 {/if}
 
 <style>
@@ -398,6 +651,157 @@
     .close-btn svg {
         width: 14px;
         height: 14px;
+    }
+
+    /* Tabs */
+    .tabs {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 20px;
+        border-bottom: 1px solid var(--border, #1a1a1a);
+    }
+
+    .tab-btn {
+        background: none;
+        border: none;
+        padding: 10px 12px;
+        color: var(--text-muted, #666);
+        cursor: pointer;
+        font-size: 13px;
+        font-family: var(--font-mono, monospace);
+        border-bottom: 2px solid transparent;
+        transition: all 0.15s;
+    }
+
+    .tab-btn:hover {
+        color: var(--text, #e0e0e0);
+    }
+
+    .tab-btn.active {
+        color: var(--accent, #00ff41);
+        border-bottom-color: var(--accent, #00ff41);
+    }
+
+    /* Port Forwarding */
+    .port-forwards-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+
+    .section-description {
+        font-size: 12px;
+        color: var(--text-muted, #666);
+        margin: 0;
+        max-width: 70%;
+        line-height: 1.4;
+    }
+
+    .forwards-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .forward-card {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px;
+        background: var(--bg-secondary, #111);
+        border: 1px solid var(--border, #1a1a1a);
+        border-radius: 4px;
+    }
+
+    .forward-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text, #e0e0e0);
+        margin-bottom: 4px;
+    }
+
+    .forward-details {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 11px;
+        font-family: var(--font-mono, monospace);
+        color: var(--text-secondary, #a0a0a0);
+    }
+
+    .port-badge {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 2px 6px;
+        border-radius: 2px;
+    }
+
+    .arrow {
+        color: var(--text-muted, #666);
+    }
+
+    .btn-sm {
+        padding: 6px 12px;
+        font-size: 11px;
+    }
+
+    .btn-xs {
+        padding: 4px 8px;
+        font-size: 10px;
+    }
+
+    .btn-danger {
+        background: transparent;
+        border-color: #ff003c;
+        color: #ff003c;
+    }
+
+    .btn-danger:hover {
+        background: rgba(255, 0, 60, 0.1);
+    }
+
+    /* Nested Modal */
+    .modal-overlay-nested {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 20;
+        backdrop-filter: blur(2px);
+    }
+
+    .modal-container-nested {
+        width: 340px;
+        background: var(--bg-card, #151515);
+        border: 1px solid var(--border, #1a1a1a);
+        padding: 20px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+
+    .form-row {
+        display: flex;
+        gap: 12px;
+    }
+
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 40px 0;
+        color: var(--text-muted, #666);
+    }
+
+    .empty-icon {
+        font-size: 24px;
+        margin-bottom: 12px;
+        opacity: 0.5;
     }
 
     .modal-body {
