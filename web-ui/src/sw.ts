@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
-import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
+import { precacheAndRoute, cleanupOutdatedCaches, createHandlerBoundToURL } from 'workbox-precaching';
 import { registerRoute, NavigationRoute } from 'workbox-routing';
-import { CacheFirst, NetworkFirst, StaleWhileRevalidate } from 'workbox-strategies';
+import { NetworkFirst } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 
@@ -21,13 +21,6 @@ try {
   console.error("SW: Precache error", e);
 }
 
-// Fallback for other assets - let browser handle network request
-// This prevents SW errors from breaking script loading
-// registerRoute(
-//   ({ request }) => request.destination === 'script' || request.destination === 'style' || request.destination === 'image',
-//   new NetworkOnly()
-// );
-
 // Network-first for API calls (don't cache WebSocket or real-time data)
 registerRoute(
   ({ url }) => url.pathname.startsWith('/api/') && !url.pathname.includes('/ws'),
@@ -42,16 +35,10 @@ registerRoute(
 );
 
 // Handle navigation requests - serve index.html for SPA routing
-// Exclude /api and /ws paths
-const navigationHandler = new NetworkFirst({
-  cacheName: 'navigation-cache',
-  plugins: [
-    new CacheableResponsePlugin({ statuses: [0, 200] }),
-  ],
-});
-
+// This uses the precached index.html for all navigation requests (App Shell model)
+const handler = createHandlerBoundToURL('/index.html');
 registerRoute(
-  new NavigationRoute(navigationHandler, {
+  new NavigationRoute(handler, {
     denylist: [/^\/api/, /^\/ws/, /^\/r\//],
   })
 );
