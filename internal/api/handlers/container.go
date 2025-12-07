@@ -254,12 +254,13 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 	// Calculate resource limits first (with trial customization)
 	limits := models.ValidateTrialResources(&req, tier)
 
-	// Create a pending record in database first (async creation)
+	// Store a pending record in database first (async creation)
 	record := &storage.ContainerRecord{
 		ID:         uuid.New().String(),
 		UserID:     userID,
 		Name:       containerName,
 		Image:      imageName,
+		Role:       req.Role,
 		Status:     "creating",
 		DockerID:   "", // Will be set when container is created
 		VolumeName: "rexec-" + userID + "-" + containerName,
@@ -281,9 +282,11 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 		ContainerName: containerName,
 		ImageType:     req.Image,
 		CustomImage:   req.CustomImage,
+		Role:          req.Role,
 		Labels: map[string]string{
 			"rexec.tier":    tier,
 			"rexec.user_id": userID,
+			"rexec.role":    req.Role,
 		},
 	}
 
@@ -340,6 +343,7 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 		"user_id":    userID,
 		"name":       containerName,
 		"image":      imageName,
+		"role":       req.Role,
 		"status":     "creating",
 		"created_at": record.CreatedAt,
 		"async":      true,
@@ -570,22 +574,22 @@ func (h *ContainerHandler) createContainerAsync(recordID string, cfg container.C
 			},
 		})
 
-		h.eventsHub.NotifyContainerCreated(userID, gin.H{
-			"id":         info.ID,
-			"db_id":      recordID,
-			"user_id":    userID,
-			"name":       cfg.ContainerName,
-			"image":      imageName,
-			"status":     info.Status,
-			"created_at": info.CreatedAt,
-			"ip_address": info.IPAddress,
-			"resources": gin.H{
-				"memory_mb":  memoryMB,
-				"cpu_shares": cpuShares,
-				"disk_mb":    diskMB,
-			},
-		})
-	}
+		        h.eventsHub.NotifyContainerCreated(userID, gin.H{
+		            "id":         info.ID,
+		            "db_id":      recordID,
+		            "user_id":    info.UserID,
+		            "name":       cfg.ContainerName,
+		            "image":      imageName,
+		            "role":       role,
+		            "status":     info.Status,
+		            "created_at": info.CreatedAt,
+		            "ip_address": info.IPAddress,
+		            "resources": gin.H{
+		                "memory_mb":  record.MemoryMB,
+		                "cpu_shares": record.CPUShares,
+		                "disk_mb":    record.DiskMB,
+		            },
+		        })	}
 }
 
 // Get returns a specific container
@@ -1079,117 +1083,119 @@ func (h *ContainerHandler) UpdateSettings(c *gin.Context) {
 			oldRole = oldInfo.Labels["rexec.role"]
 		}
 
-		// Recreate container with new resource limits (tier is already available from context)
-		recreateCfg := container.RecreateContainerConfig{
-			UserID:        userID,
-			ContainerName: found.Name,
-			Image:         found.Image,
-			Role:          oldRole,
-			OldDockerID:   found.DockerID,
-			Tier:          tier,
-			MemoryMB:      req.MemoryMB,
-			CPUMillicores: req.CPUShares,
-			DiskMB:        req.DiskMB,
-		}
-
-		newInfo, err := h.manager.RecreateContainer(ctx, recreateCfg)
-		if err != nil {
-			log.Printf("[UpdateSettings] Failed to recreate container %s: %v", found.DockerID, err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to recreate container with new settings"})
-			return
-		}
-
-		newDockerID = newInfo.ID
-		containerRestarted = true
-		log.Printf("[UpdateSettings] Successfully recreated container %s -> %s with new resources", found.DockerID, newDockerID)
-
-		// Update the DockerID in database
-		if err := h.store.UpdateContainerDockerID(ctx, found.ID, newDockerID); err != nil {
-			log.Printf("[UpdateSettings] Warning: failed to update DockerID in database: %v", err)
-		}
-
-		// If we need to reinstall tools, do it in background and keep status as 'configuring'
-		if oldRole != "" {
-			log.Printf("[UpdateSettings] Restoring role %s for recreated container %s", oldRole, newDockerID)
-			
-			// Run setup in background
-			go func() {
-				setupCtx := context.Background()
-				
-				// Basic shell setup first
-				container.SetupEnhancedShell(setupCtx, h.manager.GetClient(), newDockerID)
-				
-				// Install tools
-				container.SetupRole(setupCtx, h.manager.GetClient(), newDockerID, oldRole)
-				
-				// Now set to running
-				h.manager.UpdateContainerStatus(newDockerID, "running")
-				h.store.UpdateContainerStatus(setupCtx, found.ID, "running")
-				
-				// Notify via WebSocket that setup is complete
-				if h.eventsHub != nil {
-					h.eventsHub.NotifyContainerUpdated(userID, gin.H{
-						"id":        newDockerID,
-						"db_id":     found.ID,
-						"status":    "running",
-						"message":   "Container tools restored",
-					})
-				}
-			}()
-		} else {
-			// No tools to install, set to running immediately
-			if err := h.store.UpdateContainerStatus(ctx, found.ID, "running"); err != nil {
-				log.Printf("[UpdateSettings] Warning: failed to update container status to running: %v", err)
-			}
-			h.manager.UpdateContainerStatus(newDockerID, "running")
-		}
-	}
-
-	log.Printf("[UpdateSettings] Updating container %s with memory=%d, cpu=%d, disk=%d", found.ID, req.MemoryMB, req.CPUShares, req.DiskMB)
-
-	// Update in database
-	if err := h.store.UpdateContainerSettings(ctx, found.ID, req.Name, req.MemoryMB, req.CPUShares, req.DiskMB); err != nil {
-		log.Printf("[UpdateSettings] Failed to update settings for container %s: %v", found.ID, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update settings: " + err.Error()})
-		return
-	}
-
-	log.Printf("[UpdateSettings] Successfully updated container %s settings in database", found.ID)
-
-	// Notify via WebSocket
-	if h.eventsHub != nil {
-		h.eventsHub.NotifyContainerUpdated(userID, gin.H{
-			"id":        newDockerID,
-			"db_id":     found.ID,
-			"name":      req.Name,
-			"image":     found.Image,
-			"status":    "running",
-			"restarted": containerRestarted,
-			"resources": gin.H{
-				"memory_mb":  req.MemoryMB,
-				"cpu_shares": req.CPUShares,
-				"disk_mb":    req.DiskMB,
-			},
-		})
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message":   "settings updated",
-		"restarted": containerRestarted,
-		"container": gin.H{
-			"id":     newDockerID,
-			"db_id":  found.ID,
-			"name":   req.Name,
-			"image":  found.Image,
-			"status": "running",
-			"resources": gin.H{
-				"memory_mb":  req.MemoryMB,
-				"cpu_shares": req.CPUShares,
-				"disk_mb":    req.DiskMB,
-			},
-		},
-	})
-}
+		        // Recreate container with new resource limits (tier is already available from context)
+		        recreateCfg := container.RecreateContainerConfig{
+		            UserID:        userID,
+		            ContainerName: found.Name,
+		            Image:         found.Image,
+		            Role:          found.Role, // Use the role from the database record
+		            OldDockerID:   found.DockerID,
+		            Tier:          tier,
+		            MemoryMB:      req.MemoryMB,
+		            CPUMillicores: req.CPUShares,
+		            DiskMB:        req.DiskMB,
+		        }
+		
+		        newInfo, err := h.manager.RecreateContainer(ctx, recreateCfg)
+		        if err != nil {
+		            log.Printf("[UpdateSettings] Failed to recreate container %s: %v", found.DockerID, err)
+		            c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to recreate container with new settings"})
+		            return
+		        }
+		
+		        newDockerID = newInfo.ID
+		        containerRestarted = true
+		        log.Printf("[UpdateSettings] Successfully recreated container %s -> %s with new resources", found.DockerID, newDockerID)
+		
+		        // Update the DockerID in database
+		        if err := h.store.UpdateContainerDockerID(ctx, found.ID, newDockerID); err != nil {
+		            log.Printf("[UpdateSettings] Warning: failed to update DockerID in database: %v", err)
+		        }
+		
+		        // If we need to reinstall tools, do it in background and keep status as 'configuring'
+		        if found.Role != "" {
+		            log.Printf("[UpdateSettings] Restoring role %s for recreated container %s", found.Role, newDockerID)
+		            
+		            // Run setup in background
+		            go func(containerRole string) {
+		                setupCtx := context.Background()
+		                
+		                // Basic shell setup first
+		                container.SetupEnhancedShell(setupCtx, h.manager.GetClient(), newDockerID)
+		                
+		                // Install tools
+		                container.SetupRole(setupCtx, h.manager.GetClient(), newDockerID, containerRole)
+		                
+		                // Now set to running
+		                h.manager.UpdateContainerStatus(newDockerID, "running")
+		                h.store.UpdateContainerStatus(setupCtx, found.ID, "running")
+		                
+		                // Notify via WebSocket that setup is complete
+		                if h.eventsHub != nil {
+		                    h.eventsHub.NotifyContainerUpdated(userID, gin.H{
+		                        "id":        newDockerID,
+		                        "db_id":     found.ID,
+		                        "status":    "running",
+		                        "message":   "Container tools restored",
+		                        "role":      containerRole,
+		                    })
+		                }
+		            }(found.Role) // Pass found.Role to the goroutine
+		        } else {
+		            // No tools to install, set to running immediately
+		            if err := h.store.UpdateContainerStatus(ctx, found.ID, "running"); err != nil {
+		                log.Printf("[UpdateSettings] Warning: failed to update container status to running: %v", err)
+		            }
+		            h.manager.UpdateContainerStatus(newDockerID, "running")
+		        }
+		    }
+		
+		    log.Printf("[UpdateSettings] Updating container %s with memory=%d, cpu=%d, disk=%d", found.ID, req.MemoryMB, req.CPUShares, req.DiskMB)
+		
+		    // Update in database
+		    if err := h.store.UpdateContainerSettings(ctx, found.ID, req.Name, req.MemoryMB, req.CPUShares, req.DiskMB); err != nil {
+		        log.Printf("[UpdateSettings] Failed to update settings for container %s: %v", found.ID, err)
+		        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update settings: " + err.Error()})
+		        return
+		    }
+		
+		    log.Printf("[UpdateSettings] Successfully updated container %s settings in database", found.ID)
+		
+		    // Notify via WebSocket
+		    if h.eventsHub != nil {
+		        h.eventsHub.NotifyContainerUpdated(userID, gin.H{
+		            "id":        newDockerID,
+		            "db_id":     found.ID,
+		            "name":      req.Name,
+		            "image":     found.Image,
+		            "status":    "running",
+		            "restarted": containerRestarted,
+		            "role":      found.Role,
+		            "resources": gin.H{
+		                "memory_mb":  req.MemoryMB,
+		                "cpu_shares": req.CPUShares,
+		                "disk_mb":    req.DiskMB,
+		            },
+		        })
+		    }
+		
+		    c.JSON(http.StatusOK, gin.H{
+		        "message":   "settings updated",
+		        "restarted": containerRestarted,
+		        "container": gin.H{
+		            "id":     newDockerID,
+		            "db_id":  found.ID,
+		            "name":   req.Name,
+		            "image":  found.Image,
+		            "status": "running",
+		            "role":   found.Role,
+		            "resources": gin.H{
+		                "memory_mb":  req.MemoryMB,
+		                "cpu_shares": req.CPUShares,
+		                "disk_mb":    req.DiskMB,
+		            },
+		        },
+		    })}
 
 // CreateWithProgress creates a container with SSE progress streaming
 func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {

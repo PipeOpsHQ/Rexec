@@ -63,6 +63,7 @@ type Container struct {
 	UserID     string            `json:"user_id"`
 	Name       string            `json:"name"`
 	Image      string            `json:"image"` // ubuntu, debian, arch, etc.
+	Role       string            `json:"role"`  // devops, node, python, etc.
 	Status     ContainerStatus   `json:"status"`
 	IPAddress  string            `json:"ip_address,omitempty"`
 	VolumePath string            `json:"volume_path,omitempty"`

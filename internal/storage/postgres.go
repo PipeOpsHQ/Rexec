@@ -173,6 +173,12 @@ func (s *PostgresStore) migrate() error {
 				ALTER TABLE containers ADD COLUMN disk_mb INTEGER DEFAULT 2048;
 			END IF;
 		END $$`,
+		`DO $$ BEGIN
+			IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+				WHERE table_name='containers' AND column_name='role') THEN
+				ALTER TABLE containers ADD COLUMN role VARCHAR(50) DEFAULT 'standard';
+			END IF;
+		END $$`,
 	}
 
 	for _, query := range addColumns {
@@ -549,6 +555,7 @@ type ContainerRecord struct {
 	UserID     string    `db:"user_id"`
 	Name       string    `db:"name"`
 	Image      string    `db:"image"`
+	Role       string    `db:"role"`
 	Status     string    `db:"status"`
 	DockerID   string    `db:"docker_id"`
 	VolumeName string    `db:"volume_name"`
@@ -562,14 +569,15 @@ type ContainerRecord struct {
 // CreateContainer creates a container record
 func (s *PostgresStore) CreateContainer(ctx context.Context, container *ContainerRecord) error {
 	query := `
-		INSERT INTO containers (id, user_id, name, image, status, docker_id, volume_name, memory_mb, cpu_shares, disk_mb, created_at, last_used_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		INSERT INTO containers (id, user_id, name, image, role, status, docker_id, volume_name, memory_mb, cpu_shares, disk_mb, created_at, last_used_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 	`
 	_, err := s.db.ExecContext(ctx, query,
 		container.ID,
 		container.UserID,
 		container.Name,
 		container.Image,
+		container.Role,
 		container.Status,
 		container.DockerID,
 		container.VolumeName,
@@ -585,7 +593,7 @@ func (s *PostgresStore) CreateContainer(ctx context.Context, container *Containe
 // GetContainersByUserID retrieves all non-deleted containers for a user
 func (s *PostgresStore) GetContainersByUserID(ctx context.Context, userID string) ([]*ContainerRecord, error) {
 	query := `
-		SELECT id, user_id, name, image, status, docker_id, volume_name,
+		SELECT id, user_id, name, image, COALESCE(role, 'standard') as role, status, docker_id, volume_name,
 		       COALESCE(memory_mb, 512) as memory_mb, COALESCE(cpu_shares, 512) as cpu_shares, COALESCE(disk_mb, 2048) as disk_mb,
 		       created_at, last_used_at
 		FROM containers WHERE user_id = $1 AND deleted_at IS NULL
@@ -605,6 +613,7 @@ func (s *PostgresStore) GetContainersByUserID(ctx context.Context, userID string
 			&c.UserID,
 			&c.Name,
 			&c.Image,
+			&c.Role,
 			&c.Status,
 			&c.DockerID,
 			&c.VolumeName,
@@ -626,7 +635,7 @@ func (s *PostgresStore) GetContainersByUserID(ctx context.Context, userID string
 func (s *PostgresStore) GetContainerByID(ctx context.Context, id string) (*ContainerRecord, error) {
 	var c ContainerRecord
 	query := `
-		SELECT id, user_id, name, image, status, docker_id, volume_name,
+		SELECT id, user_id, name, image, COALESCE(role, 'standard') as role, status, docker_id, volume_name,
 		       COALESCE(memory_mb, 512) as memory_mb, COALESCE(cpu_shares, 512) as cpu_shares, COALESCE(disk_mb, 2048) as disk_mb,
 		       created_at, last_used_at
 		FROM containers WHERE id = $1 AND deleted_at IS NULL
@@ -637,6 +646,7 @@ func (s *PostgresStore) GetContainerByID(ctx context.Context, id string) (*Conta
 		&c.UserID,
 		&c.Name,
 		&c.Image,
+		&c.Role,
 		&c.Status,
 		&c.DockerID,
 		&c.VolumeName,
@@ -659,7 +669,7 @@ func (s *PostgresStore) GetContainerByID(ctx context.Context, id string) (*Conta
 func (s *PostgresStore) GetContainerByUserAndDockerID(ctx context.Context, userID, dockerID string) (*ContainerRecord, error) {
 	var c ContainerRecord
 	query := `
-		SELECT id, user_id, name, image, status, docker_id, volume_name,
+		SELECT id, user_id, name, image, COALESCE(role, 'standard') as role, status, docker_id, volume_name,
 		       COALESCE(memory_mb, 512) as memory_mb, COALESCE(cpu_shares, 512) as cpu_shares, COALESCE(disk_mb, 2048) as disk_mb,
 		       created_at, last_used_at
 		FROM containers WHERE user_id = $1 AND docker_id = $2 AND deleted_at IS NULL
@@ -670,6 +680,7 @@ func (s *PostgresStore) GetContainerByUserAndDockerID(ctx context.Context, userI
 		&c.UserID,
 		&c.Name,
 		&c.Image,
+		&c.Role,
 		&c.Status,
 		&c.DockerID,
 		&c.VolumeName,
@@ -692,7 +703,7 @@ func (s *PostgresStore) GetContainerByUserAndDockerID(ctx context.Context, userI
 func (s *PostgresStore) GetContainerByDockerID(ctx context.Context, dockerID string) (*ContainerRecord, error) {
 	var c ContainerRecord
 	query := `
-		SELECT id, user_id, name, image, status, docker_id, volume_name,
+		SELECT id, user_id, name, image, COALESCE(role, 'standard') as role, status, docker_id, volume_name,
 		       COALESCE(memory_mb, 512) as memory_mb, COALESCE(cpu_shares, 512) as cpu_shares, COALESCE(disk_mb, 2048) as disk_mb,
 		       created_at, last_used_at
 		FROM containers WHERE docker_id = $1 AND deleted_at IS NULL
@@ -703,6 +714,7 @@ func (s *PostgresStore) GetContainerByDockerID(ctx context.Context, dockerID str
 		&c.UserID,
 		&c.Name,
 		&c.Image,
+		&c.Role,
 		&c.Status,
 		&c.DockerID,
 		&c.VolumeName,
@@ -789,7 +801,7 @@ func (s *PostgresStore) RestoreContainer(ctx context.Context, id string) error {
 // GetAllContainers retrieves all non-deleted containers (for loading on startup)
 func (s *PostgresStore) GetAllContainers(ctx context.Context) ([]*ContainerRecord, error) {
 	query := `
-		SELECT id, user_id, name, image, status, docker_id, volume_name,
+		SELECT id, user_id, name, image, COALESCE(role, 'standard') as role, status, docker_id, volume_name,
 		       COALESCE(memory_mb, 512) as memory_mb, COALESCE(cpu_shares, 512) as cpu_shares, COALESCE(disk_mb, 2048) as disk_mb,
 		       created_at, last_used_at
 		FROM containers WHERE deleted_at IS NULL
@@ -808,6 +820,7 @@ func (s *PostgresStore) GetAllContainers(ctx context.Context) ([]*ContainerRecor
 			&c.UserID,
 			&c.Name,
 			&c.Image,
+			&c.Role,
 			&c.Status,
 			&c.DockerID,
 			&c.VolumeName,
