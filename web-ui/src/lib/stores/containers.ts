@@ -19,6 +19,7 @@ export interface PortForward {
   is_active: boolean;
   created_at: string;
   websocket_url: string;
+  proxy_url: string;
 }
 
 export interface Container {

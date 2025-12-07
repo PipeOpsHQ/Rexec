@@ -467,12 +467,31 @@
                                     <div class="forward-info">
                                         <div class="forward-name">{pf.name || `Port ${pf.container_port}`}</div>
                                         <div class="forward-details">
-                                            <span class="port-badge">Container: {pf.container_port}</span>
+                                            <span class="port-badge">:{pf.container_port}</span>
                                             <span class="arrow">→</span>
-                                            <span class="port-badge">Local: {pf.local_port}</span>
+                                            <a href={pf.proxy_url} target="_blank" rel="noopener" class="proxy-link" title="Open in new tab">
+                                                {pf.proxy_url?.replace(/^https?:\/\//, '').slice(0, 30)}...
+                                            </a>
                                         </div>
                                     </div>
                                     <div class="forward-actions">
+                                        <button 
+                                            class="btn btn-primary btn-xs"
+                                            on:click={() => window.open(pf.proxy_url, '_blank')}
+                                            title="Open in browser"
+                                        >
+                                            Open
+                                        </button>
+                                        <button 
+                                            class="btn btn-secondary btn-xs"
+                                            on:click={() => {
+                                                navigator.clipboard.writeText(pf.proxy_url);
+                                                toast.success('URL copied!');
+                                            }}
+                                            title="Copy URL"
+                                        >
+                                            Copy
+                                        </button>
                                         <button 
                                             class="btn btn-danger btn-xs"
                                             on:click={() => deletePortForward(pf.id, pf.name || String(pf.container_port))}
@@ -753,6 +772,26 @@
 
     .arrow {
         color: var(--text-muted, #666);
+    }
+
+    .proxy-link {
+        color: var(--accent, #00ff65);
+        text-decoration: none;
+        font-size: 10px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 180px;
+    }
+
+    .proxy-link:hover {
+        text-decoration: underline;
+    }
+
+    .forward-actions {
+        display: flex;
+        gap: 6px;
+        flex-shrink: 0;
     }
 
     .btn-sm {

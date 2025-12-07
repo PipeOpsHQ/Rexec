@@ -520,6 +520,14 @@ func runServer() {
 	// WebSocket for Port Forwarding
 	router.GET("/ws/port-forward/:forwardId", wsLimiter.Middleware(), middleware.AuthMiddleware(), portForwardHandler.HandlePortForwardWebSocket)
 
+	// HTTP Proxy for Port Forwarding (public access via UUID path)
+	// Supports all HTTP methods for full web app proxying
+	proxyGroup := router.Group("/p/:forwardId")
+	{
+		proxyGroup.Any("", portForwardHandler.HandleHTTPProxy)
+		proxyGroup.Any("/*path", portForwardHandler.HandleHTTPProxy)
+	}
+
 	// WebSocket for Admin Events (NEW)
 	router.GET("/ws/admin/events", wsLimiter.Middleware(), middleware.AuthMiddleware(), middleware.AdminOnly(store), adminEventsHub.HandleWebSocket)
 

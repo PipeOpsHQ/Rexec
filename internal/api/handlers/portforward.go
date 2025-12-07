@@ -74,7 +74,8 @@ type PortForwardResponse struct {
 	Protocol      string    `json:"protocol"`
 	IsActive      bool      `json:"is_active"`
 	CreatedAt     time.Time `json:"created_at"`
-	WebSocketURL  string    `json:"websocket_url"` // URL for the client to connect to
+	WebSocketURL  string    `json:"websocket_url"` // URL for WebSocket tunneling (legacy)
+	ProxyURL      string    `json:"proxy_url"`     // URL for HTTP proxy access
 }
 
 // CreatePortForward creates a new port forward
@@ -151,6 +152,8 @@ func (h *PortForwardHandler) CreatePortForward(c *gin.Context) {
 
 	// Create WebSocket URL for client to connect to
 	wsURL := fmt.Sprintf("%s/ws/port-forward/%s", getWebSocketBaseURL(c.Request), pf.ID)
+	// Create HTTP proxy URL for direct browser access
+	proxyURL := fmt.Sprintf("%s/p/%s/", getHTTPBaseURL(c.Request), pf.ID)
 
 	response := PortForwardResponse{
 		ID:            pf.ID,
@@ -162,6 +165,7 @@ func (h *PortForwardHandler) CreatePortForward(c *gin.Context) {
 		IsActive:      pf.IsActive,
 		CreatedAt:     pf.CreatedAt,
 		WebSocketURL:  wsURL,
+		ProxyURL:      proxyURL,
 	}
 
 	c.JSON(http.StatusCreated, response)
@@ -198,6 +202,7 @@ func (h *PortForwardHandler) ListPortForwards(c *gin.Context) {
 	response := make([]PortForwardResponse, 0, len(forwards))
 	for _, pf := range forwards {
 		wsURL := fmt.Sprintf("%s/ws/port-forward/%s", getWebSocketBaseURL(c.Request), pf.ID)
+		proxyURL := fmt.Sprintf("%s/p/%s/", getHTTPBaseURL(c.Request), pf.ID)
 		response = append(response, PortForwardResponse{
 			ID:            pf.ID,
 			Name:          pf.Name,
@@ -208,6 +213,7 @@ func (h *PortForwardHandler) ListPortForwards(c *gin.Context) {
 			IsActive:      pf.IsActive,
 			CreatedAt:     pf.CreatedAt,
 			WebSocketURL:  wsURL,
+			ProxyURL:      proxyURL,
 		})
 	}
 
@@ -434,4 +440,122 @@ func getWebSocketBaseURL(r *http.Request) string {
 		return fmt.Sprintf("%s://%s", scheme, wsHost)
 	}
 	return fmt.Sprintf("%s://%s", scheme, r.Host)
+}
+
+// Helper to get HTTP base URL for port forward access URLs
+func getHTTPBaseURL(r *http.Request) string {
+	scheme := "http"
+	if r.TLS != nil || strings.HasPrefix(r.Header.Get("X-Forwarded-Proto"), "https") {
+		scheme = "https"
+	}
+	return fmt.Sprintf("%s://%s", scheme, r.Host)
+}
+
+// HandleHTTPProxy handles HTTP requests to proxied container ports
+// GET/POST/etc /p/:forwardId/*path
+func (h *PortForwardHandler) HandleHTTPProxy(c *gin.Context) {
+	forwardID := c.Param("forwardId")
+	proxyPath := c.Param("path")
+	if proxyPath == "" {
+		proxyPath = "/"
+	}
+
+	// Retrieve port forward from DB (no auth required for public access)
+	pf, err := h.store.GetPortForwardByID(c.Request.Context(), forwardID)
+	if err != nil || pf == nil || !pf.IsActive {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Port forward not found or inactive"})
+		return
+	}
+
+	// Verify container status
+	containerRecord, err := h.store.GetContainerByID(c.Request.Context(), pf.ContainerID)
+	if err != nil || containerRecord == nil || containerRecord.Status != string(models.StatusRunning) {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Container not running"})
+		return
+	}
+
+	// Get container IP
+	dockerClient := h.containerManager.GetClient()
+	inspect, err := dockerClient.ContainerInspect(c.Request.Context(), pf.ContainerID)
+	if err != nil {
+		log.Printf("Failed to inspect container %s for proxy %s: %v", pf.ContainerID, forwardID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to container"})
+		return
+	}
+
+	ipAddress := inspect.NetworkSettings.IPAddress
+	if ipAddress == "" {
+		for _, network := range inspect.NetworkSettings.Networks {
+			if network.IPAddress != "" {
+				ipAddress = network.IPAddress
+				break
+			}
+		}
+	}
+
+	if ipAddress == "" {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Container has no network address"})
+		return
+	}
+
+	// Build target URL
+	targetURL := fmt.Sprintf("http://%s:%d%s", ipAddress, pf.ContainerPort, proxyPath)
+	if c.Request.URL.RawQuery != "" {
+		targetURL += "?" + c.Request.URL.RawQuery
+	}
+
+	// Create proxy request
+	proxyReq, err := http.NewRequestWithContext(c.Request.Context(), c.Request.Method, targetURL, c.Request.Body)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create proxy request"})
+		return
+	}
+
+	// Copy headers
+	for key, values := range c.Request.Header {
+		// Skip hop-by-hop headers
+		if key == "Connection" || key == "Keep-Alive" || key == "Proxy-Authenticate" ||
+			key == "Proxy-Authorization" || key == "Te" || key == "Trailers" ||
+			key == "Transfer-Encoding" || key == "Upgrade" {
+			continue
+		}
+		for _, value := range values {
+			proxyReq.Header.Add(key, value)
+		}
+	}
+
+	// Add forwarding headers
+	proxyReq.Header.Set("X-Forwarded-For", c.ClientIP())
+	proxyReq.Header.Set("X-Forwarded-Proto", "https")
+	proxyReq.Header.Set("X-Forwarded-Host", c.Request.Host)
+	proxyReq.Header.Set("X-Real-IP", c.ClientIP())
+
+	// Execute request
+	client := &http.Client{
+		Timeout: 60 * time.Second,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse // Don't follow redirects, let client handle them
+		},
+	}
+
+	resp, err := client.Do(proxyReq)
+	if err != nil {
+		log.Printf("Proxy request failed for %s: %v", forwardID, err)
+		c.JSON(http.StatusBadGateway, gin.H{"error": "Failed to reach container service"})
+		return
+	}
+	defer resp.Body.Close()
+
+	// Copy response headers
+	for key, values := range resp.Header {
+		for _, value := range values {
+			c.Header(key, value)
+		}
+	}
+
+	// Set status code
+	c.Status(resp.StatusCode)
+
+	// Stream response body
+	io.Copy(c.Writer, resp.Body)
 }
