@@ -16,6 +16,7 @@ import (
 	"github.com/rexec/rexec/internal/container"
 	"github.com/rexec/rexec/internal/models"
 	"github.com/rexec/rexec/internal/storage"
+	admin_events "github.com/rexec/rexec/internal/api/handlers/admin_events"
 )
 
 const (
@@ -58,13 +59,15 @@ type ContainerHandler struct {
 	manager   *container.Manager
 	store     *storage.PostgresStore
 	eventsHub *ContainerEventsHub
+	adminEventsHub *admin_events.AdminEventsHub // New field
 }
 
 // NewContainerHandler creates a new container handler
-func NewContainerHandler(manager *container.Manager, store *storage.PostgresStore) *ContainerHandler {
+func NewContainerHandler(manager *container.Manager, store *storage.PostgresStore, adminEventsHub *admin_events.AdminEventsHub) *ContainerHandler {
 	return &ContainerHandler{
 		manager: manager,
 		store:   store,
+		adminEventsHub: adminEventsHub,
 	}
 }
 
@@ -304,6 +307,11 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 	if err := h.store.CreateContainer(ctx, record); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create container record: " + err.Error()})
 		return
+	}
+
+	// Broadcast container created event to admin hub
+	if h.adminEventsHub != nil {
+		h.adminEventsHub.Broadcast("container_created", record)
 	}
 
 	// Prepare container config
@@ -584,6 +592,17 @@ func (h *ContainerHandler) createContainerAsync(recordID string, cfg container.C
 	h.manager.UpdateContainerStatus(info.ID, "running")
 	h.store.UpdateContainerStatus(ctx, recordID, "running")
 
+	// Notify AdminEventsHub that container status has updated (from creating to running)
+	if h.adminEventsHub != nil {
+		// Fetch the updated record from DB to ensure all fields are current
+		updatedRecord, err := h.store.GetContainerByID(ctx, recordID)
+		if err == nil && updatedRecord != nil {
+			h.adminEventsHub.Broadcast("container_updated", updatedRecord)
+		} else {
+			log.Printf("Warning: Failed to fetch updated container record for admin broadcast: %v", err)
+		}
+	}
+
 	// Mark container as ready AFTER setup is complete
 	sendProgress("ready", "Terminal ready!", 100)
 
@@ -790,6 +809,12 @@ func (h *ContainerHandler) Delete(c *gin.Context) {
 		return
 	}
 
+	// Notify AdminEventsHub that container was deleted
+	if h.adminEventsHub != nil {
+		// Send the found record (before it's fully gone) as payload
+		h.adminEventsHub.Broadcast("container_deleted", found)
+	}
+
 	// Notify via WebSocket - send both IDs so frontend can match
 	if h.eventsHub != nil {
 		// Send deletion notification with both docker ID and db_id
@@ -910,6 +935,17 @@ func (h *ContainerHandler) Start(c *gin.Context) {
 	// Update status in database
 	h.store.UpdateContainerStatus(ctx, found.ID, "running")
 
+	// Notify AdminEventsHub that container status has updated
+	if h.adminEventsHub != nil {
+		// Fetch the updated record from DB to ensure all fields are current
+		updatedRecord, err := h.store.GetContainerByID(ctx, found.ID)
+		if err == nil && updatedRecord != nil {
+			h.adminEventsHub.Broadcast("container_updated", updatedRecord)
+		} else {
+			log.Printf("Warning: Failed to fetch updated container record for admin broadcast: %v", err)
+		}
+	}
+
 	// Notify via WebSocket with full container data - use actual record resources
 	if h.eventsHub != nil {
 		h.eventsHub.NotifyContainerStarted(userID, gin.H{
@@ -974,20 +1010,15 @@ func (h *ContainerHandler) Stop(c *gin.Context) {
 	// Update status in database
 	h.store.UpdateContainerStatus(ctx, found.ID, "stopped")
 
-	// Notify via WebSocket with full container data - use actual record resources
-	if h.eventsHub != nil {
-		h.eventsHub.NotifyContainerStopped(userID, gin.H{
-			"id":     dockerID,
-			"db_id":  found.ID,
-			"name":   found.Name,
-			"image":  found.Image,
-			"status": "stopped",
-			"resources": gin.H{
-				"memory_mb":  found.MemoryMB,
-				"cpu_shares": found.CPUShares,
-				"disk_mb":    found.DiskMB,
-			},
-		})
+	// Notify AdminEventsHub that container status has updated
+	if h.adminEventsHub != nil {
+		// Fetch the updated record from DB to ensure all fields are current
+		updatedRecord, err := h.store.GetContainerByID(ctx, found.ID)
+		if err == nil && updatedRecord != nil {
+			h.adminEventsHub.Broadcast("container_updated", updatedRecord)
+		} else {
+			log.Printf("Warning: Failed to fetch updated container record for admin broadcast: %v", err)
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -1182,6 +1213,17 @@ func (h *ContainerHandler) UpdateSettings(c *gin.Context) {
 		    }
 		
 		    log.Printf("[UpdateSettings] Successfully updated container %s settings in database", found.ID)
+		
+		    // Notify AdminEventsHub that container was updated
+		    if h.adminEventsHub != nil {
+		        // Fetch the updated record from DB to ensure all fields are current
+		        updatedRecord, err := h.store.GetContainerByID(ctx, found.ID)
+		        if err == nil && updatedRecord != nil {
+		            h.adminEventsHub.Broadcast("container_updated", updatedRecord)
+		        } else {
+		            log.Printf("Warning: Failed to fetch updated container record for admin broadcast: %v", err)
+		        }
+		    }
 		
 		    // Notify via WebSocket
 		    if h.eventsHub != nil {

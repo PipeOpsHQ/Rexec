@@ -14,7 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/rexec/rexec/internal/api/handlers"
-	"github.com/rexec/rexec/internal/api/handlers/admin_events"
+	admin_events "github.com/rexec/rexec/internal/api/handlers/admin_events"
 	"github.com/rexec/rexec/internal/api/middleware"
 	"github.com/rexec/rexec/internal/billing"
 	"github.com/rexec/rexec/internal/container"
@@ -90,7 +90,7 @@ func handleAdminCommand(args []string) {
 			return
 		}
 		// Initialize the hub for CLI context
-		adminEventsHub := handlers.NewAdminEventsHub(store, containerManager) // Temporary hub for CLI context only
+		adminEventsHub := admin_events.NewAdminEventsHub(store, containerManager) // Temporary hub for CLI context only
 		promoteUser(args[1], adminEventsHub)
 	default:
 		fmt.Printf("Unknown admin command: %s\n", args[0])
@@ -116,13 +116,13 @@ func showAdminMenu() {
 			            email, _ := reader.ReadString('\n')
 			            // For interactive menu, create a temporary hub instance (no active WS clients)
 			            // This just allows the broadcast call to function without panicking.
-			            dummyEncryptor, _ := crypto.NewEncryptor("dummy-key-for-admin-cli-operation") // CLI tool does not need encryption
-			            dummyStore, _ := storage.NewPostgresStore("postgres://rexec:rexec@localhost:5432/rexec?sslmode=disable", dummyEncryptor) // Dummy store for CLI
-			            dummyContainerManager, _ := container.NewManager() // Dummy container manager
-			            dummyAdminEventsHub := handlers.NewAdminEventsHub(dummyStore, dummyContainerManager)
-			            promoteUser(strings.TrimSpace(email), dummyAdminEventsHub)
-			        case "2":
-			            return		default:
+			            				dummyEncryptor, _ := crypto.NewEncryptor("dummy-key-for-admin-cli-operation") // CLI tool does not need encryption
+			            				dummyStore, _ := storage.NewPostgresStore("postgres://rexec:rexec@localhost:5432/rexec?sslmode=disable", dummyEncryptor) // Dummy store for CLI
+			            				dummyContainerManager, _ := container.NewManager() // Dummy container manager
+			            				dummyAdminEventsHub := admin_events.NewAdminEventsHub(dummyStore, dummyContainerManager)
+			            				promoteUser(strings.TrimSpace(email), dummyAdminEventsHub)
+			            			case "2":
+			            				return		default:
 			fmt.Println("Invalid option.")
 		}
 	}

@@ -18,6 +18,7 @@ import (
 	"github.com/gorilla/websocket"
 	mgr "github.com/rexec/rexec/internal/container"
 	"github.com/rexec/rexec/internal/storage"
+	admin_events "github.com/rexec/rexec/internal/api/handlers/admin_events"
 )
 
 var upgrader = websocket.Upgrader{
@@ -52,6 +53,7 @@ type TerminalHandler struct {
 	mu               sync.RWMutex
 	recordingHandler *RecordingHandler
 	collabHandler    *CollabHandler
+	adminEventsHub   *admin_events.AdminEventsHub // New field
 }
 
 // SharedTerminalSession represents a terminal session shared by multiple users (for collaboration)
@@ -91,12 +93,13 @@ type TerminalMessage struct {
 }
 
 // NewTerminalHandler creates a new terminal handler
-func NewTerminalHandler(cm *mgr.Manager, store *storage.PostgresStore) *TerminalHandler {
+func NewTerminalHandler(cm *mgr.Manager, store *storage.PostgresStore, adminEventsHub *admin_events.AdminEventsHub) *TerminalHandler {
 	h := &TerminalHandler{
 		containerManager: cm,
 		store:            store,
 		sessions:         make(map[string]*TerminalSession),
 		sharedSessions:   make(map[string]*SharedTerminalSession),
+		adminEventsHub: adminEventsHub, // Assign the hub
 	}
 
 	// Start keepalive goroutine
@@ -341,6 +344,10 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 		if err := h.store.CreateSession(context.Background(), dbSession); err != nil {
 			log.Printf("Failed to create db session: %v", err)
 		}
+		// Broadcast session created event to admin hub
+		if h.adminEventsHub != nil {
+			h.adminEventsHub.Broadcast("session_created", dbSession)
+		}
 	}()
 
 	// Cleanup on exit
@@ -352,6 +359,11 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 		}
 		h.mu.Unlock()
 		
+		// Broadcast session deleted event to admin hub
+		if h.adminEventsHub != nil {
+			h.adminEventsHub.Broadcast("session_deleted", gin.H{"id": sessionKey, "user_id": userID.(string), "container_id": dockerID})
+		}
+
 		// Remove from database
 		go func() {
 			if err := h.store.DeleteSession(context.Background(), sessionKey); err != nil {
@@ -1246,6 +1258,16 @@ func (h *TerminalHandler) keepAliveLoop() {
 				if err := h.store.UpdateSessionLastPing(context.Background(), sessionID); err != nil {
 					// Log verbose only on error to avoid spam
 					// log.Printf("Failed to update session ping: %v", err)
+				}
+				// Broadcast session_updated event to admin hub
+				if h.adminEventsHub != nil {
+					// Fetch the updated session record to send full payload
+					updatedSession, err := h.store.GetSessionByID(context.Background(), sessionID)
+					if err == nil && updatedSession != nil {
+						h.adminEventsHub.Broadcast("session_updated", updatedSession)
+					} else {
+						log.Printf("Warning: Failed to fetch updated session record for admin broadcast: %v", err)
+					}
 				}
 			}()
 		}

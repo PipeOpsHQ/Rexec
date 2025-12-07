@@ -6,16 +6,18 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rexec/rexec/internal/models"
 	"github.com/rexec/rexec/internal/storage"
+	admin_events "github.com/rexec/rexec/internal/api/handlers/admin_events"
 )
 
 // AdminHandler handles API requests related to admin functionalities.
 type AdminHandler struct {
 	store *storage.PostgresStore
+	adminEventsHub *admin_events.AdminEventsHub // New field
 }
 
 // NewAdminHandler creates a new AdminHandler.
-func NewAdminHandler(store *storage.PostgresStore) *AdminHandler {
-	return &AdminHandler{store: store}
+func NewAdminHandler(store *storage.PostgresStore, adminEventsHub *admin_events.AdminEventsHub) *AdminHandler {
+	return &AdminHandler{store: store, adminEventsHub: adminEventsHub}
 }
 
 // ListUsers returns all users in the system.
@@ -72,20 +74,56 @@ func (h *AdminHandler) ListTerminals(c *gin.Context) {
 // DeleteUser deletes a user by ID.
 func (h *AdminHandler) DeleteUser(c *gin.Context) {
 	userID := c.Param("id")
+	
+	// Fetch user before deleting to include in broadcast payload
+	userToDelete, err := h.store.GetUserByID(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user for deletion"})
+		return
+	}
+	if userToDelete == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
 	if err := h.store.DeleteUser(c.Request.Context(), userID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user"})
 		return
 	}
+
+	// Broadcast user deleted event
+	if h.adminEventsHub != nil {
+		h.adminEventsHub.Broadcast("user_deleted", userToDelete)
+	}
+
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "User deleted successfully"})
 }
 
 // DeleteContainer deletes a container by ID.
 func (h *AdminHandler) DeleteContainer(c *gin.Context) {
 	containerID := c.Param("id")
-    // Assumes h.store.DeleteContainer method exists and handles necessary cleanup
+
+	// Fetch container before deleting to include in broadcast payload
+	containerToDelete, err := h.store.GetContainerByID(c.Request.Context(), containerID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch container for deletion"})
+		return
+	}
+	if containerToDelete == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Container not found"})
+		return
+	}
+
+	// Assumes h.store.DeleteContainer method exists and handles necessary cleanup
 	if err := h.store.DeleteContainer(c.Request.Context(), containerID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete container"})
 		return
 	}
+
+	// Broadcast container deleted event
+	if h.adminEventsHub != nil {
+		h.adminEventsHub.Broadcast("container_deleted", containerToDelete)
+	}
+
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Container deleted successfully"})
 }

@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"database/sql"
 	"time"
 )
 
@@ -55,4 +56,28 @@ func (s *PostgresStore) GetActiveSessionsCount(ctx context.Context) (int, error)
 	query := `SELECT COUNT(*) FROM sessions WHERE last_ping_at > NOW() - INTERVAL '5 minutes'`
 	err := s.db.QueryRowContext(ctx, query).Scan(&count)
 	return count, err
+}
+
+// GetSessionByID retrieves a session record by ID
+func (s *PostgresStore) GetSessionByID(ctx context.Context, id string) (*SessionRecord, error) {
+	var session SessionRecord
+	query := `
+		SELECT id, user_id, container_id, created_at, last_ping_at
+		FROM sessions WHERE id = $1
+	`
+	row := s.db.QueryRowContext(ctx, query, id)
+	err := row.Scan(
+		&session.ID,
+		&session.UserID,
+		&session.ContainerID,
+		&session.CreatedAt,
+		&session.LastPingAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &session, nil
 }

@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"regexp"
@@ -15,7 +16,7 @@ import (
 	"github.com/rexec/rexec/internal/auth"
 	"github.com/rexec/rexec/internal/models"
 	"github.com/rexec/rexec/internal/storage"
-	"github.com/rexec/rexec/internal/api/handlers/admin_events"
+	admin_events "github.com/rexec/rexec/internal/api/handlers/admin_events"
 )
 
 const (
@@ -25,9 +26,9 @@ const (
 
 // AuthHandler handles authentication endpoints
 type AuthHandler struct {
-	jwtSecret    []byte
-	store        *storage.PostgresStore
-	oauthService *auth.PKCEOAuthService
+	jwtSecret      []byte
+	store          *storage.PostgresStore
+	oauthService   *auth.PKCEOAuthService
 	adminEventsHub *admin_events.AdminEventsHub
 }
 
@@ -38,9 +39,9 @@ func NewAuthHandler(store *storage.PostgresStore, adminEventsHub *admin_events.A
 		secret = "rexec-dev-secret-change-in-production"
 	}
 	return &AuthHandler{
-		jwtSecret:    []byte(secret),
-		store:        store,
-		oauthService: auth.NewPKCEOAuthService(),
+		jwtSecret:      []byte(secret),
+		store:          store,
+		oauthService:   auth.NewPKCEOAuthService(),
 		adminEventsHub: adminEventsHub,
 	}
 }
@@ -100,6 +101,10 @@ func (h *AuthHandler) GuestLogin(c *gin.Context) {
 		// Update last activity
 		user.UpdatedAt = time.Now()
 		h.store.UpdateUser(ctx, user)
+		// Broadcast user_updated event
+		if h.adminEventsHub != nil {
+			h.adminEventsHub.Broadcast("user_updated", user)
+		}
 	} else {
 		// New guest - create user
 		user = &models.User{
@@ -127,14 +132,16 @@ func (h *AuthHandler) GuestLogin(c *gin.Context) {
 				}
 			} else {
 				c.JSON(http.StatusInternalServerError, models.APIError{
-					Code:    http.StatusInternalServerError,
-					Message: "Failed to create guest session",
-				})
-				return
-			}
+						Code:    http.StatusInternalServerError,
+						Message: "Failed to create guest session",
+					})
+					return
+				}
 		}
 		// Broadcast user_created event
-		h.adminEventsHub.Broadcast("user_created", user)
+		if h.adminEventsHub != nil {
+			h.adminEventsHub.Broadcast("user_created", user)
+		}
 	}
 
 	// Generate JWT token with 1-hour expiry
@@ -147,22 +154,13 @@ func (h *AuthHandler) GuestLogin(c *gin.Context) {
 		return
 	}
 
-	// Get container count for returning guests
-	containerCount := 0
-	if isReturningGuest {
-		containers, _ := h.store.GetContainersByUserID(ctx, user.ID)
-		if containers != nil {
-			containerCount = len(containers)
-		}
-	}
-
 	response := gin.H{
 		"token":           token,
 		"user":            user,
 		"guest":           true,
 		"expires_in":      int(GuestSessionDuration.Seconds()),
 		"returning_guest": isReturningGuest,
-		"containers":      containerCount,
+		"containers":      models.GetUserResourceLimits(user.Tier, user.SubscriptionActive).MaxContainers,
 	}
 
 	if isReturningGuest {
@@ -312,7 +310,7 @@ func (h *AuthHandler) OAuthCallback(c *gin.Context) {
 	tokenResp, err := h.oauthService.ExchangeCodeForToken(code, codeVerifier)
 	if err != nil {
 		// Log the full error for debugging (visible in server logs)
-		println("OAuth Token Exchange Error: " + err.Error())
+		log.Printf("OAuth Token Exchange Error: %v", err)
 		c.Data(http.StatusInternalServerError, "text/html; charset=utf-8", []byte(renderOAuthErrorPage("token_exchange", "Failed to exchange code for token: "+err.Error())))
 		return
 	}
@@ -320,6 +318,7 @@ func (h *AuthHandler) OAuthCallback(c *gin.Context) {
 	// Get user info from PipeOps
 	userInfo, err := h.oauthService.GetUserInfo(tokenResp.AccessToken)
 	if err != nil {
+		log.Printf("OAuth User Info Error: %v", err)
 		c.Data(http.StatusInternalServerError, "text/html; charset=utf-8", []byte(renderOAuthErrorPage("userinfo", "Failed to get user information: "+err.Error())))
 		return
 	}
@@ -332,6 +331,7 @@ func (h *AuthHandler) OAuthCallback(c *gin.Context) {
 	// Check if user exists
 	user, _, err := h.store.GetUserByEmail(ctx, normalizedEmail)
 	if err != nil {
+		log.Printf("Database error fetching user by email for OAuth: %v", err)
 		c.Data(http.StatusInternalServerError, "text/html; charset=utf-8", []byte(renderOAuthErrorPage("database", "Database error")))
 		return
 	}
@@ -359,15 +359,20 @@ func (h *AuthHandler) OAuthCallback(c *gin.Context) {
 			PipeOpsID:          fmt.Sprintf("%d", userInfo.ID),
 			CreatedAt:          time.Now(),
 			UpdatedAt:          time.Now(),
+			IsAdmin:            false, // Explicitly set false for new users
 		}
 
 		// Store user with empty password (OAuth user)
 		if err := h.store.CreateUser(ctx, user, ""); err != nil {
+			log.Printf("Failed to create new OAuth user in DB: %v", err)
 			c.Data(http.StatusInternalServerError, "text/html; charset=utf-8", []byte(renderOAuthErrorPage("create_user", "Failed to create user")))
 			return
 		}
 		// Broadcast user_created event
-		h.adminEventsHub.Broadcast("user_created", user)
+		if h.adminEventsHub != nil {
+			h.adminEventsHub.Broadcast("user_created", user)
+		}
+	} else { // Existing user, update it and broadcast
 		// Update user info with latest from PipeOps
 		user.FirstName = userInfo.FirstName
 		user.LastName = userInfo.LastName
@@ -386,12 +391,20 @@ func (h *AuthHandler) OAuthCallback(c *gin.Context) {
 		}
 		
 		user.UpdatedAt = time.Now()
-		h.store.UpdateUser(ctx, user)
+		if err := h.store.UpdateUser(ctx, user); err != nil {
+			// Log error but continue, as user exists
+			log.Printf("Failed to update OAuth user %s: %v", user.ID, err)
+		}
+		// Broadcast user_updated event
+		if h.adminEventsHub != nil {
+			h.adminEventsHub.Broadcast("user_updated", user)
+		}
 	}
 
 	// Generate JWT token
 	authToken, err := h.generateToken(user)
 	if err != nil {
+		log.Printf("Failed to generate JWT token for OAuth user: %v", err)
 		c.Data(http.StatusInternalServerError, "text/html; charset=utf-8", []byte(renderOAuthErrorPage("token", "Failed to generate token")))
 		return
 	}
@@ -458,14 +471,6 @@ func (h *AuthHandler) GetProfile(c *gin.Context) {
 		return
 	}
 
-	// Get container count
-	containers, _ := h.store.GetContainersByUserID(ctx, userID)
-	containerCount := 0
-	if containers != nil {
-		containerCount = len(containers)
-	}
-	containerLimit := container.UserContainerLimit(user.Tier)
-
 	// Get SSH key count
 	sshKeys, _ := h.store.GetSSHKeysByUserID(ctx, userID)
 	sshKeyCount := 0
@@ -492,7 +497,7 @@ func (h *AuthHandler) GetProfile(c *gin.Context) {
 		"tier":       user.Tier,
 		"created_at": user.CreatedAt,
 		"updated_at": user.UpdatedAt,
-                "is_admin":   user.IsAdmin,
+		"is_admin":   user.IsAdmin,
 	}
 
 	// For guest users, include expiration time from token
@@ -512,12 +517,12 @@ func (h *AuthHandler) GetProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"user": userResponse,
 		"stats": gin.H{
-			"containers":      containerCount,
-			"container_limit": containerLimit,
+			"container_count": models.GetUserResourceLimits(user.Tier, user.SubscriptionActive).MaxContainers,
+			"container_limit": models.GetUserResourceLimits(user.Tier, user.SubscriptionActive).MaxContainers,
 			"ssh_keys":        sshKeyCount,
 		},
 		"limits": gin.H{
-			"containers": models.GetUserResourceLimits(user.Tier, user.SubscriptionActive).MaxContainers, // Assuming MaxContainers is a new field on ResourceLimits
+			"containers": models.GetUserResourceLimits(user.Tier, user.SubscriptionActive).MaxContainers,
 			"memory_mb":  models.GetUserResourceLimits(user.Tier, user.SubscriptionActive).MemoryMB,
 			"cpu_shares": models.GetUserResourceLimits(user.Tier, user.SubscriptionActive).CPUShares,
 			"disk_mb":    models.GetUserResourceLimits(user.Tier, user.SubscriptionActive).DiskMB,
@@ -567,7 +572,9 @@ func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 	}
 
 	// Broadcast user_updated event
-	h.adminEventsHub.Broadcast("user_updated", user)
+	if h.adminEventsHub != nil {
+		h.adminEventsHub.Broadcast("user_updated", user)
+	}
 
 	token, err := h.generateToken(user)
 	if err != nil {
@@ -583,7 +590,7 @@ func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 			"tier":       user.Tier,
 			"created_at": user.CreatedAt,
 			"updated_at": user.UpdatedAt,
-                "is_admin":   user.IsAdmin,
+			"is_admin":   user.IsAdmin,
 		},
 		"token": token,
 	})
@@ -1056,19 +1063,19 @@ func renderOAuthErrorPage(errorCode, errorDesc string) string {
 // userToJSON converts user to JSON string for embedding in HTML
 func userToJSON(user *models.User) string {
 	// Escape quotes in strings to prevent JS syntax errors
-	username := strings.ReplaceAll(user.Username, "\"", "\\\"")
-	email := strings.ReplaceAll(user.Email, "\"", "\\\"")
-	tier := strings.ReplaceAll(user.Tier, "\"", "\\\"")
-	firstName := strings.ReplaceAll(user.FirstName, "\"", "\\\"")
-	lastName := strings.ReplaceAll(user.LastName, "\"", "\\\"")
-	avatar := strings.ReplaceAll(user.Avatar, "\"", "\\\"")
+	username := strings.ReplaceAll(user.Username, `"`, `\"`)
+	email := strings.ReplaceAll(user.Email, `"`, `\"`)
+	tier := strings.ReplaceAll(user.Tier, `"`, `\"`)
+	firstName := strings.ReplaceAll(user.FirstName, `"`, `\"`)
+	lastName := strings.ReplaceAll(user.LastName, `"`, `\"`)
+	avatar := strings.ReplaceAll(user.Avatar, `"`, `\"`)
 	
 	// Determine display name
 	name := username
 	if firstName != "" || lastName != "" {
 		name = strings.TrimSpace(firstName + " " + lastName)
 	}
-	name = strings.ReplaceAll(name, "\"", "\\\"")
+	name = strings.ReplaceAll(name, `"`, `\"`)
 	
 	// Determine is_guest based on tier
 	isGuest := "false"
@@ -1076,16 +1083,16 @@ func userToJSON(user *models.User) string {
 		isGuest = "true"
 	}
 	
-			verified := "false"
-		if user.Verified {
-			verified = "true"
-		}
-	
-		// Determine subscription status
-		subscriptionActive := "false"
-		if user.SubscriptionActive {
-			subscriptionActive = "true"
-		}
-	
-		return `{"id":"` + user.ID + `","email":"` + email + `","username":"` + username + `","name":"` + name + `","first_name":"` + firstName + `","last_name":"` + lastName + `","avatar":"` + avatar + `","verified":` + verified + `,"subscription_active":` + subscriptionActive + `,"tier":"` + tier + `","isGuest":` + isGuest + `}`
+		verified := "false"
+	if user.Verified {
+		verified = "true"
 	}
+
+		// Determine subscription status
+	subscriptionActive := "false"
+	if user.SubscriptionActive {
+		subscriptionActive = "true"
+	}
+
+	return `{"id":"` + user.ID + `","email":"` + email + `","username":"` + username + `","name":"` + name + `","first_name":"` + firstName + `","last_name":"` + lastName + `","avatar":"` + avatar + `","verified":` + verified + `,"subscription_active":` + subscriptionActive + `,"tier":"` + tier + `","isGuest":` + isGuest + `}`
+}

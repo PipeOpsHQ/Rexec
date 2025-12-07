@@ -145,6 +145,9 @@
         background: rgba(10, 10, 10, 0.5);
         position: relative;
         padding: 40px;
+        max-width: 1000px;
+        margin: 0 auto;
+        width: 100%;
     }
 
     .landing::before {
