@@ -110,35 +110,11 @@
 </script>
 
 {#if isOpen || mode === 'page'}
-  <!-- Use a fragment or conditional wrapper -->
-  {#if mode === 'modal'}
-      <div class="pricing-overlay" on:click={(e) => e.target === e.currentTarget && close()} on:keydown={(e) => e.key === 'Escape' && close()} role="presentation">
-        <div class="pricing-modal" role="dialog">
-            <button class="close-btn" on:click={close}>×</button>
-            <div class="pricing-content">
-                <PricingContent {plans} />
-            </div>
-        </div>
-      </div>
-  {:else}
-      <div class="pricing-page">
-         <div class="pricing-content">
-            <PricingContent {plans} />
-         </div>
-      </div>
-  {/if}
-{/if}
-
-<!-- Extracted content to reuse -->
-<!-- Since Svelte 4 doesn't support inline components easily without snippets (Svelte 5), I'll just duplicate the inner structure or refactor. Refactoring is better but 'replace' is tricky with large blocks.
-I will use conditional classes instead. -->
-
-<div class={mode === 'modal' ? 'pricing-overlay' : 'pricing-page-wrapper'} 
-     on:click={mode === 'modal' ? (e) => e.target === e.currentTarget && close() : undefined} 
-     on:keydown={mode === 'modal' ? (e) => e.key === 'Escape' && close() : undefined} 
-     role={mode === 'modal' ? "presentation" : undefined}
-     style={mode === 'page' ? 'display: block;' : (isOpen ? 'display: flex;' : 'display: none;')}
->
+  <div class={mode === 'modal' ? 'pricing-overlay' : 'pricing-page-wrapper'} 
+       on:click={mode === 'modal' ? (e) => e.target === e.currentTarget && close() : undefined} 
+       on:keydown={mode === 'modal' ? (e) => e.key === 'Escape' && close() : undefined} 
+       role={mode === 'modal' ? "presentation" : undefined}
+  >
     <div class={mode === 'modal' ? 'pricing-modal' : 'pricing-page-container'} role={mode === 'modal' ? "dialog" : undefined}>
       {#if mode === 'modal'}
         <button class="close-btn" on:click={close}>×</button>
@@ -181,8 +157,11 @@ I will use conditional classes instead. -->
               disabled={plan.current}
               on:click={() => {
                   if (mode === 'page') {
-                      // Redirect to login/signup or specific action
+                      // Redirect to landing to start
                       window.location.href = '/';
+                  } else {
+                      // In modal, maybe just close or handle upgrade
+                      close();
                   }
               }}
             >
@@ -196,7 +175,8 @@ I will use conditional classes instead. -->
         <p><strong>Need more?</strong> Contact us for custom enterprise solutions.</p>
       </div>
     </div>
-</div>
+  </div>
+{/if}
 
 <style>
   .pricing-page-wrapper {

@@ -147,6 +147,9 @@
     </button>
 
     <nav class="nav-links">
+        <button class="nav-link" on:click={() => dispatch("pricing")}>Pricing</button>
+        <button class="nav-link" on:click={() => dispatch("guides")}>Guides</button>
+        <button class="nav-link" on:click={() => dispatch("usecases")}>Use Cases</button>
     </nav>
 
     <nav class="nav-actions">
