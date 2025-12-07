@@ -17,8 +17,8 @@
     import JoinSession from "$components/JoinSession.svelte";
     import Pricing from "$components/Pricing.svelte";
     import StatusIcon from "$components/icons/StatusIcon.svelte";
-    import AITools from "$components/AITools.svelte";
-    import Agentic from "$components/Agentic.svelte";
+    import Guides from "$components/Guides.svelte";
+    import UseCases from "$components/UseCases.svelte";
 
     // App state
     let currentView:
@@ -28,8 +28,8 @@
         | "settings"
         | "sshkeys"
         | "join"
-        | "ai-tools"
-        | "agentic" = "landing";
+        | "guides"
+        | "use-cases" = "landing";
     let isLoading = true;
     let isInitialized = false; // Prevents reactive statements from firing before token validation
     let joinCode = ""; // For /join/:code route
@@ -152,15 +152,21 @@
         const path = window.location.pathname;
         const params = new URLSearchParams(window.location.search);
 
-        // Check for /ai-tools route
-        if (path === "/ai-tools") {
-            currentView = "ai-tools";
+        // Check for /guides route (formerly ai-tools)
+        if (path === "/guides" || path === "/ai-tools") {
+            currentView = "guides";
+            if (path === "/ai-tools") {
+                window.history.replaceState({}, "", "/guides");
+            }
             return;
         }
 
-        // Check for /agentic route
-        if (path === "/agentic") {
-            currentView = "agentic";
+        // Check for /use-cases route (formerly agentic)
+        if (path === "/use-cases" || path === "/agentic") {
+            currentView = "use-cases";
+            if (path === "/agentic") {
+                window.history.replaceState({}, "", "/use-cases");
+            }
             return;
         }
 
@@ -327,10 +333,10 @@
         const path = window.location.pathname;
         if (path === "/" || path === "") {
             currentView = $isAuthenticated ? "dashboard" : "landing";
-        } else if (path === "/ai-tools") {
-            currentView = "ai-tools";
-        } else if (path === "/agentic") {
-            currentView = "agentic";
+        } else if (path === "/guides" || path === "/ai-tools") {
+            currentView = "guides";
+        } else if (path === "/use-cases" || path === "/agentic") {
+            currentView = "use-cases";
         }
     }
 </script>
@@ -384,25 +390,19 @@
                     );
                     currentView = "dashboard";
                 }} on:cancel={goToDashboard} />
-            {:else if currentView === "ai-tools"}
-                <AITools 
+            {:else if currentView === "guides"}
+                <Guides 
                     on:tryNow={openGuestModal}
                     on:navigate={(e) => {
-                        if (e.detail.view === "agentic") {
-                            currentView = "agentic";
-                            window.history.pushState({}, "", "/agentic");
+                        if (e.detail.view === "agentic") { // Legacy handling
+                            currentView = "use-cases";
+                            window.history.pushState({}, "", "/use-cases");
                         }
                     }}
                 />
-            {:else if currentView === "agentic"}
-                <Agentic 
+            {:else if currentView === "use-cases"}
+                <UseCases 
                     on:tryNow={openGuestModal}
-                    on:navigate={(e) => {
-                        if (e.detail.view === "ai-tools") {
-                            currentView = "ai-tools";
-                            window.history.pushState({}, "", "/ai-tools");
-                        }
-                    }}
                 />
             {/if}
         </main>

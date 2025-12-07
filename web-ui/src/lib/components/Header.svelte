@@ -142,19 +142,19 @@
     </button>
 
     <nav class="nav-links">
-        <a href="/ai-tools" class="nav-link" on:click|preventDefault={() => {
-            window.history.pushState({}, "", "/ai-tools");
+        <a href="/guides" class="nav-link" on:click|preventDefault={() => {
+            window.history.pushState({}, "", "/guides");
             window.dispatchEvent(new PopStateEvent('popstate'));
         }}>
-            <StatusIcon status="ai" size={14} />
-            <span>AI Tools</span>
+            <StatusIcon status="book" size={14} />
+            <span>Guides</span>
         </a>
-        <a href="/agentic" class="nav-link" on:click|preventDefault={() => {
-            window.history.pushState({}, "", "/agentic");
+        <a href="/use-cases" class="nav-link" on:click|preventDefault={() => {
+            window.history.pushState({}, "", "/use-cases");
             window.dispatchEvent(new PopStateEvent('popstate'));
         }}>
             <StatusIcon status="zap" size={14} />
-            <span>Agentic</span>
+            <span>Use Cases</span>
         </a>
     </nav>
 
@@ -335,21 +335,21 @@
                 </button>
             </div>
             <div class="mobile-nav-links">
-                <a href="/ai-tools" class="mobile-nav-link" on:click|preventDefault={() => {
+                <a href="/guides" class="mobile-nav-link" on:click|preventDefault={() => {
                     closeMobileMenu();
-                    window.history.pushState({}, "", "/ai-tools");
+                    window.history.pushState({}, "", "/guides");
                     window.dispatchEvent(new PopStateEvent('popstate'));
                 }}>
-                    <StatusIcon status="ai" size={18} />
-                    <span>AI Tools</span>
+                    <StatusIcon status="book" size={18} />
+                    <span>Guides</span>
                 </a>
-                <a href="/agentic" class="mobile-nav-link" on:click|preventDefault={() => {
+                <a href="/use-cases" class="mobile-nav-link" on:click|preventDefault={() => {
                     closeMobileMenu();
-                    window.history.pushState({}, "", "/agentic");
+                    window.history.pushState({}, "", "/use-cases");
                     window.dispatchEvent(new PopStateEvent('popstate'));
                 }}>
                     <StatusIcon status="zap" size={18} />
-                    <span>Agentic</span>
+                    <span>Use Cases</span>
                 </a>
             </div>
         </div>
