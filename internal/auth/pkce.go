@@ -16,7 +16,7 @@ import (
 
 const (
 	DefaultPipeOpsBaseURL = "https://staging.pipeops.sh"
-	DefaultClientID       = "pipeops_public_client"
+	DefaultClientID       = "0c35f1207d255279800a066b0cd11a03"
 )
 
 // PKCEChallenge holds PKCE code verifier and challenge
@@ -130,9 +130,10 @@ func (s *PKCEOAuthService) GetAuthorizationURL(state, codeChallenge string) stri
 		"state":                 {state},
 		"code_challenge":        {codeChallenge},
 		"code_challenge_method": {"S256"},
+		"oauth":                 {"true"},
 	}
 
-	return fmt.Sprintf("%s/oauth/authorize?%s", s.config.BaseURL, params.Encode())
+	return fmt.Sprintf("%s/auth/signin?%s", s.config.BaseURL, params.Encode())
 }
 
 // ExchangeCodeForToken exchanges an authorization code for tokens
