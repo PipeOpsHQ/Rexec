@@ -118,6 +118,17 @@ func (s *PostgresStore) migrate() error {
 	CREATE INDEX IF NOT EXISTS idx_port_forwards_user_id ON port_forwards(user_id);
 	CREATE INDEX IF NOT EXISTS idx_port_forwards_container_id ON port_forwards(container_id);
 	CREATE INDEX IF NOT EXISTS idx_port_forwards_unique ON port_forwards(user_id, container_id, container_port, local_port);
+
+	CREATE TABLE IF NOT EXISTS snippets (
+		id VARCHAR(36) PRIMARY KEY,
+		user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		name VARCHAR(255) NOT NULL,
+		content TEXT NOT NULL,
+		language VARCHAR(50) DEFAULT 'bash',
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_snippets_user_id ON snippets(user_id);
 	`
 
 	if _, err := s.db.Exec(createTables); err != nil {
@@ -1354,6 +1365,91 @@ func (s *PostgresStore) GetPortForwardByID(ctx context.Context, id string) (*mod
 func (s *PostgresStore) DeletePortForward(ctx context.Context, id string) error {
 	// We might want to just mark as inactive instead of truly deleting
 	query := `UPDATE port_forwards SET is_active = false WHERE id = $1`
+	_, err := s.db.ExecContext(ctx, query, id)
+	return err
+}
+
+// ============================================================================
+// Snippet operations
+// ============================================================================
+
+// CreateSnippet creates a new snippet record
+func (s *PostgresStore) CreateSnippet(ctx context.Context, snippet *models.Snippet) error {
+	query := `
+		INSERT INTO snippets (id, user_id, name, content, language, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
+	`
+	_, err := s.db.ExecContext(ctx, query,
+		snippet.ID,
+		snippet.UserID,
+		snippet.Name,
+		snippet.Content,
+		snippet.Language,
+		snippet.CreatedAt,
+	)
+	return err
+}
+
+// GetSnippetsByUserID retrieves all snippets for a user
+func (s *PostgresStore) GetSnippetsByUserID(ctx context.Context, userID string) ([]*models.Snippet, error) {
+	query := `
+		SELECT id, user_id, name, content, language, created_at
+		FROM snippets WHERE user_id = $1
+		ORDER BY created_at DESC
+	`
+	rows, err := s.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var snippets []*models.Snippet
+	for rows.Next() {
+		var sn models.Snippet
+		err := rows.Scan(
+			&sn.ID,
+			&sn.UserID,
+			&sn.Name,
+			&sn.Content,
+			&sn.Language,
+			&sn.CreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		snippets = append(snippets, &sn)
+	}
+	return snippets, nil
+}
+
+// GetSnippetByID retrieves a snippet by ID
+func (s *PostgresStore) GetSnippetByID(ctx context.Context, id string) (*models.Snippet, error) {
+	var sn models.Snippet
+	query := `
+		SELECT id, user_id, name, content, language, created_at
+		FROM snippets WHERE id = $1
+	`
+	row := s.db.QueryRowContext(ctx, query, id)
+	err := row.Scan(
+		&sn.ID,
+		&sn.UserID,
+		&sn.Name,
+		&sn.Content,
+		&sn.Language,
+		&sn.CreatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &sn, nil
+}
+
+// DeleteSnippet deletes a snippet by ID
+func (s *PostgresStore) DeleteSnippet(ctx context.Context, id string) error {
+	query := `DELETE FROM snippets WHERE id = $1`
 	_, err := s.db.ExecContext(ctx, query, id)
 	return err
 }

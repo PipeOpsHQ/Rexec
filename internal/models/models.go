@@ -47,6 +47,16 @@ type PortForward struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
+// Snippet represents a saved script or macro
+type Snippet struct {
+	ID        string    `json:"id"`
+	UserID    string    `json:"user_id"`
+	Name      string    `json:"name"`
+	Content   string    `json:"content"`
+	Language  string    `json:"language"` // bash, python, etc.
+	CreatedAt time.Time `json:"created_at"`
+}
+
 // Container represents a user's terminal container
 type Container struct {
 	ID         string            `json:"id"`
