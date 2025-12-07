@@ -48,7 +48,6 @@ body {
     min-height: 100vh;
     line-height: 1.4;
     overflow-x: hidden;
-    overflow-y: hidden;
 }
 
 /* CRT Scanline Effect */
@@ -70,6 +69,10 @@ body::after {
 }
 
 /* Scrollbar - Firefox */
+html {
+    scrollbar-width: none;
+}
+
 * {
     scrollbar-width: thin;
     scrollbar-color: #333 var(--bg);

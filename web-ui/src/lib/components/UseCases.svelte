@@ -88,7 +88,8 @@
                 "Isolated for reproducible experiments and data security",
                 "Securely share running GPU sessions with collaborators",
                 "Flexible scaling and collaborative resource allocation"
-            ]
+            ],
+            comingSoon: true
         },
         {
             title: "Edge Device Development",
@@ -136,7 +137,7 @@
 
     <div class="cases-grid">
         {#each useCases as useCase}
-            <div class="case-card">
+            <div class="case-card" class:coming-soon={useCase.comingSoon}>
                 <div class="case-icon">
                     <StatusIcon status={useCase.icon} size={32} />
                 </div>
@@ -238,6 +239,26 @@
         transform: translateY(-4px);
         border-color: var(--accent);
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .case-card.coming-soon {
+        border-color: var(--yellow);
+        background: rgba(252, 238, 10, 0.03);
+    }
+
+    .case-card.coming-soon:hover {
+        border-color: var(--yellow);
+        box-shadow: 0 10px 30px rgba(252, 238, 10, 0.15);
+    }
+
+    .case-card.coming-soon .case-icon {
+        background: rgba(252, 238, 10, 0.1);
+        border-color: rgba(252, 238, 10, 0.3);
+        color: var(--yellow);
+    }
+
+    .case-card.coming-soon .bullet {
+        color: var(--yellow);
     }
 
     .case-icon {
