@@ -305,7 +305,11 @@
         startAutoRefresh(); // Start polling when authenticated
     }
 
-    $: if (isInitialized && !$isAuthenticated && currentView !== "landing") {
+    $: if (isInitialized && !$isAuthenticated && 
+           currentView !== "landing" && 
+           currentView !== "guides" && 
+           currentView !== "use-cases" && 
+           currentView !== "join") {
         currentView = "landing";
         containers.reset();
         terminal.closeAllSessionsForce();
