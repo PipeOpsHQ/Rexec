@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
@@ -22,6 +23,8 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 )
+
+const IsolatedNetworkName = "rexec-isolated"
 
 // ProgressEvent represents a progress update during container creation
 type ProgressEvent struct {
@@ -630,7 +633,41 @@ func NewManager(volumePaths ...string) (*Manager, error) {
 	// Check disk quota availability asynchronously
 	go mgr.checkDiskQuotaSupport()
 
+	// Ensure isolated network exists
+	if err := mgr.ensureIsolatedNetwork(); err != nil {
+		log.Printf("[Container] WARNING: Failed to create isolated network: %v", err)
+	}
+
 	return mgr, nil
+}
+
+// ensureIsolatedNetwork ensures the isolated network exists with ICC disabled
+func (m *Manager) ensureIsolatedNetwork() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	_, err := m.client.NetworkInspect(ctx, IsolatedNetworkName, types.NetworkInspectOptions{})
+	if err == nil {
+		return nil // Network exists
+	}
+
+	if !client.IsErrNotFound(err) {
+		return fmt.Errorf("failed to inspect network: %w", err)
+	}
+
+	// Create network with Inter-Container Communication (ICC) disabled
+	_, err = m.client.NetworkCreate(ctx, IsolatedNetworkName, types.NetworkCreate{
+		Driver: "bridge",
+		Options: map[string]string{
+			"com.docker.network.bridge.enable_icc": "false",
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create isolated network: %w", err)
+	}
+
+	log.Printf("[Container] Created isolated network: %s", IsolatedNetworkName)
+	return nil
 }
 
 // checkDiskQuotaSupport checks if disk quotas are available on the Docker host
@@ -1161,7 +1198,11 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 	}
 
 	// Network configuration
-	networkConfig := &network.NetworkingConfig{}
+	networkConfig := &network.NetworkingConfig{
+		EndpointsConfig: map[string]*network.EndpointSettings{
+			IsolatedNetworkName: {},
+		},
+	}
 
 	// Clean up any existing container with the same name (from failed previous attempts)
 	// This prevents "container name already in use" errors
@@ -1222,6 +1263,20 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 		"rexec.managed":        "true",
 	}, cfg.Labels)
 
+	// Get IP address (handle custom network)
+	ipAddress := inspect.NetworkSettings.IPAddress
+	if ipAddress == "" && inspect.NetworkSettings.Networks != nil {
+		if net, ok := inspect.NetworkSettings.Networks[IsolatedNetworkName]; ok {
+			ipAddress = net.IPAddress
+		} else {
+			// Fallback to any network
+			for _, net := range inspect.NetworkSettings.Networks {
+				ipAddress = net.IPAddress
+				break
+			}
+		}
+	}
+
 	info := &ContainerInfo{
 		ID:            resp.ID,
 		UserID:        cfg.UserID,
@@ -1230,7 +1285,7 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 		Status:        "configuring", // Set to configuring initially so UI waits
 		CreatedAt:     now,
 		LastUsedAt:    now,
-		IPAddress:     inspect.NetworkSettings.IPAddress,
+		IPAddress:     ipAddress,
 		Labels:        allLabels,
 	}
 
