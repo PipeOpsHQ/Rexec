@@ -145,9 +145,6 @@
         background: rgba(10, 10, 10, 0.5);
         position: relative;
         padding: 40px;
-        max-width: 1000px;
-        margin: 0 auto;
-        width: 100%;
     }
 
     .landing::before {
@@ -201,7 +198,7 @@
     h1 {
         font-size: 36px;
         font-weight: 700;
-        margin-bottom: 20px;
+        margin-bottom: 30px; /* Increased from 20px */
         text-transform: uppercase;
         letter-spacing: 2px;
         line-height: 1.3;
@@ -216,7 +213,7 @@
         font-size: 14px;
         color: var(--text-muted);
         max-width: 500px;
-        margin: 0 auto 40px;
+        margin: 0 auto 50px; /* Increased from 40px */
         line-height: 1.6;
     }
 
@@ -224,7 +221,7 @@
         display: flex;
         gap: 16px;
         justify-content: center;
-        margin-bottom: 24px;
+        margin-bottom: 32px; /* Increased from 24px */
     }
 
     .landing-links {
@@ -232,7 +229,7 @@
         align-items: center;
         justify-content: center;
         gap: 16px;
-        margin-bottom: 40px;
+        margin-bottom: 50px; /* Increased from 40px */
     }
 
     .link-btn {
@@ -289,7 +286,7 @@
     .terminal-preview {
         width: 100%;
         max-width: 600px;
-        margin: 0 auto 40px;
+        margin: 0 auto 60px; /* Increased from 40px */
         background: #000;
         border: 1px solid var(--border);
         text-align: left;
@@ -364,7 +361,7 @@
     .features {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        gap: 16px;
+        gap: 24px; /* Increased from 16px */
     }
 
     .feature {
