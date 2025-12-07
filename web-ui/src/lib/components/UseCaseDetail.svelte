@@ -912,6 +912,7 @@
         text-align: left;
         font-family: var(--font-mono);
         width: 100%;
+        color: var(--text);
     }
 
     .related-card:hover {
@@ -941,6 +942,7 @@
         flex: 1;
         font-size: 14px;
         margin: 0;
+        color: var(--text);
     }
 
     .arrow {
