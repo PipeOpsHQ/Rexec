@@ -1078,9 +1078,8 @@ func (h *ContainerHandler) UpdateSettings(c *gin.Context) {
 		}
 
 		// Get old container labels to preserve role
-		var oldRole string
 		if oldInfo, ok := h.manager.GetContainer(found.DockerID); ok && oldInfo != nil {
-			oldRole = oldInfo.Labels["rexec.role"]
+			// We used to get role from labels here, but now we use found.Role from DB
 		}
 
 		        // Recreate container with new resource limits (tier is already available from context)
