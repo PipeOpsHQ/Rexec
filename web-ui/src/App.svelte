@@ -123,12 +123,20 @@
         if (event.origin !== window.location.origin) return;
 
         if (event.data?.type === "oauth_success" && event.data?.data) {
-            const { token, user } = event.data.data;
-            if (token && user) {
+            const { token, user: rawUser } = event.data.data;
+            if (token && rawUser) {
+                // Ensure user object has all required fields
+                const user = {
+                    ...rawUser,
+                    name: rawUser.name || rawUser.username || rawUser.email || "User",
+                    tier: rawUser.tier || "free",
+                    isGuest: rawUser.tier === "guest"
+                };
+                
                 auth.login(token, user);
                 currentView = "dashboard";
                 containers.fetchContainers();
-                toast.success(`Welcome, ${user.username || user.email}!`);
+                toast.success(`Welcome, ${user.name}!`);
             }
         } else if (event.data?.type === "oauth_error") {
             toast.error(event.data.message || "Authentication failed");

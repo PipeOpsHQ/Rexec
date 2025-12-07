@@ -1014,5 +1014,16 @@ func renderOAuthErrorPage(errorCode, errorDesc string) string {
 
 // userToJSON converts user to JSON string for embedding in HTML
 func userToJSON(user *models.User) string {
-	return `{"id":"` + user.ID + `","email":"` + user.Email + `","username":"` + user.Username + `","tier":"` + user.Tier + `"}`
+	// Escape quotes in strings to prevent JS syntax errors
+	username := strings.ReplaceAll(user.Username, "\"", "\\\"")
+	email := strings.ReplaceAll(user.Email, "\"", "\\\"")
+	tier := strings.ReplaceAll(user.Tier, "\"", "\\\"")
+	
+	// Determine is_guest based on tier
+	isGuest := "false"
+	if tier == "guest" {
+		isGuest = "true"
+	}
+
+	return `{"id":"` + user.ID + `","email":"` + email + `","username":"` + username + `","name":"` + username + `","tier":"` + tier + `","isGuest":` + isGuest + `}`
 }
