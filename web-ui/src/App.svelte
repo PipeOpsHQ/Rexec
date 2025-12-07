@@ -18,6 +18,8 @@
     import JoinSession from "$components/JoinSession.svelte";
     import Pricing from "$components/Pricing.svelte";
     import StatusIcon from "$components/icons/StatusIcon.svelte";
+    import Guides from "$components/Guides.svelte";
+    import UseCases from "$components/UseCases.svelte";
     import SnippetsPage from "$components/SnippetsPage.svelte";
 
     // App state
@@ -30,6 +32,8 @@
         | "sshkeys"
         | "snippets"
         | "join"
+        | "guides"
+        | "use-cases"
         | "pricing" = "landing";
     let isLoading = true;
     let isInitialized = false; // Prevents reactive statements from firing before token validation
@@ -220,6 +224,24 @@
             return;
         }
 
+        // Check for /guides route (formerly ai-tools)
+        if (path === "/guides" || path === "/ai-tools") {
+            currentView = "guides";
+            if (path === "/ai-tools") {
+                window.history.replaceState({}, "", "/guides");
+            }
+            return;
+        }
+
+        // Check for /use-cases route (formerly agentic)
+        if (path === "/use-cases" || path === "/agentic") {
+            currentView = "use-cases";
+            if (path === "/agentic") {
+                window.history.replaceState({}, "", "/use-cases");
+            }
+            return;
+        }
+
         // Check for /join/:code route
         const joinMatch = path.match(/^\/join\/([A-Z0-9]{6})$/i);
         if (joinMatch) {
@@ -391,6 +413,8 @@
 
     $: if (isInitialized && !$isAuthenticated && 
            currentView !== "landing" && 
+           currentView !== "guides" && 
+           currentView !== "use-cases" && 
            currentView !== "join" &&
            currentView !== "pricing") {
         currentView = "landing";
@@ -446,6 +470,10 @@
         const path = window.location.pathname;
         if (path === "/" || path === "") {
             currentView = $isAuthenticated ? "dashboard" : "landing";
+        } else if (path === "/guides" || path === "/ai-tools") {
+            currentView = "guides";
+        } else if (path === "/use-cases" || path === "/agentic") {
+            currentView = "use-cases";
         } else if (path === "/pricing") {
             currentView = "pricing";
         } else if (path === "/admin") {
@@ -546,6 +574,20 @@
                     );
                     currentView = "dashboard";
                 }} on:cancel={goToDashboard} />
+            {:else if currentView === "guides"}
+                <Guides 
+                    on:tryNow={openGuestModal}
+                    on:navigate={(e) => {
+                        if (e.detail.view === "agentic") { // Legacy handling
+                            currentView = "use-cases";
+                            window.history.pushState({}, "", "/use-cases");
+                        }
+                    }}
+                />
+            {:else if currentView === "use-cases"}
+                <UseCases 
+                    on:tryNow={openGuestModal}
+                />
             {:else if currentView === "pricing"}
                 <Pricing mode="page" />
             {/if}
