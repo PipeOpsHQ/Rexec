@@ -11,7 +11,7 @@ export default defineConfig({
       srcDir: 'src',
       filename: 'sw.ts',
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'og-image.svg', 'robots.txt', 'sitemap.xml', 'pwa-192x192.png', 'pwa-512x512.png'],
+      includeAssets: ['favicon.svg', 'og-image.svg', 'robots.txt', 'sitemap.xml', 'pwa-96x96.png', 'pwa-192x192.png', 'pwa-512x512.png', 'screenshot-desktop.png', 'screenshot-mobile.png'],
       manifest: {
         name: 'Rexec - Terminal as a Service',
         short_name: 'Rexec',
@@ -23,10 +23,9 @@ export default defineConfig({
         orientation: 'any',
         icons: [
           {
-            src: '/favicon.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
-            purpose: 'any',
+            src: '/pwa-96x96.png',
+            sizes: '96x96',
+            type: 'image/png',
           },
           {
             src: '/pwa-192x192.png',
@@ -45,6 +44,22 @@ export default defineConfig({
             purpose: 'maskable',
           },
         ],
+        screenshots: [
+          {
+            src: '/screenshot-desktop.png',
+            sizes: '1280x720',
+            type: 'image/png',
+            form_factor: 'wide',
+            label: 'Rexec Terminal Dashboard',
+          },
+          {
+            src: '/screenshot-mobile.png',
+            sizes: '390x844',
+            type: 'image/png',
+            form_factor: 'narrow',
+            label: 'Rexec Terminal on Mobile',
+          },
+        ],
         categories: ['developer', 'utilities', 'productivity'],
         lang: 'en',
         dir: 'ltr',
@@ -55,14 +70,14 @@ export default defineConfig({
             short_name: 'New',
             description: 'Create a new terminal session',
             url: '/ui/dashboard?action=create',
-            icons: [{ src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml' }],
+            icons: [{ src: '/pwa-96x96.png', sizes: '96x96', type: 'image/png' }],
           },
           {
             name: 'Dashboard',
             short_name: 'Dashboard',
             description: 'View your terminals',
             url: '/ui/dashboard',
-            icons: [{ src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml' }],
+            icons: [{ src: '/pwa-96x96.png', sizes: '96x96', type: 'image/png' }],
           },
         ],
       },
