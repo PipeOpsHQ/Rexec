@@ -561,38 +561,121 @@ func renderOAuthSuccessPage(token string, user *models.User) string {
 	appURL := getAppURL()
 
 	return `<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Authentication Successful</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication Successful - Rexec</title>
     <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            margin: 0;
-            padding: 40px;
-            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: #0a0a0a;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
+            padding: 20px;
         }
         .container {
-            max-width: 400px;
+            max-width: 420px;
+            width: 100%;
             text-align: center;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 40px;
+            background: linear-gradient(145deg, #1a1a1a 0%, #0f0f0f 100%);
+            padding: 48px 40px;
             border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            border: 1px solid #2a2a2a;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5);
         }
-        .icon { font-size: 64px; margin-bottom: 20px; }
-        h1 { color: #1a1a1a; margin: 0 0 10px; font-size: 24px; }
-        p { color: #666; margin: 0; }
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 32px;
+        }
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #7c7bff 0%, #6366f1 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        .logo-text {
+            font-size: 24px;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: -0.5px;
+        }
+        .icon-container {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            box-shadow: 0 8px 32px rgba(34, 197, 94, 0.3);
+        }
+        .icon-container svg {
+            width: 40px;
+            height: 40px;
+            color: white;
+        }
+        h1 {
+            color: #ffffff;
+            margin: 0 0 8px;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .username {
+            color: #7c7bff;
+            font-weight: 600;
+        }
+        p {
+            color: #888;
+            margin: 0;
+            font-size: 15px;
+        }
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #333;
+            border-top-color: #7c7bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .redirect-text {
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid #2a2a2a;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="icon">✓</div>
-        <h1>Welcome, ` + user.Username + `!</h1>
-        <p>Redirecting you to Rexec...</p>
+        <div class="logo">
+            <div class="logo-icon">⌘</div>
+            <span class="logo-text">Rexec</span>
+        </div>
+        <div class="icon-container">
+            <svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
+            </svg>
+        </div>
+        <h1>Welcome, <span class="username">` + user.Username + `</span>!</h1>
+        <p>Authentication successful</p>
+        <p class="redirect-text"><span class="spinner"></span>Redirecting you to Rexec...</p>
     </div>
     <script>
         const authData = {
@@ -627,49 +710,138 @@ func renderOAuthErrorPage(errorCode, errorDesc string) string {
 	appURL := getAppURL()
 
 	return `<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Authentication Failed</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication Failed - Rexec</title>
     <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            margin: 0;
-            padding: 40px;
-            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: #0a0a0a;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
+            padding: 20px;
         }
         .container {
-            max-width: 400px;
+            max-width: 420px;
+            width: 100%;
             text-align: center;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 40px;
+            background: linear-gradient(145deg, #1a1a1a 0%, #0f0f0f 100%);
+            padding: 48px 40px;
             border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            border: 1px solid #2a2a2a;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5);
         }
-        .icon { font-size: 64px; margin-bottom: 20px; }
-        h1 { color: #1a1a1a; margin: 0 0 10px; font-size: 24px; }
-        p { color: #666; margin: 0 0 20px; }
-        .btn {
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 32px;
+        }
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #7c7bff 0%, #6366f1 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        .logo-text {
+            font-size: 24px;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: -0.5px;
+        }
+        .icon-container {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            box-shadow: 0 8px 32px rgba(239, 68, 68, 0.3);
+        }
+        .icon-container svg {
+            width: 40px;
+            height: 40px;
+            color: white;
+        }
+        h1 {
+            color: #ffffff;
+            margin: 0 0 12px;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        p {
+            color: #888;
+            margin: 0 0 24px;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+        .error-code {
             display: inline-block;
-            padding: 12px 24px;
-            background: #7c7bff;
+            background: #1f1f1f;
+            color: #666;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            margin-bottom: 24px;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #7c7bff 0%, #6366f1 100%);
             color: white;
             text-decoration: none;
-            border-radius: 8px;
-            font-weight: 500;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 15px;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 16px rgba(124, 123, 255, 0.3);
         }
-        .btn:hover { background: #6b6aee; }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 24px rgba(124, 123, 255, 0.4);
+        }
+        .btn svg {
+            width: 18px;
+            height: 18px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="icon">✕</div>
+        <div class="logo">
+            <div class="logo-icon">⌘</div>
+            <span class="logo-text">Rexec</span>
+        </div>
+        <div class="icon-container">
+            <svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        </div>
         <h1>Authentication Failed</h1>
         <p>` + errorDesc + `</p>
-        <a href="` + appURL + `" class="btn">Return to Rexec</a>
+        <div class="error-code">` + errorCode + `</div>
+        <br><br>
+        <a href="` + appURL + `" class="btn">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Return to Rexec
+        </a>
     </div>
     <script>
         if (window.opener) {
