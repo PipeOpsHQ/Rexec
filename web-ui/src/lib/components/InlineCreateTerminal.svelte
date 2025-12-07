@@ -1511,7 +1511,7 @@
         opacity: 0.5;
         cursor: not-allowed;
         background: #333;
-        color: #666;
+        color: #a0a0a0;
     }
 
     .os-card.selected {

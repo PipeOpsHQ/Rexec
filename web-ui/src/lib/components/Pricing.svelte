@@ -157,7 +157,7 @@
     right: 16px;
     background: transparent;
     border: none;
-    color: #666;
+    color: #999;
     font-size: 24px;
     cursor: pointer;
     padding: 4px 10px;
@@ -186,7 +186,7 @@
   }
   
   .pricing-header p {
-    color: #666;
+    color: #a0a0a0;
     font-size: 14px;
     margin: 0;
   }
@@ -272,12 +272,12 @@
   
   .period {
     font-size: 14px;
-    color: #666;
+    color: #a0a0a0;
   }
   
   .plan-desc {
     font-size: 12px;
-    color: #888;
+    color: #999;
     margin: 0;
   }
   
@@ -325,7 +325,7 @@
   
   .plan-cta:hover:not(:disabled) {
     background: #222;
-    border-color: #444;
+    border-color: #555;
     color: #fff;
   }
   
@@ -342,7 +342,7 @@
   .plan-cta.current {
     background: transparent;
     border-color: #333;
-    color: #555;
+    color: #888;
     cursor: default;
   }
   

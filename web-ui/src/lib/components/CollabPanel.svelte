@@ -275,7 +275,7 @@
   .close-btn {
     background: transparent;
     border: none;
-    color: #666;
+    color: #999;
     cursor: pointer;
     padding: 4px;
     border-radius: 4px;
@@ -305,7 +305,7 @@
     display: block;
     font-size: 11px;
     text-transform: uppercase;
-    color: #666;
+    color: #a0a0a0;
     font-weight: 600;
     margin-bottom: 10px;
     letter-spacing: 0.5px;
@@ -340,7 +340,7 @@
 
   .t-label {
     font-size: 10px;
-    color: #666;
+    color: #a0a0a0;
   }
 
   .t-name {
@@ -575,7 +575,7 @@
 
   .p-count {
     font-size: 11px;
-    color: #666;
+    color: #a0a0a0;
   }
 
   .participants-list {
@@ -642,7 +642,7 @@
 
   .p-role {
     font-size: 10px;
-    color: #666;
+    color: #a0a0a0;
     text-transform: capitalize;
   }
 
@@ -657,7 +657,7 @@
   .empty-state {
     padding: 20px;
     text-align: center;
-    color: #555;
+    color: #a0a0a0;
     font-size: 12px;
     font-style: italic;
   }

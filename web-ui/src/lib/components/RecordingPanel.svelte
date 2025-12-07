@@ -470,7 +470,7 @@
   .close-btn {
     background: transparent;
     border: none;
-    color: #555;
+    color: #999;
     font-size: 16px;
     cursor: pointer;
     padding: 2px 6px;
@@ -497,7 +497,7 @@
     background: transparent;
     border: none;
     border-radius: 3px;
-    color: #555;
+    color: #999;
     font-size: 9px;
     font-weight: 600;
     cursor: pointer;
@@ -608,7 +608,7 @@
   }
 
   .title-input::placeholder {
-    color: #444;
+    color: #999;
   }
 
   .title-input:focus {
@@ -645,7 +645,7 @@
   }
 
   .hint {
-    color: #444;
+    color: #999;
     text-align: center;
     padding: 20px;
     margin: 0;
@@ -659,7 +659,7 @@
   }
 
   .loading, .empty {
-    color: #444;
+    color: #999;
     text-align: center;
     padding: 20px;
     margin: 0;
@@ -702,7 +702,7 @@
   }
 
   .rec-meta {
-    color: #555;
+    color: #999;
     font-size: 9px;
   }
 
@@ -753,7 +753,7 @@
     background: transparent;
     border: 1px solid #1e1e28;
     border-radius: 3px;
-    color: #666;
+    color: #a0a0a0;
     cursor: pointer;
     font-size: 12px;
     padding: 3px 6px;
@@ -776,7 +776,7 @@
   }
 
   .player-duration {
-    color: #555;
+    color: #999;
     font-size: 9px;
     padding: 2px 6px;
     background: #0a0a0c;
@@ -827,7 +827,7 @@
     background: transparent;
     border: 1px solid #1e1e28;
     border-radius: 3px;
-    color: #666;
+    color: #a0a0a0;
     width: 28px;
     height: 28px;
     cursor: pointer;
@@ -849,7 +849,7 @@
   }
 
   .ctrl-btn.download {
-    color: #555;
+    color: #999;
     font-size: 12px;
   }
 

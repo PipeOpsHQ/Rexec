@@ -972,9 +972,10 @@
     }
 
     .empty-state p {
-        color: var(--text-muted);
+        color: var(--text-secondary);
         max-width: 400px;
         margin-bottom: 24px;
+        line-height: 1.5;
     }
 
     /* Live indicator */
