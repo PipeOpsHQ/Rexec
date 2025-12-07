@@ -84,8 +84,25 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+        <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com" />
 
-        <!-- Fonts -->
+        <!-- Preload Critical Fonts for LCP -->
+        <link 
+            rel="preload" 
+            href="https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfAZ9hiJ-Ek-_EeA.woff2" 
+            as="font" 
+            type="font/woff2" 
+            crossorigin 
+        />
+        <link 
+            rel="preload" 
+            href="https://fonts.gstatic.com/s/jetbrainsmono/v20/tDbY2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKxjPVmUsaaDhw.woff2" 
+            as="font" 
+            type="font/woff2" 
+            crossorigin 
+        />
+
+        <!-- Fonts with font-display: swap for better FCP -->
         <link
             href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
             rel="stylesheet"
@@ -99,7 +116,7 @@
                 "name": "Rexec",
                 "alternateName": "Rexec Terminal",
                 "description": "Launch secure Linux terminals instantly in your browser. No setup required. Choose from Ubuntu, Debian, Alpine, and more.",
-                "url": "https://rexec.io",
+                "url": "https://rexec.pipeops.io",
                 "applicationCategory": "DeveloperApplication",
                 "operatingSystem": "Any",
                 "browserRequirements": "Requires JavaScript. Requires HTML5.",
@@ -117,7 +134,7 @@
                     "Persistent storage",
                     "SSH access"
                 ],
-                "screenshot": "https://rexec.io/og-image.png",
+                "screenshot": "https://rexec.pipeops.io/og-image.png",
                 "softwareVersion": "1.0",
                 "author": {
                     "@type": "Organization",
@@ -132,31 +149,79 @@
                 "@context": "https://schema.org",
                 "@type": "Organization",
                 "name": "Rexec",
-                "url": "https://rexec.io",
-                "logo": "https://rexec.io/favicon.svg",
+                "url": "https://rexec.pipeops.io",
+                "logo": "https://rexec.pipeops.io/favicon.svg",
                 "description": "Terminal as a Service - Instant Linux terminals in your browser",
                 "sameAs": []
             }
         </script>
-        <!-- Ace Editor CDN -->
+
+        <!-- Critical CSS for faster FCP - prevents flash of unstyled content -->
+        <style>
+            :root {
+                --bg: #0a0a0a;
+                --bg-secondary: #111;
+                --text: #e5e5e5;
+                --accent: #00ff41;
+            }
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            html, body { 
+                height: 100%; 
+                background: var(--bg); 
+                color: var(--text);
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            }
+            #app { 
+                min-height: 100vh; 
+                display: flex; 
+                flex-direction: column;
+            }
+            /* Loading skeleton */
+            .loading-skeleton {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                height: 100vh;
+                background: var(--bg);
+            }
+            .loading-spinner {
+                width: 40px;
+                height: 40px;
+                border: 3px solid var(--bg-secondary);
+                border-top-color: var(--accent);
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+            }
+            @keyframes spin { to { transform: rotate(360deg); } }
+        </style>
+
+        <!-- Ace Editor CDN - Deferred for non-blocking load -->
         <script
             src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.33.0/ace.js"
             type="text/javascript"
             charset="utf-8"
+            defer
         ></script>
         <script
             src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.33.0/mode-sh.js"
             type="text/javascript"
             charset="utf-8"
+            defer
         ></script>
         <script
             src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.33.0/theme-dracula.js"
             type="text/javascript"
             charset="utf-8"
+            defer
         ></script>
     </head>
     <body>
-        <div id="app"></div>
+        <div id="app">
+            <!-- Loading skeleton shown until app mounts -->
+            <div class="loading-skeleton" id="initial-loader">
+                <div class="loading-spinner"></div>
+            </div>
+        </div>
         <script type="module" src="/src/main.ts"></script>
     </body>
 </html>

@@ -6,9 +6,11 @@ Allow: /
 # Disallow API and WebSocket endpoints
 Disallow: /api/
 Disallow: /ws/
+Disallow: /p/
+Disallow: /r/
 
 # Sitemap
-Sitemap: https://rexec.io/sitemap.xml
+Sitemap: https://rexec.pipeops.io/sitemap.xml
 
 # Crawl-delay for polite crawling
 Crawl-delay: 1

@@ -570,6 +570,8 @@
         </div>
     {:else}
         <div class="create-content">
+            <h1 class="create-title">Create New Terminal</h1>
+            
             <!-- Terminal Name -->
             <div class="create-section">
                 <h4>Terminal Name</h4>
@@ -1068,6 +1070,20 @@
         display: flex;
         flex-direction: column;
         gap: 20px;
+    }
+
+    .create-title {
+        font-size: 24px;
+        font-weight: 600;
+        color: var(--text);
+        margin: 0 0 8px 0;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .compact .create-title {
+        font-size: 18px;
+        margin: 0 0 4px 0;
     }
 
     .create-section h4 {

@@ -22,6 +22,7 @@
     import UseCases from "$components/UseCases.svelte";
     import UseCaseDetail from "$components/UseCaseDetail.svelte";
     import SnippetsPage from "$components/SnippetsPage.svelte";
+    import NotFound from "$components/NotFound.svelte";
 
     // App state
     let currentView:
@@ -36,7 +37,8 @@
         | "guides"
         | "use-cases"
         | "use-case-detail"
-        | "pricing" = "landing";
+        | "pricing"
+        | "404" = "landing";
     let isLoading = true;
     let isInitialized = false; // Prevents reactive statements from firing before token validation
     let joinCode = ""; // For /join/:code route
@@ -324,7 +326,24 @@
                 // Set terminal to docked mode for direct URL access (full screen)
                 terminal.setViewMode("docked");
                 terminal.createSession(containerId, result.container.name);
+            } else {
+                // Container not found
+                currentView = "404";
             }
+            return;
+        }
+
+        // Check for unknown paths - show 404
+        const knownPaths = ['/', '/ui/dashboard', '/admin', '/pricing', '/guides', '/ai-tools', '/use-cases', '/agentic', '/snippets', '/settings', '/sshkeys'];
+        const isKnownPath = knownPaths.includes(path) || 
+                           path.startsWith('/use-cases/') || 
+                           path.startsWith('/join/') ||
+                           path.startsWith('/terminal/') ||
+                           path.match(/^\/[a-f0-9]{64}$/i) ||
+                           path.match(/^\/[a-f0-9-]{36}$/i);
+        
+        if (!isKnownPath && path !== '/') {
+            currentView = "404";
         }
     }
 
@@ -428,7 +447,8 @@
            currentView !== "use-cases" && 
            currentView !== "use-case-detail" &&
            currentView !== "join" &&
-           currentView !== "pricing") {
+           currentView !== "pricing" &&
+           currentView !== "404") {
         currentView = "landing";
         containers.reset();
         terminal.closeAllSessionsForce();
@@ -437,7 +457,7 @@
 
     // Navigation functions
     function goToDashboard() {
-        currentView = "dashboard";
+        currentView = $isAuthenticated ? "dashboard" : "landing";
         window.history.pushState({}, "", "/");
     }
 
@@ -626,6 +646,8 @@
                 />
             {:else if currentView === "pricing"}
                 <Pricing mode="page" />
+            {:else if currentView === "404"}
+                <NotFound on:home={goToDashboard} />
             {/if}
         </main>
 
