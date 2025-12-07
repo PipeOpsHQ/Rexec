@@ -16,7 +16,7 @@ import (
 
 const (
 	DefaultPipeOpsBaseURL = "https://staging.pipeops.sh"
-	DefaultClientID       = "pipeops_public_client"
+	DefaultClientID       = "0c35f1207d255279800a066b0cd11a03"
 )
 
 // PKCEChallenge holds PKCE code verifier and challenge
@@ -65,8 +65,10 @@ func NewPKCEOAuthService() *PKCEOAuthService {
 		baseURL = DefaultPipeOpsBaseURL
 	}
 
-	// Always use the specific client ID for PipeOps staging
-	clientID := "0c35f1207d255279800a066b0cd11a03"
+	clientID := os.Getenv("PIPEOPS_CLIENT_ID")
+	if clientID == "" {
+		clientID = DefaultClientID
+	}
 
 	redirectURI := os.Getenv("PIPEOPS_REDIRECT_URI")
 	if redirectURI == "" {
