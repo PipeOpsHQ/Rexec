@@ -20,6 +20,7 @@
     import StatusIcon from "$components/icons/StatusIcon.svelte";
     import Guides from "$components/Guides.svelte";
     import UseCases from "$components/UseCases.svelte";
+    import UseCaseDetail from "$components/UseCaseDetail.svelte";
     import SnippetsPage from "$components/SnippetsPage.svelte";
 
     // App state
@@ -34,10 +35,12 @@
         | "join"
         | "guides"
         | "use-cases"
+        | "use-case-detail"
         | "pricing" = "landing";
     let isLoading = true;
     let isInitialized = false; // Prevents reactive statements from firing before token validation
     let joinCode = ""; // For /join/:code route
+    let useCaseSlug = ""; // For /use-cases/:slug route
 
     // Guest email modal state
     let showGuestModal = false;
@@ -242,6 +245,14 @@
             return;
         }
 
+        // Check for /use-cases/:slug route
+        const useCaseMatch = path.match(/^\/use-cases\/([a-z0-9-]+)$/i);
+        if (useCaseMatch) {
+            useCaseSlug = useCaseMatch[1].toLowerCase();
+            currentView = "use-case-detail";
+            return;
+        }
+
         // Check for /join/:code route
         const joinMatch = path.match(/^\/join\/([A-Z0-9]{6})$/i);
         if (joinMatch) {
@@ -415,6 +426,7 @@
            currentView !== "landing" && 
            currentView !== "guides" && 
            currentView !== "use-cases" && 
+           currentView !== "use-case-detail" &&
            currentView !== "join" &&
            currentView !== "pricing") {
         currentView = "landing";
@@ -474,6 +486,12 @@
             currentView = "guides";
         } else if (path === "/use-cases" || path === "/agentic") {
             currentView = "use-cases";
+        } else if (path.startsWith("/use-cases/")) {
+            const match = path.match(/^\/use-cases\/([a-z0-9-]+)$/i);
+            if (match) {
+                useCaseSlug = match[1].toLowerCase();
+                currentView = "use-case-detail";
+            }
         } else if (path === "/pricing") {
             currentView = "pricing";
         } else if (path === "/admin") {
@@ -587,6 +605,24 @@
             {:else if currentView === "use-cases"}
                 <UseCases 
                     on:tryNow={openGuestModal}
+                    on:navigate={(e) => {
+                        useCaseSlug = e.detail.slug;
+                        currentView = "use-case-detail";
+                        window.history.pushState({}, "", `/use-cases/${e.detail.slug}`);
+                    }}
+                />
+            {:else if currentView === "use-case-detail"}
+                <UseCaseDetail 
+                    slug={useCaseSlug}
+                    on:back={() => {
+                        currentView = "use-cases";
+                        window.history.pushState({}, "", "/use-cases");
+                    }}
+                    on:tryNow={openGuestModal}
+                    on:navigate={(e) => {
+                        useCaseSlug = e.detail.slug;
+                        window.history.pushState({}, "", `/use-cases/${e.detail.slug}`);
+                    }}
                 />
             {:else if currentView === "pricing"}
                 <Pricing mode="page" />

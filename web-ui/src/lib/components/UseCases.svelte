@@ -4,14 +4,20 @@
     
     const dispatch = createEventDispatcher<{
         tryNow: void;
+        navigate: { slug: string };
     }>();
 
     function handleTryNow() {
         dispatch("tryNow");
     }
 
+    function navigateToCase(slug: string) {
+        dispatch("navigate", { slug });
+    }
+
     const useCases = [
         {
+            slug: "ephemeral-dev-environments",
             title: "Ephemeral Dev Environments",
             icon: "bolt",
             description: "The future is disposable. Spin up a fresh, clean environment for every task, PR, or experiment. No drift, no cleanup.",
@@ -23,6 +29,7 @@
             ]
         },
         {
+            slug: "collaborative-intelligence",
             title: "Collaborative Intelligence",
             icon: "ai",
             description: "A shared workspace for humans and AI agents. Let LLMs execute code in a real, safe environment while you supervise.",
@@ -34,6 +41,7 @@
             ]
         },
         {
+            slug: "universal-jump-host",
             title: "Universal Jump Host",
             icon: "shield",
             description: "Access your private infrastructure securely from any browser. No VPNs, no complex SSH config management.",
@@ -45,6 +53,7 @@
             ]
         },
         {
+            slug: "instant-education-onboarding",
             title: "Instant Education & Onboarding",
             icon: "book",
             description: "Onboard new engineers in seconds, not days. Provide pre-configured environments for workshops and tutorials.",
@@ -56,6 +65,7 @@
             ]
         },
         {
+            slug: "technical-interviews",
             title: "Technical Interviews",
             icon: "terminal",
             description: "Conduct real-time coding interviews in a real Linux environment, not a constrained web editor.",
@@ -67,6 +77,7 @@
             ]
         },
         {
+            slug: "open-source-review",
             title: "Open Source Review",
             icon: "connected",
             description: "Review Pull Requests by instantly spinning up the branch in a clean container. Test without polluting your local machine.",
@@ -78,6 +89,7 @@
             ]
         },
         {
+            slug: "gpu-terminals",
             title: "GPU Terminals for AI/ML (Coming Soon)",
             icon: "gpu",
             description: "Rexec will provide instant-on, powerful GPU-enabled terminals for your team's AI/ML model development, training, and fine-tuning. Manage and share these dedicated GPU resources securely, eliminating the complexities of direct infrastructure access and SSH key sharing.",
@@ -92,6 +104,7 @@
             comingSoon: true
         },
         {
+            slug: "edge-device-development",
             title: "Edge Device Development",
             icon: "wifi",
             description: "Develop and test applications for IoT and edge devices in a simulated or emulated environment.",
@@ -103,6 +116,7 @@
             ]
         },
         {
+            slug: "real-time-data-processing",
             title: "Real-time Data Processing",
             icon: "data",
             description: "Build, test, and deploy streaming ETL pipelines and real-time analytics applications.",
@@ -136,22 +150,30 @@
     </div>
 
     <div class="cases-grid">
-        {#each useCases as useCase}
-            <div class="case-card" class:coming-soon={useCase.comingSoon}>
+        {#each useCases as useCase, i}
+            <button 
+                class="case-card" 
+                class:coming-soon={useCase.comingSoon}
+                style="animation-delay: {i * 50}ms"
+                on:click={() => navigateToCase(useCase.slug)}
+            >
                 <div class="case-icon">
                     <StatusIcon status={useCase.icon} size={32} />
                 </div>
                 <h3>{useCase.title}</h3>
                 <p class="case-description">{useCase.description}</p>
                 <ul class="case-points">
-                    {#each useCase.points as point}
+                    {#each useCase.points.slice(0, 3) as point}
                         <li>
                             <span class="bullet">•</span>
                             {point}
                         </li>
                     {/each}
                 </ul>
-            </div>
+                <div class="card-footer">
+                    <span class="learn-more">Learn more <span class="arrow">→</span></span>
+                </div>
+            </button>
         {/each}
     </div>
 
@@ -230,15 +252,32 @@
         border: 1px solid var(--border);
         padding: 30px;
         border-radius: 12px;
-        transition: transform 0.2s, border-color 0.2s;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         display: flex;
         flex-direction: column;
+        cursor: pointer;
+        text-align: left;
+        font-family: var(--font-mono);
+        width: 100%;
+        animation: fadeInUp 0.5s ease both;
     }
 
     .case-card:hover {
-        transform: translateY(-4px);
+        transform: translateY(-8px) scale(1.02);
         border-color: var(--accent);
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 20px 40px rgba(0, 255, 65, 0.15);
+    }
+
+    .case-card:hover .arrow {
+        transform: translateX(4px);
+    }
+
+    .case-card:hover .learn-more {
+        color: var(--accent);
+    }
+
+    .case-card:active {
+        transform: translateY(-4px) scale(1.01);
     }
 
     .case-card.coming-soon {
@@ -330,5 +369,42 @@
     @keyframes blink {
         0%, 100% { opacity: 1; }
         50% { opacity: 0; }
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .card-footer {
+        margin-top: auto;
+        padding-top: 20px;
+        border-top: 1px solid var(--border);
+    }
+
+    .learn-more {
+        font-size: 13px;
+        color: var(--text-secondary);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: color 0.2s;
+    }
+
+    .arrow {
+        transition: transform 0.2s;
+        display: inline-block;
+    }
+
+    @media (max-width: 768px) {
+        .cases-grid {
+            grid-template-columns: 1fr;
+        }
     }
 </style>
