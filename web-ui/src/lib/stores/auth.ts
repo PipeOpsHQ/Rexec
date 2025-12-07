@@ -107,6 +107,9 @@ function createAuthStore() {
           tier: userData.tier || "guest",
           isGuest: true,
           isAdmin: false,
+          expiresAt,
+        };
+
         // Extract token, handling potential nested object formats
         let receivedToken = data.token;
         if (typeof receivedToken === 'object' && receivedToken !== null) {
