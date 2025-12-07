@@ -1660,6 +1660,16 @@ function createTerminalStore() {
       session.ws.send(JSON.stringify({ type: "input", data: "\x03" }));
     },
 
+    // Send text input to a session (for snippets/macros)
+    sendInput(sessionId: string, data: string) {
+      const state = getState();
+      const session = state.sessions.get(sessionId);
+      
+      if (session && session.ws && session.ws.readyState === WebSocket.OPEN) {
+        session.ws.send(JSON.stringify({ type: "input", data: data }));
+      }
+    },
+
     // Navigate between split panes
     navigateSplitPanes(sessionId: string, direction: 'left' | 'right' | 'up' | 'down') {
       const state = getState();
