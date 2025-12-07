@@ -35,7 +35,30 @@ func main() {
 		case "server":
 			runServer()
 		case "admin":
-			handleAdminCommand(os.Args[2:])
+			// For CLI admin commands, we need a minimal setup for database access
+			// and potentially to broadcast events (even if no WS clients are connected)
+			err := godotenv.Load()
+			if err != nil && !os.IsNotExist(err) {
+				log.Printf("Warning: Could not load .env file for admin command: %v", err)
+			}
+
+			databaseURL := os.Getenv("DATABASE_URL")
+			if databaseURL == "" {
+				databaseURL = "postgres://rexec:rexec@localhost:5432/rexec?sslmode=disable"
+			}
+			encryptor, _ := crypto.NewEncryptor("dummy-key-for-admin-cli-operation") // Dummy key for CLI
+			store, err := storage.NewPostgresStore(databaseURL, encryptor)
+			if err != nil {
+				log.Fatalf("Failed to connect to database for admin command: %v", err)
+			}
+			defer store.Close()
+
+			// Create a dummy containerManager and adminEventsHub for CLI context
+			// The adminEventsHub will not have active WebSocket connections, but its Broadcast method can still be called
+			dummyContainerManager, _ := container.NewManager() // This might still try to connect to Docker, might need a mock for truly disconnected CLI. For now, assume Docker might be running or handle error.
+			dummyAdminEventsHub := admin_events.NewAdminEventsHub(store, dummyContainerManager)
+
+			handleAdminCommand(os.Args[2:], store, dummyContainerManager, dummyAdminEventsHub)
 		default:
 			fmt.Printf("Unknown command: %s\n", os.Args[1])
 			fmt.Println("Usage: rexec [server|admin]")
@@ -77,23 +100,21 @@ func showMenu() {
 	}
 }
 
-func handleAdminCommand(args []string) {
+func handleAdminCommand(args []string, store *storage.PostgresStore, containerManager *container.Manager, adminEventsHub *admin_events.AdminEventsHub) {
 	if len(args) == 0 {
 		fmt.Println("Usage: rexec admin [promote <email>]")
 		return
 	}
 
 	switch args[0] {
-	case "promote":
-		if len(args) < 2 {
-			fmt.Println("Usage: rexec admin promote <email>")
-			return
-		}
-		// Initialize the hub for CLI context
-		adminEventsHub := admin_events.NewAdminEventsHub(store, containerManager) // Temporary hub for CLI context only
-		promoteUser(args[1], adminEventsHub)
-	default:
-		fmt.Printf("Unknown admin command: %s\n", args[0])
+		case "promote":
+			if len(args) < 2 {
+				fmt.Println("Usage: rexec admin promote <email>")
+				return
+			}
+			promoteUser(args[1], store, adminEventsHub) // Pass store and adminEventsHub
+		default:
+			fmt.Printf("Unknown admin command: %s\n", args[0])
 	}
 }
 
@@ -104,7 +125,7 @@ func showAdminMenu() {
 		fmt.Println("-----------------------------")
 		fmt.Println("1. Promote User to Admin")
 		fmt.Println("2. Back to Main Menu")
-		fmt.Println("-----------------------------")
+		fmt.Println("-----------------------------") // Added newline for better formatting
 		fmt.Print("Select an option: ")
 
 		input, _ := reader.ReadString('\n')
@@ -113,39 +134,37 @@ func showAdminMenu() {
 		switch input {
 		case "1":
 			fmt.Print("Enter email to promote: ")
-			            email, _ := reader.ReadString('\n')
-			            // For interactive menu, create a temporary hub instance (no active WS clients)
-			            // This just allows the broadcast call to function without panicking.
-			            				dummyEncryptor, _ := crypto.NewEncryptor("dummy-key-for-admin-cli-operation") // CLI tool does not need encryption
-			            				dummyStore, _ := storage.NewPostgresStore("postgres://rexec:rexec@localhost:5432/rexec?sslmode=disable", dummyEncryptor) // Dummy store for CLI
-			            				dummyContainerManager, _ := container.NewManager() // Dummy container manager
-			            				dummyAdminEventsHub := admin_events.NewAdminEventsHub(dummyStore, dummyContainerManager)
-			            				promoteUser(strings.TrimSpace(email), dummyAdminEventsHub)
-			            			case "2":
-			            				return		default:
+			email, _ := reader.ReadString('\n')
+			
+			// For interactive menu, create a temporary setup for database and hub
+			err := godotenv.Load()
+			if err != nil && !os.IsNotExist(err) {
+				log.Printf("Warning: Could not load .env file for admin menu: %v", err)
+			}
+			databaseURL := os.Getenv("DATABASE_URL")
+			if databaseURL == "" {
+				databaseURL = "postgres://rexec:rexec@localhost:5432/rexec?sslmode=disable"
+			}
+			encryptor, _ := crypto.NewEncryptor("dummy-key-for-admin-cli-operation")
+			store, err := storage.NewPostgresStore(databaseURL, encryptor)
+			if err != nil {
+				log.Fatalf("Failed to connect to database for admin menu: %v", err)
+			}
+			defer store.Close()
+
+			dummyContainerManager, _ := container.NewManager() // Might still try to connect to Docker
+			dummyAdminEventsHub := admin_events.NewAdminEventsHub(store, dummyContainerManager)
+
+			promoteUser(strings.TrimSpace(email), store, dummyAdminEventsHub) // Pass store and hub
+		case "2":
+			return
+		default:
 			fmt.Println("Invalid option.")
 		}
 	}
 }
 
-func promoteUser(email string, adminEventsHub *handlers.AdminEventsHub) {
-	// Initialize DB connection
-	godotenv.Load()
-	databaseURL := os.Getenv("DATABASE_URL")
-	if databaseURL == "" {
-		databaseURL = "postgres://rexec:rexec@localhost:5432/rexec?sslmode=disable"
-	}
-
-	// We don't need the encryptor for this specific operation, but NewPostgresStore requires it
-	// Just use a dummy key since we won't be using encrypted fields
-	encryptor, _ := crypto.NewEncryptor("dummy-key-for-admin-cli-operation")
-
-	store, err := storage.NewPostgresStore(databaseURL, encryptor)
-	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
-	}
-	defer store.Close()
-
+func promoteUser(email string, store *storage.PostgresStore, adminEventsHub *admin_events.AdminEventsHub) { // Corrected signature
 	ctx := context.Background()
 	user, _, err := store.GetUserByEmail(ctx, email)
 	if err != nil {
@@ -158,24 +177,26 @@ func promoteUser(email string, adminEventsHub *handlers.AdminEventsHub) {
 	}
 
 	user.IsAdmin = true
-	// UpdateUser updates username, tier, pipeops_id, etc.
-	// But our UpdateUser implementation now includes is_admin!
-	// Let's double check storage.UpdateUser implementation we updated.
-	// Yes: UPDATE users SET username = $2, tier = $3, is_admin = $4 ...
 	
-			if err := store.UpdateUser(ctx, user); err != nil {
-				log.Printf("Failed to promote user: %v", err)
-				return
-			}
-	
-			// Broadcast user updated event
-			adminEventsHub.Broadcast("user_updated", user)
-	
-		fmt.Printf("✅ User %s (%s) successfully promoted to Admin.\n", user.Email, user.ID)
+	if err := store.UpdateUser(ctx, user); err != nil {
+		log.Printf("Failed to promote user: %v", err)
+		return
 	}
+
+	// Broadcast user updated event
+	if adminEventsHub != nil {
+		adminEventsHub.Broadcast("user_updated", user)
+	}
+
+	fmt.Printf("✅ User %s (%s) successfully promoted to Admin.\n", user.Email, user.ID)
+}
+
 func runServer() {
 	// Load .env file if it exists
-	godotenv.Load()
+	err := godotenv.Load()
+	if err != nil && !os.IsNotExist(err) { // Handle non-existent .env gracefully
+		log.Printf("Warning: Could not load .env file for server: %v", err)
+	}
 
 	// Get database URL
 	databaseURL := os.Getenv("DATABASE_URL")
@@ -266,41 +287,41 @@ func runServer() {
 		log.Println("✅ Stripe billing enabled")
 	} else {
 		log.Println("⚠️  Stripe not configured (billing disabled)")
-		}
-	
-		// --- Initialize AdminEventsHub FIRST ---
-		adminEventsHub := handlers.NewAdminEventsHub(store, containerManager)
-	
-		// Initialize handlers
-		authHandler := handlers.NewAuthHandler(store, adminEventsHub)
-		containerHandler := handlers.NewContainerHandler(containerManager, store, adminEventsHub)
-		containerEventsHub := handlers.NewContainerEventsHub(containerManager, store)
-		containerHandler.SetEventsHub(containerEventsHub)
-		terminalHandler := handlers.NewTerminalHandler(containerManager, store, adminEventsHub)
-		fileHandler := handlers.NewFileHandler(containerManager, store)
-		sshHandler := handlers.NewSSHHandler(store, containerManager)
-		collabHandler := handlers.NewCollabHandler(store, containerManager, terminalHandler)
-		recordingHandler := handlers.NewRecordingHandler(store, os.Getenv("RECORDINGS_PATH"))
-		// Connect recording handler to terminal handler to capture events
-		terminalHandler.SetRecordingHandler(recordingHandler)
-		// Connect collab handler to terminal handler for shared session access
-		terminalHandler.SetCollabHandler(collabHandler)
-		var billingHandler *handlers.BillingHandler
-		if billingService != nil {
-			billingHandler = handlers.NewBillingHandler(billingService, store)
-		}
-	
-		// Initialize port forward handler
-		portForwardHandler := handlers.NewPortForwardHandler(store, containerManager)
-	
-		// Initialize snippet handler
-		snippetHandler := handlers.NewSnippetHandler(store)
-	
-		// Initialize admin handler
-		adminHandler := handlers.NewAdminHandler(store, adminEventsHub)
-	
-	
-		// Setup Gin router	router := gin.Default()
+	}
+
+	// --- Initialize AdminEventsHub FIRST ---
+	adminEventsHub := admin_events.NewAdminEventsHub(store, containerManager)
+
+	// Initialize handlers
+	authHandler := handlers.NewAuthHandler(store, adminEventsHub)
+	containerHandler := handlers.NewContainerHandler(containerManager, store, adminEventsHub)
+	containerEventsHub := handlers.NewContainerEventsHub(containerManager, store)
+	containerHandler.SetEventsHub(containerEventsHub)
+	terminalHandler := handlers.NewTerminalHandler(containerManager, store, adminEventsHub)
+	fileHandler := handlers.NewFileHandler(containerManager, store)
+	sshHandler := handlers.NewSSHHandler(store, containerManager)
+	collabHandler := handlers.NewCollabHandler(store, containerManager, terminalHandler)
+	recordingHandler := handlers.NewRecordingHandler(store, os.Getenv("RECORDINGS_PATH"))
+	// Connect recording handler to terminal handler to capture events
+	terminalHandler.SetRecordingHandler(recordingHandler)
+	// Connect collab handler to terminal handler for shared session access
+	terminalHandler.SetCollabHandler(collabHandler)
+	var billingHandler *handlers.BillingHandler
+	if billingService != nil {
+		billingHandler = handlers.NewBillingHandler(billingService, store)
+	}
+
+	// Initialize port forward handler
+	portForwardHandler := handlers.NewPortForwardHandler(store, containerManager)
+
+	// Initialize snippet handler
+	snippetHandler := handlers.NewSnippetHandler(store)
+
+	// Initialize admin handler
+	adminHandler := handlers.NewAdminHandler(store, adminEventsHub)
+
+	// Setup Gin router
+	router := gin.Default()
 
 	// Gzip compression for faster transfers (skip WebSocket)
 	router.Use(gzip.Gzip(gzip.DefaultCompression, gzip.WithExcludedPaths([]string{"/ws/", "/ws/admin/events"})))
@@ -349,17 +370,17 @@ func runServer() {
 	})
 
 	// Auth routes (public) - strict rate limiting
-	auth := router.Group("/api/auth")
-	auth.Use(authLimiter.Middleware())
+	authGroup := router.Group("/api/auth") // Renamed to avoid conflict with `authHandler`
+	authGroup.Use(authLimiter.Middleware())
 	{
 		// Guest login (1-hour session limit)
-		auth.POST("/guest", authHandler.GuestLogin)
+		authGroup.POST("/guest", authHandler.GuestLogin)
 
 		// PipeOps OAuth routes
-		auth.GET("/oauth/url", authHandler.GetOAuthURL)
-		auth.GET("/callback", authHandler.OAuthCallback)
-		auth.GET("/signin", authHandler.OAuthCallback) // Alternative callback path
-		auth.POST("/oauth/exchange", authHandler.OAuthExchange)
+		authGroup.GET("/oauth/url", authHandler.GetOAuthURL)
+		authGroup.GET("/callback", authHandler.OAuthCallback)
+		authGroup.GET("/signin", authHandler.OAuthCallback) // Alternative callback path
+		authGroup.POST("/oauth/exchange", authHandler.OAuthExchange)
 	}
 
 	// API routes (protected) - with rate limiting
