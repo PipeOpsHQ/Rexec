@@ -14,7 +14,7 @@
   
   $: currentTier = $userTier || 'guest';
 
-  $: plans = [
+  $: allPlans = [
     {
       id: 'guest',
       name: 'Anonymous',
@@ -94,6 +94,10 @@
       accent: false
     }
   ];
+
+  $: plans = currentTier === 'guest' 
+    ? allPlans.filter(p => p.id !== 'free') 
+    : allPlans.filter(p => p.id !== 'guest');
 </script>
 
 {#if isOpen}
