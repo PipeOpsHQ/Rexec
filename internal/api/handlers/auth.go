@@ -345,7 +345,7 @@ func (h *AuthHandler) OAuthCallback(c *gin.Context) {
 			Email:     normalizedEmail,
 			Username:  username,
 			Tier:      "free",
-			PipeOpsID: userInfo.ID,
+			PipeOpsID: fmt.Sprintf("%d", userInfo.ID),
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		}
@@ -358,7 +358,7 @@ func (h *AuthHandler) OAuthCallback(c *gin.Context) {
 	} else {
 		// Update PipeOps ID if not set
 		if user.PipeOpsID == "" {
-			user.PipeOpsID = userInfo.ID
+			user.PipeOpsID = fmt.Sprintf("%d", userInfo.ID)
 			user.UpdatedAt = time.Now()
 			h.store.UpdateUser(ctx, user)
 		}
