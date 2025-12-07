@@ -342,17 +342,18 @@ func (h *AuthHandler) OAuthCallback(c *gin.Context) {
 		}
 
 		user = &models.User{
-			ID:        uuid.New().String(),
-			Email:     normalizedEmail,
-			Username:  username,
-			FirstName: userInfo.FirstName,
-			LastName:  userInfo.LastName,
-			Avatar:    userInfo.Avatar,
-			Verified:  userInfo.Verified,
-			Tier:      "free",
-			PipeOpsID: fmt.Sprintf("%d", userInfo.ID),
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
+			ID:                 uuid.New().String(),
+			Email:              normalizedEmail,
+			Username:           username,
+			FirstName:          userInfo.FirstName,
+			LastName:           userInfo.LastName,
+			Avatar:             userInfo.Avatar,
+			Verified:           userInfo.Verified,
+			SubscriptionActive: userInfo.SubscriptionActive,
+			Tier:               "free",
+			PipeOpsID:          fmt.Sprintf("%d", userInfo.ID),
+			CreatedAt:          time.Now(),
+			UpdatedAt:          time.Now(),
 		}
 
 		// Store user with empty password (OAuth user)
@@ -366,6 +367,7 @@ func (h *AuthHandler) OAuthCallback(c *gin.Context) {
 		user.LastName = userInfo.LastName
 		user.Avatar = userInfo.Avatar
 		user.Verified = userInfo.Verified
+		user.SubscriptionActive = userInfo.SubscriptionActive
 
 		// Ensure OAuth users are at least on the free tier (upgrade from guest)
 		if user.Tier == "guest" {
@@ -1062,10 +1064,16 @@ func userToJSON(user *models.User) string {
 		isGuest = "true"
 	}
 	
-	verified := "false"
-	if user.Verified {
-		verified = "true"
+			verified := "false"
+		if user.Verified {
+			verified = "true"
+		}
+	
+		// Determine subscription status
+		subscriptionActive := "false"
+		if user.SubscriptionActive {
+			subscriptionActive = "true"
+		}
+	
+		return `{"id":"` + user.ID + `","email":"` + email + `","username":"` + username + `","name":"` + name + `","first_name":"` + firstName + `","last_name":"` + lastName + `","avatar":"` + avatar + `","verified":` + verified + `,"subscription_active":` + subscriptionActive + `,"tier":"` + tier + `","isGuest":` + isGuest + `}`
 	}
-
-	return `{"id":"` + user.ID + `","email":"` + email + `","username":"` + username + `","name":"` + name + `","first_name":"` + firstName + `","last_name":"` + lastName + `","avatar":"` + avatar + `","verified":` + verified + `,"tier":"` + tier + `","isGuest":` + isGuest + `}`
-}
