@@ -33,7 +33,8 @@
         | "snippets"
         | "join"
         | "guides"
-        | "use-cases" = "landing";
+        | "use-cases"
+        | "pricing" = "landing";
     let isLoading = true;
     let isInitialized = false; // Prevents reactive statements from firing before token validation
     let joinCode = ""; // For /join/:code route
@@ -45,6 +46,50 @@
     
     // Pricing modal state
     let showPricing = false;
+
+    // SEO & Meta Management
+    $: {
+        if (typeof document !== 'undefined') {
+            // Title
+            if (currentView === "admin") {
+                document.title = "Admin Dashboard - Rexec";
+            } else if (currentView === "pricing") {
+                document.title = "Pricing - Rexec";
+            } else if (currentView === "dashboard") {
+                document.title = "Dashboard - Rexec";
+            } else if (currentView === "landing") {
+                document.title = "Rexec - Terminal as a Service";
+            }
+
+            // Robots meta
+            let robotsMeta = document.querySelector('meta[name="robots"]');
+            if (!robotsMeta) {
+                robotsMeta = document.createElement('meta');
+                robotsMeta.setAttribute('name', 'robots');
+                document.head.appendChild(robotsMeta);
+            }
+            
+            if (currentView === "admin") {
+                robotsMeta.setAttribute('content', 'noindex, nofollow');
+            } else {
+                robotsMeta.setAttribute('content', 'index, follow');
+            }
+
+            // Description meta
+            let descMeta = document.querySelector('meta[name="description"]');
+            if (!descMeta) {
+                descMeta = document.createElement('meta');
+                descMeta.setAttribute('name', 'description');
+                document.head.appendChild(descMeta);
+            }
+            
+            if (currentView === "pricing") {
+                descMeta.setAttribute('content', 'Simple, transparent pricing for instant Linux terminals. Scale your infrastructure as you grow.');
+            } else if (currentView === "landing") {
+                 descMeta.setAttribute('content', 'Launch secure Linux terminals instantly in your browser. No setup required. Perfect for demos, training, and quick tasks.');
+            }
+        }
+    }
 
     function openGuestModal() {
         if ($isAuthenticated) {
@@ -164,6 +209,20 @@
     async function handleTerminalUrl() {
         const path = window.location.pathname;
         const params = new URLSearchParams(window.location.search);
+
+        // Check for /admin route
+        if (path === "/admin") {
+            // Ensure auth logic runs first (handled by onMount), then check role
+            // But here we just set view, auth check happens in goToAdmin or reactive block
+            currentView = "admin";
+            return;
+        }
+
+        // Check for /pricing route
+        if (path === "/pricing") {
+            currentView = "pricing";
+            return;
+        }
 
         // Check for /guides route (formerly ai-tools)
         if (path === "/guides" || path === "/ai-tools") {
@@ -388,6 +447,7 @@
     function goToAdmin() {
         if ($isAdmin) {
             currentView = "admin";
+            window.history.pushState({}, "", "/admin");
         } else {
             toast.error("Access denied");
             currentView = "dashboard";
@@ -413,8 +473,17 @@
             currentView = "guides";
         } else if (path === "/use-cases" || path === "/agentic") {
             currentView = "use-cases";
-        } else if (path === "/guides") {
-            currentView = "guides";
+        } else if (path === "/pricing") {
+            currentView = "pricing";
+        } else if (path === "/admin") {
+             if ($isAuthenticated && $isAdmin) {
+                 currentView = "admin";
+             } else {
+                 // If direct navigation to /admin but not authed/admin, redirect or show dashboard which handles it
+                 // Actually better to let the auth logic in onMount handle redirection if needed
+                 // But for popstate (back button), we might need to be careful
+                 currentView = "admin"; // Let the view render (or show access denied)
+             }
         } else if (path === "/snippets") {
             currentView = $isAuthenticated ? "snippets" : "landing";
         }
@@ -437,7 +506,10 @@
             on:sshkeys={goToSSHKeys}
             on:snippets={goToSnippets}
             on:guest={openGuestModal}
-            on:pricing={() => showPricing = true}
+            on:pricing={() => {
+                currentView = "pricing";
+                window.history.pushState({}, "", "/pricing");
+            }}
             on:admin={goToAdmin}
         />
 
@@ -515,6 +587,8 @@
                 <UseCases 
                     on:tryNow={openGuestModal}
                 />
+            {:else if currentView === "pricing"}
+                <Pricing mode="page" />
             {/if}
         </main>
 

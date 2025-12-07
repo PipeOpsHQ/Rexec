@@ -6,107 +6,65 @@
   const dispatch = createEventDispatcher();
   
   export let isOpen = false;
+  export let mode: 'modal' | 'page' = 'modal';
   
   function close() {
+    if (mode === 'page') return;
     isOpen = false;
     dispatch('close');
   }
   
   $: currentTier = $userTier || 'guest';
-
-  $: allPlans = [
-    {
-      id: 'guest',
-      name: 'Anonymous',
-      price: 'Free',
-      period: '1 hour',
-      description: 'Instant access, no signup',
-      features: [
-        '1 terminal',
-        '512MB memory',
-        '0.5 vCPU',
-        '2GB storage',
-        '1 hour session limit',
-        'No persistence'
-      ],
-      cta: currentTier === 'guest' ? 'Active Session' : 'Continue as Guest',
-      current: currentTier === 'guest',
-      accent: false
-    },
-    {
-      id: 'free',
-      name: 'Free',
-      price: '$0',
-      period: 'forever',
-      description: 'For trying out Rexec with PipeOps',
-      features: [
-        '5 terminals',
-        '2GB memory',
-        '2 vCPU',
-        '10GB storage',
-        '50 hour session limit',
-        'Community support'
-      ],
-      cta: currentTier === 'free' ? 'Current Plan' : 'Upgrade to Free',
-      current: currentTier === 'free',
-      accent: false
-    },
-    {
-      id: 'pro',
-      name: 'Pro',
-      price: '$12',
-      period: '/month',
-      description: 'For individual developers',
-      features: [
-        '10 terminals',
-        '4GB memory',
-        '4 vCPU',
-        '20GB storage',
-        'Unlimited sessions',
-        'Recording & playback',
-        'Share with 5 collaborators',
-        'Priority support'
-      ],
-      cta: currentTier === 'pro' ? 'Current Plan' : 'Upgrade to Pro',
-      current: currentTier === 'pro',
-      accent: true
-    },
-    {
-      id: 'enterprise',
-      name: 'Team',
-      price: '$49',
-      period: '/month',
-      description: 'For teams & organizations',
-      features: [
-        'Unlimited terminals',
-        'Up to 32GB memory',
-        'Up to 16 vCPU',
-        '1TB storage',
-        'Persistent terminals',
-        'Team recordings library',
-        'Unlimited collaborators',
-        'GPU access',
-        'SSO & SAML',
-        'Dedicated support'
-      ],
-      cta: currentTier === 'enterprise' ? 'Current Plan' : 'Contact Sales',
-      current: currentTier === 'enterprise',
-      accent: false
-    }
-  ];
-
-  $: plans = currentTier === 'guest' 
-    ? allPlans.filter(p => p.id !== 'free') 
-    : allPlans.filter(p => p.id !== 'guest');
+  // Show all plans in page mode, filtering only applies to modal context logic if needed
+  // But actually the filter logic was: if guest, show all except free? Or similar.
+  // Original logic: guest sees all except 'free', others see all except 'guest'.
+  // For a public pricing page, we probably want to show ALL plans.
+  // Let's adjust logic: if mode is page, show all relevant plans (maybe filter 'guest' if we want to sell paid plans).
+  // Actually the original filter `p.id !== 'guest'` for non-guests makes sense.
+  // For public page, showing 'guest' plan is fine too.
+  // Let's keep existing filter logic for now but ensure it works.
+  $: plans = mode === 'page' 
+      ? allPlans.filter(p => p.id !== 'guest') // On pricing page, usually show standard tiers
+      : (currentTier === 'guest' ? allPlans.filter(p => p.id !== 'free') : allPlans.filter(p => p.id !== 'guest'));
 </script>
 
-{#if isOpen}
-  <div class="pricing-overlay" on:click={(e) => e.target === e.currentTarget && close()} on:keydown={(e) => e.key === 'Escape' && close()} role="presentation">
-    <div class="pricing-modal" role="dialog">
-      <button class="close-btn" on:click={close}>×</button>
+{#if isOpen || mode === 'page'}
+  <!-- Use a fragment or conditional wrapper -->
+  {#if mode === 'modal'}
+      <div class="pricing-overlay" on:click={(e) => e.target === e.currentTarget && close()} on:keydown={(e) => e.key === 'Escape' && close()} role="presentation">
+        <div class="pricing-modal" role="dialog">
+            <button class="close-btn" on:click={close}>×</button>
+            <div class="pricing-content">
+                <PricingContent {plans} />
+            </div>
+        </div>
+      </div>
+  {:else}
+      <div class="pricing-page">
+         <div class="pricing-content">
+            <PricingContent {plans} />
+         </div>
+      </div>
+  {/if}
+{/if}
+
+<!-- Extracted content to reuse -->
+<!-- Since Svelte 4 doesn't support inline components easily without snippets (Svelte 5), I'll just duplicate the inner structure or refactor. Refactoring is better but 'replace' is tricky with large blocks.
+I will use conditional classes instead. -->
+
+<div class={mode === 'modal' ? 'pricing-overlay' : 'pricing-page-wrapper'} 
+     on:click={mode === 'modal' ? (e) => e.target === e.currentTarget && close() : undefined} 
+     on:keydown={mode === 'modal' ? (e) => e.key === 'Escape' && close() : undefined} 
+     role={mode === 'modal' ? "presentation" : undefined}
+     style={mode === 'page' ? 'display: block;' : (isOpen ? 'display: flex;' : 'display: none;')}
+>
+    <div class={mode === 'modal' ? 'pricing-modal' : 'pricing-page-container'} role={mode === 'modal' ? "dialog" : undefined}>
+      {#if mode === 'modal'}
+        <button class="close-btn" on:click={close}>×</button>
+      {/if}
       
       <div class="pricing-header">
-        <h1>Choose Your Plan</h1>
+        <h1>{mode === 'page' ? 'Simple, Transparent Pricing' : 'Choose Your Plan'}</h1>
         <p>Scale your terminal infrastructure as you grow</p>
       </div>
       
@@ -140,17 +98,39 @@
               class:current={plan.current}
               class:accent={plan.accent}
               disabled={plan.current}
+              on:click={() => {
+                  if (mode === 'page') {
+                      // Redirect to login/signup or specific action
+                      window.location.href = '/';
+                  }
+              }}
             >
               {plan.cta}
             </button>
           </div>
         {/each}
       </div>
+      
+      <div class="pricing-footer">
+        <p><strong>Need more?</strong> Contact us for custom enterprise solutions.</p>
+      </div>
     </div>
-  </div>
-{/if}
+</div>
 
 <style>
+  .pricing-page-wrapper {
+    width: 100%;
+    min-height: 100vh;
+    padding: 40px 20px;
+    background: #0a0a0c;
+  }
+
+  .pricing-page-container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
   .pricing-overlay {
     position: fixed;
     inset: 0;
