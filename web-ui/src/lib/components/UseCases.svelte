@@ -80,12 +80,13 @@
         {
             title: "AI Model Training & Fine-tuning",
             icon: "gpu",
-            description: "Manage and share access to powerful GPU-enabled environments with your team for rapid AI/ML model development, training, and fine-tuning.",
+            description: "Manage and securely share access to powerful GPU-enabled environments across your team for rapid AI/ML model development, training, and fine-tuning, eliminating the complexities of sharing SSH keys.",
             points: [
-                "On-demand GPU resources",
-                "Secure team access controls",
+                "On-demand GPU resources for your team",
+                "Centralized team access controls for GPU environments",
                 "Pre-configured with ML frameworks (TensorFlow, PyTorch)",
                 "Isolated for reproducible experiments",
+                "Share running GPU sessions without sharing SSH keys",
                 "Collaborative resource allocation for projects"
             ]
         },
