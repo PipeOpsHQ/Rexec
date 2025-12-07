@@ -154,6 +154,11 @@
 
         // Check for /guides route (formerly ai-tools)
         if (path === "/guides" || path === "/ai-tools") {
+            if ($isAuthenticated) {
+                currentView = "dashboard";
+                window.history.replaceState({}, "", "/dashboard"); // Redirect to dashboard
+                return;
+            }
             currentView = "guides";
             if (path === "/ai-tools") {
                 window.history.replaceState({}, "", "/guides");
@@ -163,6 +168,11 @@
 
         // Check for /use-cases route (formerly agentic)
         if (path === "/use-cases" || path === "/agentic") {
+            if ($isAuthenticated) {
+                currentView = "dashboard";
+                window.history.replaceState({}, "", "/dashboard"); // Redirect to dashboard
+                return;
+            }
             currentView = "use-cases";
             if (path === "/agentic") {
                 window.history.replaceState({}, "", "/use-cases");
@@ -334,9 +344,19 @@
         if (path === "/" || path === "") {
             currentView = $isAuthenticated ? "dashboard" : "landing";
         } else if (path === "/guides" || path === "/ai-tools") {
-            currentView = "guides";
+            if ($isAuthenticated) {
+                currentView = "dashboard";
+                window.history.replaceState({}, "", "/dashboard"); // Redirect to dashboard
+            } else {
+                currentView = "guides";
+            }
         } else if (path === "/use-cases" || path === "/agentic") {
-            currentView = "use-cases";
+            if ($isAuthenticated) {
+                currentView = "dashboard";
+                window.history.replaceState({}, "", "/dashboard"); // Redirect to dashboard
+            } else {
+                currentView = "use-cases";
+            }
         }
     }
 </script>

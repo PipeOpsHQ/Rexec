@@ -142,20 +142,6 @@
     </button>
 
     <nav class="nav-links">
-        <a href="/guides" class="nav-link" on:click|preventDefault={() => {
-            window.history.pushState({}, "", "/guides");
-            window.dispatchEvent(new PopStateEvent('popstate'));
-        }}>
-            <StatusIcon status="book" size={14} />
-            <span>Guides</span>
-        </a>
-        <a href="/use-cases" class="nav-link" on:click|preventDefault={() => {
-            window.history.pushState({}, "", "/use-cases");
-            window.dispatchEvent(new PopStateEvent('popstate'));
-        }}>
-            <StatusIcon status="zap" size={14} />
-            <span>Use Cases</span>
-        </a>
     </nav>
 
     <nav class="nav-actions">
@@ -335,22 +321,6 @@
                 </button>
             </div>
             <div class="mobile-nav-links">
-                <a href="/guides" class="mobile-nav-link" on:click|preventDefault={() => {
-                    closeMobileMenu();
-                    window.history.pushState({}, "", "/guides");
-                    window.dispatchEvent(new PopStateEvent('popstate'));
-                }}>
-                    <StatusIcon status="book" size={18} />
-                    <span>Guides</span>
-                </a>
-                <a href="/use-cases" class="mobile-nav-link" on:click|preventDefault={() => {
-                    closeMobileMenu();
-                    window.history.pushState({}, "", "/use-cases");
-                    window.dispatchEvent(new PopStateEvent('popstate'));
-                }}>
-                    <StatusIcon status="zap" size={18} />
-                    <span>Use Cases</span>
-                </a>
             </div>
         </div>
     </div>
