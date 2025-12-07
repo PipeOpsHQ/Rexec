@@ -154,6 +154,7 @@ func (h *ContainerHandler) List(c *gin.Context) {
 
 // Create creates a new container for the user
 // Uses async creation to avoid Cloudflare timeout - returns immediately with "creating" status
+func (h *ContainerHandler) Create(c *gin.Context) {
 	userID := c.GetString("userID")
 	tier := c.GetString("tier")
 	isGuest := c.GetBool("guest")
@@ -1239,6 +1240,7 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 	userID := c.GetString("userID")
 	tier := c.GetString("tier")
 	isGuest := c.GetBool("guest")
+	subscriptionActive := c.GetBool("subscription_active")
 
 	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
@@ -1466,9 +1468,30 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 		} else {
 			cfg.Labels["rexec.expires_at"] = time.Now().Add(GuestMaxContainerDuration).Format(time.RFC3339)
 		}
+	} else if (tier == "free" || tier == "trial") && !subscriptionActive {
+		// Enforce 50-hour session limit for free users without active subscription
+		expiresAt := time.Now().Add(models.AuthenticatedSessionDuration)
+		cfg.Labels["rexec.expires_at"] = expiresAt.Format(time.RFC3339)
 	}
 
 	limits := models.ValidateTrialResources(&req, tier)
+	
+	// Override limits if we have specific subscription logic not covered by tier string
+	userLimits := models.GetUserResourceLimits(tier, subscriptionActive)
+	
+	if !subscriptionActive && (tier == "free" || tier == "trial") {
+		// Enforce stricter limits for non-subscribers
+		if limits.MemoryMB > userLimits.MemoryMB {
+			limits.MemoryMB = userLimits.MemoryMB
+		}
+		if limits.CPUShares > userLimits.CPUShares {
+			limits.CPUShares = userLimits.CPUShares
+		}
+		if limits.DiskMB > userLimits.DiskMB {
+			limits.DiskMB = userLimits.DiskMB
+		}
+	}
+
 	cfg.MemoryLimit = limits.MemoryMB * 1024 * 1024
 	cfg.CPULimit = limits.CPUShares             // Already in millicores
 	cfg.DiskQuota = limits.DiskMB * 1024 * 1024 // Convert MB to bytes
@@ -1662,6 +1685,11 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 			response["expires_at"] = time.Now().Add(GuestMaxContainerDuration).Format(time.RFC3339)
 			response["session_limit_seconds"] = int(GuestMaxContainerDuration.Seconds())
 		}
+	} else if (tier == "free" || tier == "trial") && !subscriptionActive {
+		// Show expiration for free users
+		expiresAt := time.Now().Add(models.AuthenticatedSessionDuration)
+		response["expires_at"] = expiresAt.Format(time.RFC3339)
+		response["session_limit_seconds"] = int(models.AuthenticatedSessionDuration.Seconds())
 	}
 
 	// Notify via WebSocket - use the actual validated limits, not tier defaults
