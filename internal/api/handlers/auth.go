@@ -345,6 +345,10 @@ func (h *AuthHandler) OAuthCallback(c *gin.Context) {
 			ID:        uuid.New().String(),
 			Email:     normalizedEmail,
 			Username:  username,
+			FirstName: userInfo.FirstName,
+			LastName:  userInfo.LastName,
+			Avatar:    userInfo.Avatar,
+			Verified:  userInfo.Verified,
 			Tier:      "free",
 			PipeOpsID: fmt.Sprintf("%d", userInfo.ID),
 			CreatedAt: time.Now(),
@@ -357,12 +361,19 @@ func (h *AuthHandler) OAuthCallback(c *gin.Context) {
 			return
 		}
 	} else {
+		// Update user info with latest from PipeOps
+		user.FirstName = userInfo.FirstName
+		user.LastName = userInfo.LastName
+		user.Avatar = userInfo.Avatar
+		user.Verified = userInfo.Verified
+		
 		// Update PipeOps ID if not set
 		if user.PipeOpsID == "" {
 			user.PipeOpsID = fmt.Sprintf("%d", userInfo.ID)
-			user.UpdatedAt = time.Now()
-			h.store.UpdateUser(ctx, user)
 		}
+		
+		user.UpdatedAt = time.Now()
+		h.store.UpdateUser(ctx, user)
 	}
 
 	// Generate JWT token
@@ -1018,12 +1029,27 @@ func userToJSON(user *models.User) string {
 	username := strings.ReplaceAll(user.Username, "\"", "\\\"")
 	email := strings.ReplaceAll(user.Email, "\"", "\\\"")
 	tier := strings.ReplaceAll(user.Tier, "\"", "\\\"")
+	firstName := strings.ReplaceAll(user.FirstName, "\"", "\\\"")
+	lastName := strings.ReplaceAll(user.LastName, "\"", "\\\"")
+	avatar := strings.ReplaceAll(user.Avatar, "\"", "\\\"")
+	
+	// Determine display name
+	name := username
+	if firstName != "" || lastName != "" {
+		name = strings.TrimSpace(firstName + " " + lastName)
+	}
+	name = strings.ReplaceAll(name, "\"", "\\\"")
 	
 	// Determine is_guest based on tier
 	isGuest := "false"
 	if tier == "guest" {
 		isGuest = "true"
 	}
+	
+	verified := "false"
+	if user.Verified {
+		verified = "true"
+	}
 
-	return `{"id":"` + user.ID + `","email":"` + email + `","username":"` + username + `","name":"` + username + `","tier":"` + tier + `","isGuest":` + isGuest + `}`
+	return `{"id":"` + user.ID + `","email":"` + email + `","username":"` + username + `","name":"` + name + `","first_name":"` + firstName + `","last_name":"` + lastName + `","avatar":"` + avatar + `","verified":` + verified + `,"tier":"` + tier + `","isGuest":` + isGuest + `}`
 }

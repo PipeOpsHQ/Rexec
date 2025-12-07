@@ -9,6 +9,10 @@ type User struct {
 	ID        string    `json:"id"`
 	Email     string    `json:"email"`
 	Username  string    `json:"username"`
+	FirstName string    `json:"first_name,omitempty"`
+	LastName  string    `json:"last_name,omitempty"`
+	Avatar    string    `json:"avatar,omitempty"`
+	Verified  bool      `json:"verified,omitempty"`
 	Password  string    `json:"-"`                    // Never serialize password
 	Tier      string    `json:"tier"`                 // free, pro, enterprise
 	PipeOpsID string    `json:"pipeops_id,omitempty"` // PipeOps OAuth user ID
