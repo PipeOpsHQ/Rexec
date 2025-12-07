@@ -16,11 +16,29 @@
 
   $: plans = [
     {
+      id: 'guest',
+      name: 'Guest',
+      price: '$0',
+      period: 'temporary',
+      description: 'For anonymous trials',
+      features: [
+        '1 terminal',
+        '512MB memory',
+        '0.5 vCPU',
+        '2GB storage',
+        '1 hour session limit',
+        'No persistence'
+      ],
+      cta: currentTier === 'guest' ? 'Current Plan' : 'Sign in to Start',
+      current: currentTier === 'guest',
+      accent: false
+    },
+    {
       id: 'free',
       name: 'Free',
       price: '$0',
       period: 'forever',
-      description: 'For trying out Rexec',
+      description: 'For trying out Rexec with PipeOps',
       features: [
         '5 terminals',
         '2GB memory',
@@ -29,7 +47,7 @@
         '50 hour session limit',
         'Community support'
       ],
-      cta: currentTier === 'free' ? 'Current Plan' : 'Sign in to Start',
+      cta: currentTier === 'free' ? 'Current Plan' : 'Upgrade to Free',
       current: currentTier === 'free',
       accent: false
     },
