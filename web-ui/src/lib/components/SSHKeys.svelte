@@ -8,6 +8,7 @@
 
     const dispatch = createEventDispatcher<{
         back: void;
+        run: { command: string };
     }>();
 
     interface SSHKey {
@@ -178,6 +179,10 @@
         itemToDelete = null;
     }
 
+    function runHost(host: RemoteHost) {
+        dispatch("run", { command: host.ssh_command });
+    }
+
     // Modal helpers
     function openModal() {
         // Reset all form fields
@@ -306,6 +311,13 @@
                             </div>
                         </div>
                         <div class="actions">
+                            <button
+                                class="btn btn-secondary btn-sm"
+                                on:click={() => runHost(host)}
+                                title="Run in Terminal"
+                            >
+                                <StatusIcon status="terminal" size={14} /> Run
+                            </button>
                             <button
                                 class="btn btn-secondary btn-sm"
                                 on:click={() => copyToClipboard(host.ssh_command)}

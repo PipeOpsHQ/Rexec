@@ -406,7 +406,25 @@
             {:else if currentView === "settings"}
                 <Settings on:back={goToDashboard} />
             {:else if currentView === "sshkeys"}
-                <SSHKeys on:back={goToDashboard} />
+                <SSHKeys 
+                    on:back={goToDashboard} 
+                    on:run={(e) => {
+                        const command = e.detail.command;
+                        const activeSessionId = terminal.getState().activeSessionId;
+                        
+                        if (activeSessionId) {
+                            currentView = "dashboard";
+                            // Small delay to ensure view switch
+                            setTimeout(() => {
+                                terminal.sendInput(activeSessionId, command + '\n');
+                                toast.success("Running SSH command...");
+                            }, 50);
+                        } else {
+                            toast.error("No active terminal. Please create one first.");
+                            currentView = "dashboard";
+                        }
+                    }}
+                />
             {:else if currentView === "snippets"}
                 <SnippetsPage on:back={goToDashboard} />
             {:else if currentView === "join"}

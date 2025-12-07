@@ -17,10 +17,10 @@
   $: plans = [
     {
       id: 'guest',
-      name: 'Guest',
-      price: '$0',
-      period: 'temporary',
-      description: 'For anonymous trials',
+      name: 'Anonymous',
+      price: 'Free',
+      period: '1 hour',
+      description: 'Instant access, no signup',
       features: [
         '1 terminal',
         '512MB memory',
@@ -29,7 +29,7 @@
         '1 hour session limit',
         'No persistence'
       ],
-      cta: currentTier === 'guest' ? 'Current Plan' : 'Sign in to Start',
+      cta: currentTier === 'guest' ? 'Active Session' : 'Continue as Guest',
       current: currentTier === 'guest',
       accent: false
     },
