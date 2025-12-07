@@ -80,12 +80,13 @@
         {
             title: "AI Model Training & Fine-tuning",
             icon: "gpu",
-            description: "Access powerful GPU-enabled environments for rapid AI/ML model development, training, and fine-tuning.",
+            description: "Manage and share access to powerful GPU-enabled environments with your team for rapid AI/ML model development, training, and fine-tuning.",
             points: [
                 "On-demand GPU resources",
+                "Secure team access controls",
                 "Pre-configured with ML frameworks (TensorFlow, PyTorch)",
                 "Isolated for reproducible experiments",
-                "Scale resources as needed"
+                "Collaborative resource allocation for projects"
             ]
         },
         {
