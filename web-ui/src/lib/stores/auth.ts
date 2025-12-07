@@ -299,6 +299,31 @@ function createAuthStore() {
       return false;
     },
 
+    // Validate token
+    async validateToken(): Promise<boolean> {
+      try {
+        const token = localStorage.getItem("rexec_token");
+        if (!token) return false;
+
+        const response = await fetch("/api/profile", {
+          method: "HEAD", // Use HEAD to be lighter if supported, otherwise GET
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        // HEAD method might not be supported by all backends for profile, so fallback to GET if 405/404
+        if (response.status === 405 || response.status === 404) {
+             const getResponse = await fetch("/api/profile", {
+                headers: { Authorization: `Bearer ${token}` },
+             });
+             return getResponse.ok;
+        }
+
+        return response.ok;
+      } catch (e) {
+        return false;
+      }
+    },
+
 
 
 
