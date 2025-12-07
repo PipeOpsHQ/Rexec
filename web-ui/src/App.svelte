@@ -43,6 +43,10 @@
     let showPricing = false;
 
     function openGuestModal() {
+        if ($isAuthenticated) {
+            toast.info("You are already logged in.");
+            return;
+        }
         guestEmail = "";
         showGuestModal = true;
     }
