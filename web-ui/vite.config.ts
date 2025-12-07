@@ -90,6 +90,10 @@ export default defineConfig({
       },
     },
     rollupOptions: {
+      external: [
+        '$env/static/public',
+        '$app/environment',
+      ],
       output: {
         // Code splitting for better caching
         entryFileNames: 'assets/[name]-[hash].js',

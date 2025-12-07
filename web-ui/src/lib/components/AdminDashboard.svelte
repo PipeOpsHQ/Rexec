@@ -8,7 +8,6 @@
     // Tabs
     type Tab = "users" | "containers" | "terminals";
     let activeTab: Tab = "users";
-    let refreshInterval: ReturnType<typeof setInterval>;
 
     function setTab(tab: Tab) {
         activeTab = tab;
@@ -22,30 +21,33 @@
         ]);
     }
 
-    // Load data on mount and start polling
+    // Load initial data on mount and start WebSocket
     onMount(async () => {
-        await loadData();
-        refreshInterval = setInterval(loadData, 5000);
+        await loadData(); // Initial data fetch
+        admin.startAdminEvents(); // Start WebSocket for live updates
     });
 
+    // Clean up WebSocket on destroy
     onDestroy(() => {
-        if (refreshInterval) clearInterval(refreshInterval);
+        admin.stopAdminEvents();
     });
 
     $: users = $admin.users;
     $: containers = $admin.containers;
     $: terminals = $admin.terminals;
     $: isLoading = $admin.isLoading;
+    $: wsConnected = $admin.wsConnected;
+    $: wsError = $admin.error;
 
     // Actions
     async function handleDeleteUser(userId: string) {
-        if (confirm("Are you sure you want to delete this user?")) {
+        if (confirm("Are you sure you want to delete this user? This action cannot be undone.")) {
             await admin.deleteUser(userId);
         }
     }
 
     async function handleDeleteContainer(containerId: string) {
-        if (confirm("Are you sure you want to delete this container?")) {
+        if (confirm("Are you sure you want to delete this container? This will stop and remove the container permanently.")) {
             await admin.deleteContainer(containerId);
         }
     }
@@ -65,11 +67,22 @@
     <div class="dashboard-header">
         <div class="dashboard-title">
             <h1>Admin Dashboard</h1>
+            {#if !wsConnected}
+                <span class="status-indicator error">Disconnected</span>
+            {:else}
+                <span class="status-indicator connected">Live</span>
+            {/if}
         </div>
         <div class="dashboard-actions">
+            {#if wsError}
+                <div class="alert alert-error">
+                    {wsError}
+                </div>
+            {/if}
             <button
                 class="btn btn-secondary btn-sm"
                 on:click={loadData}
+                disabled={isLoading}
             >
                 <svg
                     class="icon"
@@ -139,8 +152,8 @@
                                 <tr>
                                     <td>
                                         <div class="user-info">
-                                            <div class="avatar">{user.name.charAt(0).toUpperCase()}</div>
-                                            <span>{user.name}</span>
+                                            <div class="avatar">{user.username.charAt(0).toUpperCase()}</div>
+                                            <span>{user.username}</span>
                                         </div>
                                     </td>
                                     <td>{user.email}</td>
@@ -275,12 +288,49 @@
         border-bottom: 1px solid var(--border);
     }
 
+    .dashboard-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
     .dashboard-title h1 {
         font-size: 20px;
         text-transform: uppercase;
         letter-spacing: 1px;
         margin: 0;
     }
+
+    .status-indicator {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        padding: 4px 8px;
+        border-radius: 12px;
+    }
+
+    .status-indicator.connected {
+        background: rgba(0, 255, 65, 0.1);
+        color: var(--green);
+        border: 1px solid rgba(0, 255, 65, 0.2);
+    }
+
+    .status-indicator.error, .status-indicator.disconnected {
+        background: rgba(255, 0, 0, 0.1);
+        color: var(--red);
+        border: 1px solid rgba(255, 0, 0, 0.2);
+    }
+
+    .alert.alert-error {
+        background: rgba(255, 0, 0, 0.1);
+        color: var(--red);
+        padding: 8px 16px;
+        border-radius: 4px;
+        border: 1px solid rgba(255, 0, 0, 0.2);
+        margin-right: 16px;
+        font-size: 13px;
+    }
+
 
     /* Tabs */
     .tabs {
