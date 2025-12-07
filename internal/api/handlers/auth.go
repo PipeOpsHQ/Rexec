@@ -29,16 +29,6 @@ type AuthHandler struct {
 	oauthService *auth.PKCEOAuthService
 }
 
-// OAuthState stores PKCE state for OAuth flow
-type OAuthState struct {
-	State        string    `json:"state"`
-	CodeVerifier string    `json:"code_verifier"`
-	CreatedAt    time.Time `json:"created_at"`
-}
-
-// In-memory state store (use Redis in production)
-var oauthStates = make(map[string]*OAuthState)
-
 // NewAuthHandler creates a new auth handler
 func NewAuthHandler(store *storage.PostgresStore) *AuthHandler {
 	secret := os.Getenv("JWT_SECRET")
@@ -313,7 +303,7 @@ func (h *AuthHandler) OAuthCallback(c *gin.Context) {
 	c.SetCookie("oauth_state", "", -1, "/api/auth", "", false, true)
 
 	// Exchange code for token
-	tokenResp, err := h.oauthService.ExchangeCodeForToken(code, storedState.CodeVerifier)
+	tokenResp, err := h.oauthService.ExchangeCodeForToken(code, codeVerifier)
 	if err != nil {
 		// Log the full error for debugging (visible in server logs)
 		println("OAuth Token Exchange Error: " + err.Error())
@@ -555,15 +545,6 @@ func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 		},
 		"token": token,
 	})
-}
-
-// cleanupOldStates removes expired OAuth states
-func cleanupOldStates() {
-	for state, data := range oauthStates {
-		if time.Since(data.CreatedAt) > 15*time.Minute {
-			delete(oauthStates, state)
-		}
-	}
 }
 
 // getAppURL returns the app URL for redirects (from env or default)
