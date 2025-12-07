@@ -292,7 +292,19 @@
 
 
                 if (isValid) {
-                    await auth.fetchProfile();
+                    try {
+                        await auth.fetchProfile();
+                    } catch (e) {
+                        // If profile fetch fails (e.g. backend error), fallback to stored user
+                        console.warn("Profile fetch failed, using stored user data", e);
+                        try {
+                             const user = JSON.parse(storedUser);
+                             auth.login(storedToken, user);
+                        } catch (parseError) {
+                             console.error("Failed to parse stored user", parseError);
+                        }
+                    }
+                    
                     currentView = "dashboard";
                     await containers.fetchContainers();
                     startAutoRefresh(); // Start polling for container updates

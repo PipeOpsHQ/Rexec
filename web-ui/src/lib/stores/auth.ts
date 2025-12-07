@@ -346,16 +346,27 @@ function createAuthStore() {
           return true;
         }
 
+        // On 401 Unauthorized, the token is definitely invalid
+        if (response.status === 401) {
+          this.logout();
+          return false;
+        }
 
-
-        // For guests with valid local session, don't log out on API errors
-        // This handles 401 (expired JWT), 502 (backend down), etc.
+        // For other errors (500, etc) or missing schema fields, 
+        // we should arguably keep the user logged in to avoid disruption
+        // unless it's a guest whose session is expired.
+        
+        // If it's a guest with valid local session, definitely keep them.
         if (isGuestWithValidLocalSession) {
 
           return true;
         }
 
-        return false;
+        // For non-guests (or unknown status), if we have a token, assume it's valid
+        // but the backend might be having issues.
+        // Returning true here prevents the immediate logout loop on refresh.
+        // The UI might show an error later if specific calls fail.
+        return true;
       } catch (e) {
 
 
