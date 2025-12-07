@@ -54,6 +54,7 @@ func (s *PostgresStore) migrate() error {
 		username VARCHAR(255) NOT NULL,
 		password_hash VARCHAR(255) DEFAULT '',
 		tier VARCHAR(50) DEFAULT 'free',
+		is_admin BOOLEAN DEFAULT false,
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 	);
@@ -184,6 +185,12 @@ func (s *PostgresStore) migrate() error {
 				ALTER TABLE containers ADD COLUMN role VARCHAR(50) DEFAULT 'standard';
 			END IF;
 		END $$`,
+		`DO $$ BEGIN
+			IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+				WHERE table_name='users' AND column_name='is_admin') THEN
+				ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT false;
+			END IF;
+		END $$`,
 	}
 
 	for _, query := range addColumns {
@@ -267,8 +274,8 @@ func (s *PostgresStore) Close() error {
 // CreateUser creates a new user
 func (s *PostgresStore) CreateUser(ctx context.Context, user *models.User, passwordHash string) error {
 	query := `
-		INSERT INTO users (id, email, username, password_hash, tier, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO users (id, email, username, password_hash, tier, is_admin, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`
 	_, err := s.db.ExecContext(ctx, query,
 		user.ID,
@@ -276,6 +283,7 @@ func (s *PostgresStore) CreateUser(ctx context.Context, user *models.User, passw
 		user.Username,
 		passwordHash,
 		user.Tier,
+		user.IsAdmin,
 		user.CreatedAt,
 		user.UpdatedAt,
 	)
@@ -289,7 +297,7 @@ func (s *PostgresStore) GetUserByEmail(ctx context.Context, email string) (*mode
 	var pipeopsID sql.NullString
 
 	query := `
-		SELECT id, email, username, COALESCE(password_hash, ''), tier,
+		SELECT id, email, username, COALESCE(password_hash, ''), tier, COALESCE(is_admin, false),
 		       COALESCE(pipeops_id, ''), created_at, updated_at
 		FROM users WHERE email = $1
 	`
@@ -300,6 +308,7 @@ func (s *PostgresStore) GetUserByEmail(ctx context.Context, email string) (*mode
 		&user.Username,
 		&passwordHash,
 		&user.Tier,
+		&user.IsAdmin,
 		&pipeopsID,
 		&user.CreatedAt,
 		&user.UpdatedAt,
@@ -320,7 +329,7 @@ func (s *PostgresStore) GetUserByID(ctx context.Context, id string) (*models.Use
 	var pipeopsID sql.NullString
 
 	query := `
-		SELECT id, email, username, tier, COALESCE(pipeops_id, ''), created_at, updated_at
+		SELECT id, email, username, tier, COALESCE(is_admin, false), COALESCE(pipeops_id, ''), created_at, updated_at
 		FROM users WHERE id = $1
 	`
 	row := s.db.QueryRowContext(ctx, query, id)
@@ -329,6 +338,7 @@ func (s *PostgresStore) GetUserByID(ctx context.Context, id string) (*models.Use
 		&user.Email,
 		&user.Username,
 		&user.Tier,
+		&user.IsAdmin,
 		&pipeopsID,
 		&user.CreatedAt,
 		&user.UpdatedAt,
@@ -346,13 +356,14 @@ func (s *PostgresStore) GetUserByID(ctx context.Context, id string) (*models.Use
 // UpdateUser updates a user
 func (s *PostgresStore) UpdateUser(ctx context.Context, user *models.User) error {
 	query := `
-		UPDATE users SET username = $2, tier = $3, pipeops_id = $4, updated_at = $5
+		UPDATE users SET username = $2, tier = $3, is_admin = $4, pipeops_id = $5, updated_at = $6
 		WHERE id = $1
 	`
 	_, err := s.db.ExecContext(ctx, query,
 		user.ID,
 		user.Username,
 		user.Tier,
+		user.IsAdmin,
 		user.PipeOpsID,
 		time.Now(),
 	)

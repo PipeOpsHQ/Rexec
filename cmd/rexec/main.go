@@ -33,9 +33,11 @@ func main() {
 		switch os.Args[1] {
 		case "server":
 			runServer()
+		case "admin":
+			handleAdminCommand(os.Args[2:])
 		default:
 			fmt.Printf("Unknown command: %s\n", os.Args[1])
-			fmt.Println("Usage: rexec [server]")
+			fmt.Println("Usage: rexec [server|admin]")
 			os.Exit(1)
 		}
 		return
@@ -51,7 +53,8 @@ func showMenu() {
 		fmt.Println("\n🚀 Rexec CLI")
 		fmt.Println("-----------------------------")
 		fmt.Println("1. Start Server")
-		fmt.Println("2. Exit")
+		fmt.Println("2. Admin Tools")
+		fmt.Println("3. Exit")
 		fmt.Println("-----------------------------")
 		fmt.Print("Select an option: ")
 
@@ -63,12 +66,101 @@ func showMenu() {
 			runServer()
 			return
 		case "2":
+			showAdminMenu()
+		case "3":
 			fmt.Println("Goodbye!")
 			os.Exit(0)
 		default:
 			fmt.Println("Invalid option, please try again.")
 		}
 	}
+}
+
+func handleAdminCommand(args []string) {
+	if len(args) == 0 {
+		fmt.Println("Usage: rexec admin [promote <email>]")
+		return
+	}
+
+	switch args[0] {
+	case "promote":
+		if len(args) < 2 {
+			fmt.Println("Usage: rexec admin promote <email>")
+			return
+		}
+		promoteUser(args[1])
+	default:
+		fmt.Printf("Unknown admin command: %s\n", args[0])
+	}
+}
+
+func showAdminMenu() {
+	reader := bufio.NewReader(os.Stdin)
+	for {
+		fmt.Println("\n🛡️  Admin Tools")
+		fmt.Println("-----------------------------")
+		fmt.Println("1. Promote User to Admin")
+		fmt.Println("2. Back to Main Menu")
+		fmt.Println("-----------------------------")
+		fmt.Print("Select an option: ")
+
+		input, _ := reader.ReadString('\n')
+		input = strings.TrimSpace(input)
+
+		switch input {
+		case "1":
+			fmt.Print("Enter email to promote: ")
+			email, _ := reader.ReadString('\n')
+			promoteUser(strings.TrimSpace(email))
+		case "2":
+			return
+		default:
+			fmt.Println("Invalid option.")
+		}
+	}
+}
+
+func promoteUser(email string) {
+	// Initialize DB connection
+	godotenv.Load()
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		databaseURL = "postgres://rexec:rexec@localhost:5432/rexec?sslmode=disable"
+	}
+
+	// We don't need the encryptor for this specific operation, but NewPostgresStore requires it
+	// Just use a dummy key since we won't be using encrypted fields
+	encryptor, _ := crypto.NewEncryptor("dummy-key-for-admin-cli-operation")
+
+	store, err := storage.NewPostgresStore(databaseURL, encryptor)
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+	defer store.Close()
+
+	ctx := context.Background()
+	user, _, err := store.GetUserByEmail(ctx, email)
+	if err != nil {
+		log.Printf("Error finding user: %v", err)
+		return
+	}
+	if user == nil {
+		fmt.Printf("User with email %s not found.\n", email)
+		return
+	}
+
+	user.IsAdmin = true
+	// UpdateUser updates username, tier, pipeops_id, etc.
+	// But our UpdateUser implementation now includes is_admin!
+	// Let's double check storage.UpdateUser implementation we updated.
+	// Yes: UPDATE users SET username = $2, tier = $3, is_admin = $4 ...
+	
+	if err := store.UpdateUser(ctx, user); err != nil {
+		log.Printf("Failed to promote user: %v", err)
+		return
+	}
+
+	fmt.Printf("✅ User %s (%s) successfully promoted to Admin.\n", user.Email, user.ID)
 }
 
 func runServer() {
@@ -190,6 +282,9 @@ func runServer() {
 	
 	// Initialize snippet handler
 	snippetHandler := handlers.NewSnippetHandler(store)
+
+	// Initialize admin handler
+	adminHandler := handlers.NewAdminHandler(store)
 
 	// Setup Gin router
 	router := gin.Default()
@@ -361,6 +456,19 @@ func runServer() {
 				billing.POST("/portal", billingHandler.CreatePortalSession)
 				billing.POST("/cancel", billingHandler.CancelSubscription)
 			}
+		}
+
+		// Admin routes
+		admin := api.Group("/admin")
+		admin.Use(middleware.AdminOnly(store))
+		{
+			admin.GET("/users", adminHandler.ListUsers)
+			admin.DELETE("/users/:id", adminHandler.DeleteUser)
+
+			admin.GET("/containers", adminHandler.ListContainers)
+			admin.DELETE("/containers/:id", adminHandler.DeleteContainer)
+
+			admin.GET("/terminals", adminHandler.ListTerminals)
 		}
 	}
 
