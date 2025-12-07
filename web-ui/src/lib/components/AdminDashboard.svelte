@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount } from "svelte";
+    import { onMount, onDestroy } from "svelte";
     import { admin } from "$stores/admin";
     import { formatRelativeTime, formatMemory, formatStorage, formatCPU } from "$utils/api";
     import PlatformIcon from "./icons/PlatformIcon.svelte";
@@ -8,18 +8,28 @@
     // Tabs
     type Tab = "users" | "containers" | "terminals";
     let activeTab: Tab = "users";
+    let refreshInterval: ReturnType<typeof setInterval>;
 
     function setTab(tab: Tab) {
         activeTab = tab;
     }
 
-    // Load data on mount
-    onMount(async () => {
+    async function loadData() {
         await Promise.all([
             admin.fetchUsers(),
             admin.fetchContainers(),
             admin.fetchTerminals()
         ]);
+    }
+
+    // Load data on mount and start polling
+    onMount(async () => {
+        await loadData();
+        refreshInterval = setInterval(loadData, 5000);
+    });
+
+    onDestroy(() => {
+        if (refreshInterval) clearInterval(refreshInterval);
     });
 
     $: users = $admin.users;
@@ -59,11 +69,7 @@
         <div class="dashboard-actions">
             <button
                 class="btn btn-secondary btn-sm"
-                on:click={() => {
-                    admin.fetchUsers();
-                    admin.fetchContainers();
-                    admin.fetchTerminals();
-                }}
+                on:click={loadData}
             >
                 <svg
                     class="icon"
