@@ -183,6 +183,37 @@
                   {/if}
                 </button>
               </div>
+              
+              <!-- How it works info -->
+              <div class="how-it-works">
+                <div class="how-it-works-header">
+                  <StatusIcon status="info" size={14} />
+                  <span>How Collaboration Works</span>
+                </div>
+                <ul class="how-it-works-list">
+                  <li>
+                    <span class="step-num">1</span>
+                    <span>Share the link above with your collaborators</span>
+                  </li>
+                  <li>
+                    <span class="step-num">2</span>
+                    <span>They'll join instantly - no account required for viewing</span>
+                  </li>
+                  <li>
+                    <span class="step-num">3</span>
+                    <span>{mode === 'control' ? 'Everyone can type commands in real-time' : 'Collaborators watch as you work'}</span>
+                  </li>
+                  <li>
+                    <span class="step-num">4</span>
+                    <span>Session expires in 60 minutes or when you end it</span>
+                  </li>
+                </ul>
+                <div class="how-it-works-tip">
+                  <strong>Tip:</strong> {mode === 'control' 
+                    ? 'Great for pair programming and interactive debugging!' 
+                    : 'Perfect for demos, teaching, and code reviews!'}
+                </div>
+              </div>
             </div>
 
             <div class="section participants-section">
@@ -566,6 +597,71 @@
   .copy-btn.copied {
     background: var(--accent, #00ff9d);
     color: #000;
+  }
+
+  /* How it works section */
+  .how-it-works {
+    margin-top: 16px;
+    padding: 14px;
+    background: linear-gradient(135deg, rgba(0, 255, 157, 0.05), rgba(0, 200, 150, 0.02));
+    border: 1px solid rgba(0, 255, 157, 0.15);
+    border-radius: 8px;
+  }
+
+  .how-it-works-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--accent, #00ff9d);
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .how-it-works-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 12px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .how-it-works-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 11px;
+    color: #c0c0c0;
+    line-height: 1.4;
+  }
+
+  .step-num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    background: rgba(0, 255, 157, 0.15);
+    color: var(--accent, #00ff9d);
+    border-radius: 50%;
+    font-size: 10px;
+    font-weight: 700;
+  }
+
+  .how-it-works-tip {
+    font-size: 10px;
+    color: #888;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    line-height: 1.4;
+  }
+
+  .how-it-works-tip strong {
+    color: #a0a0a0;
   }
 
   .participants-section {
