@@ -201,7 +201,114 @@
                 {/each}
             </div>
         </section>
+
+        <!-- NEW SECTIONS -->
+
+        <section class="architecture-section">
+            <div class="section-header">
+                <h2>The Rexec <span class="text-white">Architecture</span></h2>
+                <p class="section-sub">Built on the edge of the impossible.</p>
+            </div>
+            
+            <div class="arch-diagram">
+                <div class="arch-layer">
+                    <div class="layer-label">Orchestration Layer</div>
+                    <div class="layer-content">Global Mesh Routing & State Mgmt</div>
+                </div>
+                <div class="arch-connector">
+                    <div class="flow-line"></div>
+                </div>
+                <div class="arch-layer highlight">
+                    <div class="layer-label">Compute Layer</div>
+                    <div class="layer-content">MicroVMs + Container Isolation</div>
+                </div>
+                <div class="arch-connector">
+                    <div class="flow-line"></div>
+                </div>
+                <div class="arch-layer">
+                    <div class="layer-label">Storage Layer</div>
+                    <div class="layer-content">Ephemeral Block Storage</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="compare-section">
+            <div class="compare-grid">
+                <div class="compare-card">
+                    <h3>Traditional VM</h3>
+                    <div class="stat-row">
+                        <span class="label">Boot Time</span>
+                        <span class="value slow">45s - 2m</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="label">Cost</span>
+                        <span class="value">Per Hour (rounded up)</span>
+                    </div>
+                </div>
+                <div class="compare-card highlight">
+                    <div class="badge">REXEC</div>
+                    <h3>Ephemeral Container</h3>
+                    <div class="stat-row">
+                        <span class="label">Boot Time</span>
+                        <span class="value fast">&lt; 300ms</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="label">Cost</span>
+                        <span class="value">Per Second</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="global-mesh">
+            <div class="section-header">
+                <h2>Global Edge <span class="text-white">Network</span></h2>
+            </div>
+            <div class="map-visual">
+                <!-- Abstract map grid -->
+                <div class="map-grid">
+                    <div class="map-point" style="top: 30%; left: 20%;"></div>
+                    <div class="map-point" style="top: 35%; left: 25%;"></div>
+                    <div class="map-point" style="top: 25%; left: 50%;"></div>
+                    <div class="map-point" style="top: 30%; left: 55%;"></div>
+                    <div class="map-point" style="top: 40%; left: 80%;"></div>
+                    <div class="map-point pulse" style="top: 60%; left: 70%;"></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="final-cta">
+            <h2>Ready to launch?</h2>
+            <button class="btn-primary large" on:click={handleGuestClick}>
+                Start Building Now
+                <div class="glow"></div>
+            </button>
+        </section>
+
     </main>
+    
+    <footer class="main-footer">
+        <div class="footer-content">
+            <div class="footer-col">
+                <h4>Rexec</h4>
+                <a href="/pricing">Pricing</a>
+                <a href="/guides">Guides</a>
+            </div>
+            <div class="footer-col">
+                <h4>Legal</h4>
+                <a href="#">Terms</a>
+                <a href="#">Privacy</a>
+            </div>
+            <div class="footer-col">
+                <h4>Social</h4>
+                <a href="#">GitHub</a>
+                <a href="#">Twitter</a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            &copy; 2025 Rexec Systems.
+        </div>
+    </footer>
 </div>
 
 <style>
@@ -352,6 +459,11 @@
         cursor: pointer;
         overflow: hidden;
         transition: transform 0.2s;
+    }
+
+    .btn-primary.large {
+        padding: 20px 40px;
+        font-size: 18px;
     }
 
     .btn-primary:hover {
@@ -521,13 +633,20 @@
     /* Use Cases */
     .section-header {
         margin-bottom: 40px;
+        text-align: center;
     }
 
     .section-header h2 {
-        font-size: 24px;
+        font-size: 32px;
         font-weight: 400;
         color: #666;
         margin: 0;
+    }
+    
+    .section-sub {
+        font-size: 16px;
+        color: #666;
+        margin-top: 8px;
     }
 
     .text-white { color: #fff; }
@@ -600,6 +719,213 @@
         transform: rotate(180deg) translateX(4px);
     }
 
+    /* Architecture Section */
+    .architecture-section {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .arch-diagram {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        align-items: center;
+        width: 100%;
+        max-width: 600px;
+    }
+
+    .arch-layer {
+        width: 100%;
+        background: #0f0f0f;
+        border: 1px solid #222;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+    }
+
+    .arch-layer.highlight {
+        border-color: #00ffaa;
+        background: rgba(0, 255, 170, 0.05);
+        box-shadow: 0 0 20px rgba(0, 255, 170, 0.1);
+    }
+
+    .layer-label {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        color: #666;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+    }
+
+    .arch-layer.highlight .layer-label {
+        color: #00ffaa;
+    }
+
+    .layer-content {
+        color: #fff;
+        font-weight: 500;
+    }
+
+    .arch-connector {
+        height: 20px;
+        width: 2px;
+        background: #222;
+    }
+
+    /* Compare Section */
+    .compare-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 40px;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .compare-card {
+        background: #0f0f0f;
+        border: 1px solid #222;
+        padding: 32px;
+        border-radius: 12px;
+        position: relative;
+    }
+
+    .compare-card.highlight {
+        border-color: #00ffaa;
+        background: rgba(0, 255, 170, 0.02);
+    }
+
+    .badge {
+        position: absolute;
+        top: -12px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #00ffaa;
+        color: #000;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 4px 8px;
+        border-radius: 4px;
+        letter-spacing: 1px;
+    }
+
+    .compare-card h3 {
+        color: #fff;
+        font-size: 18px;
+        margin: 0 0 24px 0;
+        text-align: center;
+    }
+
+    .stat-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 12px 0;
+        border-bottom: 1px solid #222;
+        font-size: 14px;
+    }
+
+    .stat-row:last-child {
+        border-bottom: none;
+    }
+
+    .stat-row .label { color: #666; }
+    .stat-row .value { color: #fff; font-family: 'JetBrains Mono', monospace; }
+    .stat-row .value.slow { color: #ff5f56; }
+    .stat-row .value.fast { color: #00ffaa; }
+
+    /* Global Mesh */
+    .global-mesh {
+        text-align: center;
+    }
+
+    .map-visual {
+        height: 400px;
+        background: #0f0f0f;
+        border: 1px solid #222;
+        border-radius: 12px;
+        position: relative;
+        overflow: hidden;
+        background-image: 
+            linear-gradient(#1a1a1a 1px, transparent 1px),
+            linear-gradient(90deg, #1a1a1a 1px, transparent 1px);
+        background-size: 40px 40px;
+    }
+
+    .map-point {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        background: #00ffaa;
+        border-radius: 50%;
+        box-shadow: 0 0 10px #00ffaa;
+    }
+
+    .map-point.pulse {
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(0, 255, 170, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(0, 255, 170, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(0, 255, 170, 0); }
+    }
+
+    /* Final CTA */
+    .final-cta {
+        text-align: center;
+        padding: 80px 0;
+    }
+
+    .final-cta h2 {
+        font-size: 48px;
+        color: #fff;
+        margin: 0 0 32px 0;
+    }
+
+    /* Footer */
+    .main-footer {
+        border-top: 1px solid #222;
+        padding: 60px 40px 40px 40px;
+        background: #0a0a0a;
+    }
+
+    .footer-content {
+        max-width: 1200px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 40px;
+    }
+
+    .footer-col h4 {
+        color: #fff;
+        margin: 0 0 16px 0;
+        font-size: 14px;
+    }
+
+    .footer-col a {
+        display: block;
+        color: #666;
+        text-decoration: none;
+        font-size: 14px;
+        margin-bottom: 8px;
+        transition: color 0.2s;
+    }
+
+    .footer-col a:hover {
+        color: #00ffaa;
+    }
+
+    .footer-bottom {
+        max-width: 1200px;
+        margin: 40px auto 0 auto;
+        padding-top: 40px;
+        border-top: 1px solid #222;
+        color: #444;
+        font-size: 12px;
+        text-align: center;
+    }
+
     @keyframes blink { 50% { opacity: 0; } }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
     @keyframes slideUp { to { opacity: 1; transform: translateY(0); } }
@@ -618,6 +944,14 @@
             flex-wrap: wrap;
             justify-content: center;
             gap: 20px;
+        }
+
+        .compare-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .footer-content {
+            grid-template-columns: 1fr 1fr;
         }
     }
 </style>
