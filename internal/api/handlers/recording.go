@@ -15,15 +15,17 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/rexec/rexec/internal/container"
 	"github.com/rexec/rexec/internal/storage"
 )
 
 // RecordingHandler manages terminal recordings
 type RecordingHandler struct {
-	store           *storage.PostgresStore
-	s3Store         *storage.S3Store  // Optional S3 storage for recording data
-	recordings      map[string]*ActiveRecording // containerID -> recording
-	mu              sync.RWMutex
+	store            *storage.PostgresStore
+	s3Store          *storage.S3Store  // Optional S3 storage for recording data
+	containerManager *container.Manager // For resolving container IDs
+	recordings       map[string]*ActiveRecording // containerID (Docker ID) -> recording
+	mu               sync.RWMutex
 }
 
 // ActiveRecording represents an in-progress recording
@@ -58,10 +60,11 @@ type RecordingMetadata struct {
 }
 
 // NewRecordingHandler creates a new recording handler
-func NewRecordingHandler(store *storage.PostgresStore, storagePath string) *RecordingHandler {
+func NewRecordingHandler(store *storage.PostgresStore, storagePath string, containerManager *container.Manager) *RecordingHandler {
 	handler := &RecordingHandler{
-		store:       store,
-		recordings:  make(map[string]*ActiveRecording),
+		store:            store,
+		containerManager: containerManager,
+		recordings:       make(map[string]*ActiveRecording),
 	}
 	
 	// Initialize S3 store if configured
@@ -91,6 +94,18 @@ func NewRecordingHandler(store *storage.PostgresStore, storagePath string) *Reco
 	return handler
 }
 
+// resolveContainerID resolves a container ID or name to the actual Docker ID
+func (h *RecordingHandler) resolveContainerID(idOrName string) string {
+	if h.containerManager == nil {
+		return idOrName
+	}
+	containerInfo, ok := h.containerManager.GetContainer(idOrName)
+	if ok {
+		return containerInfo.ID
+	}
+	return idOrName
+}
+
 // StartRecording starts recording a terminal session
 func (h *RecordingHandler) StartRecording(c *gin.Context) {
 	userID, _ := c.Get("userID")
@@ -105,13 +120,15 @@ func (h *RecordingHandler) StartRecording(c *gin.Context) {
 		return
 	}
 
-	log.Printf("[Recording] Start request for container: %s by user: %s", req.ContainerID, userID)
+	// Resolve container ID to actual Docker ID
+	dockerID := h.resolveContainerID(req.ContainerID)
+	log.Printf("[Recording] Start request for container: %s (resolved: %s) by user: %s", req.ContainerID, dockerID, userID)
 
 	// Check if already recording this container
 	h.mu.RLock()
-	if _, exists := h.recordings[req.ContainerID]; exists {
+	if _, exists := h.recordings[dockerID]; exists {
 		h.mu.RUnlock()
-		log.Printf("[Recording] Already recording container: %s", req.ContainerID)
+		log.Printf("[Recording] Already recording container: %s", dockerID)
 		c.JSON(http.StatusConflict, gin.H{"error": "already recording this terminal"})
 		return
 	}
@@ -124,7 +141,7 @@ func (h *RecordingHandler) StartRecording(c *gin.Context) {
 
 	recording := &ActiveRecording{
 		ID:          uuid.New().String(),
-		ContainerID: req.ContainerID,
+		ContainerID: dockerID,
 		UserID:      userID.(string),
 		Title:       req.Title,
 		StartedAt:   time.Now(),
@@ -132,16 +149,16 @@ func (h *RecordingHandler) StartRecording(c *gin.Context) {
 	}
 
 	h.mu.Lock()
-	h.recordings[req.ContainerID] = recording
+	h.recordings[dockerID] = recording
 	activeCount := len(h.recordings)
 	h.mu.Unlock()
 
-	log.Printf("[Recording] Started recording %s for container: %s (total active: %d)", recording.ID, req.ContainerID, activeCount)
+	log.Printf("[Recording] Started recording %s for container: %s (total active: %d)", recording.ID, dockerID, activeCount)
 
 	c.JSON(http.StatusOK, gin.H{
 		"recording_id":   recording.ID,
 		"started_at":     recording.StartedAt,
-		"container_id":   req.ContainerID,
+		"container_id":   dockerID,
 		"message":        "Recording started",
 	})
 }
@@ -180,10 +197,12 @@ func (h *RecordingHandler) StopRecording(c *gin.Context) {
 	userID, _ := c.Get("userID")
 	containerID := c.Param("containerId")
 
-	log.Printf("[Recording] Stop request for container: %s by user: %s", containerID, userID)
+	// Resolve container ID to actual Docker ID
+	dockerID := h.resolveContainerID(containerID)
+	log.Printf("[Recording] Stop request for container: %s (resolved: %s) by user: %s", containerID, dockerID, userID)
 
 	h.mu.Lock()
-	recording, exists := h.recordings[containerID]
+	recording, exists := h.recordings[dockerID]
 	if !exists {
 		h.mu.Unlock()
 		// Log all active recordings for debugging
@@ -193,14 +212,14 @@ func (h *RecordingHandler) StopRecording(c *gin.Context) {
 			activeIDs = append(activeIDs, id)
 		}
 		h.mu.RUnlock()
-		log.Printf("[Recording] No active recording for container: %s. Active recordings: %v", containerID, activeIDs)
+		log.Printf("[Recording] No active recording for container: %s. Active recordings: %v", dockerID, activeIDs)
 		c.JSON(http.StatusNotFound, gin.H{"error": "no active recording for this terminal"})
 		return
 	}
-	delete(h.recordings, containerID)
+	delete(h.recordings, dockerID)
 	h.mu.Unlock()
 
-	log.Printf("[Recording] Found recording %s for container: %s, events: %d", recording.ID, containerID, len(recording.Events))
+	log.Printf("[Recording] Found recording %s for container: %s, events: %d", recording.ID, dockerID, len(recording.Events))
 
 	// Verify ownership
 	if recording.UserID != userID.(string) {
@@ -504,8 +523,11 @@ func (h *RecordingHandler) IsRecording(containerID string) bool {
 func (h *RecordingHandler) GetRecordingStatus(c *gin.Context) {
 	containerID := c.Param("containerId")
 
+	// Resolve container ID to actual Docker ID
+	dockerID := h.resolveContainerID(containerID)
+
 	h.mu.RLock()
-	recording, exists := h.recordings[containerID]
+	recording, exists := h.recordings[dockerID]
 	h.mu.RUnlock()
 
 	if !exists {

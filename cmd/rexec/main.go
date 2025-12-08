@@ -301,7 +301,7 @@ func runServer() {
 	fileHandler := handlers.NewFileHandler(containerManager, store)
 	sshHandler := handlers.NewSSHHandler(store, containerManager)
 	collabHandler := handlers.NewCollabHandler(store, containerManager, terminalHandler)
-	recordingHandler := handlers.NewRecordingHandler(store, os.Getenv("RECORDINGS_PATH"))
+	recordingHandler := handlers.NewRecordingHandler(store, os.Getenv("RECORDINGS_PATH"), containerManager)
 	// Connect recording handler to terminal handler to capture events
 	terminalHandler.SetRecordingHandler(recordingHandler)
 	// Connect collab handler to terminal handler for shared session access
