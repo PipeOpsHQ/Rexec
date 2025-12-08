@@ -329,34 +329,7 @@
             </div>
         </div>
 
-        <!-- Custom Header for Promo -->
-        <header class="promo-header animate-fade-up" style="--delay: 0s">
-            <div class="header-logo">
-                <svg width="36" height="36" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect width="32" height="32" rx="8" fill="#00ff88"/>
-                    <path d="M8 10L14 16L8 22" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M16 22H24" stroke="#000" stroke-width="2.5" stroke-linecap="round"/>
-                </svg>
-                <span class="logo-text">Rexec</span>
-            </div>
-            <nav class="header-nav">
-                <button class="nav-link" on:click={() => navigateTo('use-cases')}>Use Cases</button>
-                <button class="nav-link" on:click={() => navigateTo('pricing')}>Pricing</button>
-                <button class="nav-link" on:click={() => navigateTo('guides')}>Docs</button>
-            </nav>
-            <div class="header-actions">
-                <button class="btn-header-secondary" on:click={handleOAuthLogin} disabled={isOAuthLoading}>
-                    {#if isOAuthLoading}
-                        <span class="spinner-sm"></span>
-                    {:else}
-                        Sign In
-                    {/if}
-                </button>
-                <button class="btn-header-primary" on:click={handleGuestClick}>
-                    Try Free
-                </button>
-            </div>
-        </header>
+
         
         <div class="hero-inner">
             <div class="hero-content">
@@ -684,122 +657,6 @@
         overflow: hidden;
     }
 
-    /* Custom Promo Header */
-    .promo-header {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 16px 32px;
-        z-index: 100;
-        background: rgba(0, 0, 0, 0.8);
-        backdrop-filter: blur(20px);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
-    .header-logo {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-
-    .logo-text {
-        font-size: 22px;
-        font-weight: 700;
-        background: linear-gradient(135deg, var(--accent), #00e676);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-    }
-
-    .header-nav {
-        display: flex;
-        gap: 32px;
-    }
-
-    .nav-link {
-        background: none;
-        border: none;
-        color: var(--text-secondary);
-        font-size: 14px;
-        font-weight: 500;
-        cursor: pointer;
-        padding: 8px 0;
-        position: relative;
-        transition: color 0.2s;
-    }
-
-    .nav-link::after {
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        width: 0;
-        height: 2px;
-        background: var(--accent);
-        transition: width 0.3s ease;
-    }
-
-    .nav-link:hover {
-        color: var(--text);
-    }
-
-    .nav-link:hover::after {
-        width: 100%;
-    }
-
-    .header-actions {
-        display: flex;
-        gap: 12px;
-    }
-
-    .btn-header-secondary {
-        background: transparent;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        color: var(--text);
-        padding: 10px 20px;
-        border-radius: 8px;
-        font-size: 14px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .btn-header-secondary:hover {
-        border-color: var(--accent);
-        background: rgba(0, 255, 136, 0.05);
-    }
-
-    .btn-header-primary {
-        background: var(--accent);
-        border: none;
-        color: #000;
-        padding: 10px 20px;
-        border-radius: 8px;
-        font-size: 14px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .btn-header-primary:hover {
-        background: #00e676;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(0, 255, 136, 0.3);
-    }
-
-    .spinner-sm {
-        width: 14px;
-        height: 14px;
-        border: 2px solid transparent;
-        border-top-color: currentColor;
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-    }
-
     .hero-inner {
         display: flex;
         flex-direction: column;
@@ -807,7 +664,7 @@
         justify-content: center;
         width: 100%;
         max-width: 1400px;
-        padding: 120px 24px 80px;
+        padding: 60px 24px 80px;
         z-index: 1;
     }
 
@@ -1799,25 +1656,8 @@
 
     /* Responsive */
     @media (max-width: 768px) {
-        .promo-header {
-            padding: 12px 16px;
-        }
-
-        .header-nav {
-            display: none;
-        }
-
-        .header-logo .logo-text {
-            font-size: 18px;
-        }
-
-        .btn-header-secondary, .btn-header-primary {
-            padding: 8px 14px;
-            font-size: 12px;
-        }
-
         .hero-inner {
-            padding: 100px 16px 60px;
+            padding: 40px 16px 60px;
         }
 
         .hero h1 {
