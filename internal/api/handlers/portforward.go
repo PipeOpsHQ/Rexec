@@ -595,12 +595,9 @@ func (h *PortForwardHandler) HandleHTTPProxy(c *gin.Context) {
 
 // renderPortForwardError renders a branded HTML error page for port forwarding
 func (h *PortForwardHandler) renderPortForwardError(c *gin.Context, title, message string, port int) {
-	portDisplay := ""
+	portStr := "N/A"
 	if port > 0 {
-		portDisplay = fmt.Sprintf(`
-        <div class="port-info">
-            Target Port: <code>%d</code>
-        </div>`, port)
+		portStr = fmt.Sprintf("%d", port)
 	}
 
 	tipsDisplay := ""
@@ -623,6 +620,7 @@ func (h *PortForwardHandler) renderPortForwardError(c *gin.Context, title, messa
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>%s - Rexec</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -645,10 +643,26 @@ func (h *PortForwardHandler) renderPortForwardError(c *gin.Context, title, messa
             background: var(--bg);
             min-height: 100vh;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
             color: var(--text);
             padding: 20px;
+        }
+        .logo {
+            margin-bottom: 32px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .logo svg {
+            width: 32px;
+            height: 32px;
+        }
+        .logo span {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text);
         }
         .content {
             max-width: 600px;
@@ -728,24 +742,6 @@ func (h *PortForwardHandler) renderPortForwardError(c *gin.Context, title, messa
             margin: 0 0 24px;
             line-height: 1.6;
         }
-        .port-info {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 12px 16px;
-            margin-bottom: 16px;
-            display: inline-block;
-            color: var(--text-secondary);
-            font-size: 14px;
-        }
-        .port-info code {
-            background: rgba(59, 130, 246, 0.15);
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-family: var(--font-mono);
-            color: var(--accent);
-            margin-left: 4px;
-        }
         .tips {
             text-align: left;
             background: var(--bg-card);
@@ -810,6 +806,37 @@ func (h *PortForwardHandler) renderPortForwardError(c *gin.Context, title, messa
             justify-content: center;
             flex-wrap: wrap;
         }
+        .suggestions {
+            margin-top: 48px;
+            padding-top: 32px;
+            border-top: 1px solid var(--border);
+        }
+        .suggestions h3 {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin: 0 0 16px;
+        }
+        .suggestion-links {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .suggestion-links a {
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 14px;
+            padding: 6px 12px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            transition: all 0.15s ease;
+        }
+        .suggestion-links a:hover {
+            background: var(--bg-secondary);
+            border-color: var(--accent);
+        }
         @media (max-width: 480px) {
             .error-info h1 { font-size: 56px; }
             .terminal-body { font-size: 11px; }
@@ -819,6 +846,14 @@ func (h *PortForwardHandler) renderPortForwardError(c *gin.Context, title, messa
     </style>
 </head>
 <body>
+    <div class="logo">
+        <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="32" height="32" rx="8" fill="#3b82f6"/>
+            <path d="M8 10L14 16L8 22" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M16 22H24" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+        <span>rexec</span>
+    </div>
     <div class="content">
         <div class="terminal-window">
             <div class="terminal-header">
@@ -832,13 +867,25 @@ func (h *PortForwardHandler) renderPortForwardError(c *gin.Context, title, messa
             <div class="terminal-body">
                 <div class="line">
                     <span class="prompt">$</span>
-                    <span class="command">curl localhost:%d</span>
+                    <span class="command">curl localhost:%s</span>
                 </div>
                 <div class="line error-line">
-                    <span class="error-code">Error: %s</span>
+                    <span class="error-code">HTTP/1.1 503 Service Unavailable</span>
                 </div>
                 <div class="line">
-                    <span class="output">{"error": "%s"}</span>
+                    <span class="output">{</span>
+                </div>
+                <div class="line">
+                    <span class="output">&nbsp;&nbsp;"error": "%s",</span>
+                </div>
+                <div class="line">
+                    <span class="output">&nbsp;&nbsp;"message": "%s",</span>
+                </div>
+                <div class="line">
+                    <span class="output">&nbsp;&nbsp;"port": "%s"</span>
+                </div>
+                <div class="line">
+                    <span class="output">}</span>
                 </div>
                 <div class="line">
                     <span class="prompt">$</span>
@@ -848,11 +895,11 @@ func (h *PortForwardHandler) renderPortForwardError(c *gin.Context, title, messa
         </div>
         
         <div class="error-info">
+            <h1>503</h1>
             <h2>%s</h2>
             <p>%s</p>
         </div>
         
-        %s
         %s
         
         <div class="actions">
@@ -863,18 +910,29 @@ func (h *PortForwardHandler) renderPortForwardError(c *gin.Context, title, messa
                 </svg>
                 Go to Dashboard
             </a>
-            <a href="javascript:history.back()" class="btn">
+            <button onclick="location.reload()" class="btn">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                    <path d="M23 4v6h-6M1 20v-6h6"/>
+                    <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
                 </svg>
-                Go Back
-            </a>
+                Retry
+            </button>
+        </div>
+        
+        <div class="suggestions">
+            <h3>Quick Links</h3>
+            <div class="suggestion-links">
+                <a href="/">Dashboard</a>
+                <a href="/use-cases">Use Cases</a>
+                <a href="/guides">Guides</a>
+                <a href="/pricing">Pricing</a>
+            </div>
         </div>
     </div>
 </body>
-</html>`, title, port, title, title, title, message, portDisplay, tipsDisplay)
+</html>`, title, portStr, title, message, portStr, title, message, tipsDisplay)
 
 	c.Header("Content-Type", "text/html; charset=utf-8")
 	c.Header("X-Rexec-Error", "true") // Signal this is our error page
-	c.String(http.StatusOK, html) // Use 200 to bypass platform error page replacement
+	c.String(http.StatusOK, html)     // Use 200 to bypass platform error page replacement
 }
