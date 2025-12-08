@@ -15,8 +15,14 @@
     let heroLoaded = false;
     let terminalTyping = false;
     let typedLines: number[] = [];
+    let currentEraIndex = 0;
 
-    const targetStats = { terminals: 10000, uptime: 99.9, countries: 45 };
+    // Realistic early-stage stats
+    const targetStats = { terminals: 150, uptime: 99.5, countries: 8 };
+    
+    // Rotating era words
+    const eraWords = ["AI", "Cloud", "DevOps", "Remote"];
+    const eraColors = ["#00ff88", "#00d4ff", "#ff6b6b", "#ffd93d"];
 
     function handleGuestClick() {
         dispatch("guest");
@@ -81,6 +87,11 @@
             if (step >= steps) clearInterval(timer);
         }, interval);
 
+        // Rotate era words
+        const eraTimer = setInterval(() => {
+            currentEraIndex = (currentEraIndex + 1) % eraWords.length;
+        }, 3000);
+
         // Intersection observer for scroll animations
         const observer = new IntersectionObserver(
             (entries) => {
@@ -100,6 +111,7 @@
 
         return () => {
             clearInterval(timer);
+            clearInterval(eraTimer);
             observer.disconnect();
         };
     });
@@ -109,25 +121,57 @@
             icon: "terminal",
             title: "Remote Development",
             description: "Full Linux environment accessible from anywhere. Code, compile, and deploy without local setup.",
-            color: "#00ff88"
+            color: "#00ff88",
+            slug: "remote-development"
         },
         {
             icon: "connected",
             title: "Team Collaboration",
             description: "Share your terminal session in real-time. Pair program, debug together, teach and learn.",
-            color: "#00d4ff"
+            color: "#00d4ff",
+            slug: "pair-programming"
         },
         {
             icon: "bolt",
             title: "Instant Demos",
             description: "Spin up isolated environments for product demos, tutorials, or customer support in seconds.",
-            color: "#ff6b6b"
+            color: "#ff6b6b",
+            slug: "technical-interviews"
         },
         {
             icon: "key",
             title: "Secure Access",
             description: "Connect to your infrastructure through SSH with enterprise-grade security and audit trails.",
-            color: "#ffd93d"
+            color: "#ffd93d",
+            slug: "universal-jump-host"
+        },
+        {
+            icon: "globe",
+            title: "Education & Training",
+            description: "Perfect for coding bootcamps, workshops, and tutorials. Students get instant environments.",
+            color: "#8b5cf6",
+            slug: "education"
+        },
+        {
+            icon: "shield",
+            title: "Security Research",
+            description: "Isolated sandboxes for malware analysis, penetration testing, and security audits.",
+            color: "#f97316",
+            slug: "security-research"
+        },
+        {
+            icon: "clock",
+            title: "Session Recording",
+            description: "Record and replay terminal sessions for documentation, audits, or training materials.",
+            color: "#ec4899",
+            slug: "session-recording"
+        },
+        {
+            icon: "ai",
+            title: "AI-Powered Workflows",
+            description: "Built-in AI tools for code generation, debugging assistance, and intelligent automation.",
+            color: "#06b6d4",
+            slug: "ai-workflows"
         }
     ];
 
@@ -137,7 +181,46 @@
         { icon: "globe", title: "Browser-based", desc: "No downloads, works everywhere" },
         { icon: "clock", title: "Session Recording", desc: "Replay and share your work" },
         { icon: "ai", title: "AI Tools Built-in", desc: "Claude, GPT, and more pre-installed" },
-        { icon: "link", title: "SSH Support", desc: "Connect with your favorite client" }
+        { icon: "link", title: "SSH Support", desc: "Connect with your favorite client" },
+        { icon: "key", title: "Secure by Default", desc: "End-to-end encryption" },
+        { icon: "connected", title: "Real-time Collab", desc: "Share sessions instantly" },
+        { icon: "terminal", title: "Multiple OS", desc: "Ubuntu, Debian, Alpine & more" },
+        { icon: "copy", title: "Port Forwarding", desc: "Expose your apps publicly" },
+        { icon: "snippet", title: "Snippets & Macros", desc: "Save and reuse commands" },
+        { icon: "chart", title: "Resource Monitoring", desc: "Track CPU, memory, network" }
+    ];
+
+    const moreFeatures = [
+        { 
+            title: "Instant Environment Provisioning",
+            desc: "No more waiting for VMs. Spin up fully-configured Linux environments in milliseconds, not minutes.",
+            icon: "bolt"
+        },
+        { 
+            title: "Zero Configuration Required",
+            desc: "Everything works out of the box. Pre-installed dev tools, languages, and utilities ready to use.",
+            icon: "check"
+        },
+        { 
+            title: "Access From Any Device",
+            desc: "Work from your laptop, tablet, or phone. Your terminal follows you everywhere with full functionality.",
+            icon: "globe"
+        },
+        { 
+            title: "Enterprise-Grade Security",
+            desc: "Container isolation, encrypted connections, and audit trails. Your code never touches our servers.",
+            icon: "shield"
+        },
+        {
+            title: "Seamless Team Onboarding",
+            desc: "New developers productive in minutes. Share standardized environments with your entire team.",
+            icon: "connected"
+        },
+        {
+            title: "Cost-Effective Scaling",
+            desc: "Pay only for what you use. No idle VMs, no wasted resources. Scale from 1 to 1000 terminals instantly.",
+            icon: "chart"
+        }
     ];
 
     const testimonials = [
@@ -184,7 +267,7 @@
                 <h1 class="animate-fade-up" style="--delay: 0.2s">
                     The Terminal
                     <span class="gradient-text">Reimagined</span>
-                    for the Cloud Era
+                    for the <span class="era-word" style="--era-color: {eraColors[currentEraIndex]}">{eraWords[currentEraIndex]}</span> Era
                 </h1>
 
                 <p class="hero-description animate-fade-up" style="--delay: 0.3s">
@@ -333,12 +416,12 @@
             <div class="usecases-grid">
                 {#each useCases as useCase, i}
                     <div class="usecase-card" style="--accent-color: {useCase.color}" style:animation-delay="{i * 100}ms">
-                        <div class="usecase-icon">
+                        <div class="usecase-icon" style="background: {useCase.color}15; color: {useCase.color}">
                             <StatusIcon status={useCase.icon} size={32} />
                         </div>
                         <h3>{useCase.title}</h3>
                         <p>{useCase.description}</p>
-                        <button class="usecase-link" on:click={() => navigateTo('use-cases')}>
+                        <button class="usecase-link" on:click={() => navigateTo(`use-cases/${useCase.slug}`)}>
                             Learn more →
                         </button>
                     </div>
@@ -360,6 +443,28 @@
                         </span>
                         <h4>{feature.title}</h4>
                         <p>{feature.desc}</p>
+                    </div>
+                {/each}
+            </div>
+        </div>
+    </section>
+
+    <!-- Why Choose Rexec Section -->
+    <section id="whychoose" class="promo-section whychoose-section" class:visible={visibleSections.has('whychoose')}>
+        <div class="section-content">
+            <h2 class="section-title">Why Choose <span class="accent">Rexec</span></h2>
+            <p class="section-subtitle">Built by developers, for developers</p>
+            
+            <div class="whychoose-grid">
+                {#each moreFeatures as feature, i}
+                    <div class="whychoose-card" style:animation-delay="{i * 100}ms">
+                        <span class="whychoose-icon">
+                            <StatusIcon status={feature.icon} size={32} />
+                        </span>
+                        <div class="whychoose-content">
+                            <h3>{feature.title}</h3>
+                            <p>{feature.desc}</p>
+                        </div>
                     </div>
                 {/each}
             </div>
@@ -643,6 +748,20 @@
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
+        animation: gradientShift 5s ease infinite;
+    }
+
+    .era-word {
+        color: var(--era-color, var(--accent));
+        display: inline-block;
+        animation: eraFade 0.5s ease-in-out;
+        text-shadow: 0 0 30px var(--era-color);
+    }
+
+    @keyframes eraFade {
+        0% { opacity: 0; transform: translateY(-10px); }
+        100% { opacity: 1; transform: translateY(0); }
+    }
         animation: gradientShift 5s ease infinite;
     }
 
@@ -1163,6 +1282,58 @@
         color: var(--text-muted);
     }
 
+    /* Why Choose Section */
+    .whychoose-section {
+        background: linear-gradient(180deg, #050505 0%, rgba(0, 255, 136, 0.03) 100%);
+    }
+
+    .whychoose-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+        gap: 24px;
+    }
+
+    .whychoose-card {
+        display: flex;
+        gap: 20px;
+        padding: 28px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        transition: all 0.3s;
+    }
+
+    .whychoose-card:hover {
+        border-color: var(--accent);
+        transform: translateY(-4px);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .whychoose-icon {
+        flex-shrink: 0;
+        width: 56px;
+        height: 56px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 255, 136, 0.1);
+        border-radius: 12px;
+        color: var(--accent);
+    }
+
+    .whychoose-content h3 {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: var(--text);
+    }
+
+    .whychoose-content p {
+        font-size: 14px;
+        color: var(--text-secondary);
+        line-height: 1.6;
+    }
+
     /* Testimonials */
     .testimonials-grid {
         display: grid;
@@ -1367,6 +1538,19 @@
 
         .comparison {
             grid-template-columns: 1fr;
+        }
+
+        .whychoose-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .whychoose-card {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .whychoose-icon {
+            margin: 0 auto;
         }
 
         .footer-content {

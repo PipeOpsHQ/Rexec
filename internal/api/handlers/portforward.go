@@ -625,28 +625,16 @@ func (h *PortForwardHandler) renderPortForwardError(c *gin.Context, title, messa
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bg: #0a0a0a;
-            --bg-card: #111111;
-            --bg-secondary: #161616;
-            --border: #262626;
-            --text: #fafafa;
-            --text-secondary: #a1a1aa;
-            --text-muted: #71717a;
-            --accent: #3b82f6;
-            --accent-hover: #2563eb;
-            --font-mono: 'JetBrains Mono', monospace;
-        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: var(--bg);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0a0a0a;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            color: var(--text);
+            color: #fafafa;
             padding: 20px;
         }
         .logo {
@@ -655,23 +643,12 @@ func (h *PortForwardHandler) renderPortForwardError(c *gin.Context, title, messa
             align-items: center;
             gap: 10px;
         }
-        .logo svg {
-            width: 32px;
-            height: 32px;
-        }
-        .logo span {
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--text);
-        }
-        .content {
-            max-width: 600px;
-            width: 100%%;
-            text-align: center;
-        }
+        .logo svg { width: 32px; height: 32px; }
+        .logo span { font-size: 24px; font-weight: 700; color: #fafafa; }
+        .content { max-width: 600px; width: 100%%; text-align: center; }
         .terminal-window {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
+            background: #111111;
+            border: 1px solid #262626;
             border-radius: 8px;
             overflow: hidden;
             margin-bottom: 32px;
@@ -682,70 +659,57 @@ func (h *PortForwardHandler) renderPortForwardError(c *gin.Context, title, messa
             align-items: center;
             gap: 12px;
             padding: 10px 14px;
-            background: var(--bg-secondary);
-            border-bottom: 1px solid var(--border);
+            background: #161616;
+            border-bottom: 1px solid #262626;
         }
-        .terminal-dots {
-            display: flex;
-            gap: 6px;
-        }
-        .dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%%;
-        }
+        .terminal-dots { display: flex; gap: 6px; }
+        .dot { width: 10px; height: 10px; border-radius: 50%%; }
         .dot.red { background: #ff5f56; }
         .dot.yellow { background: #ffbd2e; }
         .dot.green { background: #27c93f; }
         .terminal-title {
             font-size: 12px;
-            color: var(--text-muted);
-            font-family: var(--font-mono);
+            color: #71717a;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
         }
         .terminal-body {
             padding: 16px;
-            font-family: var(--font-mono);
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
             font-size: 13px;
             line-height: 1.6;
         }
-        .line {
-            display: flex;
-            gap: 8px;
-        }
-        .prompt { color: var(--accent); }
-        .command { color: var(--text); }
+        .line { display: flex; gap: 8px; }
+        .prompt { color: #3b82f6; }
+        .command { color: #fafafa; }
         .error-line { margin: 8px 0; }
         .error-code { color: #ff6b6b; font-weight: 600; }
-        .output { color: var(--text-secondary); }
-        .cursor {
-            color: var(--accent);
-            animation: blink 1s step-end infinite;
-        }
+        .output { color: #a1a1aa; }
+        .cursor { color: #3b82f6; animation: blink 1s step-end infinite; }
         @keyframes blink { 50%% { opacity: 0; } }
         .error-info h1 {
             font-size: 72px;
             font-weight: 700;
-            color: var(--accent);
+            color: #3b82f6;
             margin: 0;
             line-height: 1;
-            font-family: var(--font-mono);
+            font-family: 'JetBrains Mono', monospace;
         }
         .error-info h2 {
             font-size: 24px;
             font-weight: 600;
-            color: var(--text);
+            color: #fafafa;
             margin: 8px 0 16px;
         }
         .error-info p {
-            color: var(--text-secondary);
+            color: #a1a1aa;
             font-size: 14px;
             margin: 0 0 24px;
             line-height: 1.6;
         }
         .tips {
             text-align: left;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
+            background: #111111;
+            border: 1px solid #262626;
             border-radius: 8px;
             padding: 16px;
             margin-bottom: 24px;
@@ -754,24 +718,12 @@ func (h *PortForwardHandler) renderPortForwardError(c *gin.Context, title, messa
             font-size: 12px;
             text-transform: uppercase;
             letter-spacing: 1px;
-            color: var(--text-muted);
+            color: #71717a;
             margin-bottom: 12px;
         }
-        .tips ul {
-            list-style: none;
-            font-size: 13px;
-            color: var(--text-secondary);
-        }
-        .tips li {
-            padding: 6px 0;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .tips li::before {
-            content: "→";
-            color: var(--accent);
-        }
+        .tips ul { list-style: none; font-size: 13px; color: #a1a1aa; }
+        .tips li { padding: 6px 0; display: flex; align-items: center; gap: 8px; }
+        .tips li::before { content: "→"; color: #3b82f6; }
         .btn {
             display: inline-flex;
             align-items: center;
@@ -780,63 +732,37 @@ func (h *PortForwardHandler) renderPortForwardError(c *gin.Context, title, messa
             font-size: 14px;
             font-weight: 500;
             border-radius: 6px;
-            border: 1px solid var(--border);
+            border: 1px solid #262626;
             cursor: pointer;
             text-decoration: none;
             transition: all 0.15s ease;
             background: transparent;
-            color: var(--text);
+            color: #fafafa;
+            font-family: inherit;
         }
-        .btn:hover {
-            background: var(--bg-secondary);
-            border-color: var(--accent);
-        }
-        .btn-primary {
-            background: var(--accent);
-            color: white;
-            border-color: var(--accent);
-        }
-        .btn-primary:hover {
-            background: var(--accent-hover);
-            transform: translateY(-1px);
-        }
-        .actions {
-            display: flex;
-            gap: 12px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        .suggestions {
-            margin-top: 48px;
-            padding-top: 32px;
-            border-top: 1px solid var(--border);
-        }
+        .btn:hover { background: #161616; border-color: #3b82f6; }
+        .btn-primary { background: #3b82f6; color: white; border-color: #3b82f6; }
+        .btn-primary:hover { background: #2563eb; transform: translateY(-1px); }
+        .actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 24px; }
+        .suggestions { margin-top: 48px; padding-top: 32px; border-top: 1px solid #262626; }
         .suggestions h3 {
             font-size: 12px;
             text-transform: uppercase;
             letter-spacing: 1px;
-            color: var(--text-muted);
+            color: #71717a;
             margin: 0 0 16px;
         }
-        .suggestion-links {
-            display: flex;
-            gap: 16px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
+        .suggestion-links { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
         .suggestion-links a {
-            color: var(--accent);
+            color: #3b82f6;
             text-decoration: none;
             font-size: 14px;
             padding: 6px 12px;
-            border: 1px solid var(--border);
-            border-radius: 4px;
+            border: 1px solid #262626;
+            border-radius: 6px;
             transition: all 0.15s ease;
         }
-        .suggestion-links a:hover {
-            background: var(--bg-secondary);
-            border-color: var(--accent);
-        }
+        .suggestion-links a:hover { background: #161616; border-color: #3b82f6; }
         @media (max-width: 480px) {
             .error-info h1 { font-size: 56px; }
             .terminal-body { font-size: 11px; }
@@ -872,21 +798,11 @@ func (h *PortForwardHandler) renderPortForwardError(c *gin.Context, title, messa
                 <div class="line error-line">
                     <span class="error-code">HTTP/1.1 503 Service Unavailable</span>
                 </div>
-                <div class="line">
-                    <span class="output">{</span>
-                </div>
-                <div class="line">
-                    <span class="output">&nbsp;&nbsp;"error": "%s",</span>
-                </div>
-                <div class="line">
-                    <span class="output">&nbsp;&nbsp;"message": "%s",</span>
-                </div>
-                <div class="line">
-                    <span class="output">&nbsp;&nbsp;"port": "%s"</span>
-                </div>
-                <div class="line">
-                    <span class="output">}</span>
-                </div>
+                <div class="line"><span class="output">{</span></div>
+                <div class="line"><span class="output">&nbsp;&nbsp;"error": "%s",</span></div>
+                <div class="line"><span class="output">&nbsp;&nbsp;"message": "%s",</span></div>
+                <div class="line"><span class="output">&nbsp;&nbsp;"port": "%s"</span></div>
+                <div class="line"><span class="output">}</span></div>
                 <div class="line">
                     <span class="prompt">$</span>
                     <span class="cursor">_</span>
@@ -903,20 +819,20 @@ func (h *PortForwardHandler) renderPortForwardError(c *gin.Context, title, messa
         %s
         
         <div class="actions">
-            <a href="/" class="btn btn-primary">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                    <polyline points="9 22 9 12 15 12 15 22"/>
-                </svg>
-                Go to Dashboard
-            </a>
-            <button onclick="location.reload()" class="btn">
+            <button onclick="location.reload()" class="btn btn-primary">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M23 4v6h-6M1 20v-6h6"/>
                     <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
                 </svg>
                 Retry
             </button>
+            <a href="/" class="btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                    <polyline points="9 22 9 12 15 12 15 22"/>
+                </svg>
+                Go to Dashboard
+            </a>
         </div>
         
         <div class="suggestions">
