@@ -1,7 +1,11 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { auth, isAuthenticated, isAdmin } from "$stores/auth";
-    import { containers, startAutoRefresh, stopAutoRefresh } from "$stores/containers";
+    import {
+        containers,
+        startAutoRefresh,
+        stopAutoRefresh,
+    } from "$stores/containers";
     import { terminal, hasSessions } from "$stores/terminal";
     import { toast } from "$stores/toast";
     import { collab } from "$stores/collab";
@@ -51,13 +55,13 @@
     let showGuestModal = false;
     let guestEmail = "";
     let isGuestSubmitting = false;
-    
+
     // Pricing modal state
     let showPricing = false;
 
     // SEO & Meta Management
     $: {
-        if (typeof document !== 'undefined') {
+        if (typeof document !== "undefined") {
             // Title
             if (currentView === "admin") {
                 document.title = "Admin Dashboard - Rexec";
@@ -74,29 +78,35 @@
             // Robots meta
             let robotsMeta = document.querySelector('meta[name="robots"]');
             if (!robotsMeta) {
-                robotsMeta = document.createElement('meta');
-                robotsMeta.setAttribute('name', 'robots');
+                robotsMeta = document.createElement("meta");
+                robotsMeta.setAttribute("name", "robots");
                 document.head.appendChild(robotsMeta);
             }
-            
+
             if (currentView === "admin") {
-                robotsMeta.setAttribute('content', 'noindex, nofollow');
+                robotsMeta.setAttribute("content", "noindex, nofollow");
             } else {
-                robotsMeta.setAttribute('content', 'index, follow');
+                robotsMeta.setAttribute("content", "index, follow");
             }
 
             // Description meta
             let descMeta = document.querySelector('meta[name="description"]');
             if (!descMeta) {
-                descMeta = document.createElement('meta');
-                descMeta.setAttribute('name', 'description');
+                descMeta = document.createElement("meta");
+                descMeta.setAttribute("name", "description");
                 document.head.appendChild(descMeta);
             }
-            
+
             if (currentView === "pricing") {
-                descMeta.setAttribute('content', 'Simple, transparent pricing for instant Linux terminals. Scale your infrastructure as you grow.');
+                descMeta.setAttribute(
+                    "content",
+                    "Simple, transparent pricing for instant Linux terminals. Scale your infrastructure as you grow.",
+                );
             } else if (currentView === "landing" || currentView === "promo") {
-                 descMeta.setAttribute('content', 'Launch secure Linux terminals instantly in your browser. No setup required. Perfect for demos, training, and quick tasks.');
+                descMeta.setAttribute(
+                    "content",
+                    "Launch secure Linux terminals instantly in your browser. No setup required. Perfect for demos, training, and quick tasks.",
+                );
             }
         }
     }
@@ -187,21 +197,25 @@
 
         if (event.data?.type === "oauth_success" && event.data?.data) {
             let { token, user: rawUser } = event.data.data;
-            
+
             // Fix for nested token object issue [object Object]
-            if (typeof token === 'object' && token !== null) {
-                token = token.token || token.access_token || '';
+            if (typeof token === "object" && token !== null) {
+                token = token.token || token.access_token || "";
             }
 
-            if (token && typeof token === 'string' && rawUser) {
+            if (token && typeof token === "string" && rawUser) {
                 // Ensure user object has all required fields
                 const user = {
                     ...rawUser,
-                    name: rawUser.name || rawUser.username || rawUser.email || "User",
+                    name:
+                        rawUser.name ||
+                        rawUser.username ||
+                        rawUser.email ||
+                        "User",
                     tier: rawUser.tier || "free",
-                    isGuest: rawUser.tier === "guest"
+                    isGuest: rawUser.tier === "guest",
                 };
-                
+
                 auth.login(token, user);
                 currentView = "dashboard";
                 containers.fetchContainers();
@@ -219,8 +233,6 @@
     async function handleTerminalUrl() {
         const path = window.location.pathname;
         const params = new URLSearchParams(window.location.search);
-        
-        console.log("Routing:", path);
 
         // Check for /admin route
         if (path === "/admin" || path === "/admin/") {
@@ -232,7 +244,6 @@
 
         // Check for /promo route
         if (path === "/promo" || path === "/promo/") {
-            console.log("Route matched: promo");
             currentView = "promo";
             return;
         }
@@ -273,18 +284,20 @@
         const joinMatch = path.match(/^\/join\/([A-Z0-9]{6})$/i);
         if (joinMatch) {
             joinCode = joinMatch[1].toUpperCase();
-            
+
             // If not authenticated, store join code and show landing with join prompt
             if (!$isAuthenticated) {
                 localStorage.setItem("pendingJoinCode", joinCode);
                 currentView = "landing";
                 // Show a message that they need to login
                 setTimeout(() => {
-                    toast.info("Please login or continue as guest to join the session");
+                    toast.info(
+                        "Please login or continue as guest to join the session",
+                    );
                 }, 500);
                 return;
             }
-            
+
             currentView = "join";
             return;
         }
@@ -298,7 +311,7 @@
             currentView = "snippets";
             return;
         }
-        
+
         // Check for pending join after authentication
         const pendingJoin = localStorage.getItem("pendingJoinCode");
         if (pendingJoin && $isAuthenticated) {
@@ -348,15 +361,28 @@
         }
 
         // Check for unknown paths - show 404
-        const knownPaths = ['/', '/ui/dashboard', '/admin', '/pricing', '/guides', '/ai-tools', '/use-cases', '/agentic', '/snippets', '/settings', '/sshkeys'];
-        const isKnownPath = knownPaths.includes(path) || 
-                           path.startsWith('/use-cases/') || 
-                           path.startsWith('/join/') ||
-                           path.startsWith('/terminal/') ||
-                           path.match(/^\/[a-f0-9]{64}$/i) ||
-                           path.match(/^\/[a-f0-9-]{36}$/i);
-        
-        if (!isKnownPath && path !== '/') {
+        const knownPaths = [
+            "/",
+            "/ui/dashboard",
+            "/admin",
+            "/pricing",
+            "/guides",
+            "/ai-tools",
+            "/use-cases",
+            "/agentic",
+            "/snippets",
+            "/settings",
+            "/sshkeys",
+        ];
+        const isKnownPath =
+            knownPaths.includes(path) ||
+            path.startsWith("/use-cases/") ||
+            path.startsWith("/join/") ||
+            path.startsWith("/terminal/") ||
+            path.match(/^\/[a-f0-9]{64}$/i) ||
+            path.match(/^\/[a-f0-9-]{36}$/i);
+
+        if (!isKnownPath && path !== "/") {
             currentView = "404";
         }
     }
@@ -368,15 +394,17 @@
 
         // Subscribe to collab session events - close terminal when session ends
         const unsubscribeCollab = collab.onMessage((msg) => {
-            if (msg.type === 'ended' || msg.type === 'expired') {
+            if (msg.type === "ended" || msg.type === "expired") {
                 // Find and close all collab terminal sessions
                 const state = terminal.getState();
                 state.sessions.forEach((session, sessionId) => {
                     if (session.isCollabSession) {
                         terminal.closeSession(sessionId);
-                        toast.info(msg.type === 'expired' 
-                            ? 'Shared session expired' 
-                            : 'Shared session ended by owner');
+                        toast.info(
+                            msg.type === "expired"
+                                ? "Shared session expired"
+                                : "Shared session ended by owner",
+                        );
                     }
                 });
             }
@@ -392,17 +420,20 @@
             if (adminKey && expectedKey && adminKey === expectedKey) {
                 // If user is not logged in, login as guest first
                 if (!auth.validateToken()) {
-                    await auth.guestLogin(`admin_${Math.floor(Math.random() * 1000)}@rexec.dev`);
+                    await auth.guestLogin(
+                        `admin_${Math.floor(Math.random() * 1000)}@rexec.dev`,
+                    );
                 }
-                
+
                 // Enable admin mode
                 auth.enableAdminMode();
                 toast.success("Admin mode enabled");
-                
+
                 // Remove key from URL
                 params.delete("admin_key");
                 const newQuery = params.toString();
-                const newPath = window.location.pathname + (newQuery ? "?" + newQuery : "");
+                const newPath =
+                    window.location.pathname + (newQuery ? "?" + newQuery : "");
                 window.history.replaceState({}, "", newPath);
             }
 
@@ -413,31 +444,33 @@
             const storedToken = localStorage.getItem("rexec_token");
             const storedUser = localStorage.getItem("rexec_user");
 
-
-
             if (storedToken && storedUser) {
                 const isValid = await auth.validateToken();
-
 
                 if (isValid) {
                     try {
                         await auth.fetchProfile();
                     } catch (e) {
                         // If profile fetch fails (e.g. backend error), fallback to stored user
-                        console.warn("Profile fetch failed, using stored user data", e);
+                        console.warn(
+                            "Profile fetch failed, using stored user data",
+                            e,
+                        );
                         try {
-                             const user = JSON.parse(storedUser);
-                             auth.login(storedToken, user);
+                            const user = JSON.parse(storedUser);
+                            auth.login(storedToken, user);
                         } catch (parseError) {
-                             console.error("Failed to parse stored user", parseError);
+                            console.error(
+                                "Failed to parse stored user",
+                                parseError,
+                            );
                         }
                     }
-                    
+
                     currentView = "dashboard";
                     await containers.fetchContainers();
                     startAutoRefresh(); // Start polling for container updates
                 } else {
-
                     auth.logout();
                 }
             }
@@ -461,7 +494,6 @@
     $: if (isInitialized && $isAuthenticated && currentView === "landing") {
         const pendingJoin = localStorage.getItem("pendingJoinCode");
         if (pendingJoin) {
-
             localStorage.removeItem("pendingJoinCode");
             joinCode = pendingJoin;
             currentView = "join";
@@ -472,15 +504,18 @@
         startAutoRefresh(); // Start polling when authenticated
     }
 
-    $: if (isInitialized && !$isAuthenticated && 
-           currentView !== "landing" && 
-           currentView !== "promo" && 
-           currentView !== "guides" && 
-           currentView !== "use-cases" && 
-           currentView !== "use-case-detail" &&
-           currentView !== "join" &&
-           currentView !== "pricing" &&
-           currentView !== "404") {
+    $: if (
+        isInitialized &&
+        !$isAuthenticated &&
+        currentView !== "landing" &&
+        currentView !== "promo" &&
+        currentView !== "guides" &&
+        currentView !== "use-cases" &&
+        currentView !== "use-case-detail" &&
+        currentView !== "join" &&
+        currentView !== "pricing" &&
+        currentView !== "404"
+    ) {
         currentView = "landing";
         containers.reset();
         terminal.closeAllSessionsForce();
@@ -549,14 +584,14 @@
         } else if (path === "/pricing") {
             currentView = "pricing";
         } else if (path === "/admin") {
-             if ($isAuthenticated && $isAdmin) {
-                 currentView = "admin";
-             } else {
-                 // If direct navigation to /admin but not authed/admin, redirect or show dashboard which handles it
-                 // Actually better to let the auth logic in onMount handle redirection if needed
-                 // But for popstate (back button), we might need to be careful
-                 currentView = "admin"; // Let the view render (or show access denied)
-             }
+            if ($isAuthenticated && $isAdmin) {
+                currentView = "admin";
+            } else {
+                // If direct navigation to /admin but not authed/admin, redirect or show dashboard which handles it
+                // Actually better to let the auth logic in onMount handle redirection if needed
+                // But for popstate (back button), we might need to be careful
+                currentView = "admin"; // Let the view render (or show access denied)
+            }
         } else if (path === "/snippets") {
             currentView = $isAuthenticated ? "snippets" : "landing";
         }
@@ -588,8 +623,8 @@
 
         <main class="main" class:has-terminal={$hasSessions}>
             {#if currentView === "landing"}
-                <Landing 
-                    on:guest={openGuestModal} 
+                <Landing
+                    on:guest={openGuestModal}
                     on:navigate={(e) => {
                         // @ts-ignore - view is checked elsewhere or we trust it matches types
                         currentView = e.detail.view;
@@ -597,7 +632,7 @@
                     }}
                 />
             {:else if currentView === "promo"}
-                <PromoLanding 
+                <PromoLanding
                     on:guest={openGuestModal}
                     on:navigate={(e) => {
                         currentView = e.detail.view;
@@ -622,21 +657,27 @@
             {:else if currentView === "settings"}
                 <Settings on:back={goToDashboard} />
             {:else if currentView === "sshkeys"}
-                <SSHKeys 
-                    on:back={goToDashboard} 
+                <SSHKeys
+                    on:back={goToDashboard}
                     on:run={(e) => {
                         const command = e.detail.command;
-                        const activeSessionId = terminal.getState().activeSessionId;
-                        
+                        const activeSessionId =
+                            terminal.getState().activeSessionId;
+
                         if (activeSessionId) {
                             currentView = "dashboard";
                             // Small delay to ensure view switch
                             setTimeout(() => {
-                                terminal.sendInput(activeSessionId, command + '\n');
+                                terminal.sendInput(
+                                    activeSessionId,
+                                    command + "\n",
+                                );
                                 toast.success("Running SSH command...");
                             }, 50);
                         } else {
-                            toast.error("No active terminal. Please create one first.");
+                            toast.error(
+                                "No active terminal. Please create one first.",
+                            );
                             currentView = "dashboard";
                         }
                     }}
@@ -644,37 +685,46 @@
             {:else if currentView === "snippets"}
                 <SnippetsPage on:back={goToDashboard} />
             {:else if currentView === "join"}
-                <JoinSession code={joinCode} on:joined={(e) => {
-                    // Use createCollabSession for shared terminals to track mode/role
-                    terminal.createCollabSession(
-                        e.detail.containerId, 
-                        e.detail.containerName,
-                        e.detail.mode || 'control',
-                        e.detail.role || 'viewer'
-                    );
-                    currentView = "dashboard";
-                }} on:cancel={goToDashboard} />
+                <JoinSession
+                    code={joinCode}
+                    on:joined={(e) => {
+                        // Use createCollabSession for shared terminals to track mode/role
+                        terminal.createCollabSession(
+                            e.detail.containerId,
+                            e.detail.containerName,
+                            e.detail.mode || "control",
+                            e.detail.role || "viewer",
+                        );
+                        currentView = "dashboard";
+                    }}
+                    on:cancel={goToDashboard}
+                />
             {:else if currentView === "guides"}
-                <Guides 
+                <Guides
                     on:tryNow={openGuestModal}
                     on:navigate={(e) => {
-                        if (e.detail.view === "agentic") { // Legacy handling
+                        if (e.detail.view === "agentic") {
+                            // Legacy handling
                             currentView = "use-cases";
                             window.history.pushState({}, "", "/use-cases");
                         }
                     }}
                 />
             {:else if currentView === "use-cases"}
-                <UseCases 
+                <UseCases
                     on:tryNow={openGuestModal}
                     on:navigate={(e) => {
                         useCaseSlug = e.detail.slug;
                         currentView = "use-case-detail";
-                        window.history.pushState({}, "", `/use-cases/${e.detail.slug}`);
+                        window.history.pushState(
+                            {},
+                            "",
+                            `/use-cases/${e.detail.slug}`,
+                        );
                     }}
                 />
             {:else if currentView === "use-case-detail"}
-                <UseCaseDetail 
+                <UseCaseDetail
                     slug={useCaseSlug}
                     on:back={() => {
                         currentView = "use-cases";
@@ -683,7 +733,11 @@
                     on:tryNow={openGuestModal}
                     on:navigate={(e) => {
                         useCaseSlug = e.detail.slug;
-                        window.history.pushState({}, "", `/use-cases/${e.detail.slug}`);
+                        window.history.pushState(
+                            {},
+                            "",
+                            `/use-cases/${e.detail.slug}`,
+                        );
                     }}
                 />
             {:else if currentView === "pricing"}
@@ -700,15 +754,19 @@
 
         <!-- Toast notifications -->
         <ToastContainer />
-        
+
         <!-- Pricing Modal -->
-        <Pricing bind:isOpen={showPricing} on:close={() => showPricing = false} />
+        <Pricing
+            bind:isOpen={showPricing}
+            on:close={() => (showPricing = false)}
+        />
 
         <!-- Guest Email Modal -->
         {#if showGuestModal}
             <div
                 class="modal-overlay"
-                on:click={(e) => e.target === e.currentTarget && closeGuestModal()}
+                on:click={(e) =>
+                    e.target === e.currentTarget && closeGuestModal()}
                 on:keydown={handleGuestKeydown}
                 role="presentation"
             >
@@ -747,8 +805,8 @@
                         </div>
 
                         <p class="modal-hint">
-                            <StatusIcon status="validating" size={14} /> Guest access lasts 1 hour. Sign in with
-                            PipeOps for unlimited access.
+                            <StatusIcon status="validating" size={14} /> Guest access
+                            lasts 1 hour. Sign in with PipeOps for unlimited access.
                         </p>
                     </div>
 
