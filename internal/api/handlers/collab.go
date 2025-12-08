@@ -448,6 +448,7 @@ func (h *CollabHandler) EndSession(c *gin.Context) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
+	// First try to find in-memory session
 	for code, session := range h.sessions {
 		if session.ID == sessionID {
 			if session.OwnerID != userID.(string) {
@@ -487,6 +488,30 @@ func (h *CollabHandler) EndSession(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"message": "session ended"})
 			return
 		}
+	}
+
+	// Fallback: Try to find session in database (may exist if server restarted)
+	dbSession, err := h.store.GetCollabSessionByID(c.Request.Context(), sessionID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to lookup session"})
+		return
+	}
+	
+	if dbSession != nil {
+		// Verify ownership
+		if dbSession.OwnerID != userID.(string) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "only owner can end session"})
+			return
+		}
+		
+		// Mark as inactive in database
+		if err := h.store.EndCollabSession(c.Request.Context(), sessionID); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to end session"})
+			return
+		}
+		
+		c.JSON(http.StatusOK, gin.H{"message": "session ended"})
+		return
 	}
 
 	c.JSON(http.StatusNotFound, gin.H{"error": "session not found"})

@@ -1157,6 +1157,35 @@ func (s *PostgresStore) GetCollabSessionByContainerID(ctx context.Context, conta
 	return &session, nil
 }
 
+// GetCollabSessionByID retrieves a collab session by its ID
+func (s *PostgresStore) GetCollabSessionByID(ctx context.Context, id string) (*CollabSessionRecord, error) {
+	var session CollabSessionRecord
+	query := `
+		SELECT id, container_id, owner_id, share_code, mode, max_users, is_active, created_at, expires_at
+		FROM collab_sessions 
+		WHERE id = $1
+	`
+	row := s.db.QueryRowContext(ctx, query, id)
+	err := row.Scan(
+		&session.ID,
+		&session.ContainerID,
+		&session.OwnerID,
+		&session.ShareCode,
+		&session.Mode,
+		&session.MaxUsers,
+		&session.IsActive,
+		&session.CreatedAt,
+		&session.ExpiresAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &session, nil
+}
+
 // EndCollabSession marks a collab session as inactive
 func (s *PostgresStore) EndCollabSession(ctx context.Context, id string) error {
 	query := `UPDATE collab_sessions SET is_active = false WHERE id = $1`
