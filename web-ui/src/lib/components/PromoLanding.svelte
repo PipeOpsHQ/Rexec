@@ -6,13 +6,35 @@
 
     const dispatch = createEventDispatcher<{
         guest: void;
-        navigate: { view: string };
+        navigate: { view: string; slug?: string };
     }>();
 
     let isOAuthLoading = false;
     let text = "Initialize...";
     let typedText = "";
     let cursorVisible = true;
+    let scrollY = 0;
+
+    const featuredUseCases = [
+        {
+            slug: "ephemeral-dev-environments",
+            title: "EPHEMERAL_DEV",
+            icon: "bolt",
+            desc: "Spin up fresh environments in milliseconds."
+        },
+        {
+            slug: "collaborative-intelligence",
+            title: "COLLAB_INTELLIGENCE",
+            icon: "ai",
+            desc: "Shared workspace for humans and AI agents."
+        },
+        {
+            slug: "universal-jump-host",
+            title: "UNIVERSAL_JUMP",
+            icon: "shield",
+            desc: "Secure browser-based access to private infrastructure."
+        }
+    ];
 
     onMount(() => {
         let i = 0;
@@ -36,6 +58,10 @@
         dispatch("guest");
     }
 
+    function navigateToUseCase(slug: string) {
+        window.location.href = `/use-cases/${slug}`;
+    }
+
     async function handleOAuthLogin() {
         if (isOAuthLoading) return;
 
@@ -55,10 +81,39 @@
     }
 </script>
 
+<svelte:window bind:scrollY={scrollY} />
+
 <div class="promo-container">
     <div class="grid-overlay"></div>
     <div class="scanline"></div>
     
+    <!-- Space Background Elements -->
+    <div class="space-scene" style="transform: translateY({scrollY * 0.2}px)">
+        <div class="solar-system">
+            <div class="orbit orbit-1">
+                <div class="planet planet-1"></div>
+            </div>
+            <div class="orbit orbit-2">
+                <div class="planet planet-2"></div>
+            </div>
+            <div class="orbit orbit-3">
+                <div class="planet planet-3"></div>
+            </div>
+            <div class="sun"></div>
+        </div>
+        
+        <div class="rocket-container">
+            <svg class="rocket" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path class="rocket-body" d="M12 2c0 0-8 6-8 12 0 4.418 3.582 8 8 8s8-3.582 8-8c0-6-8-12-8-12z" fill="#050505"/>
+                <path class="rocket-fin-l" d="M4 14l-2 4 4 1" />
+                <path class="rocket-fin-r" d="M20 14l2 4-4 1" />
+                <circle class="rocket-window" cx="12" cy="10" r="2" fill="#00ffaa" />
+                <path class="rocket-flame" d="M12 22v4M10 22v2M14 22v2" stroke="#ff00ff" />
+            </svg>
+            <div class="rocket-trail"></div>
+        </div>
+    </div>
+
     <div class="content-wrapper">
         <header class="hero">
             <div class="glitch-wrapper">
@@ -113,6 +168,34 @@
             </div>
         </section>
 
+        <!-- New Use Cases Section -->
+        <section class="use-cases-section">
+            <div class="section-title">
+                <span class="bracket">[</span>
+                <h2>DEPLOYMENT_PROTOCOLS</h2>
+                <span class="bracket">]</span>
+            </div>
+            
+            <div class="cases-list">
+                {#each featuredUseCases as useCase, i}
+                    <button 
+                        class="case-item" 
+                        on:click={() => navigateToUseCase(useCase.slug)}
+                        style="animation-delay: {i * 150}ms"
+                    >
+                        <div class="case-icon-wrapper">
+                            <StatusIcon status={useCase.icon} size={20} />
+                        </div>
+                        <div class="case-info">
+                            <h4>{useCase.title}</h4>
+                            <p>{useCase.desc}</p>
+                        </div>
+                        <div class="case-arrow">→</div>
+                    </button>
+                {/each}
+            </div>
+        </section>
+
         <footer class="system-status">
             <div class="status-line">
                 <span>SYSTEM: ONLINE</span>
@@ -126,6 +209,7 @@
 <style>
     :global(body) {
         background-color: #050505;
+        overflow-x: hidden;
     }
 
     .promo-container {
@@ -139,21 +223,138 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
+        perspective: 1000px;
     }
 
     /* Grid Background */
     .grid-overlay {
         position: absolute;
-        inset: 0;
+        inset: -50%;
+        width: 200%;
+        height: 200%;
         background-image: 
-            linear-gradient(rgba(0, 255, 170, 0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(0, 255, 170, 0.03) 1px, transparent 1px);
-        background-size: 40px 40px;
+            linear-gradient(rgba(0, 255, 170, 0.05) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0, 255, 170, 0.05) 1px, transparent 1px);
+        background-size: 60px 60px;
         z-index: 1;
         pointer-events: none;
-        perspective: 500px;
-        transform: scale(1.2);
+        transform: rotateX(60deg) translateY(-100px) translateZ(-200px);
+        animation: grid-move 20s linear infinite;
+        opacity: 0.4;
+    }
+
+    @keyframes grid-move {
+        0% { transform: rotateX(60deg) translateY(0) translateZ(-200px); }
+        100% { transform: rotateX(60deg) translateY(60px) translateZ(-200px); }
+    }
+
+    /* Space Scene & Animations */
+    .space-scene {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 2;
+        pointer-events: none;
+        overflow: hidden;
+    }
+
+    .solar-system {
+        position: absolute;
+        top: 20%;
+        right: 10%;
+        width: 400px;
+        height: 400px;
+        transform-style: preserve-3d;
+        transform: rotateX(75deg) rotateY(10deg);
+        opacity: 0.3;
+    }
+
+    .sun {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 40px;
+        height: 40px;
+        transform: translate(-50%, -50%);
+        background: radial-gradient(circle, #ff00ff 0%, transparent 70%);
+        border-radius: 50%;
+        box-shadow: 0 0 40px #ff00ff;
+    }
+
+    .orbit {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        border: 1px solid rgba(0, 255, 170, 0.2);
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+    }
+
+    .orbit-1 { width: 120px; height: 120px; animation: rotate 10s linear infinite; }
+    .orbit-2 { width: 220px; height: 220px; animation: rotate 20s linear infinite reverse; }
+    .orbit-3 { width: 340px; height: 340px; animation: rotate 35s linear infinite; }
+
+    .planet {
+        position: absolute;
+        top: 50%;
+        right: -4px;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #00ffaa;
+        box-shadow: 0 0 10px #00ffaa;
+        transform: translateY(-50%);
+    }
+
+    .planet-2 { background: #00ffff; box-shadow: 0 0 10px #00ffff; width: 6px; height: 6px; }
+    .planet-3 { background: #ffffff; box-shadow: 0 0 10px #ffffff; width: 4px; height: 4px; }
+
+    @keyframes rotate {
+        from { transform: translate(-50%, -50%) rotate(0deg); }
+        to { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+
+    .rocket-container {
+        position: absolute;
+        bottom: 10%;
+        left: -100px; /* Start off-screen */
+        width: 60px;
+        height: 60px;
+        animation: rocket-flight 30s linear infinite;
+        filter: drop-shadow(0 0 10px rgba(0, 255, 170, 0.5));
+    }
+
+    .rocket {
+        width: 100%;
+        height: 100%;
+        transform: rotate(45deg);
+        overflow: visible;
+    }
+    
+    .rocket path {
+        stroke: #00ffaa;
+        stroke-width: 1.5;
+    }
+
+    .rocket-flame {
+        animation: flame-flicker 0.1s linear infinite alternate;
+        stroke: #ff00ff !important;
+    }
+
+    @keyframes rocket-flight {
+        0% { left: -100px; bottom: 10%; transform: rotate(0deg); opacity: 0; }
+        10% { opacity: 1; }
+        40% { left: 40%; bottom: 60%; transform: rotate(10deg); }
+        60% { left: 60%; bottom: 40%; transform: rotate(20deg); }
+        90% { opacity: 1; }
+        100% { left: 110%; bottom: 80%; transform: rotate(30deg); opacity: 0; }
+    }
+
+    @keyframes flame-flicker {
+        from { opacity: 0.6; transform: scaleY(0.8); }
+        to { opacity: 1; transform: scaleY(1.2); }
     }
 
     /* CRT Scanline */
@@ -170,19 +371,19 @@
         );
         background-size: 100% 4px;
         pointer-events: none;
-        z-index: 2;
-        opacity: 0.6;
+        z-index: 10;
+        opacity: 0.3;
     }
 
     .content-wrapper {
         position: relative;
-        z-index: 10;
+        z-index: 20;
         max-width: 1000px;
         width: 100%;
-        padding: 2rem;
+        padding: 4rem 2rem;
         display: flex;
         flex-direction: column;
-        gap: 4rem;
+        gap: 5rem;
         text-align: center;
     }
 
@@ -240,6 +441,7 @@
         padding: 0.5rem 1rem;
         border: 1px solid rgba(0, 255, 170, 0.2);
         box-shadow: 0 0 15px rgba(0, 255, 170, 0.1);
+        backdrop-filter: blur(4px);
     }
 
     .prompt {
@@ -286,7 +488,7 @@
 
     .cyber-btn.primary:hover {
         background: #ccffee;
-        box-shadow: 0 0 20px rgba(0, 255, 170, 0.6);
+        box-shadow: 0 0 30px rgba(0, 255, 170, 0.6);
         transform: translateY(-2px);
     }
 
@@ -298,7 +500,7 @@
 
     .cyber-btn.secondary:hover {
         background: rgba(0, 255, 170, 0.1);
-        box-shadow: 0 0 15px rgba(0, 255, 170, 0.2);
+        box-shadow: 0 0 20px rgba(0, 255, 170, 0.3);
     }
 
     /* Features Grid */
@@ -310,13 +512,14 @@
     }
 
     .cyber-card {
-        background: rgba(20, 20, 20, 0.8);
+        background: rgba(15, 15, 15, 0.9);
         border: 1px solid #333;
         padding: 2rem;
         text-align: left;
-        transition: all 0.3s ease;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         position: relative;
         overflow: hidden;
+        backdrop-filter: blur(10px);
     }
 
     .cyber-card::before {
@@ -334,7 +537,7 @@
     .cyber-card:hover {
         border-color: #00ffaa;
         transform: translateY(-5px);
-        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
     }
 
     .cyber-card:hover::before {
@@ -360,6 +563,126 @@
         font-size: 0.9rem;
         line-height: 1.5;
         margin: 0;
+    }
+
+    /* Use Cases Section */
+    .use-cases-section {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+        align-items: center;
+    }
+
+    .section-title {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        font-size: 1.5rem;
+        color: #e0e0e0;
+        margin-bottom: 1rem;
+    }
+
+    .section-title .bracket {
+        color: #ff00ff;
+        font-weight: 300;
+    }
+
+    .section-title h2 {
+        margin: 0;
+        font-weight: 400;
+        letter-spacing: 3px;
+    }
+
+    .cases-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        width: 100%;
+        max-width: 800px;
+    }
+
+    .case-item {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        padding: 1.5rem;
+        background: rgba(10, 10, 10, 0.6);
+        border: 1px solid #333;
+        border-left: 3px solid #333;
+        color: inherit;
+        text-align: left;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        animation: slide-in 0.6s cubic-bezier(0.23, 1, 0.32, 1) backwards;
+    }
+
+    .case-item::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(0, 255, 170, 0.05), transparent);
+        transform: translateX(-100%);
+        transition: transform 0.4s;
+    }
+
+    .case-item:hover {
+        background: rgba(20, 20, 20, 0.9);
+        border-color: #555;
+        border-left-color: #00ffaa;
+        transform: translateX(10px);
+        box-shadow: -5px 5px 15px rgba(0, 0, 0, 0.5);
+    }
+
+    .case-item:hover::after {
+        transform: translateX(100%);
+    }
+
+    .case-icon-wrapper {
+        color: #555;
+        transition: color 0.3s;
+    }
+
+    .case-item:hover .case-icon-wrapper {
+        color: #00ffaa;
+    }
+
+    .case-info {
+        flex: 1;
+    }
+
+    .case-info h4 {
+        margin: 0 0 0.5rem 0;
+        font-size: 1.1rem;
+        color: #fff;
+        letter-spacing: 1px;
+    }
+
+    .case-info p {
+        margin: 0;
+        font-size: 0.9rem;
+        color: #888;
+    }
+
+    .case-arrow {
+        color: #333;
+        font-size: 1.2rem;
+        transition: all 0.3s;
+    }
+
+    .case-item:hover .case-arrow {
+        color: #00ffaa;
+        transform: translateX(5px);
+    }
+
+    @keyframes slide-in {
+        from { opacity: 0; transform: translateX(-30px); }
+        to { opacity: 1; transform: translateX(0); }
     }
 
     /* Footer Status */
@@ -402,5 +725,7 @@
         .cta-group { flex-direction: column; width: 100%; }
         .cyber-btn { width: 100%; }
         .features-grid { grid-template-columns: 1fr; }
+        .solar-system { display: none; } /* Hide heavy animation on mobile */
+        .rocket-container { display: none; }
     }
 </style>
