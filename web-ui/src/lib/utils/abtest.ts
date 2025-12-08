@@ -9,6 +9,8 @@ export type LandingVariant = 'original' | 'promo';
 
 const AB_TEST_KEY = 'rexec_ab_landing';
 const AB_TEST_VERSION = 'v1'; // Increment to reset all assignments
+const ROTATION_HOURS = 5; // Rotate variant every 5 hours
+const ROTATION_MS = ROTATION_HOURS * 60 * 60 * 1000;
 
 interface ABTestAssignment {
     variant: LandingVariant;
@@ -18,7 +20,7 @@ interface ABTestAssignment {
 
 /**
  * Get or assign a landing page variant for the current user
- * Uses localStorage to persist assignment across sessions
+ * Rotates every 5 hours, prioritizes original (70%) over promo (30%)
  */
 export function getLandingVariant(): LandingVariant {
     // Check for URL override (for testing)
@@ -28,13 +30,16 @@ export function getLandingVariant(): LandingVariant {
         return override;
     }
 
+    const now = Date.now();
+
     // Check existing assignment
     try {
         const stored = localStorage.getItem(AB_TEST_KEY);
         if (stored) {
             const assignment: ABTestAssignment = JSON.parse(stored);
-            // If same version, use stored variant
-            if (assignment.version === AB_TEST_VERSION) {
+            // If same version AND not expired (5 hours), use stored variant
+            const isExpired = (now - assignment.assignedAt) > ROTATION_MS;
+            if (assignment.version === AB_TEST_VERSION && !isExpired) {
                 return assignment.variant;
             }
         }
@@ -42,13 +47,13 @@ export function getLandingVariant(): LandingVariant {
         // Ignore parse errors
     }
 
-    // Assign new variant (50/50 split)
-    const variant: LandingVariant = Math.random() < 0.5 ? 'original' : 'promo';
+    // Assign new variant: 70% original, 30% promo (prioritize main landing page)
+    const variant: LandingVariant = Math.random() < 0.7 ? 'original' : 'promo';
     
     const assignment: ABTestAssignment = {
         variant,
         version: AB_TEST_VERSION,
-        assignedAt: Date.now()
+        assignedAt: now
     };
 
     try {
@@ -92,6 +97,24 @@ export function forceVariant(variant: LandingVariant): void {
         assignedAt: Date.now()
     };
     localStorage.setItem(AB_TEST_KEY, JSON.stringify(assignment));
+}
+
+/**
+ * Get time until next rotation (in minutes)
+ */
+export function getTimeUntilRotation(): number {
+    try {
+        const stored = localStorage.getItem(AB_TEST_KEY);
+        if (stored) {
+            const assignment: ABTestAssignment = JSON.parse(stored);
+            const elapsed = Date.now() - assignment.assignedAt;
+            const remaining = ROTATION_MS - elapsed;
+            return Math.max(0, Math.ceil(remaining / (60 * 1000)));
+        }
+    } catch {
+        // Ignore parse errors
+    }
+    return 0;
 }
 
 /**
