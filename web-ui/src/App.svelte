@@ -373,6 +373,7 @@
             "/snippets",
             "/settings",
             "/sshkeys",
+            "/promo",
         ];
         const isKnownPath =
             knownPaths.includes(path) ||
