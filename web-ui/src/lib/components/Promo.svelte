@@ -132,12 +132,12 @@
     ];
 
     const features = [
-        { icon: "⚡", title: "Sub-second Launch", desc: "Terminals ready in under 500ms" },
-        { icon: "🔒", title: "Isolated Containers", desc: "Every session is completely sandboxed" },
-        { icon: "🌐", title: "Browser-based", desc: "No downloads, works everywhere" },
-        { icon: "📹", title: "Session Recording", desc: "Replay and share your work" },
-        { icon: "🤖", title: "AI Tools Built-in", desc: "Claude, GPT, and more pre-installed" },
-        { icon: "🔗", title: "SSH Support", desc: "Connect with your favorite client" }
+        { icon: "bolt", title: "Sub-second Launch", desc: "Terminals ready in under 500ms" },
+        { icon: "shield", title: "Isolated Containers", desc: "Every session is completely sandboxed" },
+        { icon: "globe", title: "Browser-based", desc: "No downloads, works everywhere" },
+        { icon: "clock", title: "Session Recording", desc: "Replay and share your work" },
+        { icon: "ai", title: "AI Tools Built-in", desc: "Claude, GPT, and more pre-installed" },
+        { icon: "link", title: "SSH Support", desc: "Connect with your favorite client" }
     ];
 
     const testimonials = [
@@ -291,7 +291,9 @@
             <div class="comparison">
                 <div class="comparison-card old-way">
                     <div class="comparison-header">
-                        <span class="comparison-icon">❌</span>
+                        <span class="comparison-icon error-icon">
+                            <StatusIcon status="error" size={24} />
+                        </span>
                         <h3>Without Rexec</h3>
                     </div>
                     <ul>
@@ -305,7 +307,9 @@
                 
                 <div class="comparison-card new-way">
                     <div class="comparison-header">
-                        <span class="comparison-icon">✓</span>
+                        <span class="comparison-icon success-icon">
+                            <StatusIcon status="check" size={24} />
+                        </span>
                         <h3>With Rexec</h3>
                     </div>
                     <ul>
@@ -351,7 +355,9 @@
             <div class="features-grid">
                 {#each features as feature, i}
                     <div class="feature-card" style:animation-delay="{i * 50}ms">
-                        <span class="feature-emoji">{feature.icon}</span>
+                        <span class="feature-icon">
+                            <StatusIcon status={feature.icon} size={28} />
+                        </span>
                         <h4>{feature.title}</h4>
                         <p>{feature.desc}</p>
                     </div>
@@ -1006,7 +1012,22 @@
     }
 
     .comparison-icon {
-        font-size: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+    }
+
+    .comparison-icon.error-icon {
+        background: rgba(255, 100, 100, 0.15);
+        color: #ff6b6b;
+    }
+
+    .comparison-icon.success-icon {
+        background: rgba(0, 255, 136, 0.15);
+        color: var(--accent);
     }
 
     .comparison-card h3 {
@@ -1118,10 +1139,16 @@
         border-color: var(--accent);
     }
 
-    .feature-emoji {
-        font-size: 32px;
-        display: block;
-        margin-bottom: 12px;
+    .feature-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 48px;
+        height: 48px;
+        margin: 0 auto 12px;
+        background: rgba(0, 255, 136, 0.1);
+        border-radius: 10px;
+        color: var(--accent);
     }
 
     .feature-card h4 {
