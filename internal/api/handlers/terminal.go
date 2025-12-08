@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	dockerclient "github.com/docker/docker/client"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	mgr "github.com/rexec/rexec/internal/container"
 	"github.com/rexec/rexec/internal/storage"
@@ -324,18 +325,10 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 
 	// Persist session to database for admin visibility
 	go func() {
-		// Use the unique session key as ID or generate a UUID if preferred. 
-		// Using connectionID might collide if multiple users use "default".
-		// Let's use a composite ID or just the random connection ID if unique enough.
-		// Ideally, the session struct should have a unique ID.
-		// The struct *TerminalSession* doesn't strictly have a unique ID field exposed here easily 
-		// except that we can use the map key or pass one.
-		// Wait, the map key is `dockerID + ":" + userID.(string) + ":" + connectionID`.
-		// Let's use that as the DB ID (it's a string).
-		// OR generate a UUID.
-		// For simplicity and uniqueness, let's just use the sessionKey.
+		// Generate a proper UUID for the session ID to fit VARCHAR(36)
+		sessionID := uuid.New().String()
 		dbSession := &storage.SessionRecord{
-			ID:          sessionKey,
+			ID:          sessionID,
 			UserID:      userID.(string),
 			ContainerID: dockerID,
 			CreatedAt:   time.Now(),

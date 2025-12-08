@@ -112,8 +112,23 @@ set +e
 
 echo "Installing tools for role: %s..."
 
+# Create required apt directories (fix for minimal images and read-only issues)
+prepare_apt_dirs() {
+    if command -v apt-get >/dev/null 2>&1; then
+        mkdir -p /var/lib/apt/lists/partial 2>/dev/null || true
+        mkdir -p /var/cache/apt/archives/partial 2>/dev/null || true
+        mkdir -p /var/lib/dpkg/updates 2>/dev/null || true
+        mkdir -p /var/lib/dpkg/info 2>/dev/null || true
+        # Touch the status file if missing
+        [ -f /var/lib/dpkg/status ] || touch /var/lib/dpkg/status 2>/dev/null || true
+    fi
+}
+
 # Fix any corrupted dpkg state first (common issue in containers)
 fix_dpkg() {
+    # First ensure directories exist
+    prepare_apt_dirs
+    
     if [ -d /var/lib/dpkg/updates ] && [ "$(ls -A /var/lib/dpkg/updates 2>/dev/null)" ]; then
         echo "Fixing dpkg state..."
         rm -f /var/lib/dpkg/updates/* 2>/dev/null || true
@@ -182,12 +197,32 @@ install_role_packages() {
         
         echo "  Detected apt-get package manager"
         
+        # Ensure apt directories exist (critical for minimal images)
+        prepare_apt_dirs
+        
         # Apt options for robustness
         APT_OPTS="-o DPkg::Lock::Timeout=60 -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold"
         
+        # Retry apt-get update up to 3 times (sometimes fails on first try)
+        echo "  Updating package lists..."
+        apt_update_success=0
+        for i in 1 2 3; do
+            if apt-get $APT_OPTS update -qq 2>&1; then
+                apt_update_success=1
+                break
+            else
+                echo "    Retry $i: apt-get update failed, retrying..."
+                prepare_apt_dirs
+                sleep 2
+            fi
+        done
+        
+        if [ $apt_update_success -eq 0 ]; then
+            echo "  Warning: apt-get update failed after retries"
+        fi
+        
         # First, install essential tools that the rest of the script needs
         echo "  Installing essential tools (curl, wget, git, ca-certificates)..."
-        apt-get $APT_OPTS update -qq 2>&1 || true
         apt-get $APT_OPTS install -y curl wget git ca-certificates 2>&1 || echo "  Warning: Essential tools install failed"
         
         # Enable universe repository for Ubuntu (needed for neovim, ripgrep, etc.)

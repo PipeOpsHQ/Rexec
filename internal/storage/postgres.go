@@ -74,7 +74,7 @@ func (s *PostgresStore) migrate() error {
 	CREATE TABLE IF NOT EXISTS sessions (
 		id VARCHAR(36) PRIMARY KEY,
 		user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-		container_id VARCHAR(64) NOT NULL REFERENCES containers(id) ON DELETE CASCADE,
+		container_id VARCHAR(64) NOT NULL,
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 		last_ping_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 	);
@@ -215,7 +215,19 @@ func (s *PostgresStore) migrate() error {
 		return err
 	}
 
-	// Step 4: Create collaboration and recording tables
+	// Step 4: Drop sessions FK constraint if exists (sessions are ephemeral, no strict FK needed)
+	dropSessionsFk := `
+	DO $$ BEGIN
+		ALTER TABLE sessions DROP CONSTRAINT IF EXISTS sessions_container_id_fkey;
+	EXCEPTION WHEN undefined_object THEN NULL;
+	END $$;
+	`
+	if _, err := s.db.Exec(dropSessionsFk); err != nil {
+		// Non-fatal: constraint may not exist
+		log.Printf("Warning: could not drop sessions FK (may not exist): %v", err)
+	}
+
+	// Step 5: Create collaboration and recording tables
 	collabTables := `
 	CREATE TABLE IF NOT EXISTS terminal_recordings (
 		id VARCHAR(36) PRIMARY KEY,

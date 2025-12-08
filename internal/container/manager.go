@@ -1100,17 +1100,18 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 		},
 		// Prevent container from gaining new privileges
 		Privileged: false,
-		// Read-only root filesystem for additional security
-		// Writable paths are mounted as tmpfs
-		ReadonlyRootfs: true,
+		// Note: ReadonlyRootfs is NOT used to allow package installation during role setup
+		// Security is maintained via other measures (seccomp, capabilities, etc.)
+		ReadonlyRootfs: false,
 		// Tmpfs mounts for writable directories
 		Tmpfs: map[string]string{
-			"/tmp":          "rw,noexec,nosuid,size=100m",
-			"/var/tmp":      "rw,noexec,nosuid,size=50m",
-			"/run":          "rw,noexec,nosuid,size=50m",
-			"/var/run":      "rw,noexec,nosuid,size=50m",
-			"/home/user":    "rw,nosuid,size=500m",
-			"/root":         "rw,nosuid,size=50m",
+			"/tmp":               "rw,noexec,nosuid,size=100m",
+			"/var/tmp":           "rw,noexec,nosuid,size=50m",
+			"/run":               "rw,noexec,nosuid,size=50m",
+			"/var/run":           "rw,noexec,nosuid,size=50m",
+			"/home/user":         "rw,nosuid,size=500m",
+			"/root":              "rw,nosuid,size=50m",
+			"/var/log":           "rw,noexec,nosuid,size=50m",   // system logs
 		},
 		// Mask sensitive host information from /proc and /sys
 		MaskedPaths: []string{
