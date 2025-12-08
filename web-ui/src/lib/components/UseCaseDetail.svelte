@@ -282,12 +282,51 @@
 
 <svelte:head>
     {#if useCase}
-        <title>{useCase.title} - Rexec Use Cases</title>
+        <title>{useCase.title} | Rexec - Cloud Development Environment</title>
         <meta name="description" content={useCase.description} />
+        <meta name="keywords" content="rexec, {useCase.title.toLowerCase()}, cloud terminal, development environment, {slug.replace(/-/g, ', ')}" />
+        
+        <!-- Open Graph -->
         <meta property="og:title" content="{useCase.title} - Rexec" />
-        <meta property="og:description" content={useCase.description} />
+        <meta property="og:description" content={useCase.tagline + ". " + useCase.description} />
         <meta property="og:type" content="article" />
         <meta property="og:url" content="https://rexec.pipeops.io/use-cases/{slug}" />
+        <meta property="og:image" content="https://rexec.pipeops.io/og-image.png" />
+        <meta property="og:site_name" content="Rexec" />
+        
+        <!-- Twitter Card -->
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="{useCase.title} - Rexec" />
+        <meta name="twitter:description" content={useCase.tagline} />
+        <meta name="twitter:image" content="https://rexec.pipeops.io/og-image.png" />
+        
+        <!-- Canonical -->
+        <link rel="canonical" href="https://rexec.pipeops.io/use-cases/{slug}" />
+        
+        <!-- JSON-LD Structured Data -->
+        {@html `<script type="application/ld+json">${JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Article",
+            "headline": useCase.title,
+            "description": useCase.description,
+            "image": "https://rexec.pipeops.io/og-image.png",
+            "author": {
+                "@type": "Organization",
+                "name": "Rexec"
+            },
+            "publisher": {
+                "@type": "Organization",
+                "name": "Rexec",
+                "logo": {
+                    "@type": "ImageObject",
+                    "url": "https://rexec.pipeops.io/favicon.svg"
+                }
+            },
+            "mainEntityOfPage": {
+                "@type": "WebPage",
+                "@id": `https://rexec.pipeops.io/use-cases/${slug}`
+            }
+        })}</script>`}
     {/if}
 </svelte:head>
 

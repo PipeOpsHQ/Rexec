@@ -5,6 +5,7 @@
     import { toast } from "$stores/toast";
     import { terminal } from "$stores/terminal";
     import ConfirmModal from "./ConfirmModal.svelte";
+    import StatusIcon from "./icons/StatusIcon.svelte";
 
     export let show: boolean = false;
     export let containerId: string | null = null;
@@ -153,7 +154,7 @@
         <div class="modal-container" transition:scale={{ duration: 150, start: 0.95 }}>
             <div class="modal-header">
                 <div class="modal-title-group">
-                    <span class="modal-icon">⚡</span>
+                    <span class="modal-icon"><StatusIcon status="bolt" size={20} /></span>
                     <h2>Snippets & Macros</h2>
                 </div>
                 <button class="close-btn" on:click={handleClose}>×</button>
@@ -185,7 +186,7 @@
                         </div>
                     {:else if snippets.length === 0}
                         <div class="empty-state">
-                            <div class="empty-icon">📝</div>
+                            <div class="empty-icon"><StatusIcon status="terminal" size={32} /></div>
                             <p>No snippets found.</p>
                             <button class="btn btn-primary" on:click={() => activeTab = "create"}>
                                 Create Your First Snippet
@@ -208,11 +209,11 @@
                                             Run
                                         </button>
                                         <button 
-                                            class="btn btn-icon btn-sm"
+                                            class="btn btn-icon btn-sm btn-delete"
                                             on:click={() => deleteSnippet(snippet.id, snippet.name)}
                                             title="Delete"
                                         >
-                                            🗑️
+                                            <StatusIcon status="trash" size={14} />
                                         </button>
                                     </div>
                                 </div>
@@ -495,6 +496,11 @@
         color: var(--text);
     }
 
+    .btn-delete:hover {
+        background: rgba(255, 100, 100, 0.2);
+        color: #ff6b6b;
+    }
+
     .btn-sm {
         padding: 4px 10px;
         font-size: 11px;
@@ -520,9 +526,9 @@
     }
 
     .empty-icon {
-        font-size: 32px;
         margin-bottom: 12px;
         opacity: 0.5;
+        color: var(--accent);
     }
 
     @keyframes spin { to { transform: rotate(360deg); } }
