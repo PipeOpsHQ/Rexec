@@ -49,6 +49,36 @@
         }
     }
 
+    // 3D Tilt effect for comparison cards
+    function handleCardTilt(event: MouseEvent) {
+        const cardEl = event.currentTarget as HTMLElement;
+        const rect = cardEl.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+        
+        const rotateX = ((y - centerY) / centerY) * -12;
+        const rotateY = ((x - centerX) / centerX) * 12;
+        
+        cardEl.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
+    }
+
+    function handleCardReset(event: MouseEvent) {
+        const cardEl = event.currentTarget as HTMLElement;
+        cardEl.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1)';
+    }
+
+    // Metallic border animation for feature cards
+    function handleFeatureHover(event: MouseEvent) {
+        const cardEl = event.currentTarget as HTMLElement;
+        const rect = cardEl.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        cardEl.style.setProperty('--mouse-x', `${x}px`);
+        cardEl.style.setProperty('--mouse-y', `${y}px`);
+    }
+
     onMount(() => {
         // Trigger hero animations after mount
         setTimeout(() => {
@@ -401,7 +431,13 @@
             <h2 class="section-title">The Old Way vs <span class="accent">The Rexec Way</span></h2>
             
             <div class="comparison">
-                <div class="comparison-card old-way">
+                <div 
+                    class="comparison-card old-way tilt-card"
+                    on:mousemove={handleCardTilt}
+                    on:mouseleave={handleCardReset}
+                    role="article"
+                >
+                    <div class="card-glow"></div>
                     <div class="comparison-header">
                         <span class="comparison-icon error-icon">
                             <StatusIcon status="error" size={24} />
@@ -417,7 +453,13 @@
                     </ul>
                 </div>
                 
-                <div class="comparison-card new-way">
+                <div 
+                    class="comparison-card new-way tilt-card"
+                    on:mousemove={handleCardTilt}
+                    on:mouseleave={handleCardReset}
+                    role="article"
+                >
+                    <div class="card-glow"></div>
                     <div class="comparison-header">
                         <span class="comparison-icon success-icon">
                             <StatusIcon status="check" size={24} />
@@ -466,7 +508,13 @@
             
             <div class="features-grid">
                 {#each features as feature, i}
-                    <div class="feature-card" style:animation-delay="{i * 50}ms">
+                    <div 
+                        class="feature-card metallic-card" 
+                        style:animation-delay="{i * 50}ms"
+                        on:mousemove={handleFeatureHover}
+                        role="article"
+                    >
+                        <div class="metallic-border"></div>
                         <span class="feature-icon">
                             <StatusIcon status={feature.icon} size={28} />
                         </span>
@@ -1252,12 +1300,48 @@
         grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
         gap: 24px;
         margin-top: 48px;
+        perspective: 1000px;
     }
 
     .comparison-card {
         padding: 32px;
         border-radius: 12px;
         border: 1px solid var(--border);
+        position: relative;
+        overflow: hidden;
+    }
+
+    /* 3D Tilt Card Effect */
+    .tilt-card {
+        transform-style: preserve-3d;
+        transition: transform 0.1s ease-out, box-shadow 0.3s ease;
+        cursor: pointer;
+    }
+
+    .tilt-card:hover {
+        box-shadow: 
+            0 25px 50px rgba(0, 0, 0, 0.5),
+            0 0 30px rgba(0, 255, 136, 0.1);
+    }
+
+    .tilt-card .card-glow {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(
+            circle at 50% 50%,
+            rgba(255, 255, 255, 0.05) 0%,
+            transparent 70%
+        );
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        pointer-events: none;
+    }
+
+    .tilt-card:hover .card-glow {
+        opacity: 1;
     }
 
     .old-way {
@@ -1265,9 +1349,20 @@
         border-color: rgba(255, 100, 100, 0.2);
     }
 
+    .old-way:hover {
+        border-color: rgba(255, 100, 100, 0.5);
+        box-shadow: 
+            0 25px 50px rgba(0, 0, 0, 0.5),
+            0 0 30px rgba(255, 100, 100, 0.15);
+    }
+
     .new-way {
         background: rgba(0, 255, 136, 0.05);
         border-color: rgba(0, 255, 136, 0.2);
+    }
+
+    .new-way:hover {
+        border-color: rgba(0, 255, 136, 0.5);
     }
 
     .comparison-header {
@@ -1398,7 +1493,73 @@
         border: 1px solid var(--border);
         border-radius: 8px;
         text-align: center;
-        transition: border-color 0.2s;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    /* Metallic Border Effect */
+    .metallic-card {
+        --mouse-x: 50%;
+        --mouse-y: 50%;
+    }
+
+    .metallic-card .metallic-border {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        border-radius: 8px;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .metallic-card .metallic-border::before {
+        content: '';
+        position: absolute;
+        top: -2px;
+        left: -2px;
+        right: -2px;
+        bottom: -2px;
+        border-radius: 10px;
+        background: conic-gradient(
+            from 0deg at var(--mouse-x) var(--mouse-y),
+            #1a1a1a 0deg,
+            #3a3a3a 45deg,
+            #5a5a5a 90deg,
+            #8a8a8a 135deg,
+            #5a5a5a 180deg,
+            #3a3a3a 225deg,
+            #1a1a1a 270deg,
+            #3a3a3a 315deg,
+            #1a1a1a 360deg
+        );
+        z-index: -1;
+        animation: metallicRotate 3s linear infinite paused;
+    }
+
+    .metallic-card:hover .metallic-border {
+        opacity: 1;
+    }
+
+    .metallic-card:hover .metallic-border::before {
+        animation-play-state: running;
+    }
+
+    .metallic-card:hover {
+        border-color: #4a4a4a;
+        background: linear-gradient(135deg, #0a0a0a 0%, #151515 100%);
+        transform: translateY(-2px);
+        box-shadow: 
+            0 10px 30px rgba(0, 0, 0, 0.4),
+            inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+
+    @keyframes metallicRotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
     }
 
     .feature-card:hover {
