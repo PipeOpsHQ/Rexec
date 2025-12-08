@@ -364,22 +364,7 @@
                     </button>
                 </div>
 
-                <div class="hero-stats animate-fade-up" style="--delay: 0.5s">
-                    <div class="stat">
-                        <span class="stat-value">{animatedStats.terminals.toLocaleString()}+</span>
-                        <span class="stat-label">Terminals Created</span>
-                    </div>
-                    <div class="stat-divider"></div>
-                    <div class="stat">
-                        <span class="stat-value">{animatedStats.uptime}%</span>
-                        <span class="stat-label">Uptime</span>
-                    </div>
-                    <div class="stat-divider"></div>
-                    <div class="stat">
-                        <span class="stat-value">{animatedStats.countries}+</span>
-                        <span class="stat-label">Countries</span>
-                    </div>
-                </div>
+
             </div>
 
             <div class="hero-terminal animate-fade-up" style="--delay: 0.6s" bind:this={terminalEl}>
