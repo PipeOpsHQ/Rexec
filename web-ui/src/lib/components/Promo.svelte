@@ -69,16 +69,6 @@
         cardEl.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1)';
     }
 
-    // Metallic border animation for feature cards
-    function handleFeatureHover(event: MouseEvent) {
-        const cardEl = event.currentTarget as HTMLElement;
-        const rect = cardEl.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
-        cardEl.style.setProperty('--mouse-x', `${x}px`);
-        cardEl.style.setProperty('--mouse-y', `${y}px`);
-    }
-
     onMount(() => {
         // Trigger hero animations after mount
         setTimeout(() => {
@@ -509,12 +499,10 @@
             <div class="features-grid">
                 {#each features as feature, i}
                     <div 
-                        class="feature-card metallic-card" 
+                        class="feature-card" 
                         style:animation-delay="{i * 50}ms"
-                        on:mousemove={handleFeatureHover}
                         role="article"
                     >
-                        <div class="metallic-border"></div>
                         <span class="feature-icon">
                             <StatusIcon status={feature.icon} size={28} />
                         </span>
@@ -1498,72 +1486,20 @@
         overflow: hidden;
     }
 
-    /* Metallic Border Effect */
-    .metallic-card {
-        --mouse-x: 50%;
-        --mouse-y: 50%;
-    }
-
-    .metallic-card .metallic-border {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        border-radius: 8px;
-        pointer-events: none;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-    }
-
-    .metallic-card .metallic-border::before {
-        content: '';
-        position: absolute;
-        top: -2px;
-        left: -2px;
-        right: -2px;
-        bottom: -2px;
-        border-radius: 10px;
-        background: conic-gradient(
-            from 0deg at var(--mouse-x) var(--mouse-y),
-            #1a1a1a 0deg,
-            #3a3a3a 45deg,
-            #5a5a5a 90deg,
-            #8a8a8a 135deg,
-            #5a5a5a 180deg,
-            #3a3a3a 225deg,
-            #1a1a1a 270deg,
-            #3a3a3a 315deg,
-            #1a1a1a 360deg
-        );
-        z-index: -1;
-        animation: metallicRotate 3s linear infinite paused;
-    }
-
-    .metallic-card:hover .metallic-border {
-        opacity: 1;
-    }
-
-    .metallic-card:hover .metallic-border::before {
-        animation-play-state: running;
-    }
-
-    .metallic-card:hover {
-        border-color: #4a4a4a;
-        background: linear-gradient(135deg, #0a0a0a 0%, #151515 100%);
-        transform: translateY(-2px);
-        box-shadow: 
-            0 10px 30px rgba(0, 0, 0, 0.4),
-            inset 0 1px 0 rgba(255, 255, 255, 0.05);
-    }
-
-    @keyframes metallicRotate {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-    }
-
     .feature-card:hover {
         border-color: var(--accent);
+        transform: translateY(-4px);
+        box-shadow: 0 10px 30px rgba(0, 255, 136, 0.1);
+    }
+
+    .feature-card:hover .feature-icon {
+        transform: scale(1.15) rotate(5deg);
+        background: rgba(0, 255, 136, 0.2);
+        box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+    }
+
+    .feature-card:hover .feature-icon :global(svg) {
+        filter: drop-shadow(0 0 8px rgba(0, 255, 136, 0.6));
     }
 
     .feature-icon {
@@ -1576,6 +1512,11 @@
         background: rgba(0, 255, 136, 0.1);
         border-radius: 10px;
         color: var(--accent);
+        transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .feature-icon :global(svg) {
+        transition: filter 0.3s ease;
     }
 
     .feature-card h4 {
