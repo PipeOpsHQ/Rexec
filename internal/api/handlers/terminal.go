@@ -167,36 +167,63 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 		// Try again after sync
 		containerInfo, ok = h.containerManager.GetContainer(containerIdOrName)
 	}
-	if !ok {
-		log.Printf("[Terminal] Container not found: %s (user: %s)", containerIdOrName, userID)
-		c.JSON(http.StatusNotFound, gin.H{
-			"error":           "container not found",
-			"code":            "container_not_found",
-			"hint":            "Container may need to be recreated. Try starting it.",
-			"action_required": "start",
-		})
-		return
-	}
-
-	// Use the actual Docker ID from container info
-	dockerID := containerInfo.ID
-	isOwner := containerInfo.UserID == userID.(string)
+	
+	// If still not found, check if this is a collab user trying to access a container
+	// In that case, try to verify via Docker directly
 	isCollabUser := false
-
-	// Verify ownership
-	// Verify ownership or collab access
-	if !isOwner {
-		// Check if user has collab access
-		if !h.HasCollabAccess(userID.(string), dockerID) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+	isOwner := false
+	var dockerID string
+	
+	if !ok {
+		// Check if user has collab access to this container ID
+		if h.HasCollabAccess(userID.(string), containerIdOrName) {
+			// Verify container exists in Docker directly
+			ctx := context.Background()
+			dockerContainer, err := h.containerManager.GetClient().ContainerInspect(ctx, containerIdOrName)
+			if err != nil {
+				log.Printf("[Terminal] Collab container not found in Docker: %s (user: %s)", containerIdOrName, userID)
+				c.JSON(http.StatusNotFound, gin.H{
+					"error":           "container not found",
+					"code":            "container_not_found",
+					"hint":            "The shared terminal may no longer exist.",
+					"action_required": "none",
+				})
+				return
+			}
+			// Container exists in Docker, allow collab access
+			dockerID = dockerContainer.ID
+			isCollabUser = true
+			isOwner = false
+			log.Printf("[Terminal] Collab user %s accessing container %s via direct Docker lookup", userID, dockerID[:12])
+		} else {
+			log.Printf("[Terminal] Container not found: %s (user: %s)", containerIdOrName, userID)
+			c.JSON(http.StatusNotFound, gin.H{
+				"error":           "container not found",
+				"code":            "container_not_found",
+				"hint":            "Container may need to be recreated. Try starting it.",
+				"action_required": "start",
+			})
 			return
 		}
-		isCollabUser = true
+	} else {
+		// Container found in manager
+		dockerID = containerInfo.ID
+		isOwner = containerInfo.UserID == userID.(string)
+		
+		// Verify ownership or collab access
+		if !isOwner {
+			// Check if user has collab access
+			if !h.HasCollabAccess(userID.(string), dockerID) {
+				c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+				return
+			}
+			isCollabUser = true
+		}
 	}
 
 	// Check if container actually exists in Docker (may have been removed externally)
 	ctx := context.Background()
-	_, err := h.containerManager.GetClient().ContainerInspect(ctx, dockerID)
+	dockerContainer, err := h.containerManager.GetClient().ContainerInspect(ctx, dockerID)
 	if err != nil {
 		if dockerclient.IsErrNotFound(err) {
 			c.JSON(http.StatusGone, gin.H{
@@ -216,13 +243,25 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 		return
 	}
 
-	// Check if container is running
+	// Check if container is running (use Docker state for collab users, containerInfo for owners)
+	containerStatus := ""
+	if containerInfo != nil {
+		containerStatus = containerInfo.Status
+	} else {
+		// For collab users without containerInfo, derive status from Docker state
+		if dockerContainer.State.Running {
+			containerStatus = "running"
+		} else {
+			containerStatus = "stopped"
+		}
+	}
+	
 	// We allow connections during configuring state so users can connect during long role setups
-	if containerInfo.Status != "running" && containerInfo.Status != "configuring" {
+	if containerStatus != "running" && containerStatus != "configuring" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":           "container is not running",
 			"code":            "container_stopped",
-			"status":          containerInfo.Status,
+			"status":          containerStatus,
 			"hint":            "Start the container before connecting to terminal",
 			"action_required": "start",
 		})
@@ -307,7 +346,11 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 	// Check if owner is starting while there's an active collab session
 	if h.hasActiveCollabSession(dockerID) {
 		// Create shared session for collab
-		sharedSession = h.getOrCreateSharedSession(dockerID, userID.(string), containerInfo.ImageType)
+		imageType := ""
+		if containerInfo != nil {
+			imageType = containerInfo.ImageType
+		}
+		sharedSession = h.getOrCreateSharedSession(dockerID, userID.(string), imageType)
 		h.joinSharedSession(sharedSession, conn, userID.(string), isOwner)
 		return
 	}
