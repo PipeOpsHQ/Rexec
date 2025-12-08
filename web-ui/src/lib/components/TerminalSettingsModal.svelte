@@ -539,11 +539,24 @@
 
     <!-- Add Forward Modal Overlay -->
     {#if showAddForwardModal}
-        <div class="modal-overlay-nested" on:click|stopPropagation>
-            <div class="modal-container-nested">
+        <div 
+            class="modal-overlay-nested" 
+            on:click|self={closeAddForwardModal}
+            on:keydown={(e) => e.key === 'Escape' && closeAddForwardModal()}
+            transition:fade={{ duration: 150 }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="add-forward-title"
+            tabindex="-1"
+        >
+            <div class="modal-container-nested" on:click|stopPropagation transition:scale={{ duration: 150, start: 0.95 }}>
                 <div class="modal-header">
-                    <h3 class="modal-title">Add Port Forward</h3>
-                    <button class="close-btn" on:click={closeAddForwardModal}>×</button>
+                    <h3 id="add-forward-title" class="modal-title">Add Port Forward</h3>
+                    <button class="close-btn" on:click={closeAddForwardModal} aria-label="Close">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                            <path d="M18 6L6 18M6 6l12 12" />
+                        </svg>
+                    </button>
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
@@ -565,6 +578,8 @@
                                 bind:value={newContainerPort}
                                 placeholder="8080"
                                 class="input"
+                                min="1"
+                                max="65535"
                             />
                         </div>
                         <div class="form-group">
@@ -575,6 +590,8 @@
                                 bind:value={newLocalPort}
                                 placeholder="8080"
                                 class="input"
+                                min="1"
+                                max="65535"
                             />
                         </div>
                     </div>
@@ -584,7 +601,7 @@
                     <button 
                         class="btn btn-confirm" 
                         on:click={addPortForward}
-                        disabled={isAddingForward}
+                        disabled={isAddingForward || !newContainerPort}
                     >
                         {isAddingForward ? "Adding..." : "Add Forward"}
                     </button>
@@ -819,25 +836,27 @@
 
     /* Nested Modal */
     .modal-overlay-nested {
-        position: absolute;
+        position: fixed;
         top: 0;
         left: 0;
         right: 0;
         bottom: 0;
-        background: rgba(0, 0, 0, 0.6);
+        background: rgba(0, 0, 0, 0.7);
         display: flex;
         align-items: center;
         justify-content: center;
-        z-index: 20;
-        backdrop-filter: blur(2px);
+        z-index: 10001;
+        backdrop-filter: blur(4px);
     }
 
     .modal-container-nested {
-        width: 340px;
-        background: var(--bg-card, #151515);
+        width: 380px;
+        max-width: 90vw;
+        background: var(--bg, #0a0a0a);
         border: 1px solid var(--border, #1a1a1a);
-        padding: 20px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
     }
 
     .form-row {
