@@ -4,7 +4,11 @@
     import { api, formatMemory, formatStorage, formatCPU } from "$utils/api";
     import { toast } from "$stores/toast";
     import { userTier, subscriptionActive } from "$stores/auth";
-    import { containers, type Container, type PortForward } from "$stores/containers";
+    import {
+        containers,
+        type Container,
+        type PortForward,
+    } from "$stores/containers";
     import { terminal } from "$stores/terminal";
     import ConfirmModal from "./ConfirmModal.svelte";
     import StatusIcon from "./icons/StatusIcon.svelte";
@@ -38,23 +42,64 @@
     let showDeleteConfirm = false;
     let forwardToDelete: { id: string; name: string } | null = null;
 
-
     // Dynamic resource limits based on plan tier
     $: resourceLimits = (() => {
         if ($subscriptionActive) {
-            return { minMemory: 256, maxMemory: 4096, minCPU: 250, maxCPU: 4000, minDisk: 1024, maxDisk: 20480 };
+            return {
+                minMemory: 256,
+                maxMemory: 4096,
+                minCPU: 250,
+                maxCPU: 4000,
+                minDisk: 1024,
+                maxDisk: 20480,
+            };
         }
         switch ($userTier) {
             case "guest":
-                return { minMemory: 256, maxMemory: 512, minCPU: 250, maxCPU: 500, minDisk: 1024, maxDisk: 2048 };
+                return {
+                    minMemory: 256,
+                    maxMemory: 512,
+                    minCPU: 250,
+                    maxCPU: 500,
+                    minDisk: 1024,
+                    maxDisk: 2048,
+                };
             case "free":
-                return { minMemory: 256, maxMemory: 2048, minCPU: 250, maxCPU: 2000, minDisk: 1024, maxDisk: 10240 };
+                return {
+                    minMemory: 256,
+                    maxMemory: 2048,
+                    minCPU: 250,
+                    maxCPU: 2000,
+                    minDisk: 1024,
+                    maxDisk: 10240,
+                };
             case "pro":
-                return { minMemory: 256, maxMemory: 4096, minCPU: 250, maxCPU: 4000, minDisk: 1024, maxDisk: 20480 };
+                return {
+                    minMemory: 256,
+                    maxMemory: 4096,
+                    minCPU: 250,
+                    maxCPU: 4000,
+                    minDisk: 1024,
+                    maxDisk: 20480,
+                };
             case "enterprise":
-                return { minMemory: 256, maxMemory: 8192, minCPU: 250, maxCPU: 8000, minDisk: 1024, maxDisk: 51200 };
+                return {
+                    minMemory: 256,
+                    maxMemory: 8192,
+                    minCPU: 250,
+                    maxCPU: 8000,
+                    minDisk: 1024,
+                    maxDisk: 51200,
+                };
             default: // Free fallback
-                return { minMemory: 256, maxMemory: 2048, minCPU: 250, maxCPU: 2000, minDisk: 1024, maxDisk: 10240 };
+                return {
+                    minMemory: 256,
+                    maxMemory: 2048,
+                    minCPU: 250,
+                    maxCPU: 2000,
+                    minDisk: 1024,
+                    maxDisk: 10240,
+                };
         }
     })();
 
@@ -70,208 +115,217 @@
         const rawDisk = container.resources?.disk_mb ?? 2048;
 
         // Clamp values to be within current plan limits
-        memoryMB = Math.max(resourceLimits.minMemory, Math.min(rawMemory, resourceLimits.maxMemory));
-        cpuShares = Math.max(resourceLimits.minCPU, Math.min(rawCpu, resourceLimits.maxCPU));
-        diskMB = Math.max(resourceLimits.minDisk, Math.min(rawDisk, resourceLimits.maxDisk));
+        memoryMB = Math.max(
+            resourceLimits.minMemory,
+            Math.min(rawMemory, resourceLimits.maxMemory),
+        );
+        cpuShares = Math.max(
+            resourceLimits.minCPU,
+            Math.min(rawCpu, resourceLimits.maxCPU),
+        );
+        diskMB = Math.max(
+            resourceLimits.minDisk,
+            Math.min(rawDisk, resourceLimits.maxDisk),
+        );
     }
-        
-            // React to modal opening
-            $: if (show && container && !initialized) {
-                initializeValues();
-                initialized = true;
-            }
-        
-            // Reset initialized flag when modal closes
-            $: if (!show) {
-                initialized = false;
-            }
-        
-            // Load port forwards when tab changes or modal opens
-            $: if (show && container && activeTab === "port-forwards") {
-                loadPortForwards();
-            }
-        
-            async function loadPortForwards() {
-                const containerId = container?.db_id || container?.id;
-                if (!containerId) return;
-                isLoadingForwards = true;
-                const { data, error } = await api.get<{ forwards: PortForward[] }>(
-                    `/api/containers/${containerId}/port-forwards`,
-                );
-        
-                if (data) {
-                    portForwards = data.forwards || [];
-                } else if (error) {
-                    toast.error(error || "Failed to load port forwards");
-                }
-                isLoadingForwards = false;
-            }
-        
-            function openAddForwardModal() {
-                newForwardName = "";
-                newContainerPort = "";
-                newLocalPort = "";
-                showAddForwardModal = true;
-            }
-        
-            function closeAddForwardModal() {
-                showAddForwardModal = false;
-                newForwardName = "";
-                newContainerPort = "";
-                newLocalPort = "";
-            }
-        
-            async function addPortForward() {
-                const containerId = container?.db_id || container?.id;
-                if (!containerId) return;
-                if (!newContainerPort || !newLocalPort) {
-                    toast.error("Please specify both container and local ports");
-                    return;
-                }
-        
-                const containerPortNum = parseInt(newContainerPort.toString(), 10);
-                const localPortNum = parseInt(newLocalPort.toString(), 10);
-        
-                if (
-                    isNaN(containerPortNum) ||
-                    containerPortNum <= 0 ||
-                    containerPortNum > 65535 ||
-                    isNaN(localPortNum) ||
-                    localPortNum <= 0 ||
-                    localPortNum > 65535
-                ) {
-                    toast.error("Invalid port numbers. Must be between 1 and 65535.");
-                    return;
-                }
-        
-                isAddingForward = true;
-                const { data, error } = await api.post<PortForward>(
-                    `/api/containers/${containerId}/port-forwards`,
-                    {
-                        name: newForwardName.trim(),
-                        container_id: containerId,
-                        container_port: containerPortNum,
-                        local_port: localPortNum,
-                    },
-                );
-        
-                if (data) {
-                    portForwards = [...portForwards, data];
-                    toast.success("Port forward added");
-                    closeAddForwardModal();
-                    // TODO: Start local proxy for this forward
-                } else {
-                    toast.error(error || "Failed to add port forward");
-                }
-                isAddingForward = false;
-            }
-        
-            function deletePortForward(id: string, name: string) {
-                forwardToDelete = { id, name };
-                showDeleteConfirm = true;
-            }
-        
-            async function confirmDeleteForward() {
-                const containerId = container?.db_id || container?.id;
-                if (!containerId || !forwardToDelete) return;
-        
-                const { id } = forwardToDelete;
-                forwardToDelete = null;
-        
-                const { error } = await api.delete(
-                    `/api/containers/${containerId}/port-forwards/${id}`,
-                );
-        
-                if (!error) {
-                    portForwards = portForwards.filter((pf) => pf.id !== id);
-                    toast.success("Port forward stopped");
-                    // TODO: Stop local proxy for this forward
-                } else {
-                    toast.error(error || "Failed to stop port forward");
-                }
-            }
-        
-            function cancelDeleteForward() {
-                forwardToDelete = null;
-            }
-        
-            function handleClose() {
-                dispatch("close");
-                show = false;
-            }
-        
-            async function handleSave() {
-                if (!container) return;
-        
-                // Use db_id if available, fallback to id (docker_id)
-                const containerId = container.db_id || container.id;
-                if (!containerId) {
-                    toast.error("Terminal ID not found");
-                    return;
-                }
-        
-                isSaving = true;
-                try {
-                    const response = await api.patch(
-                        `/api/containers/${containerId}/settings`,
-                        {
-                            name: name.trim(),
-                            memory_mb: memoryMB,
-                            cpu_shares: cpuShares,
-                            disk_mb: diskMB,
-                        },
-                    );
-        
-                    if (response.ok) {
-                        const responseData = response.data as {
-                            container: Container;
-                            restarted?: boolean;
-                        };
-        
-                        // If container was restarted, trigger immediate reconnect
-                        if (responseData.restarted && responseData.container) {
-                            const oldContainerId = container.id;
-                            const newContainerId = responseData.container.id;
-        
-                            // Immediate reconnect - container is already running with new ID
-                            if (oldContainerId && newContainerId) {
-                                toast.success(
-                                    "Settings updated - reconnecting to new container...",
-                                );
-                                // Always use updateSessionContainerId - it handles both same and different IDs
-                                // and properly finds sessions by container ID (not session ID)
-                                terminal.updateSessionContainerId(
-                                    oldContainerId,
-                                    newContainerId,
-                                );
-                            }
-                        } else {
-                            toast.success("Terminal settings updated");
-                        }
-        
-                        if (responseData.container) {
-                            dispatch("updated", responseData.container);
-                        }
-                        handleClose();
-                        // Refresh containers to get latest data
-                        containers.fetchContainers();
-                    } else {
-                        toast.error(response.error || "Failed to update settings");
+
+    // React to modal opening
+    $: if (show && container && !initialized) {
+        initializeValues();
+        initialized = true;
+    }
+
+    // Reset initialized flag when modal closes
+    $: if (!show) {
+        initialized = false;
+    }
+
+    // Load port forwards when tab changes or modal opens
+    $: if (show && container && activeTab === "port-forwards") {
+        loadPortForwards();
+    }
+
+    async function loadPortForwards() {
+        const containerId = container?.db_id || container?.id;
+        if (!containerId) return;
+        isLoadingForwards = true;
+        const { data, error } = await api.get<{ forwards: PortForward[] }>(
+            `/api/containers/${containerId}/port-forwards`,
+        );
+
+        if (data) {
+            portForwards = data.forwards || [];
+        } else if (error) {
+            toast.error(error || "Failed to load port forwards");
+        }
+        isLoadingForwards = false;
+    }
+
+    function openAddForwardModal() {
+        newForwardName = "";
+        newContainerPort = "";
+        newLocalPort = "";
+        showAddForwardModal = true;
+    }
+
+    function closeAddForwardModal() {
+        showAddForwardModal = false;
+        newForwardName = "";
+        newContainerPort = "";
+        newLocalPort = "";
+    }
+
+    async function addPortForward() {
+        const containerId = container?.db_id || container?.id;
+        if (!containerId) return;
+        if (!newContainerPort || !newLocalPort) {
+            toast.error("Please specify both container and local ports");
+            return;
+        }
+
+        const containerPortNum = parseInt(newContainerPort.toString(), 10);
+        const localPortNum = parseInt(newLocalPort.toString(), 10);
+
+        if (
+            isNaN(containerPortNum) ||
+            containerPortNum <= 0 ||
+            containerPortNum > 65535 ||
+            isNaN(localPortNum) ||
+            localPortNum <= 0 ||
+            localPortNum > 65535
+        ) {
+            toast.error("Invalid port numbers. Must be between 1 and 65535.");
+            return;
+        }
+
+        isAddingForward = true;
+        const { data, error } = await api.post<PortForward>(
+            `/api/containers/${containerId}/port-forwards`,
+            {
+                name: newForwardName.trim(),
+                container_id: containerId,
+                container_port: containerPortNum,
+                local_port: localPortNum,
+            },
+        );
+
+        if (data) {
+            portForwards = [...portForwards, data];
+            toast.success("Port forward added");
+            closeAddForwardModal();
+            // TODO: Start local proxy for this forward
+        } else {
+            toast.error(error || "Failed to add port forward");
+        }
+        isAddingForward = false;
+    }
+
+    function deletePortForward(id: string, name: string) {
+        forwardToDelete = { id, name };
+        showDeleteConfirm = true;
+    }
+
+    async function confirmDeleteForward() {
+        const containerId = container?.db_id || container?.id;
+        if (!containerId || !forwardToDelete) return;
+
+        const { id } = forwardToDelete;
+        forwardToDelete = null;
+
+        const { error } = await api.delete(
+            `/api/containers/${containerId}/port-forwards/${id}`,
+        );
+
+        if (!error) {
+            portForwards = portForwards.filter((pf) => pf.id !== id);
+            toast.success("Port forward stopped");
+            // TODO: Stop local proxy for this forward
+        } else {
+            toast.error(error || "Failed to stop port forward");
+        }
+    }
+
+    function cancelDeleteForward() {
+        forwardToDelete = null;
+    }
+
+    function handleClose() {
+        dispatch("close");
+        show = false;
+    }
+
+    async function handleSave() {
+        if (!container) return;
+
+        // Use db_id if available, fallback to id (docker_id)
+        const containerId = container.db_id || container.id;
+        if (!containerId) {
+            toast.error("Terminal ID not found");
+            return;
+        }
+
+        isSaving = true;
+        try {
+            const response = await api.patch(
+                `/api/containers/${containerId}/settings`,
+                {
+                    name: name.trim(),
+                    memory_mb: memoryMB,
+                    cpu_shares: cpuShares,
+                    disk_mb: diskMB,
+                },
+            );
+
+            if (response.ok) {
+                const responseData = response.data as {
+                    container: Container;
+                    restarted?: boolean;
+                };
+
+                // If container was restarted, trigger immediate reconnect
+                if (responseData.restarted && responseData.container) {
+                    const oldContainerId = container.id;
+                    const newContainerId = responseData.container.id;
+
+                    // Immediate reconnect - container is already running with new ID
+                    if (oldContainerId && newContainerId) {
+                        toast.success(
+                            "Settings updated - reconnecting to new container...",
+                        );
+                        // Always use updateSessionContainerId - it handles both same and different IDs
+                        // and properly finds sessions by container ID (not session ID)
+                        terminal.updateSessionContainerId(
+                            oldContainerId,
+                            newContainerId,
+                        );
                     }
-                } catch (err) {
-                    console.error("Settings update error:", err);
-                    toast.error("Failed to update settings");
-                } finally {
-                    isSaving = false;
+                } else {
+                    toast.success("Terminal settings updated");
                 }
-            }
-        
-            function handleKeydown(e: KeyboardEvent) {
-                if (!show) return;
-                if (e.key === "Escape") {
-                    handleClose();
+
+                if (responseData.container) {
+                    dispatch("updated", responseData.container);
                 }
+                handleClose();
+                // Refresh containers to get latest data
+                containers.fetchContainers();
+            } else {
+                toast.error(response.error || "Failed to update settings");
             }
+        } catch (err) {
+            console.error("Settings update error:", err);
+            toast.error("Failed to update settings");
+        } finally {
+            isSaving = false;
+        }
+    }
+
+    function handleKeydown(e: KeyboardEvent) {
+        if (!show) return;
+        if (e.key === "Escape") {
+            handleClose();
+        }
+    }
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
@@ -376,15 +430,18 @@
                             class="slider"
                         />
                         <div class="range-labels">
-                            <span>{formatMemory(resourceLimits.minMemory)}</span>
-                            <span>{formatMemory(resourceLimits.maxMemory)}</span>
+                            <span>{formatMemory(resourceLimits.minMemory)}</span
+                            >
+                            <span>{formatMemory(resourceLimits.maxMemory)}</span
+                            >
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label for="cpu">
                             CPU
-                            <span class="value-display">{formatCPU(cpuShares)}</span
+                            <span class="value-display"
+                                >{formatCPU(cpuShares)}</span
                             >
                         </label>
                         <input
@@ -437,18 +494,23 @@
                         </svg>
                         Resource changes require terminal restart to take effect.
                     </p>
-                    
-                    {#if !isPaidUser && $userTier === 'free'}
-                         <p class="upgrade-hint">
-                            Upgrade to Pro for more resources (4GB RAM, 4 vCPU, 20GB Disk).
+
+                    {#if !isPaidUser && $userTier === "free"}
+                        <p class="upgrade-hint">
+                            Upgrade to Pro for more resources (4GB RAM, 4 vCPU,
+                            20GB Disk).
                         </p>
                     {/if}
                 {:else}
                     <div class="port-forwards-header">
                         <p class="section-description">
-                            Access services running in your terminal (like localhost:8080) directly from your browser.
+                            Access services running in your terminal (like
+                            localhost:8080) directly from your browser.
                         </p>
-                        <button class="btn btn-primary btn-sm" on:click={openAddForwardModal}>
+                        <button
+                            class="btn btn-primary btn-sm"
+                            on:click={openAddForwardModal}
+                        >
                             + Add Forward
                         </button>
                     </div>
@@ -460,7 +522,9 @@
                         </div>
                     {:else if portForwards.length === 0}
                         <div class="empty-state">
-                            <div class="empty-icon"><StatusIcon status="plug" size={24} /></div>
+                            <div class="empty-icon">
+                                <StatusIcon status="plug" size={24} />
+                            </div>
                             <p>No active port forwards.</p>
                         </div>
                     {:else}
@@ -468,36 +532,65 @@
                             {#each portForwards as pf (pf.id)}
                                 <div class="forward-card">
                                     <div class="forward-info">
-                                        <div class="forward-name">{pf.name || `Port ${pf.container_port}`}</div>
+                                        <div class="forward-name">
+                                            {pf.name ||
+                                                `Port ${pf.container_port}`}
+                                        </div>
                                         <div class="forward-details">
-                                            <span class="port-badge">:{pf.container_port}</span>
+                                            <span class="port-badge"
+                                                >:{pf.container_port}</span
+                                            >
                                             <span class="arrow">→</span>
-                                            <a href={pf.proxy_url} target="_blank" rel="noopener" class="proxy-link" title="Open in new tab">
-                                                {pf.proxy_url?.replace(/^https?:\/\//, '').slice(0, 30)}...
+                                            <a
+                                                href={pf.proxy_url}
+                                                target="_blank"
+                                                rel="noopener"
+                                                class="proxy-link"
+                                                title="Open in new tab"
+                                            >
+                                                {pf.proxy_url
+                                                    ?.replace(
+                                                        /^https?:\/\//,
+                                                        "",
+                                                    )
+                                                    .slice(0, 30)}...
                                             </a>
                                         </div>
                                     </div>
                                     <div class="forward-actions">
-                                        <button 
+                                        <button
                                             class="btn btn-primary btn-xs"
-                                            on:click={() => window.open(pf.proxy_url, '_blank')}
+                                            on:click={() =>
+                                                window.open(
+                                                    pf.proxy_url,
+                                                    "_blank",
+                                                )}
                                             title="Open in browser"
                                         >
                                             Open
                                         </button>
-                                        <button 
+                                        <button
                                             class="btn btn-secondary btn-xs"
                                             on:click={() => {
-                                                navigator.clipboard.writeText(pf.proxy_url);
-                                                toast.success('URL copied!');
+                                                navigator.clipboard.writeText(
+                                                    pf.proxy_url,
+                                                );
+                                                toast.success("URL copied!");
                                             }}
                                             title="Copy URL"
                                         >
                                             Copy
                                         </button>
-                                        <button 
+                                        <button
                                             class="btn btn-danger btn-xs"
-                                            on:click={() => deletePortForward(pf.id, pf.name || String(pf.container_port))}
+                                            on:click={() =>
+                                                deletePortForward(
+                                                    pf.id,
+                                                    pf.name ||
+                                                        String(
+                                                            pf.container_port,
+                                                        ),
+                                                )}
                                         >
                                             Stop
                                         </button>
@@ -539,21 +632,38 @@
 
     <!-- Add Forward Modal Overlay -->
     {#if showAddForwardModal}
-        <div 
-            class="modal-overlay-nested" 
+        <div
+            class="modal-overlay-nested"
             on:click|self={closeAddForwardModal}
-            on:keydown={(e) => e.key === 'Escape' && closeAddForwardModal()}
+            on:keydown={(e) => e.key === "Escape" && closeAddForwardModal()}
             transition:fade={{ duration: 150 }}
             role="dialog"
             aria-modal="true"
             aria-labelledby="add-forward-title"
             tabindex="-1"
         >
-            <div class="modal-container-nested" on:click|stopPropagation transition:scale={{ duration: 150, start: 0.95 }}>
+            <div
+                class="modal-container-nested"
+                on:click|stopPropagation
+                transition:scale={{ duration: 150, start: 0.95 }}
+            >
                 <div class="modal-header">
-                    <h3 id="add-forward-title" class="modal-title">Add Port Forward</h3>
-                    <button class="close-btn" on:click={closeAddForwardModal} aria-label="Close">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                    <h3 id="add-forward-title" class="modal-title">
+                        Add Port Forward
+                    </h3>
+                    <button
+                        class="close-btn"
+                        on:click={closeAddForwardModal}
+                        aria-label="Close"
+                    >
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            width="16"
+                            height="16"
+                        >
                             <path d="M18 6L6 18M6 6l12 12" />
                         </svg>
                     </button>
@@ -571,7 +681,7 @@
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="pf-container">Container Port</label>
+                            <label for="pf-container">Terminal Port</label>
                             <input
                                 id="pf-container"
                                 type="number"
@@ -597,9 +707,12 @@
                     </div>
                 </div>
                 <div class="modal-actions">
-                    <button class="btn btn-cancel" on:click={closeAddForwardModal}>Cancel</button>
-                    <button 
-                        class="btn btn-confirm" 
+                    <button
+                        class="btn btn-cancel"
+                        on:click={closeAddForwardModal}>Cancel</button
+                    >
+                    <button
+                        class="btn btn-confirm"
                         on:click={addPortForward}
                         disabled={isAddingForward || !newContainerPort}
                     >
@@ -1051,7 +1164,7 @@
         flex-shrink: 0;
         color: #ffc800;
     }
-    
+
     .upgrade-hint {
         font-size: 11px;
         color: var(--text-muted);
