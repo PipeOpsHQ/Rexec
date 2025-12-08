@@ -78,6 +78,21 @@ type PortForwardResponse struct {
 	ProxyURL      string    `json:"proxy_url"`     // URL for HTTP proxy access
 }
 
+// resolveContainer looks up a container by DB ID or Docker ID
+func (h *PortForwardHandler) resolveContainer(ctx context.Context, idOrDockerID string) (*storage.ContainerRecord, error) {
+	// Try DB ID first
+	record, err := h.store.GetContainerByID(ctx, idOrDockerID)
+	if err == nil && record != nil {
+		return record, nil
+	}
+	// Try Docker ID as fallback
+	record, err = h.store.GetContainerByDockerID(ctx, idOrDockerID)
+	if err == nil && record != nil {
+		return record, nil
+	}
+	return nil, fmt.Errorf("container not found")
+}
+
 // CreatePortForward creates a new port forward
 // POST /api/containers/:id/port-forwards
 func (h *PortForwardHandler) CreatePortForward(c *gin.Context) {
@@ -95,17 +110,15 @@ func (h *PortForwardHandler) CreatePortForward(c *gin.Context) {
 		return
 	}
 
-	if req.ContainerID != containerID {
-		c.JSON(http.StatusBadRequest, models.APIError{Code: http.StatusBadRequest, Message: "container ID mismatch"})
-		return
-	}
-
-	// Verify container ownership and status
-	containerRecord, err := h.store.GetContainerByID(c.Request.Context(), containerID)
+	// Verify container ownership and status (supports both DB ID and Docker ID)
+	containerRecord, err := h.resolveContainer(c.Request.Context(), containerID)
 	if err != nil || containerRecord == nil {
 		c.JSON(http.StatusNotFound, models.APIError{Code: http.StatusNotFound, Message: "container not found"})
 		return
 	}
+	
+	// Update containerID to use DB ID for consistency
+	containerID = containerRecord.ID
 	if containerRecord.UserID != userID {
 		c.JSON(http.StatusForbidden, models.APIError{Code: http.StatusForbidden, Message: "access denied"})
 		return
@@ -182,8 +195,8 @@ func (h *PortForwardHandler) ListPortForwards(c *gin.Context) {
 		return
 	}
 
-	// Verify container ownership
-	containerRecord, err := h.store.GetContainerByID(c.Request.Context(), containerID)
+	// Verify container ownership (supports both DB ID and Docker ID)
+	containerRecord, err := h.resolveContainer(c.Request.Context(), containerID)
 	if err != nil || containerRecord == nil {
 		c.JSON(http.StatusNotFound, models.APIError{Code: http.StatusNotFound, Message: "container not found"})
 		return
@@ -193,7 +206,8 @@ func (h *PortForwardHandler) ListPortForwards(c *gin.Context) {
 		return
 	}
 
-	forwards, err := h.store.GetPortForwardsByUserIDAndContainerID(c.Request.Context(), userID, containerID)
+	// Use DB ID for the query
+	forwards, err := h.store.GetPortForwardsByUserIDAndContainerID(c.Request.Context(), userID, containerRecord.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.APIError{Code: http.StatusInternalServerError, Message: "failed to fetch port forwards"})
 		return
@@ -235,14 +249,21 @@ func (h *PortForwardHandler) DeletePortForward(c *gin.Context) {
 		return
 	}
 
+	// Resolve container (supports both DB ID and Docker ID)
+	containerRecord, err := h.resolveContainer(c.Request.Context(), containerID)
+	if err != nil || containerRecord == nil {
+		c.JSON(http.StatusNotFound, models.APIError{Code: http.StatusNotFound, Message: "container not found"})
+		return
+	}
+
 	// Verify ownership
 	pf, err := h.store.GetPortForwardByID(c.Request.Context(), forwardID)
 	if err != nil || pf == nil {
 		c.JSON(http.StatusNotFound, models.APIError{Code: http.StatusNotFound, Message: "port forward not found"})
 		return
 	}
-	// Ensure the forward belongs to the authenticated user AND the correct container
-	if pf.UserID != userID || pf.ContainerID != containerID {
+	// Ensure the forward belongs to the authenticated user AND the correct container (use DB ID)
+	if pf.UserID != userID || pf.ContainerID != containerRecord.ID {
 		c.JSON(http.StatusForbidden, models.APIError{Code: http.StatusForbidden, Message: "access denied"})
 		return
 	}

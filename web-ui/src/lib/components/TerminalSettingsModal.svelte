@@ -92,10 +92,11 @@
             }
         
             async function loadPortForwards() {
-                if (!container?.id) return;
+                const containerId = container?.db_id || container?.id;
+                if (!containerId) return;
                 isLoadingForwards = true;
                 const { data, error } = await api.get<{ forwards: PortForward[] }>(
-                    `/api/containers/${container.id}/port-forwards`,
+                    `/api/containers/${containerId}/port-forwards`,
                 );
         
                 if (data) {
@@ -121,7 +122,8 @@
             }
         
             async function addPortForward() {
-                if (!container?.id) return;
+                const containerId = container?.db_id || container?.id;
+                if (!containerId) return;
                 if (!newContainerPort || !newLocalPort) {
                     toast.error("Please specify both container and local ports");
                     return;
@@ -144,10 +146,10 @@
         
                 isAddingForward = true;
                 const { data, error } = await api.post<PortForward>(
-                    `/api/containers/${container.id}/port-forwards`,
+                    `/api/containers/${containerId}/port-forwards`,
                     {
                         name: newForwardName.trim(),
-                        container_id: container.id,
+                        container_id: containerId,
                         container_port: containerPortNum,
                         local_port: localPortNum,
                     },
@@ -170,13 +172,14 @@
             }
         
             async function confirmDeleteForward() {
-                if (!container?.id || !forwardToDelete) return;
+                const containerId = container?.db_id || container?.id;
+                if (!containerId || !forwardToDelete) return;
         
                 const { id } = forwardToDelete;
                 forwardToDelete = null;
         
                 const { error } = await api.delete(
-                    `/api/containers/${container.id}/port-forwards/${id}`,
+                    `/api/containers/${containerId}/port-forwards/${id}`,
                 );
         
                 if (!error) {
