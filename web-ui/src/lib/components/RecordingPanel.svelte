@@ -733,17 +733,20 @@
     padding: 4px 5px;
     cursor: pointer;
     font-size: 11px;
-    opacity: 0.4;
+    color: #888;
+    opacity: 0.7;
     transition: all 0.15s;
   }
 
   .icon-btn:hover {
     opacity: 1;
+    color: #fff;
     background: rgba(255, 255, 255, 0.05);
   }
 
   .icon-btn.active {
     opacity: 1;
+    color: #fff;
   }
 
   .icon-btn.delete:hover {
