@@ -185,12 +185,17 @@ install_role_packages() {
         # Apt options for robustness
         APT_OPTS="-o DPkg::Lock::Timeout=60 -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold"
         
+        # First, install essential tools that the rest of the script needs
+        echo "  Installing essential tools (curl, wget, git, ca-certificates)..."
+        apt-get $APT_OPTS update -qq 2>&1 || true
+        apt-get $APT_OPTS install -y curl wget git ca-certificates 2>&1 || echo "  Warning: Essential tools install failed"
+        
         # Enable universe repository for Ubuntu (needed for neovim, ripgrep, etc.)
         if grep -q "Ubuntu" /etc/issue 2>/dev/null || grep -q "Ubuntu" /etc/os-release 2>/dev/null; then
             echo "  Enabling universe repository..."
-            apt-get $APT_OPTS update -qq 2>&1 || true
             apt-get $APT_OPTS install -y -qq software-properties-common 2>&1 || true
             add-apt-repository -y universe 2>&1 || true
+            apt-get $APT_OPTS update -qq 2>&1 || true
         fi
 
         # Map generic package names to apt names
@@ -198,74 +203,105 @@ install_role_packages() {
         for pkg in $PACKAGES; do
             case "$pkg" in
                 docker) APT_PACKAGES="$APT_PACKAGES docker.io" ;;
+                go) APT_PACKAGES="$APT_PACKAGES golang-go" ;;
                 *) APT_PACKAGES="$APT_PACKAGES $pkg" ;;
             esac
         done
         PACKAGES="$APT_PACKAGES"
-        
-        # Update package lists - handle flock not being available
-        echo "  Updating package lists..."
-        if command -v flock >/dev/null 2>&1; then
-            flock -w 120 /var/lib/dpkg/lock-frontend apt-get $APT_OPTS update -qq 2>&1 || apt-get $APT_OPTS update -qq 2>&1 || echo "  Warning: apt-get update failed"
-        else
-            apt-get $APT_OPTS update -qq 2>&1 || echo "  Warning: apt-get update failed"
-        fi
 
-        # Try bulk install first
+        # Try bulk install first (show output for debugging)
         echo "  Installing packages: $PACKAGES"
-        if command -v flock >/dev/null 2>&1; then
-            if ! flock -w 120 /var/lib/dpkg/lock-frontend apt-get $APT_OPTS install -y $PACKAGES 2>&1; then
-                echo "  Bulk install failed, trying individual packages..."
-                for pkg in $PACKAGES; do
-                    echo "    Installing $pkg..."
-                    apt-get $APT_OPTS install -y "$pkg" 2>&1 || echo "    Warning: Failed to install $pkg"
-                done
-            fi
-        else
-            if ! apt-get $APT_OPTS install -y $PACKAGES 2>&1; then
-                echo "  Bulk install failed, trying individual packages..."
-                for pkg in $PACKAGES; do
-                    echo "    Installing $pkg..."
-                    apt-get $APT_OPTS install -y "$pkg" 2>&1 || echo "    Warning: Failed to install $pkg"
-                done
-            fi
+        if ! apt-get $APT_OPTS install -y $PACKAGES 2>&1; then
+            echo "  Bulk install failed, trying individual packages..."
+            for pkg in $PACKAGES; do
+                echo "    Installing $pkg..."
+                apt-get $APT_OPTS install -y "$pkg" 2>&1 || echo "    Warning: Failed to install $pkg"
+            done
         fi
         echo "  System packages installation complete."
     elif command -v apk >/dev/null 2>&1; then
-        # Alpine mapping
-        PACKAGES=""
+        echo "  Detected apk package manager (Alpine)"
+        
+        # First install essential tools
+        echo "  Installing essential tools..."
+        apk update 2>&1 || true
+        apk add --no-cache curl wget git ca-certificates 2>&1 || echo "  Warning: Essential tools install failed"
+        
+        # Alpine package mapping
+        APK_PACKAGES=""
         for pkg in $GENERIC_PACKAGES; do
             case "$pkg" in
-                python3-pip) PACKAGES="$PACKAGES py3-pip" ;;
+                python3-pip) APK_PACKAGES="$APK_PACKAGES py3-pip" ;;
                 python3-venv) ;; # Included in python3 or not needed
-                zsh-autosuggestions) PACKAGES="$PACKAGES zsh-autosuggestions" ;;
-                zsh-syntax-highlighting) PACKAGES="$PACKAGES zsh-syntax-highlighting" ;;
-                *) PACKAGES="$PACKAGES $pkg" ;;
+                go) APK_PACKAGES="$APK_PACKAGES go" ;;
+                *) APK_PACKAGES="$APK_PACKAGES $pkg" ;;
             esac
         done
 
-        apk update >/dev/null 2>&1
-        if ! apk add --no-cache $PACKAGES >/dev/null 2>&1; then
-            echo "Bulk install failed, trying individual packages..."
-            for pkg in $PACKAGES; do
-                apk add --no-cache "$pkg" >/dev/null 2>&1 || echo "Warning: Failed to install $pkg"
+        echo "  Installing packages: $APK_PACKAGES"
+        if ! apk add --no-cache $APK_PACKAGES 2>&1; then
+            echo "  Bulk install failed, trying individual packages..."
+            for pkg in $APK_PACKAGES; do
+                echo "    Installing $pkg..."
+                apk add --no-cache "$pkg" 2>&1 || echo "    Warning: Failed to install $pkg"
             done
         fi
+        echo "  System packages installation complete."
     elif command -v dnf >/dev/null 2>&1; then
-        dnf install -y -q $PACKAGES >/dev/null 2>&1 || {
-            for pkg in $PACKAGES; do dnf install -y -q "$pkg" >/dev/null 2>&1 || true; done
+        echo "  Detected dnf package manager"
+        
+        # First install essential tools
+        echo "  Installing essential tools..."
+        dnf install -y curl wget git ca-certificates 2>&1 || echo "  Warning: Essential tools install failed"
+        
+        echo "  Installing packages: $PACKAGES"
+        dnf install -y $PACKAGES 2>&1 || {
+            echo "  Bulk install failed, trying individual packages..."
+            for pkg in $PACKAGES; do
+                echo "    Installing $pkg..."
+                dnf install -y "$pkg" 2>&1 || echo "    Warning: Failed to install $pkg"
+            done
         }
+        echo "  System packages installation complete."
     elif command -v yum >/dev/null 2>&1; then
-        yum install -y -q $PACKAGES >/dev/null 2>&1 || {
-            for pkg in $PACKAGES; do yum install -y -q "$pkg" >/dev/null 2>&1 || true; done
+        echo "  Detected yum package manager"
+        
+        # First install essential tools
+        echo "  Installing essential tools..."
+        yum install -y curl wget git ca-certificates 2>&1 || echo "  Warning: Essential tools install failed"
+        
+        echo "  Installing packages: $PACKAGES"
+        yum install -y $PACKAGES 2>&1 || {
+            echo "  Bulk install failed, trying individual packages..."
+            for pkg in $PACKAGES; do
+                echo "    Installing $pkg..."
+                yum install -y "$pkg" 2>&1 || echo "    Warning: Failed to install $pkg"
+            done
         }
+        echo "  System packages installation complete."
     elif command -v pacman >/dev/null 2>&1; then
-        pacman -Sy --noconfirm $PACKAGES >/dev/null 2>&1 || {
-            for pkg in $PACKAGES; do pacman -S --noconfirm "$pkg" >/dev/null 2>&1 || true; done
+        echo "  Detected pacman package manager (Arch)"
+        
+        # Initialize pacman keys if needed
+        pacman-key --init 2>/dev/null || true
+        pacman-key --populate archlinux 2>/dev/null || true
+        
+        # First install essential tools
+        echo "  Installing essential tools..."
+        pacman -Sy --noconfirm curl wget git ca-certificates 2>&1 || echo "  Warning: Essential tools install failed"
+        
+        echo "  Installing packages: $PACKAGES"
+        pacman -S --noconfirm $PACKAGES 2>&1 || {
+            echo "  Bulk install failed, trying individual packages..."
+            for pkg in $PACKAGES; do
+                echo "    Installing $pkg..."
+                pacman -S --noconfirm "$pkg" 2>&1 || echo "    Warning: Failed to install $pkg"
+            done
         }
+        echo "  System packages installation complete."
     else
-        echo "Unsupported package manager"
-        # Don't exit, try to continue setup
+        echo "  Warning: No supported package manager detected"
+        echo "  Trying to continue with available tools..."
     fi
     rm -f /tmp/.rexec_installing_system
 }
@@ -684,10 +720,35 @@ install_free_ai_tools() {
     export HOME="${HOME:-/root}"
     mkdir -p "$HOME/.local/bin"
     
+    # Check if curl is available (critical for downloads)
+    if ! command -v curl >/dev/null 2>&1; then
+        echo "  Warning: curl not found, attempting to install..."
+        if command -v apt-get >/dev/null 2>&1; then
+            apt-get update -qq && apt-get install -y curl ca-certificates 2>&1 || true
+        elif command -v apk >/dev/null 2>&1; then
+            apk add --no-cache curl ca-certificates 2>&1 || true
+        elif command -v dnf >/dev/null 2>&1; then
+            dnf install -y curl ca-certificates 2>&1 || true
+        elif command -v yum >/dev/null 2>&1; then
+            yum install -y curl ca-certificates 2>&1 || true
+        elif command -v pacman >/dev/null 2>&1; then
+            pacman -S --noconfirm curl ca-certificates 2>&1 || true
+        fi
+    fi
+    
+    if ! command -v curl >/dev/null 2>&1; then
+        echo "  Error: curl is not available, cannot download AI tools"
+        rm -f /tmp/.rexec_installing_ai
+        return 1
+    fi
+    
+    # Detect architecture once
+    ARCH=$(uname -m)
+    echo "  Detected architecture: $ARCH"
+    
     # tgpt - Free GPT in terminal (no API key, uses free providers)
     # https://github.com/aandrew-me/tgpt
     echo "  Installing tgpt (free terminal GPT)..."
-    ARCH=$(uname -m)
     case "$ARCH" in
         x86_64|amd64) TGPT_ARCH="amd64" ;;
         aarch64|arm64) TGPT_ARCH="arm64" ;;
@@ -695,8 +756,14 @@ install_free_ai_tools() {
     esac
     if [ -n "$TGPT_ARCH" ]; then
         TGPT_URL="https://github.com/aandrew-me/tgpt/releases/latest/download/tgpt-linux-${TGPT_ARCH}"
-        curl -fsSL "$TGPT_URL" -o "$HOME/.local/bin/tgpt" 2>/dev/null && \
-            chmod +x "$HOME/.local/bin/tgpt" && echo "    ✓ tgpt installed" || echo "    ! tgpt install failed"
+        if curl -fsSL "$TGPT_URL" -o "$HOME/.local/bin/tgpt" 2>&1; then
+            chmod +x "$HOME/.local/bin/tgpt"
+            echo "    ✓ tgpt installed"
+        else
+            echo "    ! tgpt download failed"
+        fi
+    else
+        echo "    ! tgpt: unsupported architecture $ARCH"
     fi
     
     # aichat - Feature-rich AI CLI chat (supports local models via ollama)
@@ -723,8 +790,14 @@ install_free_ai_tools() {
         AICHAT_VERSION=$(curl -s https://api.github.com/repos/sigoden/aichat/releases/latest 2>/dev/null | grep '"tag_name"' | sed -E 's/.*"v([^"]+)".*/\1/')
         [ -z "$AICHAT_VERSION" ] && AICHAT_VERSION="0.26.0"
         AICHAT_URL="https://github.com/sigoden/aichat/releases/download/v${AICHAT_VERSION}/aichat-v${AICHAT_VERSION}-${AICHAT_ARCH}.tar.gz"
-        curl -fsSL "$AICHAT_URL" 2>/dev/null | tar -xzf - -C "$HOME/.local/bin" 2>/dev/null && \
-            chmod +x "$HOME/.local/bin/aichat" && echo "    ✓ aichat installed" || echo "    ! aichat install failed"
+        if curl -fsSL "$AICHAT_URL" 2>&1 | tar -xzf - -C "$HOME/.local/bin" 2>&1; then
+            chmod +x "$HOME/.local/bin/aichat"
+            echo "    ✓ aichat installed"
+        else
+            echo "    ! aichat download/extract failed"
+        fi
+    else
+        echo "    ! aichat: unsupported architecture $ARCH"
     fi
     
     # mods - AI for the command line (works great with ollama)
@@ -739,8 +812,14 @@ install_free_ai_tools() {
         MODS_VERSION=$(curl -s https://api.github.com/repos/charmbracelet/mods/releases/latest 2>/dev/null | grep '"tag_name"' | sed -E 's/.*"v([^"]+)".*/\1/')
         [ -z "$MODS_VERSION" ] && MODS_VERSION="1.6.0"
         MODS_URL="https://github.com/charmbracelet/mods/releases/download/v${MODS_VERSION}/mods_${MODS_VERSION}_${MODS_ARCH}.tar.gz"
-        curl -fsSL "$MODS_URL" 2>/dev/null | tar -xzf - -C "$HOME/.local/bin" mods 2>/dev/null && \
-            chmod +x "$HOME/.local/bin/mods" && echo "    ✓ mods installed" || echo "    ! mods install failed"
+        if curl -fsSL "$MODS_URL" 2>&1 | tar -xzf - -C "$HOME/.local/bin" mods 2>&1; then
+            chmod +x "$HOME/.local/bin/mods"
+            echo "    ✓ mods installed"
+        else
+            echo "    ! mods download/extract failed"
+        fi
+    else
+        echo "    ! mods: unsupported architecture $ARCH"
     fi
     
     # gum - Glamorous shell scripts
@@ -750,21 +829,21 @@ install_free_ai_tools() {
         GUM_VERSION=$(curl -s https://api.github.com/repos/charmbracelet/gum/releases/latest 2>/dev/null | grep '"tag_name"' | sed -E 's/.*"v([^"]+)".*/\1/')
         [ -z "$GUM_VERSION" ] && GUM_VERSION="0.14.3"
         GUM_URL="https://github.com/charmbracelet/gum/releases/download/v${GUM_VERSION}/gum_${GUM_VERSION}_${MODS_ARCH}.tar.gz"
-        curl -fsSL "$GUM_URL" 2>/dev/null | tar -xzf - -C "$HOME/.local/bin" gum 2>/dev/null && \
-            chmod +x "$HOME/.local/bin/gum" && echo "    ✓ gum installed" || echo "    ! gum install failed"
+        if curl -fsSL "$GUM_URL" 2>&1 | tar -xzf - -C "$HOME/.local/bin" gum 2>&1; then
+            chmod +x "$HOME/.local/bin/gum"
+            echo "    ✓ gum installed"
+        else
+            echo "    ! gum download/extract failed"
+        fi
+    else
+        echo "    ! gum: unsupported architecture $ARCH"
     fi
 
     # Install opencode (sst/opencode) - binary release
     echo "  Installing opencode (AI coding assistant)..."
-    install_opencode() {
-        export HOME="${HOME:-/root}"
-        
-        if command -v opencode >/dev/null 2>&1; then
-            echo "    ✓ opencode already installed"
-            return 0
-        fi
-        
-        ARCH=$(uname -m)
+    if [ -x "$HOME/.local/bin/opencode" ] || command -v opencode >/dev/null 2>&1; then
+        echo "    ✓ opencode already installed"
+    else
         case "$ARCH" in
             x86_64|amd64)
                 if ldd /bin/ls 2>/dev/null | grep -q musl; then
@@ -781,21 +860,25 @@ install_free_ai_tools() {
                 fi
                 ;;
             *)
-                echo "    ! Unsupported architecture: $ARCH"
-                return 1
+                OPENCODE_ARCH=""
                 ;;
         esac
         
-        OPENCODE_VERSION=$(curl -s https://api.github.com/repos/sst/opencode/releases/latest 2>/dev/null | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
-        [ -z "$OPENCODE_VERSION" ] && OPENCODE_VERSION="v1.0.133"
-        
-        OPENCODE_URL="https://github.com/sst/opencode/releases/download/${OPENCODE_VERSION}/opencode-${OPENCODE_ARCH}.tar.gz"
-        
-        mkdir -p "$HOME/.local/bin"
-        curl -fsSL "$OPENCODE_URL" 2>/dev/null | tar -xzf - -C "$HOME/.local/bin" 2>/dev/null && \
-            chmod +x "$HOME/.local/bin/opencode" && echo "    ✓ opencode installed" || echo "    ! opencode install failed"
-    }
-    install_opencode
+        if [ -n "$OPENCODE_ARCH" ]; then
+            OPENCODE_VERSION=$(curl -s https://api.github.com/repos/sst/opencode/releases/latest 2>/dev/null | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
+            [ -z "$OPENCODE_VERSION" ] && OPENCODE_VERSION="v1.0.133"
+            OPENCODE_URL="https://github.com/sst/opencode/releases/download/${OPENCODE_VERSION}/opencode-${OPENCODE_ARCH}.tar.gz"
+            
+            if curl -fsSL "$OPENCODE_URL" 2>&1 | tar -xzf - -C "$HOME/.local/bin" 2>&1; then
+                chmod +x "$HOME/.local/bin/opencode"
+                echo "    ✓ opencode installed"
+            else
+                echo "    ! opencode download/extract failed"
+            fi
+        else
+            echo "    ! opencode: unsupported architecture $ARCH"
+        fi
+    fi
     
     # Create helper script to show AI tools usage
     cat > "$HOME/.local/bin/ai-help" << 'AIHELP'
