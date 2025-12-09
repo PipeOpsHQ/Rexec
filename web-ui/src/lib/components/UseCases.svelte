@@ -36,7 +36,7 @@
             points: [
                 "Sandboxed execution for autonomous agents",
                 "Human-in-the-loop oversight",
-                "Persistent context for long-running agent tasks",
+                "Resumable sessions - disconnect and reconnect anytime",
                 "Standardized toolchain for consistent AI output"
             ]
         },
@@ -125,6 +125,18 @@
                 "Integrated with Kafka, Flink, Spark (coming soon)",
                 "Monitor data flows in isolation",
                 "Secure access to data sources"
+            ]
+        },
+        {
+            slug: "resumable-sessions",
+            title: "Resumable Terminal Sessions",
+            icon: "reconnect",
+            description: "Start long-running tasks, close your browser, and come back later. Your terminal session keeps running in the background with full output history.",
+            points: [
+                "50,000 lines of scrollback history",
+                "Sessions persist across disconnects",
+                "See all output that happened while away",
+                "Perfect for builds, training, and deployments"
             ]
         }
     ];

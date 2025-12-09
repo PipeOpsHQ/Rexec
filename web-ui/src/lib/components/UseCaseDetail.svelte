@@ -59,7 +59,7 @@
             benefits: [
                 { title: "Sandboxed Execution", description: "AI agents can execute arbitrary code without risking your infrastructure. Full isolation ensures safety.", icon: "shield" },
                 { title: "Human-in-the-Loop", description: "Watch AI agents work in real-time. Intervene, guide, or take over whenever needed.", icon: "ai" },
-                { title: "Persistent Context", description: "Long-running agent tasks maintain their state. Pick up where you left off across sessions.", icon: "data" },
+                { title: "Resumable Sessions", description: "Disconnect and reconnect anytime. Agent tasks continue running with full output history preserved.", icon: "reconnect" },
                 { title: "Standardized Toolchain", description: "Consistent environment means consistent AI output. No more 'it worked on my agent's machine'.", icon: "connected" }
             ],
             workflow: [
@@ -73,7 +73,7 @@
                 { title: "Automated DevOps", description: "AI agents can safely execute infrastructure commands, with you watching every step.", code: "terraform plan\nterraform apply -auto-approve" },
                 { title: "Data Pipeline Development", description: "Build and test ETL pipelines with AI assistance, validating each transformation step." }
             ],
-            relatedUseCases: ["ephemeral-dev-environments", "real-time-data-processing", "technical-interviews"]
+            relatedUseCases: ["ephemeral-dev-environments", "resumable-sessions", "technical-interviews"]
         },
         "universal-jump-host": {
             title: "Universal Jump Host",
@@ -252,6 +252,32 @@
                 { title: "Analytics Prototyping", description: "Build real-time dashboards and analytics before production deployment." }
             ],
             relatedUseCases: ["collaborative-intelligence", "gpu-terminals", "ephemeral-dev-environments"]
+        },
+        "resumable-sessions": {
+            title: "Resumable Terminal Sessions",
+            icon: "reconnect",
+            tagline: "Start tasks, disconnect, and come back later.",
+            description: "Run long-running processes, close your browser, and reconnect anytime. Your terminal session continues in the background with full scrollback history. Never lose work to network drops or accidental tab closures again.",
+            heroImage: "/images/use-cases/resumable-sessions.svg",
+            benefits: [
+                { title: "50K Line History", description: "50,000 lines of scrollback buffer means you never miss output, even for verbose builds or training runs.", icon: "data" },
+                { title: "Survives Disconnects", description: "Network drops, laptop sleep, browser crashes - your session keeps running regardless.", icon: "reconnect" },
+                { title: "Multi-Device Access", description: "Start on desktop, continue on laptop. Same session, same state, any device.", icon: "connected" },
+                { title: "Background Execution", description: "Long builds, ML training, or deployments continue running even when you're away.", icon: "bolt" }
+            ],
+            workflow: [
+                { step: 1, title: "Start Your Task", description: "Launch a build, training job, or any long-running process." },
+                { step: 2, title: "Disconnect Freely", description: "Close your browser, switch networks, or shut down your laptop." },
+                { step: 3, title: "Reconnect Anytime", description: "Come back hours or days later - your session is still there." },
+                { step: 4, title: "Review Output", description: "Scroll back through all the output that happened while you were away." }
+            ],
+            examples: [
+                { title: "ML Training Overnight", description: "Start a model training run, go home, and check results in the morning.", code: "python train.py --epochs 100 --dataset large\n# Close browser, sleep, reconnect next day\n# See: 'Epoch 100/100... Training complete!'" },
+                { title: "Large Builds", description: "Kick off a full project build and come back when it's done.", code: "cargo build --release  # Takes 30+ minutes\n# Disconnect, grab coffee, reconnect\n# See: 'Finished release [optimized] target(s)'" },
+                { title: "Deployment Monitoring", description: "Watch deployments progress even if you need to switch contexts.", code: "kubectl rollout status deployment/app --watch\n# Disconnect during slow rollout\n# Reconnect to see final status" }
+            ],
+            testimonial: { quote: "I used to lose hours of work when my VPN dropped. With Rexec's resumable sessions, I just reconnect and everything is still there.", author: "Marcus Rivera", role: "DevOps Engineer" },
+            relatedUseCases: ["collaborative-intelligence", "ephemeral-dev-environments", "gpu-terminals"]
         }
     };
 

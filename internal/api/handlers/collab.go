@@ -314,8 +314,38 @@ func (h *CollabHandler) HandleCollabWebSocket(c *gin.Context) {
 	h.mu.RUnlock()
 
 	if !exists {
-		c.JSON(http.StatusNotFound, gin.H{"error": "session not found"})
-		return
+		// Try to load from database (session might have been lost on server restart)
+		record, err := h.store.GetCollabSessionByShareCode(c.Request.Context(), shareCode)
+		if err != nil || record == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "session not found"})
+			return
+		}
+
+		// Check expiration before recreating
+		if time.Now().After(record.ExpiresAt) {
+			c.JSON(http.StatusGone, gin.H{"error": "session has expired"})
+			return
+		}
+
+		// Recreate in-memory session from database
+		session = &CollabSession{
+			ID:           record.ID,
+			ContainerID:  record.ContainerID,
+			OwnerID:      record.OwnerID,
+			ShareCode:    record.ShareCode,
+			Mode:         record.Mode,
+			MaxUsers:     record.MaxUsers,
+			ExpiresAt:    record.ExpiresAt,
+			Participants: make(map[string]*CollabParticipant),
+			broadcast:    make(chan CollabMessage, 1024),
+		}
+
+		h.mu.Lock()
+		h.sessions[shareCode] = session
+		h.mu.Unlock()
+
+		go session.broadcastLoop()
+		log.Printf("[Collab] Restored session %s from database", shareCode)
 	}
 
 	// Upgrade to WebSocket
