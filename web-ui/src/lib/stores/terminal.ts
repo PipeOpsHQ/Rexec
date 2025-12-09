@@ -168,9 +168,22 @@ function createCustomKeyHandler(term: Terminal) {
     if (isMac && event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey) {
         const key = event.key.toLowerCase();
         
-        // Preserve standard clipboard shortcuts (Cmd+C, Cmd+V, Cmd+X)
-        // Let the browser/xterm handle these naturally
-        if (key === 'c' || key === 'v' || key === 'x' || key === 'a') return true;
+        // Cmd+C: Send Ctrl+C to terminal if no text selection (interrupt), else copy
+        if (key === 'c') {
+          const selection = window.getSelection();
+          if (!selection || selection.isCollapsed || selection.toString().length === 0) {
+            // No selection - send Ctrl+C to interrupt running process
+            event.preventDefault();
+            event.stopPropagation();
+            term.input("\x03"); // Ctrl+C
+            return false;
+          }
+          // Has selection - let browser handle copy
+          return true;
+        }
+        
+        // Preserve standard clipboard shortcuts (Cmd+V, Cmd+X, Cmd+A)
+        if (key === 'v' || key === 'x' || key === 'a') return true;
 
         // Ghostty-style shortcuts to pass through to UI handler (TerminalView.svelte)
         // d = split, t = tab, w = close, n = new window
@@ -613,13 +626,16 @@ function createTerminalStore() {
           }),
         );
 
-        // Clear terminal and write banner
+        // Clear terminal, reset state, and write banner
+        // This ensures clean state on reconnect even if previous session had garbled output
         session.terminal.clear();
+        // Reset terminal state: clear screen, reset attributes, show cursor
+        session.terminal.write("\x1b[0m\x1b[?25h\x1b[H\x1b[2J");
         session.terminal.write(REXEC_BANNER);
 
         session.terminal.writeln("\x1b[32m› Connected\x1b[0m");
         session.terminal.writeln(
-          "\x1b[38;5;243m  Type 'help' for tips & shortcuts\x1b[0m\r\n",
+          "\x1b[38;5;243m  Type 'help' for tips & shortcuts · Ctrl+C to interrupt\x1b[0m\r\n",
         );
 
         // Setup ping interval

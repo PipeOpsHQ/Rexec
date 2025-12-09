@@ -1236,8 +1236,9 @@ set -g mouse on
 set -g status off
 set -g set-titles on
 set -g set-titles-string "#{pane_title}"
-# Zero escape time for responsive input
+# Zero escape time for responsive Ctrl+C and other key combos
 set -g escape-time 0
+set -sg escape-time 0
 set -g focus-events on
 # Proper terminal size handling for TUI apps
 set -g aggressive-resize on
@@ -1250,6 +1251,12 @@ set -g remain-on-exit off
 # Default shell
 set -g default-shell %s
 set -g default-command %s
+# Pass through Ctrl+C and other control keys without interception
+set -g xterm-keys on
+# Ensure UTF-8 is handled properly
+setw -g mode-keys vi
+# Fix for terminal reset on reconnect - clear alternate screen issues
+set -ga terminal-overrides ',*:Ss=\E[%%p1%%d q:Se=\E[2 q'
 TMUXCONF
 export HOME=/home/user && 
 cd /home/user && 
