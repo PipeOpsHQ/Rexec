@@ -1262,10 +1262,14 @@ set -g xterm-keys on
 setw -g mode-keys vi
 # Fix for terminal reset on reconnect - clear alternate screen issues
 set -ga terminal-overrides ',*:Ss=\E[%%p1%%d q:Se=\E[2 q'
-# Allow passthrough of OSC 52 for clipboard integration
-set -g allow-passthrough on
+# Clipboard passthrough for OSC 52 (requires tmux 3.3+, silently ignored on older)
 set -ga terminal-overrides ',xterm*:Ms=\E]52;c;%%p2%%s\007'
 TMUXCONF
+
+# Apply allow-passthrough only if tmux supports it (3.3+)
+if tmux -V 2>/dev/null | grep -qE 'tmux ([3-9]\.[3-9]|[4-9]\.)'; then
+    echo 'set -g allow-passthrough on' >> /home/user/.tmux.conf
+fi
 export HOME=/home/user && 
 cd /home/user && 
 # Keep container running indefinitely
