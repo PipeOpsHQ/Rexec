@@ -613,8 +613,11 @@ function createTerminalStore() {
           }),
         );
 
-        // Clear terminal and write banner immediately
+        // Clear terminal and reset state, then write banner
         session.terminal.clear();
+        // Send reset sequences to ensure clean terminal state
+        // \x1bc = full reset, \x1b[?25h = show cursor, \x1b[0m = reset attributes
+        session.terminal.write("\x1bc\x1b[?25h\x1b[0m");
         session.terminal.write(REXEC_BANNER);
 
         session.terminal.writeln("\x1b[32m› Connected\x1b[0m");
@@ -688,7 +691,15 @@ function createTerminalStore() {
         try {
           const msg = JSON.parse(event.data);
           if (msg.type === "output") {
-            const data = msg.data as string;
+            let data = msg.data as string;
+
+            // Filter out malformed/raw SGR mouse escape sequences
+            // Proper SGR mouse: \x1b[<35;182;6M - but sometimes raw numbers leak through
+            // Filter patterns like: 35;182;6M or 0;187;21m (missing escape prefix)
+            data = data.replace(/(?<!\x1b\[<)\d+;\d+;\d+[Mm]/g, "");
+            
+            // Skip if nothing left after filtering
+            if (!data || data.trim() === "") return;
 
             // Check for explicit status updates from backend script
             const statusMatch = data.match(/\[\[REXEC_STATUS\]\](.*)/);

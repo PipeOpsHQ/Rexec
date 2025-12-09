@@ -1229,13 +1229,19 @@ mkdir -p /home/user/.tmux &&
 cat > /home/user/.tmux.conf << 'TMUXCONF'
 # Rexec tmux config for session persistence
 set -g default-terminal "xterm-256color"
+set -ga terminal-overrides ",xterm-256color:Tc"
 set -g history-limit 50000
+# Enable mouse for scrolling and selection
 set -g mouse on
 set -g status off
 set -g set-titles on
 set -g set-titles-string "#{pane_title}"
+# Zero escape time for responsive input
 set -g escape-time 0
 set -g focus-events on
+# Proper terminal size handling for TUI apps
+set -g aggressive-resize on
+setw -g aggressive-resize on
 # Keep sessions alive when client detaches
 set -g destroy-unattached off
 set -g detach-on-destroy off
@@ -1243,12 +1249,13 @@ set -g detach-on-destroy off
 set -g remain-on-exit off
 # Default shell
 set -g default-shell %s
+set -g default-command %s
 TMUXCONF
 export HOME=/home/user && 
 cd /home/user && 
 # Keep container running indefinitely
 # Terminal sessions are managed via docker exec + tmux
-exec tail -f /dev/null`, shell)
+exec tail -f /dev/null`, shell, shell)
 		containerConfig.Entrypoint = []string{"/bin/sh", "-c", tmuxSetup}
 		containerConfig.WorkingDir = "/home/user"
 	}
