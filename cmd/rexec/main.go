@@ -621,6 +621,22 @@ func runServer() {
 			c.File(indexFile)
 		})
 
+		router.GET("/marketplace", func(c *gin.Context) {
+			c.File(indexFile)
+		})
+
+		router.GET("/billing", func(c *gin.Context) {
+			c.File(indexFile)
+		})
+
+		router.GET("/billing/success", func(c *gin.Context) {
+			c.File(indexFile)
+		})
+
+		router.GET("/billing/cancel", func(c *gin.Context) {
+			c.File(indexFile)
+		})
+
 		// Also support direct container ID in URL path
 		router.GET("/:id", func(c *gin.Context) {
 			id := c.Param("id")
