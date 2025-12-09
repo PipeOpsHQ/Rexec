@@ -676,26 +676,48 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 			},
 		}
 	} else {
-		// Attach to persistent tmux session for session resumption
-		// new-session -A: attach if session exists, create if not
-		// -s main: session name
-		// -x/-y: initial size (will be resized after attach)
-		// This reconnects to the existing session, showing any buffered output
+		// Detect shell first
 		shell := h.detectShell(ctx, session.ContainerID, imageType)
-		execConfig = container.ExecOptions{
-			AttachStdin:  true,
-			AttachStdout: true,
-			AttachStderr: true,
-			Tty:          true,
-			// Use new-session -A which attaches if exists, creates if not
-			Cmd:          []string{"tmux", "new-session", "-A", "-s", "main", shell},
-			Env: []string{
-				"TERM=xterm-256color",
-				"COLORTERM=truecolor",
-				"HOME=/home/user",
-				"PATH=/home/user/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-			},
-			WorkingDir: "/home/user",
+		
+		// Check if tmux is available for session persistence
+		// Fall back to direct shell if tmux is not installed
+		if h.commandExists(ctx, session.ContainerID, "tmux") {
+			// Attach to persistent tmux session for session resumption
+			// new-session -A: attach if session exists, create if not
+			// -s main: session name
+			// This reconnects to the existing session, showing any buffered output
+			log.Printf("[Terminal] Using tmux for persistent session in %s", session.ContainerID[:12])
+			execConfig = container.ExecOptions{
+				AttachStdin:  true,
+				AttachStdout: true,
+				AttachStderr: true,
+				Tty:          true,
+				Cmd:          []string{"tmux", "new-session", "-A", "-s", "main", shell},
+				Env: []string{
+					"TERM=xterm-256color",
+					"COLORTERM=truecolor",
+					"HOME=/home/user",
+					"PATH=/home/user/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+				},
+				WorkingDir: "/home/user",
+			}
+		} else {
+			// Fallback: direct shell without tmux (no session persistence)
+			log.Printf("[Terminal] tmux not found, using direct shell in %s", session.ContainerID[:12])
+			execConfig = container.ExecOptions{
+				AttachStdin:  true,
+				AttachStdout: true,
+				AttachStderr: true,
+				Tty:          true,
+				Cmd:          []string{shell, "-l"},
+				Env: []string{
+					"TERM=xterm-256color",
+					"COLORTERM=truecolor",
+					"HOME=/home/user",
+					"PATH=/home/user/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+				},
+				WorkingDir: "/home/user",
+			}
 		}
 	}
 
@@ -1048,6 +1070,41 @@ func (h *TerminalHandler) shellExists(ctx context.Context, containerID, shell st
 		time.Sleep(10 * time.Millisecond)
 	}
 	log.Printf("[Terminal] shellExists: timeout waiting for exec in %s", containerID[:12])
+	return false
+}
+
+// commandExists checks if a command exists in the container's PATH
+func (h *TerminalHandler) commandExists(ctx context.Context, containerID, cmd string) bool {
+	client := h.containerManager.GetClient()
+
+	execConfig := container.ExecOptions{
+		Cmd:          []string{"/bin/sh", "-c", fmt.Sprintf("command -v %s >/dev/null 2>&1", cmd)},
+		AttachStdout: true,
+		AttachStderr: true,
+	}
+
+	execResp, err := client.ContainerExecCreate(ctx, containerID, execConfig)
+	if err != nil {
+		return false
+	}
+
+	attachResp, err := client.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{})
+	if err != nil {
+		return false
+	}
+	attachResp.Close()
+
+	// Poll exec status
+	for i := 0; i < 20; i++ {
+		inspect, err := client.ContainerExecInspect(ctx, execResp.ID)
+		if err != nil {
+			return false
+		}
+		if !inspect.Running {
+			return inspect.ExitCode == 0
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 	return false
 }
 
