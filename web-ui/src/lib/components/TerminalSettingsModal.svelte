@@ -321,7 +321,7 @@
     }
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
+<svelte:window onkeydown={handleKeydown} />
 
 <ConfirmModal
     bind:show={showDeleteConfirm}
@@ -357,7 +357,7 @@
                     </svg>
                 </div>
                 <h2 class="modal-title">Terminal Settings</h2>
-                <button class="close-btn" on:click={handleClose}>
+                <button class="close-btn" onclick={handleClose}>
                     <svg
                         viewBox="0 0 24 24"
                         fill="none"
@@ -373,14 +373,14 @@
                 <button
                     class="tab-btn"
                     class:active={activeTab === "settings"}
-                    on:click={() => (activeTab = "settings")}
+                    onclick={() => (activeTab = "settings")}
                 >
                     General
                 </button>
                 <button
                     class="tab-btn"
                     class:active={activeTab === "port-forwards"}
-                    on:click={() => (activeTab = "port-forwards")}
+                    onclick={() => (activeTab = "port-forwards")}
                 >
                     Port Forwarding
                 </button>
@@ -502,7 +502,7 @@
                         </p>
                         <button
                             class="btn btn-primary btn-sm"
-                            on:click={openAddForwardModal}
+                            onclick={openAddForwardModal}
                         >
                             + Add Forward
                         </button>
@@ -549,7 +549,7 @@
                                     <div class="forward-actions">
                                         <button
                                             class="btn btn-primary btn-xs"
-                                            on:click={() =>
+                                            onclick={() =>
                                                 window.open(
                                                     pf.proxy_url,
                                                     "_blank",
@@ -560,7 +560,7 @@
                                         </button>
                                         <button
                                             class="btn btn-secondary btn-xs"
-                                            on:click={() => {
+                                            onclick={() => {
                                                 navigator.clipboard.writeText(
                                                     pf.proxy_url,
                                                 );
@@ -572,7 +572,7 @@
                                         </button>
                                         <button
                                             class="btn btn-danger btn-xs"
-                                            on:click={() =>
+                                            onclick={() =>
                                                 deletePortForward(
                                                     pf.id,
                                                     pf.name ||
@@ -593,12 +593,12 @@
 
             <div class="modal-actions">
                 {#if activeTab === "settings"}
-                    <button class="btn btn-cancel" on:click={handleClose}>
+                    <button class="btn btn-cancel" onclick={handleClose}>
                         Cancel
                     </button>
                     <button
                         class="btn btn-confirm"
-                        on:click={handleSave}
+                        onclick={handleSave}
                         disabled={isSaving || !name.trim()}
                     >
                         {#if isSaving}
@@ -609,7 +609,7 @@
                         {/if}
                     </button>
                 {:else}
-                    <button class="btn btn-cancel" on:click={handleClose}>
+                    <button class="btn btn-cancel" onclick={handleClose}>
                         Close
                     </button>
                 {/if}
@@ -623,8 +623,8 @@
     {#if showAddForwardModal}
         <div
             class="modal-overlay-nested"
-            on:click|self={closeAddForwardModal}
-            on:keydown={(e) => e.key === "Escape" && closeAddForwardModal()}
+            onclick|self={closeAddForwardModal}
+            onkeydown={(e) => e.key === "Escape" && closeAddForwardModal()}
             transition:fade={{ duration: 150 }}
             role="dialog"
             aria-modal="true"
@@ -633,7 +633,7 @@
         >
             <div
                 class="modal-container-nested"
-                on:click|stopPropagation
+                onclick|stopPropagation
                 transition:scale={{ duration: 150, start: 0.95 }}
             >
                 <div class="modal-header">
@@ -642,7 +642,7 @@
                     </h3>
                     <button
                         class="close-btn"
-                        on:click={closeAddForwardModal}
+                        onclick={closeAddForwardModal}
                         aria-label="Close"
                     >
                         <svg
@@ -687,11 +687,11 @@
                 <div class="modal-actions">
                     <button
                         class="btn btn-cancel"
-                        on:click={closeAddForwardModal}>Cancel</button
+                        onclick={closeAddForwardModal}>Cancel</button
                     >
                     <button
                         class="btn btn-confirm"
-                        on:click={addPortForward}
+                        onclick={addPortForward}
                         disabled={isAddingForward || !newContainerPort}
                     >
                         {isAddingForward ? "Adding..." : "Add Forward"}

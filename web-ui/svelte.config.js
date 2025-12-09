@@ -3,7 +3,10 @@ import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 export default {
   preprocess: vitePreprocess(),
   compilerOptions: {
-    // Enable runes mode for Svelte 5 (optional, for future)
-    // runes: true,
+    // Use legacy mode to support Svelte 4 syntax (on:event, createEventDispatcher)
+    // This allows gradual migration to Svelte 5
+    compatibility: {
+      componentApi: 4,
+    },
   },
 };

@@ -646,7 +646,7 @@
     }
 </script>
 
-<svelte:window on:popstate={handlePopState} />
+<svelte:window onpopstate={handlePopState} />
 
 <div class="app">
     {#if isLoading}
@@ -833,9 +833,9 @@
         {#if showGuestModal}
             <div
                 class="modal-overlay"
-                on:click={(e) =>
+                onclick={(e) =>
                     e.target === e.currentTarget && closeGuestModal()}
-                on:keydown={handleGuestKeydown}
+                onkeydown={handleGuestKeydown}
                 role="presentation"
             >
                 <div
@@ -848,7 +848,7 @@
                         <h2 id="guest-modal-title">Get Started</h2>
                         <button
                             class="modal-close"
-                            on:click={closeGuestModal}
+                            onclick={closeGuestModal}
                             aria-label="Close">×</button
                         >
                     </div>
@@ -866,7 +866,7 @@
                                 type="email"
                                 id="guest-email"
                                 bind:value={guestEmail}
-                                on:keydown={handleGuestKeydown}
+                                onkeydown={handleGuestKeydown}
                                 placeholder="you@example.com"
                                 disabled={isGuestSubmitting}
                             />
@@ -881,14 +881,14 @@
                     <div class="modal-footer">
                         <button
                             class="btn btn-secondary"
-                            on:click={closeGuestModal}
+                            onclick={closeGuestModal}
                             disabled={isGuestSubmitting}
                         >
                             Cancel
                         </button>
                         <button
                             class="btn btn-primary"
-                            on:click={handleGuestSubmit}
+                            onclick={handleGuestSubmit}
                             disabled={isGuestSubmitting || !guestEmail.trim()}
                         >
                             {isGuestSubmitting

@@ -91,7 +91,7 @@
     <section class="cta-section">
         <h2>Ready to feel the speed?</h2>
         <p>Start a terminal and type `ls` before the setup finishes.</p>
-        <button class="btn btn-primary btn-lg" on:click={handleTryNow}>
+        <button class="btn btn-primary btn-lg" onclick={handleTryNow}>
             <StatusIcon status="rocket" size={16} />
             <span>Launch Terminal</span>
         </button>

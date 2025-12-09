@@ -68,7 +68,7 @@
 
 <div class="settings">
   <div class="settings-header">
-    <button class="back-btn" on:click={() => dispatch('back')}>
+    <button class="back-btn" onclick={() => dispatch('back')}>
       ← Back
     </button>
     <h1>Settings</h1>
@@ -110,7 +110,7 @@
             </span>
           </div>
           <div class="setting-value">
-            <button class="btn btn-primary btn-sm" on:click={() => auth.getOAuthUrl().then(url => url && (window.location.href = url))}>
+            <button class="btn btn-primary btn-sm" onclick={() => auth.getOAuthUrl().then(url => url && (window.location.href = url))}>
               Sign In
             </button>
           </div>
@@ -215,10 +215,10 @@
 
     <!-- Actions -->
     <div class="settings-actions">
-      <button class="btn btn-secondary" on:click={resetSettings}>
+      <button class="btn btn-secondary" onclick={resetSettings}>
         Reset to Defaults
       </button>
-      <button class="btn btn-primary" on:click={saveSettings}>
+      <button class="btn btn-primary" onclick={saveSettings}>
         Save Settings
       </button>
     </div>

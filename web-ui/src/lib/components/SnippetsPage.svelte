@@ -148,7 +148,7 @@
 
 <div class="snippets-page">
     <div class="page-header">
-        <button class="back-btn" on:click={() => dispatch("back")}>
+        <button class="back-btn" onclick={() => dispatch("back")}>
             ← Back
         </button>
         <div class="title-group">
@@ -156,7 +156,7 @@
             <p class="subtitle">Save frequently used commands and scripts.</p>
         </div>
         {#if !showCreate}
-            <button class="btn btn-primary" on:click={() => showCreate = true}>
+            <button class="btn btn-primary" onclick={() => showCreate = true}>
                 + Create New
             </button>
         {/if}
@@ -166,7 +166,7 @@
         <div class="create-form-card">
             <div class="card-header">
                 <h3>New Snippet</h3>
-                <button class="close-btn" on:click={() => showCreate = false}>×</button>
+                <button class="close-btn" onclick={() => showCreate = false}>×</button>
             </div>
             <div class="card-body">
                 <div class="form-group">
@@ -184,14 +184,14 @@
                     <div class="ace-editor-container" bind:this={editorElement}></div>
                 </div>
                 <div class="form-actions">
-                    <button class="btn btn-secondary" on:click={() => {
+                    <button class="btn btn-secondary" onclick={() => {
                         showCreate = false;
                         newContent = ""; // Clear content when closing form
                         newName = "";
                     }}>Cancel</button>
                     <button 
                         class="btn btn-primary" 
-                        on:click={createSnippet}
+                        onclick={createSnippet}
                         disabled={isCreating || !newName.trim() || !newContent.trim()}
                     >
                         {isCreating ? "Saving..." : "Save Snippet"}
@@ -212,7 +212,7 @@
                 <div class="empty-icon"><StatusIcon status="script" size={48} /></div>
                 <h2>No Snippets</h2>
                 <p>Save your favorite commands to run them instantly in any terminal.</p>
-                <button class="btn btn-primary" on:click={() => showCreate = true}>
+                <button class="btn btn-primary" onclick={() => showCreate = true}>
                     Create Your First Snippet
                 </button>
             </div>
@@ -225,14 +225,14 @@
                             <div class="snippet-actions">
                                 <button 
                                     class="btn-icon" 
-                                    on:click={() => copyToClipboard(snippet.content)}
+                                    onclick={() => copyToClipboard(snippet.content)}
                                     title="Copy to clipboard"
                                 >
                                     <StatusIcon status="copy" size={14} />
                                 </button>
                                 <button 
                                     class="btn-icon danger" 
-                                    on:click={() => deleteSnippet(snippet.id, snippet.name)}
+                                    onclick={() => deleteSnippet(snippet.id, snippet.name)}
                                     title="Delete"
                                 >
                                     <StatusIcon status="close" size={14} />

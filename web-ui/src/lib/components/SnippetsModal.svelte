@@ -138,7 +138,7 @@
     }
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
+<svelte:window onkeydown={handleKeydown} />
 
 <ConfirmModal
     bind:show={showDeleteConfirm}
@@ -157,21 +157,21 @@
                     <span class="modal-icon"><StatusIcon status="bolt" size={20} /></span>
                     <h2>Snippets & Macros</h2>
                 </div>
-                <button class="close-btn" on:click={handleClose}>×</button>
+                <button class="close-btn" onclick={handleClose}>×</button>
             </div>
 
             <div class="tabs">
                 <button 
                     class="tab-btn" 
                     class:active={activeTab === "list"} 
-                    on:click={() => activeTab = "list"}
+                    onclick={() => activeTab = "list"}
                 >
                     Library
                 </button>
                 <button 
                     class="tab-btn" 
                     class:active={activeTab === "create"} 
-                    on:click={() => activeTab = "create"}
+                    onclick={() => activeTab = "create"}
                 >
                     Create New
                 </button>
@@ -188,7 +188,7 @@
                         <div class="empty-state">
                             <div class="empty-icon"><StatusIcon status="terminal" size={32} /></div>
                             <p>No snippets found.</p>
-                            <button class="btn btn-primary" on:click={() => activeTab = "create"}>
+                            <button class="btn btn-primary" onclick={() => activeTab = "create"}>
                                 Create Your First Snippet
                             </button>
                         </div>
@@ -203,14 +203,14 @@
                                     <div class="snippet-actions">
                                         <button 
                                             class="btn btn-primary btn-sm"
-                                            on:click={() => runSnippet(snippet)}
+                                            onclick={() => runSnippet(snippet)}
                                             title="Run in terminal"
                                         >
                                             Run
                                         </button>
                                         <button 
                                             class="btn btn-icon btn-sm btn-delete"
-                                            on:click={() => deleteSnippet(snippet.id, snippet.name)}
+                                            onclick={() => deleteSnippet(snippet.id, snippet.name)}
                                             title="Delete"
                                         >
                                             <StatusIcon status="trash" size={14} />
@@ -244,10 +244,10 @@
                             <p class="hint">Multi-line scripts will be executed sequentially.</p>
                         </div>
                         <div class="form-actions">
-                            <button class="btn btn-secondary" on:click={() => activeTab = "list"}>Cancel</button>
+                            <button class="btn btn-secondary" onclick={() => activeTab = "list"}>Cancel</button>
                             <button 
                                 class="btn btn-primary" 
-                                on:click={createSnippet}
+                                onclick={createSnippet}
                                 disabled={isCreating || !newName.trim() || !newContent.trim()}
                             >
                                 {isCreating ? "Saving..." : "Save Snippet"}

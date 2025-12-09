@@ -561,7 +561,7 @@
                         <button
                             class="fullscreen-tab"
                             class:active={id === activeId && !showCreatePanel}
-                            on:click={() => {
+                            onclick={() => {
                                 showCreatePanel = false;
                                 setActive(id);
                             }}
@@ -570,7 +570,7 @@
                             <span class="tab-name">{session.name}</span>
                             <button
                                 class="tab-close"
-                                on:click|stopPropagation={() => closeSession(id)}
+                                onclick|stopPropagation={() => closeSession(id)}
                                 title="Close terminal"
                                 aria-label="Close {session.name}"
                             >
@@ -581,7 +581,7 @@
                     <button
                         class="fullscreen-tab new-tab-btn"
                         class:active={showCreatePanel}
-                        on:click={openCreatePanel}
+                        onclick={openCreatePanel}
                         title="New Terminal"
                     >
                         +
@@ -591,7 +591,7 @@
                 <div class="fullscreen-actions">
                     <button
                         class="btn btn-secondary btn-sm btn-icon share-btn"
-                        on:click={() => {
+                        onclick={() => {
                             if (activeId) {
                                 const session = $terminal.sessions.get(activeId);
                                 if (session) {
@@ -610,7 +610,7 @@
                     </button>
                     <button
                         class="btn btn-secondary btn-sm btn-icon"
-                        on:click={() => activeId && popOutTerminal(activeId, window.innerWidth / 2 - 300, window.innerHeight / 2 - 200)}
+                        onclick={() => activeId && popOutTerminal(activeId, window.innerWidth / 2 - 300, window.innerHeight / 2 - 200)}
                         title="Float window"
                         disabled={!activeId}
                     >
@@ -620,7 +620,7 @@
                     </button>
                     <button
                         class="btn btn-secondary btn-sm btn-icon"
-                        on:click={toggleFullscreen}
+                        onclick={toggleFullscreen}
                         title="Exit Fullscreen"
                     >
                         <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
@@ -629,7 +629,7 @@
                     </button>
                     <button
                         class="btn btn-danger btn-sm btn-icon"
-                        on:click={() => activeId && closeSession(activeId)}
+                        onclick={() => activeId && closeSession(activeId)}
                         title="Close Terminal"
                         disabled={!activeId}
                     >
@@ -646,7 +646,7 @@
                     <div class="create-panel fullscreen-create">
                         <div class="create-panel-header">
                             <h3>New Terminal</h3>
-                            <button class="close-create" on:click={closeCreatePanel}>× Cancel</button>
+                            <button class="close-create" onclick={closeCreatePanel}>× Cancel</button>
                         </div>
                         <InlineCreateTerminal
                             compact={false}
@@ -675,7 +675,7 @@
                 <!-- Header -->
                 <div
                     class="floating-header"
-                    on:mousedown={handleMouseDown}
+                    onmousedown={handleMouseDown}
                     role="toolbar"
                     tabindex="-1"
                 >
@@ -687,11 +687,11 @@
                                     !showCreatePanel}
                                 class:dragging={draggingTabId === id &&
                                     isDraggingTab}
-                                on:click={() => {
+                                onclick={() => {
                                     showCreatePanel = false;
                                     setActive(id);
                                 }}
-                                on:mousedown={(e) => handleTabDragStart(e, id)}
+                                onmousedown={(e) => handleTabDragStart(e, id)}
                                 title="Drag out to pop to new window"
                             >
                                 <span
@@ -702,7 +702,7 @@
                                 <span class="tab-name">{session.name}</span>
                                 <button
                                     class="tab-close"
-                                    on:click|stopPropagation={() =>
+                                    onclick|stopPropagation={() =>
                                         closeSession(id)}
                                     title="Close terminal"
                                     aria-label="Close {session.name}"
@@ -714,7 +714,7 @@
                         <button
                             class="new-tab-btn"
                             class:active={showCreatePanel}
-                            on:click={openCreatePanel}
+                            onclick={openCreatePanel}
                             title="New Terminal"
                         >
                             +
@@ -724,7 +724,7 @@
                     <div class="floating-actions">
                         <button 
                             class="float-action-btn share-btn"
-                            on:click={() => {
+                            onclick={() => {
                                 if (activeId) {
                                     const session = $terminal.sessions.get(activeId);
                                     if (session) {
@@ -743,7 +743,7 @@
                         </button>
                         <button 
                             class="float-action-btn"
-                            on:click={() => activeId && popOutTerminal(activeId, floatingPosition.x + 100, floatingPosition.y + 100)} 
+                            onclick={() => activeId && popOutTerminal(activeId, floatingPosition.x + 100, floatingPosition.y + 100)} 
                             title="Pop out"
                             disabled={!activeId}
                         >
@@ -751,25 +751,25 @@
                                 <path d="M5.5 0a.5.5 0 0 1 .5.5v4A1.5 1.5 0 0 1 4.5 6h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5zm5 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 10 4.5v-4a.5.5 0 0 1 .5-.5zM0 10.5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 6 11.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zm10 1a1.5 1.5 0 0 1 1.5-1.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4z"/>
                             </svg>
                         </button>
-                        <button class="float-action-btn" on:click={toggleView} title="Dock window">
+                        <button class="float-action-btn" onclick={toggleView} title="Dock window">
                             <svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12">
                                 <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>
                                 <path d="M6 11.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z"/>
                             </svg>
                         </button>
-                        <button class="float-action-btn" on:click={minimize} title="Minimize">
+                        <button class="float-action-btn" onclick={minimize} title="Minimize">
                             <svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12">
                                 <path d="M2 8a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 8Z"/>
                             </svg>
                         </button>
-                        <button class="float-action-btn" on:click={toggleFullscreen} title="Fullscreen">
+                        <button class="float-action-btn" onclick={toggleFullscreen} title="Fullscreen">
                             <svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12">
                                 <path d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1h-4zM10 .5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 16 1.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zM.5 10a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5v-4a.5.5 0 0 1 .5-.5zm15 0a.5.5 0 0 1 .5.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5z"/>
                             </svg>
                         </button>
                         <button
                             class="float-action-btn close-btn"
-                            on:click={() => activeId && closeSession(activeId)}
+                            onclick={() => activeId && closeSession(activeId)}
                             title="Close Terminal"
                             disabled={!activeId}
                         >
@@ -789,7 +789,7 @@
                                 <h3>New Terminal</h3>
                                 <button
                                     class="close-create"
-                                    on:click={closeCreatePanel}>×</button
+                                    onclick={closeCreatePanel}>×</button
                                 >
                             </div>
                             <InlineCreateTerminal
@@ -813,10 +813,10 @@
                 <!-- Resize Handle -->
                 <div
                     class="resize-handle"
-                    on:mousedown={handleResizeStart}
+                    onmousedown={handleResizeStart}
                     role="separator"
                     tabindex="-1"
-                    on:keydown={() => {}}
+                    onkeydown={() => {}}
                 ></div>
             </div>
         </div>
@@ -824,7 +824,7 @@
         <!-- Minimized bar -->
         {#if isMinimized}
             <div class="minimized-bar">
-                <button class="restore-btn" on:click={restore}>
+                <button class="restore-btn" onclick={restore}>
                     <span class="restore-icon">↑</span>
                     <span
                         >{$sessionCount} Terminal{$sessionCount > 1
@@ -838,7 +838,7 @@
         <!-- Docked Terminal -->
         {#if isMinimized}
             <div class="minimized-bar docked-minimized">
-                <button class="restore-btn" on:click={restore}>
+                <button class="restore-btn" onclick={restore}>
                     <span class="restore-icon">↑</span>
                     <span
                         >{$sessionCount} Terminal{$sessionCount > 1
@@ -852,10 +852,10 @@
                 <!-- Resize Handle at Top -->
                 <div 
                     class="docked-resize-handle"
-                    on:mousedown={handleDockedResizeStart}
-                    on:touchstart={handleDockedTouchStart}
-                    on:touchmove={handleDockedTouchMove}
-                    on:touchend={handleDockedTouchEnd}
+                    onmousedown={handleDockedResizeStart}
+                    ontouchstart={handleDockedTouchStart}
+                    ontouchmove={handleDockedTouchMove}
+                    ontouchend={handleDockedTouchEnd}
                     role="separator"
                     aria-orientation="horizontal"
                     aria-valuenow={dockedHeight}
@@ -877,11 +877,11 @@
                                     !showCreatePanel}
                                 class:dragging={draggingTabId === id &&
                                     isDraggingTab}
-                                on:click={() => {
+                                onclick={() => {
                                     showCreatePanel = false;
                                     setActive(id);
                                 }}
-                                on:mousedown={(e) => handleTabDragStart(e, id)}
+                                onmousedown={(e) => handleTabDragStart(e, id)}
                                 title="Drag out to pop to new window"
                             >
                                 <span
@@ -892,7 +892,7 @@
                                 <span class="tab-name">{session.name}</span>
                                 <button
                                     class="tab-close"
-                                    on:click|stopPropagation={() =>
+                                    onclick|stopPropagation={() =>
                                         closeSession(id)}
                                     title="Close terminal"
                                     aria-label="Close {session.name}"
@@ -904,7 +904,7 @@
                         <button
                             class="docked-tab new-tab-btn"
                             class:active={showCreatePanel}
-                            on:click={openCreatePanel}
+                            onclick={openCreatePanel}
                             title="New Terminal"
                         >
                             +
@@ -916,7 +916,7 @@
                     <div class="docked-actions">
                         <button
                             class="btn btn-secondary btn-sm btn-icon share-btn"
-                            on:click={() => {
+                            onclick={() => {
                                 if (activeId) {
                                     const session = $terminal.sessions.get(activeId);
                                     if (session) {
@@ -935,7 +935,7 @@
                         </button>
                         <button
                             class="btn btn-secondary btn-sm btn-icon"
-                            on:click={() => activeId && popOutTerminal(activeId, window.innerWidth / 2 - 300, window.innerHeight / 2 - 200)}
+                            onclick={() => activeId && popOutTerminal(activeId, window.innerWidth / 2 - 300, window.innerHeight / 2 - 200)}
                             title="Float window"
                             disabled={!activeId}
                         >
@@ -945,7 +945,7 @@
                         </button>
                         <button
                             class="btn btn-secondary btn-sm btn-icon"
-                            on:click={toggleView}
+                            onclick={toggleView}
                             title="Toggle dock/float"
                         >
                             <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
@@ -955,7 +955,7 @@
                         </button>
                         <button
                             class="btn btn-secondary btn-sm btn-icon"
-                            on:click={minimize}
+                            onclick={minimize}
                             title="Minimize"
                         >
                             <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
@@ -964,7 +964,7 @@
                         </button>
                         <button
                             class="btn btn-secondary btn-sm btn-icon"
-                            on:click={toggleFullscreen}
+                            onclick={toggleFullscreen}
                             title="Fullscreen"
                         >
                             <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
@@ -973,7 +973,7 @@
                         </button>
                         <button
                             class="btn btn-danger btn-sm btn-icon"
-                            on:click={() => activeId && closeSession(activeId)}
+                            onclick={() => activeId && closeSession(activeId)}
                             title="Close Terminal"
                             disabled={!activeId}
                         >
@@ -993,7 +993,7 @@
                                 <h3>New Terminal</h3>
                                 <button
                                     class="close-create"
-                                    on:click={closeCreatePanel}
+                                    onclick={closeCreatePanel}
                                     >× Cancel</button
                                 >
                             </div>
@@ -1026,13 +1026,13 @@
         style="left: {session.detachedPosition.x}px; top: {session
             .detachedPosition.y}px; width: {session.detachedSize
             .width}px; height: {session.detachedSize.height}px; z-index: {session.detachedZIndex};"
-        on:mousedown={() => terminal.bringToFront(id)}
+        onmousedown={() => terminal.bringToFront(id)}
         role="dialog"
         tabindex="-1"
     >
         <div
             class="detached-header"
-            on:mousedown={(e) => handleDetachedMouseDown(e, id)}
+            onmousedown={(e) => handleDetachedMouseDown(e, id)}
             on:dblclick={() => dockSession(id)}
             role="toolbar"
             tabindex="-1"
@@ -1041,13 +1041,13 @@
             <span class="detached-status status-{session.status}"></span>
             <div class="detached-actions">
                 <button
-                    on:click={() => dockSession(id)}
+                    onclick={() => dockSession(id)}
                     title="Dock back to terminal panel"
                 >
                     ⬒
                 </button>
                 <button
-                    on:click={() => {
+                    onclick={() => {
                         terminal.closeSession(id);
                         toast.success(`Closed "${session.name}"`);
                     }}
@@ -1062,7 +1062,7 @@
         </div>
         <div
             class="detached-resize-handle"
-            on:mousedown={(e) => handleDetachedResizeStart(e, id)}
+            onmousedown={(e) => handleDetachedResizeStart(e, id)}
             role="button"
             tabindex="-1"
         ></div>
