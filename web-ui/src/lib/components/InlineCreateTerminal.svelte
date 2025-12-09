@@ -425,15 +425,15 @@
     // Helper to get role display info
     function getRoleIcon(roleId: string): string {
         const icons: Record<string, string> = {
-            standard: "🧘",
-            node: "🚀",
-            python: "🧙‍♂️",
-            go: "🐹",
-            neovim: "⌨️",
-            devops: "☸️",
-            overemployed: "🤖",
+            standard: "terminal",
+            node: "nodejs",
+            python: "python",
+            go: "golang",
+            neovim: "edit",
+            devops: "devops",
+            overemployed: "ai",
         };
-        return icons[roleId] || "💻";
+        return icons[roleId] || "terminal";
     }
 
     function getRoleRecommendedOS(roleId: string): string {

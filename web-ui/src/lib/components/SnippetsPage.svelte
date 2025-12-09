@@ -277,7 +277,7 @@
                             <div class="snippet-title">
                                 {snippet.name}
                                 {#if snippet.is_public}
-                                    <span class="public-badge" title="Public - visible in marketplace">🌐</span>
+                                    <span class="public-badge" title="Public - visible in marketplace"><StatusIcon status="globe" size={14} /></span>
                                 {/if}
                             </div>
                             <div class="snippet-actions">
@@ -286,7 +286,7 @@
                                     title={snippet.is_public ? "Make private" : "Make public"}
                                     onclick={() => togglePublic(snippet)}
                                 >
-                                    {snippet.is_public ? "🔓" : "🔒"}
+                                    <StatusIcon status={snippet.is_public ? "unlock" : "lock"} size={14} />
                                 </button>
                                 <button 
                                     class="btn-icon" 

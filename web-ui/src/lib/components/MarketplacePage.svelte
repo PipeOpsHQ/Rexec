@@ -98,15 +98,16 @@
     }
 
     function getIconForCategory(category: string): string {
+        // Return icon name for StatusIcon component
         switch (category) {
-            case "system": return "🖥️";
-            case "nodejs": return "📦";
-            case "python": return "🐍";
-            case "golang": return "🐹";
-            case "devops": return "☸️";
-            case "editor": return "✏️";
-            case "ai": return "🤖";
-            default: return "📄";
+            case "system": return "system";
+            case "nodejs": return "nodejs";
+            case "python": return "python";
+            case "golang": return "golang";
+            case "devops": return "devops";
+            case "editor": return "edit";
+            case "ai": return "ai";
+            default: return "file";
         }
     }
 
@@ -193,7 +194,9 @@
                         <article class="snippet-card" class:expanded={expandedSnippet === snippet.id}>
                             <div class="card-main" onclick={() => toggleExpand(snippet.id)}>
                                 <div class="card-left">
-                                    <span class="card-icon">{snippet.icon || getIconForCategory(snippet.category || '')}</span>
+                                    <span class="card-icon">
+                                        <StatusIcon status={snippet.icon || getIconForCategory(snippet.category || '')} size={24} />
+                                    </span>
                                 </div>
                                 <div class="card-center">
                                     <h3 class="card-title">{snippet.name}</h3>
@@ -568,10 +571,14 @@
     }
 
     .card-icon {
-        font-size: 24px;
         width: 36px;
-        text-align: center;
-        display: block;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 255, 102, 0.1);
+        border: 1px solid rgba(0, 255, 102, 0.2);
+        color: var(--accent);
     }
 
     .card-center {
