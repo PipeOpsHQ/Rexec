@@ -231,8 +231,8 @@ install_packages() {
         dpkg --configure -a 2>/dev/null || true
         wait_for_apt_lock || true
         apt-get update -qq 2>/dev/null || apt-get update 2>/dev/null || true
-        apt-get install -y -qq --reinstall zsh git libpcre2-8-0 curl wget locales 2>/dev/null || \
-        apt-get install -y zsh git curl wget 2>/dev/null || true
+        apt-get install -y -qq --reinstall zsh git libpcre2-8-0 curl wget locales tmux 2>/dev/null || \
+        apt-get install -y zsh git curl wget tmux 2>/dev/null || true
         # Try to install language-pack-en for Ubuntu (fixes locale issues), but don't fail on Debian
         apt-get install -y -qq language-pack-en >/dev/null 2>&1 || true
         
@@ -244,18 +244,18 @@ install_packages() {
         locale-gen en_US.UTF-8 >/dev/null 2>&1 || true
         update-locale LANG=en_US.UTF-8 >/dev/null 2>&1 || true
     elif command -v apk >/dev/null 2>&1; then
-        apk add --no-cache zsh git pcre2 curl wget shadow >/dev/null 2>&1
+        apk add --no-cache zsh git pcre2 curl wget shadow tmux >/dev/null 2>&1
     elif command -v dnf >/dev/null 2>&1; then
-        dnf install -y -q zsh git pcre2 curl wget glibc-langpack-en >/dev/null 2>&1 || dnf install -y -q zsh git pcre2 curl wget >/dev/null 2>&1
+        dnf install -y -q zsh git pcre2 curl wget glibc-langpack-en tmux >/dev/null 2>&1 || dnf install -y -q zsh git pcre2 curl wget tmux >/dev/null 2>&1
     elif command -v yum >/dev/null 2>&1; then
-        yum install -y -q zsh git pcre2 curl wget glibc-langpack-en >/dev/null 2>&1 || yum install -y -q zsh git pcre2 curl wget >/dev/null 2>&1
+        yum install -y -q zsh git pcre2 curl wget glibc-langpack-en tmux >/dev/null 2>&1 || yum install -y -q zsh git pcre2 curl wget tmux >/dev/null 2>&1
     elif command -v urpmi >/dev/null 2>&1; then
         # Mageia
-        urpmi --auto --no-recommends zsh git libpcre2-8-0 curl wget locales-en >/dev/null 2>&1
+        urpmi --auto --no-recommends zsh git libpcre2-8-0 curl wget locales-en tmux >/dev/null 2>&1
     elif command -v pacman >/dev/null 2>&1; then
         pacman-key --init 2>/dev/null || true
         pacman-key --populate archlinux 2>/dev/null || true
-        pacman -Sy --noconfirm --needed zsh git pcre2 curl wget >/dev/null 2>&1
+        pacman -Sy --noconfirm --needed zsh git pcre2 curl wget tmux >/dev/null 2>&1
         # Generate locale for Arch
         if [ -f /etc/locale.gen ]; then
             sed -i 's/#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
@@ -263,7 +263,7 @@ install_packages() {
         fi
     elif command -v zypper >/dev/null 2>&1; then
         zypper --non-interactive refresh >/dev/null 2>&1 || true
-        zypper --non-interactive install -y zsh git libpcre2-8-0 curl wget glibc-locale >/dev/null 2>&1
+        zypper --non-interactive install -y zsh git libpcre2-8-0 curl wget glibc-locale tmux >/dev/null 2>&1
     else
         echo "Unsupported package manager"
         exit 1

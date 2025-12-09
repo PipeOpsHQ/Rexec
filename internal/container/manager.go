@@ -1221,8 +1221,35 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 		// Remove /home/user from tmpfs since we use a volume mount
 		delete(hostConfig.Tmpfs, "/home/user")
 
-		// Ensure permissions on volume mount
-		containerConfig.Entrypoint = []string{"/bin/sh", "-c", "mkdir -p /home/user && (chmod 777 /home/user || true) && exec " + shell}
+		// Ensure permissions on volume mount and configure tmux for session persistence
+		// The tmux session is created by the terminal handler on first connect
+		// This just sets up the config and keeps the container alive
+		tmuxSetup := fmt.Sprintf(`mkdir -p /home/user && (chmod 777 /home/user || true) && 
+mkdir -p /home/user/.tmux && 
+cat > /home/user/.tmux.conf << 'TMUXCONF'
+# Rexec tmux config for session persistence
+set -g default-terminal "xterm-256color"
+set -g history-limit 50000
+set -g mouse on
+set -g status off
+set -g set-titles on
+set -g set-titles-string "#{pane_title}"
+set -g escape-time 0
+set -g focus-events on
+# Keep sessions alive when client detaches
+set -g destroy-unattached off
+set -g detach-on-destroy off
+# Recreate session if it dies
+set -g remain-on-exit off
+# Default shell
+set -g default-shell %s
+TMUXCONF
+export HOME=/home/user && 
+cd /home/user && 
+# Keep container running indefinitely
+# Terminal sessions are managed via docker exec + tmux
+exec tail -f /dev/null`, shell)
+		containerConfig.Entrypoint = []string{"/bin/sh", "-c", tmuxSetup}
 		containerConfig.WorkingDir = "/home/user"
 	}
 

@@ -654,25 +654,49 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 
 	client := h.containerManager.GetClient()
 
-	// Detect available shell
-	shell := h.detectShell(ctx, session.ContainerID, imageType)
-
 	// Check if this is a macOS container
 	isMacOS := strings.Contains(strings.ToLower(imageType), "macos") || strings.Contains(strings.ToLower(imageType), "osx")
 
-	// Create exec instance
-	// Use login shell (-l) to ensure .zshrc/.bashrc is sourced
-	execConfig := container.ExecOptions{
-		AttachStdin:  true,
-		AttachStdout: true,
-		AttachStderr: true,
-		Tty:          true,
-		Cmd:          []string{shell, "-l"},
-		Env: []string{
-			"TERM=xterm-256color",
-			"COLORTERM=truecolor",
-			"PATH=/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-		},
+	// For standard Linux containers, attach to tmux session for persistence
+	// This allows users to reconnect and see output that happened while disconnected
+	var execConfig container.ExecOptions
+	if isMacOS {
+		// macOS containers don't use tmux (yet)
+		shell := h.detectShell(ctx, session.ContainerID, imageType)
+		execConfig = container.ExecOptions{
+			AttachStdin:  true,
+			AttachStdout: true,
+			AttachStderr: true,
+			Tty:          true,
+			Cmd:          []string{shell, "-l"},
+			Env: []string{
+				"TERM=xterm-256color",
+				"COLORTERM=truecolor",
+				"PATH=/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+			},
+		}
+	} else {
+		// Attach to persistent tmux session for session resumption
+		// new-session -A: attach if session exists, create if not
+		// -s main: session name
+		// -x/-y: initial size (will be resized after attach)
+		// This reconnects to the existing session, showing any buffered output
+		shell := h.detectShell(ctx, session.ContainerID, imageType)
+		execConfig = container.ExecOptions{
+			AttachStdin:  true,
+			AttachStdout: true,
+			AttachStderr: true,
+			Tty:          true,
+			// Use new-session -A which attaches if exists, creates if not
+			Cmd:          []string{"tmux", "new-session", "-A", "-s", "main", shell},
+			Env: []string{
+				"TERM=xterm-256color",
+				"COLORTERM=truecolor",
+				"HOME=/home/user",
+				"PATH=/home/user/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+			},
+			WorkingDir: "/home/user",
+		}
 	}
 
 	execResp, err := client.ContainerExecCreate(ctx, session.ContainerID, execConfig)
