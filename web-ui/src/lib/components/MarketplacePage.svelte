@@ -2,6 +2,7 @@
     import { createEventDispatcher, onMount } from "svelte";
     import { toast } from "$stores/toast";
     import { api } from "$utils/api";
+    import StatusIcon from "./icons/StatusIcon.svelte";
 
     const dispatch = createEventDispatcher<{
         back: void;
@@ -33,14 +34,14 @@
     let expandedSnippet: string | null = null;
 
     const categories = [
-        { value: "all", label: "🌐 All", icon: "🌐" },
-        { value: "system", label: "🖥️ System", icon: "🖥️" },
-        { value: "nodejs", label: "📦 Node.js", icon: "📦" },
-        { value: "python", label: "🐍 Python", icon: "🐍" },
-        { value: "golang", label: "🐹 Go", icon: "🐹" },
-        { value: "devops", label: "☸️ DevOps", icon: "☸️" },
-        { value: "editor", label: "✏️ Editor", icon: "✏️" },
-        { value: "ai", label: "🤖 AI Tools", icon: "🤖" },
+        { value: "all", label: "All", icon: "grid" },
+        { value: "system", label: "System", icon: "terminal" },
+        { value: "nodejs", label: "Node.js", icon: "nodejs" },
+        { value: "python", label: "Python", icon: "python" },
+        { value: "golang", label: "Go", icon: "golang" },
+        { value: "devops", label: "DevOps", icon: "devops" },
+        { value: "editor", label: "Editor", icon: "edit" },
+        { value: "ai", label: "AI Tools", icon: "ai" },
     ];
 
     async function loadSnippets() {
@@ -96,167 +97,235 @@
         expandedSnippet = expandedSnippet === id ? null : id;
     }
 
-    function getCategoryIcon(category: string): string {
-        const cat = categories.find(c => c.value === category);
-        return cat?.icon || "📄";
+    function getIconForCategory(category: string): string {
+        switch (category) {
+            case "system": return "🖥️";
+            case "nodejs": return "📦";
+            case "python": return "🐍";
+            case "golang": return "🐹";
+            case "devops": return "☸️";
+            case "editor": return "✏️";
+            case "ai": return "🤖";
+            default: return "📄";
+        }
+    }
+
+    function formatUsageCount(count: number): string {
+        if (count >= 1000) return `${(count / 1000).toFixed(1)}k`;
+        return count.toString();
     }
 </script>
 
-<div class="marketplace-page">
-    <div class="page-header">
-        <button class="back-btn" onclick={() => dispatch("back")}>← Back</button>
-        <div class="title-group">
-            <h1>🏪 Snippet Marketplace</h1>
-            <p class="subtitle">Discover and use community-shared snippets</p>
-        </div>
-    </div>
-
-    <div class="filters">
-        <div class="search-box">
-            <input 
-                type="text" 
-                placeholder="Search snippets..."
-                bind:value={searchQuery}
-                onkeydown={(e) => e.key === 'Enter' && handleSearch()}
-            />
-            <button class="search-btn" onclick={handleSearch}>🔍</button>
-        </div>
-        <div class="category-tabs">
-            {#each categories as cat}
-                <button 
-                    class="cat-tab" 
-                    class:active={selectedCategory === cat.value}
-                    onclick={() => { selectedCategory = cat.value; loadSnippets(); }}
-                >
-                    {cat.label}
-                </button>
-            {/each}
-        </div>
-        <div class="sort-group">
-            <select bind:value={sortBy} onchange={loadSnippets}>
-                <option value="popular">🔥 Popular</option>
-                <option value="recent">🆕 Recent</option>
-                <option value="name">🔤 A-Z</option>
-            </select>
-        </div>
-    </div>
-
-    <div class="content-body">
-        {#if isLoading}
-            <div class="loading-state">
-                <div class="spinner"></div>
-                <p>Loading marketplace...</p>
+<div class="marketplace">
+    <div class="marketplace-container">
+        <!-- Header -->
+        <header class="marketplace-header">
+            <button class="back-btn" onclick={() => dispatch("back")}>
+                <span class="back-icon">←</span>
+                <span>Back</span>
+            </button>
+            <div class="header-content">
+                <div class="header-badge">
+                    <span class="badge-dot"></span>
+                    <span>Community Snippets</span>
+                </div>
+                <h1>Snippet <span class="accent">Marketplace</span></h1>
+                <p class="header-desc">Discover, share, and use terminal commands from the community</p>
             </div>
-        {:else if snippets.length === 0}
-            <div class="empty-state">
-                <div class="empty-icon">🔍</div>
-                <h2>No Snippets Found</h2>
-                <p>Try adjusting your search or filters</p>
+        </header>
+
+        <!-- Search & Filters -->
+        <div class="controls">
+            <div class="search-wrapper">
+                <span class="search-icon"><StatusIcon status="search" size={16} /></span>
+                <input 
+                    type="text" 
+                    class="search-input"
+                    placeholder="Search snippets..."
+                    bind:value={searchQuery}
+                    onkeydown={(e) => e.key === 'Enter' && handleSearch()}
+                />
+                {#if searchQuery}
+                    <button class="search-clear" onclick={() => { searchQuery = ''; loadSnippets(); }}>×</button>
+                {/if}
             </div>
-        {:else}
-            <div class="snippets-grid">
-                {#each snippets as snippet (snippet.id)}
-                    <div class="snippet-card" class:expanded={expandedSnippet === snippet.id}>
-                        <div class="card-header" onclick={() => toggleExpand(snippet.id)}>
-                            <span class="snippet-icon">{snippet.icon || getCategoryIcon(snippet.category || '')}</span>
-                            <div class="snippet-info">
-                                <span class="snippet-name">{snippet.name}</span>
-                                <span class="snippet-meta">
-                                    by {snippet.username || "rexec"} · {snippet.usage_count} uses
-                                </span>
-                            </div>
-                            <div class="card-actions">
-                                {#if snippet.requires_install && snippet.install_command}
-                                    <button 
-                                        class="btn-icon install"
-                                        onclick={(e) => { e.stopPropagation(); runInstall(snippet); }}
-                                        title="Copy install command"
-                                    >
-                                        ⬇️
-                                    </button>
-                                {/if}
-                                <button 
-                                    class="btn-icon copy"
-                                    onclick={(e) => { e.stopPropagation(); copyToClipboard(snippet.content); }}
-                                    title="Copy snippet"
-                                >
-                                    📋
-                                </button>
-                                <button 
-                                    class="btn-icon use"
-                                    onclick={(e) => { e.stopPropagation(); useSnippet(snippet); }}
-                                    title="Use snippet"
-                                >
-                                    ▶️
-                                </button>
-                            </div>
-                        </div>
-                        
-                        {#if expandedSnippet === snippet.id}
-                            <div class="card-body">
-                                {#if snippet.description}
-                                    <p class="description">{snippet.description}</p>
-                                {/if}
-                                
-                                {#if snippet.requires_install && snippet.install_command}
-                                    <div class="install-section">
-                                        <span class="install-label">📦 Install first:</span>
-                                        <code class="install-cmd">{snippet.install_command}</code>
+
+            <div class="filter-row">
+                <div class="category-pills">
+                    {#each categories as cat}
+                        <button 
+                            class="pill" 
+                            class:active={selectedCategory === cat.value}
+                            onclick={() => { selectedCategory = cat.value; loadSnippets(); }}
+                        >
+                            {cat.label}
+                        </button>
+                    {/each}
+                </div>
+                <div class="sort-dropdown">
+                    <select bind:value={sortBy} onchange={loadSnippets}>
+                        <option value="popular">Popular</option>
+                        <option value="recent">Recent</option>
+                        <option value="name">A-Z</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Content -->
+        <div class="content">
+            {#if isLoading}
+                <div class="state-container">
+                    <div class="loader"></div>
+                    <p>Loading snippets...</p>
+                </div>
+            {:else if snippets.length === 0}
+                <div class="state-container">
+                    <div class="empty-icon">
+                        <StatusIcon status="search" size={48} />
+                    </div>
+                    <h2>No Snippets Found</h2>
+                    <p>Try adjusting your search or category filter</p>
+                </div>
+            {:else}
+                <div class="snippet-list">
+                    {#each snippets as snippet (snippet.id)}
+                        <article class="snippet-card" class:expanded={expandedSnippet === snippet.id}>
+                            <div class="card-main" onclick={() => toggleExpand(snippet.id)}>
+                                <div class="card-left">
+                                    <span class="card-icon">{snippet.icon || getIconForCategory(snippet.category || '')}</span>
+                                </div>
+                                <div class="card-center">
+                                    <h3 class="card-title">{snippet.name}</h3>
+                                    <div class="card-meta">
+                                        <span class="meta-author">@{snippet.username || "rexec"}</span>
+                                        <span class="meta-sep">·</span>
+                                        <span class="meta-uses">{formatUsageCount(snippet.usage_count)} uses</span>
+                                        {#if snippet.requires_install}
+                                            <span class="meta-sep">·</span>
+                                            <span class="meta-install">requires install</span>
+                                        {/if}
+                                    </div>
+                                </div>
+                                <div class="card-right">
+                                    <div class="card-tags">
+                                        <span class="tag tag-lang">{snippet.language}</span>
+                                    </div>
+                                    <div class="card-actions">
+                                        {#if snippet.requires_install && snippet.install_command}
+                                            <button 
+                                                class="action-btn"
+                                                onclick={(e) => { e.stopPropagation(); runInstall(snippet); }}
+                                                title="Copy install command"
+                                            >
+                                                <StatusIcon status="download" size={14} />
+                                            </button>
+                                        {/if}
                                         <button 
-                                            class="copy-install"
-                                            onclick={() => copyToClipboard(snippet.install_command || '')}
+                                            class="action-btn"
+                                            onclick={(e) => { e.stopPropagation(); copyToClipboard(snippet.content); }}
+                                            title="Copy to clipboard"
                                         >
-                                            Copy
+                                            <StatusIcon status="copy" size={14} />
+                                        </button>
+                                        <button 
+                                            class="action-btn primary"
+                                            onclick={(e) => { e.stopPropagation(); useSnippet(snippet); }}
+                                            title="Use snippet"
+                                        >
+                                            <StatusIcon status="play" size={14} />
                                         </button>
                                     </div>
-                                {/if}
-                                
-                                <div class="code-preview">
-                                    <pre><code>{snippet.content}</code></pre>
-                                </div>
-                                
-                                <div class="card-footer">
-                                    <span class="lang-badge">{snippet.language}</span>
-                                    {#if snippet.category}
-                                        <span class="cat-badge">{snippet.category}</span>
-                                    {/if}
+                                    <span class="expand-icon" class:rotated={expandedSnippet === snippet.id}>▼</span>
                                 </div>
                             </div>
-                        {/if}
-                    </div>
-                {/each}
+                            
+                            {#if expandedSnippet === snippet.id}
+                                <div class="card-expanded">
+                                    {#if snippet.description}
+                                        <p class="card-desc">{snippet.description}</p>
+                                    {/if}
+                                    
+                                    {#if snippet.requires_install && snippet.install_command}
+                                        <div class="install-block">
+                                            <div class="install-header">
+                                                <StatusIcon status="download" size={14} />
+                                                <span>Install first</span>
+                                            </div>
+                                            <div class="install-content">
+                                                <code>{snippet.install_command}</code>
+                                                <button 
+                                                    class="copy-btn"
+                                                    onclick={() => copyToClipboard(snippet.install_command || '')}
+                                                >
+                                                    Copy
+                                                </button>
+                                            </div>
+                                        </div>
+                                    {/if}
+                                    
+                                    <div class="code-block">
+                                        <div class="code-header">
+                                            <span class="code-dots">
+                                                <span class="dot red"></span>
+                                                <span class="dot yellow"></span>
+                                                <span class="dot green"></span>
+                                            </span>
+                                            <span class="code-title">{snippet.name}</span>
+                                            <button 
+                                                class="code-copy"
+                                                onclick={() => copyToClipboard(snippet.content)}
+                                            >
+                                                Copy
+                                            </button>
+                                        </div>
+                                        <pre class="code-content"><code>{snippet.content}</code></pre>
+                                    </div>
+                                </div>
+                            {/if}
+                        </article>
+                    {/each}
+                </div>
+            {/if}
+        </div>
+
+        <!-- Stats Footer -->
+        <footer class="marketplace-footer">
+            <div class="stat">
+                <span class="stat-value">{snippets.length}</span>
+                <span class="stat-label">snippets</span>
             </div>
-        {/if}
+            <div class="stat">
+                <span class="stat-value">{categories.length - 1}</span>
+                <span class="stat-label">categories</span>
+            </div>
+        </footer>
     </div>
 </div>
 
 <style>
-    .marketplace-page {
-        max-width: 1000px;
+    .marketplace {
+        min-height: 100vh;
+        background: var(--bg);
+        animation: fadeIn 0.3s ease;
+    }
+
+    .marketplace-container {
+        max-width: 900px;
         margin: 0 auto;
-        padding: 16px;
-        animation: fadeIn 0.2s ease;
+        padding: 24px 16px;
     }
 
-    .page-header {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        margin-bottom: 20px;
-    }
-
-    .title-group h1 {
-        font-size: 22px;
-        margin: 0 0 2px 0;
-    }
-
-    .subtitle {
-        color: var(--text-muted);
-        font-size: 13px;
-        margin: 0;
+    /* Header */
+    .marketplace-header {
+        margin-bottom: 32px;
+        position: relative;
     }
 
     .back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
         background: none;
         border: 1px solid var(--border);
         color: var(--text-secondary);
@@ -264,86 +333,209 @@
         font-family: var(--font-mono);
         font-size: 12px;
         cursor: pointer;
-        border-radius: 4px;
-    }
-
-    .back-btn:hover {
-        border-color: var(--text);
-        color: var(--text);
-    }
-
-    .filters {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
         margin-bottom: 20px;
-    }
-
-    .search-box {
-        display: flex;
-        gap: 0;
-    }
-
-    .search-box input {
-        flex: 1;
-        padding: 8px 12px;
-        background: var(--bg-card);
-        border: 1px solid var(--border);
-        border-right: none;
-        border-radius: 4px 0 0 4px;
-        color: var(--text);
-        font-family: var(--font-mono);
-        font-size: 13px;
-    }
-
-    .search-btn {
-        padding: 8px 16px;
-        background: var(--accent);
-        border: none;
-        border-radius: 0 4px 4px 0;
-        cursor: pointer;
-        font-size: 14px;
-    }
-
-    .category-tabs {
-        display: flex;
-        gap: 6px;
-        flex-wrap: wrap;
-    }
-
-    .cat-tab {
-        padding: 6px 12px;
-        background: var(--bg-card);
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        color: var(--text-secondary);
-        font-size: 12px;
-        cursor: pointer;
         transition: all 0.2s;
     }
 
-    .cat-tab:hover {
+    .back-btn:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+    }
+
+    .back-icon {
+        font-size: 14px;
+    }
+
+    .header-content {
+        text-align: center;
+    }
+
+    .header-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 12px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        font-size: 10px;
+        color: var(--text-secondary);
+        margin-bottom: 16px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .badge-dot {
+        width: 6px;
+        height: 6px;
+        background: var(--accent);
+        animation: pulse 2s ease-in-out infinite;
+    }
+
+    .header-content h1 {
+        font-size: 28px;
+        font-weight: 700;
+        margin: 0 0 8px 0;
+        color: var(--text);
+    }
+
+    .accent {
+        color: var(--accent);
+    }
+
+    .header-desc {
+        color: var(--text-muted);
+        font-size: 14px;
+        margin: 0;
+    }
+
+    /* Controls */
+    .controls {
+        margin-bottom: 24px;
+    }
+
+    .search-wrapper {
+        position: relative;
+        margin-bottom: 16px;
+    }
+
+    .search-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-muted);
+        pointer-events: none;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 10px 36px 10px 40px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        color: var(--text);
+        font-family: var(--font-mono);
+        font-size: 13px;
+        transition: border-color 0.2s;
+    }
+
+    .search-input:focus {
+        outline: none;
         border-color: var(--accent);
     }
 
-    .cat-tab.active {
+    .search-input::placeholder {
+        color: var(--text-muted);
+    }
+
+    .search-clear {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 20px;
+        height: 20px;
+        background: var(--border);
+        border: none;
+        color: var(--text);
+        cursor: pointer;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .filter-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    .category-pills {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        flex: 1;
+    }
+
+    .pill {
+        padding: 6px 14px;
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        font-family: var(--font-mono);
+        font-size: 11px;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .pill:hover {
+        border-color: var(--text-muted);
+        color: var(--text);
+    }
+
+    .pill.active {
         background: var(--accent);
         color: #000;
         border-color: var(--accent);
     }
 
-    .sort-group select {
+    .sort-dropdown select {
         padding: 6px 12px;
         background: var(--bg-card);
         border: 1px solid var(--border);
-        border-radius: 4px;
         color: var(--text);
         font-family: var(--font-mono);
-        font-size: 12px;
+        font-size: 11px;
         cursor: pointer;
     }
 
-    .snippets-grid {
+    /* Content */
+    .content {
+        min-height: 400px;
+    }
+
+    .state-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 80px 20px;
+        color: var(--text-muted);
+        text-align: center;
+    }
+
+    .loader {
+        width: 32px;
+        height: 32px;
+        border: 2px solid var(--border);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-bottom: 16px;
+    }
+
+    .empty-icon {
+        margin-bottom: 16px;
+        opacity: 0.5;
+    }
+
+    .state-container h2 {
+        font-size: 16px;
+        color: var(--text);
+        margin: 0 0 4px 0;
+    }
+
+    .state-container p {
+        font-size: 13px;
+        margin: 0;
+    }
+
+    /* Snippet List */
+    .snippet-list {
         display: flex;
         flex-direction: column;
         gap: 8px;
@@ -352,47 +544,100 @@
     .snippet-card {
         background: var(--bg-card);
         border: 1px solid var(--border);
-        border-radius: 8px;
-        overflow: hidden;
-        transition: border-color 0.2s;
+        transition: all 0.2s;
     }
 
     .snippet-card:hover {
+        border-color: rgba(0, 255, 102, 0.3);
+    }
+
+    .snippet-card.expanded {
         border-color: var(--accent);
     }
 
-    .card-header {
+    .card-main {
         display: flex;
         align-items: center;
         gap: 12px;
-        padding: 12px;
+        padding: 12px 16px;
         cursor: pointer;
     }
 
-    .snippet-icon {
-        font-size: 20px;
-        width: 32px;
-        text-align: center;
+    .card-left {
+        flex-shrink: 0;
     }
 
-    .snippet-info {
+    .card-icon {
+        font-size: 24px;
+        width: 36px;
+        text-align: center;
+        display: block;
+    }
+
+    .card-center {
         flex: 1;
         min-width: 0;
     }
 
-    .snippet-name {
-        display: block;
-        font-weight: 600;
+    .card-title {
         font-size: 14px;
+        font-weight: 600;
         color: var(--text);
+        margin: 0 0 4px 0;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
 
-    .snippet-meta {
+    .card-meta {
+        display: flex;
+        align-items: center;
+        gap: 6px;
         font-size: 11px;
         color: var(--text-muted);
+    }
+
+    .meta-author {
+        color: var(--accent);
+    }
+
+    .meta-sep {
+        opacity: 0.3;
+    }
+
+    .meta-install {
+        color: #ffc107;
+    }
+
+    .card-right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-shrink: 0;
+    }
+
+    .card-tags {
+        display: none;
+    }
+
+    @media (min-width: 600px) {
+        .card-tags {
+            display: flex;
+            gap: 6px;
+        }
+    }
+
+    .tag {
+        padding: 2px 8px;
+        font-size: 9px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .tag-lang {
+        background: var(--accent);
+        color: #000;
     }
 
     .card-actions {
@@ -400,162 +645,210 @@
         gap: 4px;
     }
 
-    .btn-icon {
-        width: 32px;
-        height: 32px;
+    .action-btn {
+        width: 28px;
+        height: 28px;
         display: flex;
         align-items: center;
         justify-content: center;
-        background: var(--bg);
+        background: transparent;
         border: 1px solid var(--border);
-        border-radius: 6px;
+        color: var(--text-secondary);
         cursor: pointer;
-        font-size: 14px;
         transition: all 0.2s;
     }
 
-    .btn-icon:hover {
+    .action-btn:hover {
         border-color: var(--accent);
-        background: var(--accent);
+        color: var(--accent);
     }
 
-    .btn-icon.use {
+    .action-btn.primary {
         background: var(--accent);
         border-color: var(--accent);
+        color: #000;
     }
 
-    .card-body {
-        padding: 0 12px 12px 12px;
+    .action-btn.primary:hover {
+        opacity: 0.9;
+    }
+
+    .expand-icon {
+        font-size: 10px;
+        color: var(--text-muted);
+        transition: transform 0.2s;
+    }
+
+    .expand-icon.rotated {
+        transform: rotate(180deg);
+    }
+
+    /* Expanded Card */
+    .card-expanded {
+        padding: 16px;
         border-top: 1px solid var(--border);
         animation: slideDown 0.2s ease;
     }
 
-    .description {
+    .card-desc {
         font-size: 13px;
         color: var(--text-secondary);
-        margin: 12px 0;
-        line-height: 1.4;
+        line-height: 1.5;
+        margin: 0 0 16px 0;
     }
 
-    .install-section {
+    .install-block {
+        background: rgba(255, 193, 7, 0.08);
+        border: 1px solid rgba(255, 193, 7, 0.2);
+        padding: 12px;
+        margin-bottom: 16px;
+    }
+
+    .install-header {
         display: flex;
         align-items: center;
         gap: 8px;
-        background: rgba(255, 193, 7, 0.1);
-        border: 1px solid rgba(255, 193, 7, 0.3);
-        border-radius: 6px;
-        padding: 8px 12px;
-        margin-bottom: 12px;
-        flex-wrap: wrap;
+        font-size: 11px;
+        color: #ffc107;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
     }
 
-    .install-label {
-        font-size: 12px;
-        color: var(--text-secondary);
-        white-space: nowrap;
+    .install-content {
+        display: flex;
+        align-items: center;
+        gap: 12px;
     }
 
-    .install-cmd {
+    .install-content code {
         flex: 1;
         font-family: var(--font-mono);
         font-size: 12px;
         color: var(--accent);
         background: var(--bg);
-        padding: 4px 8px;
-        border-radius: 4px;
-        white-space: nowrap;
+        padding: 8px 12px;
         overflow-x: auto;
     }
 
-    .copy-install {
-        padding: 4px 8px;
-        background: var(--bg);
+    .copy-btn {
+        padding: 6px 12px;
+        background: transparent;
         border: 1px solid var(--border);
-        border-radius: 4px;
+        color: var(--text-secondary);
+        font-family: var(--font-mono);
         font-size: 11px;
         cursor: pointer;
-        color: var(--text);
+        transition: all 0.2s;
+        flex-shrink: 0;
     }
 
-    .copy-install:hover {
+    .copy-btn:hover {
         border-color: var(--accent);
+        color: var(--accent);
     }
 
-    .code-preview {
+    /* Code Block */
+    .code-block {
         background: var(--bg);
-        border-radius: 6px;
-        padding: 12px;
+        border: 1px solid var(--border);
+        overflow: hidden;
+    }
+
+    .code-header {
+        display: flex;
+        align-items: center;
+        padding: 8px 12px;
+        background: rgba(255, 255, 255, 0.02);
+        border-bottom: 1px solid var(--border);
+    }
+
+    .code-dots {
+        display: flex;
+        gap: 6px;
+        margin-right: 12px;
+    }
+
+    .code-dots .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+    }
+
+    .code-dots .red { background: #ff5f56; }
+    .code-dots .yellow { background: #ffbd2e; }
+    .code-dots .green { background: #27c93f; }
+
+    .code-title {
+        flex: 1;
+        font-size: 11px;
+        color: var(--text-muted);
+        font-family: var(--font-mono);
+    }
+
+    .code-copy {
+        padding: 4px 10px;
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        font-family: var(--font-mono);
+        font-size: 10px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .code-copy:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+    }
+
+    .code-content {
+        padding: 16px;
+        margin: 0;
         overflow-x: auto;
         max-height: 200px;
-    }
-
-    .code-preview pre {
-        margin: 0;
-    }
-
-    .code-preview code {
         font-family: var(--font-mono);
         font-size: 12px;
+        line-height: 1.5;
         color: var(--text-muted);
-        white-space: pre;
     }
 
-    .card-footer {
+    .code-content code {
+        font-family: inherit;
+    }
+
+    /* Footer */
+    .marketplace-footer {
         display: flex;
-        gap: 8px;
-        margin-top: 12px;
+        justify-content: center;
+        gap: 32px;
+        padding: 32px 0 16px;
+        margin-top: 32px;
+        border-top: 1px solid var(--border);
     }
 
-    .lang-badge, .cat-badge {
-        padding: 2px 8px;
-        border-radius: 4px;
-        font-size: 10px;
-        font-weight: 600;
-        text-transform: uppercase;
-    }
-
-    .lang-badge {
-        background: var(--accent);
-        color: #000;
-    }
-
-    .cat-badge {
-        background: var(--bg);
-        color: var(--text-secondary);
-        border: 1px solid var(--border);
-    }
-
-    .loading-state, .empty-state {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 48px 0;
-        color: var(--text-muted);
+    .stat {
         text-align: center;
     }
 
-    .spinner {
-        width: 28px;
-        height: 28px;
-        border: 3px solid var(--border);
-        border-top-color: var(--accent);
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-        margin-bottom: 12px;
+    .stat-value {
+        display: block;
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--accent);
+        font-family: var(--font-mono);
     }
 
-    .empty-icon {
-        font-size: 40px;
-        margin-bottom: 12px;
+    .stat-label {
+        font-size: 11px;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 1px;
     }
 
-    .empty-state h2 {
-        font-size: 16px;
-        margin-bottom: 4px;
-        color: var(--text);
-    }
-
+    /* Animations */
     @keyframes spin { to { transform: rotate(360deg); } }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-    @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes slideDown { from { opacity: 0; max-height: 0; } to { opacity: 1; max-height: 500px; } }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 </style>
