@@ -19,51 +19,51 @@ func AvailableRoles() []RoleInfo {
 		{
 			ID:          "standard",
 			Name:        "The Minimalist",
-			Description: "I use Arch btw. Just give me a shell + free AI tools.",
+			Description: "I use Arch btw. Just give me a shell + AI tools.",
 			Icon:        "🧘",
-			Packages:    []string{"zsh", "git", "curl", "wget", "vim", "nano", "htop", "jq", "neofetch", "tgpt", "aichat", "mods", "zsh-autosuggestions", "zsh-syntax-highlighting"},
+			Packages:    []string{"zsh", "git", "curl", "wget", "vim", "nano", "htop", "jq", "neofetch", "tgpt", "aichat", "mods", "gh-copilot", "claude", "zsh-autosuggestions", "zsh-syntax-highlighting"},
 		},
 		{
 			ID:          "node",
 			Name:        "10x JS Ninja",
-			Description: "Ship fast, break things, npm install everything + free AI.",
+			Description: "Ship fast, break things, npm install everything + AI.",
 			Icon:        "🚀",
-			Packages:    []string{"zsh", "git", "nodejs", "npm", "yarn", "tgpt", "aichat", "mods", "zsh-autosuggestions", "zsh-syntax-highlighting"},
+			Packages:    []string{"zsh", "git", "nodejs", "npm", "yarn", "tgpt", "aichat", "mods", "gh-copilot", "claude", "aider", "zsh-autosuggestions", "zsh-syntax-highlighting"},
 		},
 		{
 			ID:          "python",
 			Name:        "Data Wizard",
 			Description: "Import antigravity. I speak in list comprehensions + AI.",
 			Icon:        "🧙‍♂️",
-			Packages:    []string{"zsh", "git", "python3", "python3-pip", "python3-venv", "tgpt", "aichat", "mods", "zsh-autosuggestions", "zsh-syntax-highlighting"},
+			Packages:    []string{"zsh", "git", "python3", "python3-pip", "python3-venv", "tgpt", "aichat", "mods", "gh-copilot", "claude", "aider", "llm", "zsh-autosuggestions", "zsh-syntax-highlighting"},
 		},
 		{
 			ID:          "go",
 			Name:        "The Gopher",
 			Description: "If err != nil { panic(err) }. Simplicity + AI tools.",
 			Icon:        "🐹",
-			Packages:    []string{"zsh", "git", "make", "go", "tgpt", "aichat", "mods", "zsh-autosuggestions", "zsh-syntax-highlighting"},
+			Packages:    []string{"zsh", "git", "make", "go", "tgpt", "aichat", "mods", "gh-copilot", "claude", "aider", "zsh-autosuggestions", "zsh-syntax-highlighting"},
 		},
 		{
 			ID:          "neovim",
 			Name:        "Neovim God",
-			Description: "My config is longer than your code. Mouse? AI helps.",
+			Description: "My config is longer than your code. AI assists.",
 			Icon:        "⌨️",
-			Packages:    []string{"zsh", "git", "neovim", "ripgrep", "gcc", "make", "curl", "tgpt", "aichat", "mods", "zsh-autosuggestions", "zsh-syntax-highlighting"},
+			Packages:    []string{"zsh", "git", "neovim", "ripgrep", "gcc", "make", "curl", "tgpt", "aichat", "mods", "gh-copilot", "claude", "aider", "zsh-autosuggestions", "zsh-syntax-highlighting"},
 		},
 		{
 			ID:          "devops",
 			Name:        "YAML Herder",
 			Description: "I don't write code, I write config. AI assists.",
 			Icon:        "☸️",
-			Packages:    []string{"zsh", "git", "docker", "kubectl", "ansible", "terraform", "tgpt", "aichat", "mods", "zsh-autosuggestions", "zsh-syntax-highlighting"},
+			Packages:    []string{"zsh", "git", "docker", "kubectl", "ansible", "terraform", "tgpt", "aichat", "mods", "gh-copilot", "claude", "aider", "zsh-autosuggestions", "zsh-syntax-highlighting"},
 		},
 		{
 			ID:          "overemployed",
 			Name:        "Vibe Coder",
-			Description: "AI-powered coding: tgpt, aichat, mods, aider, opencode & more.",
+			Description: "AI-powered coding: Copilot, Claude, aider, opencode & more.",
 			Icon:        "🤖",
-			Packages:    []string{"zsh", "git", "tmux", "python3", "python3-pip", "python3-venv", "nodejs", "npm", "curl", "wget", "htop", "vim", "neovim", "ripgrep", "fzf", "jq", "tgpt", "aichat", "mods", "aider", "opencode", "llm", "sgpt", "zsh-autosuggestions", "zsh-syntax-highlighting"},
+			Packages:    []string{"zsh", "git", "tmux", "python3", "python3-pip", "python3-venv", "nodejs", "npm", "curl", "wget", "htop", "vim", "neovim", "ripgrep", "fzf", "jq", "tgpt", "aichat", "mods", "aider", "opencode", "llm", "sgpt", "gh-copilot", "claude", "gemini", "zsh-autosuggestions", "zsh-syntax-highlighting"},
 		},
 	}
 }
@@ -97,6 +97,9 @@ func GenerateRoleScript(roleID string) (string, error) {
 		"opencode":                       true,
 		"llm":                            true,
 		"sgpt":                           true,
+		"gh-copilot":                     true,
+		"claude":                         true,
+		"gemini":                         true,
 	}
 
 	packages := ""
@@ -1079,12 +1082,97 @@ install_free_ai_tools() {
             echo "    ! opencode: unsupported architecture $ARCH"
         fi
     fi
+
+    # Install GitHub CLI + Copilot extension
+    echo "  Installing GitHub CLI + Copilot..."
+    if command -v gh >/dev/null 2>&1; then
+        echo "    ✓ gh already installed"
+    else
+        case "$ARCH" in
+            x86_64|amd64) GH_ARCH="linux_amd64" ;;
+            aarch64|arm64) GH_ARCH="linux_arm64" ;;
+            *) GH_ARCH="" ;;
+        esac
+        if [ -n "$GH_ARCH" ]; then
+            GH_VERSION=$(curl -s https://api.github.com/repos/cli/cli/releases/latest 2>/dev/null | grep '"tag_name"' | sed -E 's/.*"v([^"]+)".*/\1/')
+            [ -z "$GH_VERSION" ] && GH_VERSION="2.63.0"
+            GH_URL="https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_${GH_ARCH}.tar.gz"
+            if curl -fsSL "$GH_URL" 2>&1 | tar -xzf - -C /tmp 2>&1; then
+                cp "/tmp/gh_${GH_VERSION}_${GH_ARCH}/bin/gh" "$HOME/.local/bin/gh" 2>/dev/null || true
+                chmod +x "$HOME/.local/bin/gh" 2>/dev/null || true
+                rm -rf "/tmp/gh_${GH_VERSION}_${GH_ARCH}" 2>/dev/null || true
+                echo "    ✓ gh installed"
+            else
+                echo "    ! gh download/extract failed"
+            fi
+        else
+            echo "    ! gh: unsupported architecture $ARCH"
+        fi
+    fi
+    # Install Copilot extension (works without auth for install)
+    if command -v gh >/dev/null 2>&1 || [ -x "$HOME/.local/bin/gh" ]; then
+        "$HOME/.local/bin/gh" extension install github/gh-copilot 2>/dev/null && echo "    ✓ gh-copilot extension installed" || true
+    fi
+
+    # Install Claude Code CLI (requires npm)
+    echo "  Installing Claude Code CLI..."
+    if command -v npm >/dev/null 2>&1; then
+        if command -v claude >/dev/null 2>&1; then
+            echo "    ✓ claude already installed"
+        else
+            npm install -g @anthropic-ai/claude-code 2>/dev/null && echo "    ✓ claude installed" || echo "    ! claude install failed"
+        fi
+    else
+        echo "    ! claude: npm not available"
+    fi
+
+    # Install aider (AI pair programming)
+    echo "  Installing aider..."
+    if command -v aider >/dev/null 2>&1 || [ -x "$HOME/.local/bin/aider" ]; then
+        echo "    ✓ aider already installed"
+    else
+        if command -v pip3 >/dev/null 2>&1; then
+            pip3 install --quiet --user aider-chat 2>/dev/null && echo "    ✓ aider installed" || echo "    ! aider install failed"
+        elif command -v pip >/dev/null 2>&1; then
+            pip install --quiet --user aider-chat 2>/dev/null && echo "    ✓ aider installed" || echo "    ! aider install failed"
+        else
+            echo "    ! aider: pip not available"
+        fi
+    fi
+
+    # Install llm (Simon Willison's LLM CLI)
+    echo "  Installing llm..."
+    if command -v llm >/dev/null 2>&1 || [ -x "$HOME/.local/bin/llm" ]; then
+        echo "    ✓ llm already installed"
+    else
+        if command -v pip3 >/dev/null 2>&1; then
+            pip3 install --quiet --user llm 2>/dev/null && echo "    ✓ llm installed" || echo "    ! llm install failed"
+        elif command -v pip >/dev/null 2>&1; then
+            pip install --quiet --user llm 2>/dev/null && echo "    ✓ llm installed" || echo "    ! llm install failed"
+        else
+            echo "    ! llm: pip not available"
+        fi
+    fi
+
+    # Install sgpt (Shell GPT)
+    echo "  Installing sgpt..."
+    if command -v sgpt >/dev/null 2>&1 || [ -x "$HOME/.local/bin/sgpt" ]; then
+        echo "    ✓ sgpt already installed"
+    else
+        if command -v pip3 >/dev/null 2>&1; then
+            pip3 install --quiet --user shell-gpt 2>/dev/null && echo "    ✓ sgpt installed" || echo "    ! sgpt install failed"
+        elif command -v pip >/dev/null 2>&1; then
+            pip install --quiet --user shell-gpt 2>/dev/null && echo "    ✓ sgpt installed" || echo "    ! sgpt install failed"
+        else
+            echo "    ! sgpt: pip not available"
+        fi
+    fi
     
     # Create helper script to show AI tools usage
     cat > "$HOME/.local/bin/ai-help" << 'AIHELP'
 #!/bin/sh
 echo ""
-echo "\033[1;36m=== Free AI Terminal Tools ===\033[0m"
+echo "\033[1;36m=== AI Terminal Tools ===\033[0m"
 echo ""
 echo "\033[1;33mNo API Key Required:\033[0m"
 echo "  tgpt \"your question\"     - Free GPT (uses free providers)"
@@ -1099,9 +1187,12 @@ echo "  echo \"question\" | mods   - Pipe to AI"
 echo "  mods -m ollama:llama3.2   - Use specific model"
 echo ""
 echo "\033[1;33mWith API Keys:\033[0m"
+echo "  gh copilot suggest        - GitHub Copilot CLI (gh auth login first)"
+echo "  claude                    - Claude Code CLI (ANTHROPIC_API_KEY)"
 echo "  aider                     - AI pair programming"
 echo "  opencode                  - AI coding assistant"
 echo "  llm \"question\"           - CLI for various LLMs"
+echo "  sgpt \"question\"          - Shell GPT"
 echo ""
 echo "\033[38;5;243mRun 'rexec tools' to see all installed tools\033[0m"
 echo ""
@@ -1112,7 +1203,7 @@ AIHELP
     # Create symlinks for all AI tools to /usr/local/bin so they're always in PATH
     echo "  Creating symlinks for AI tools..."
     mkdir -p /usr/local/bin 2>/dev/null || true
-    for tool in tgpt aichat mods gum opencode ai-help; do
+    for tool in tgpt aichat mods gum opencode gh ai-help; do
         if [ -x "$HOME/.local/bin/$tool" ]; then
             ln -sf "$HOME/.local/bin/$tool" "/usr/local/bin/$tool" 2>/dev/null || true
         fi
@@ -1159,7 +1250,7 @@ configure_zsh
 echo "[[REXEC_STATUS]]Installing AI tools..."
 install_free_ai_tools
 echo "  Verifying AI tools..."
-for tool in tgpt aichat mods gum; do
+for tool in tgpt aichat mods gum gh opencode aider; do
     if command -v $tool >/dev/null 2>&1 || [ -x /root/.local/bin/$tool ] || [ -x /usr/local/bin/$tool ]; then
         echo "    ✓ $tool available"
     else
