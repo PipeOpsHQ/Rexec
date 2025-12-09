@@ -323,6 +323,154 @@ install_opencode() {
     chmod +x "$HOME/.local/bin/opencode" 2>/dev/null || true
 }
 
+install_ai_tools() {
+    # Install popular AI CLI tools for all roles
+    export HOME="${HOME:-/root}"
+    mkdir -p "$HOME/.local/bin"
+
+    # Install Node.js and npm if not present (needed for some AI tools)
+    if ! command -v node >/dev/null 2>&1; then
+        if command -v apk >/dev/null 2>&1; then
+            apk add --no-cache nodejs npm >/dev/null 2>&1 || true
+        elif command -v apt-get >/dev/null 2>&1; then
+            apt-get install -y -qq nodejs npm >/dev/null 2>&1 || true
+        elif command -v dnf >/dev/null 2>&1; then
+            dnf install -y -q nodejs npm >/dev/null 2>&1 || true
+        elif command -v pacman >/dev/null 2>&1; then
+            pacman -S --noconfirm nodejs npm >/dev/null 2>&1 || true
+        fi
+    fi
+
+    # Install Python and pip if not present (needed for aider, llm, etc.)
+    if ! command -v python3 >/dev/null 2>&1; then
+        if command -v apk >/dev/null 2>&1; then
+            apk add --no-cache python3 py3-pip >/dev/null 2>&1 || true
+        elif command -v apt-get >/dev/null 2>&1; then
+            apt-get install -y -qq python3 python3-pip >/dev/null 2>&1 || true
+        elif command -v dnf >/dev/null 2>&1; then
+            dnf install -y -q python3 python3-pip >/dev/null 2>&1 || true
+        elif command -v pacman >/dev/null 2>&1; then
+            pacman -S --noconfirm python python-pip >/dev/null 2>&1 || true
+        fi
+    fi
+
+    # Install tgpt - AI chat in terminal (no API key needed, uses free providers)
+    if ! command -v tgpt >/dev/null 2>&1; then
+        ARCH=$(uname -m)
+        case "$ARCH" in
+            x86_64|amd64) TGPT_ARCH="amd64" ;;
+            aarch64|arm64) TGPT_ARCH="arm64" ;;
+            *) TGPT_ARCH="" ;;
+        esac
+        if [ -n "$TGPT_ARCH" ]; then
+            TGPT_URL="https://github.com/aandrew-me/tgpt/releases/latest/download/tgpt-linux-${TGPT_ARCH}"
+            curl -fsSL "$TGPT_URL" -o "$HOME/.local/bin/tgpt" 2>/dev/null && chmod +x "$HOME/.local/bin/tgpt" || true
+        fi
+    fi
+
+    # Install aichat - All-in-one AI CLI tool supporting multiple providers
+    if ! command -v aichat >/dev/null 2>&1; then
+        ARCH=$(uname -m)
+        case "$ARCH" in
+            x86_64|amd64)
+                if ldd /bin/ls 2>/dev/null | grep -q musl; then
+                    AICHAT_ARCH="x86_64-unknown-linux-musl"
+                else
+                    AICHAT_ARCH="x86_64-unknown-linux-gnu"
+                fi
+                ;;
+            aarch64|arm64)
+                if ldd /bin/ls 2>/dev/null | grep -q musl; then
+                    AICHAT_ARCH="aarch64-unknown-linux-musl"
+                else
+                    AICHAT_ARCH="aarch64-unknown-linux-gnu"
+                fi
+                ;;
+            *) AICHAT_ARCH="" ;;
+        esac
+        if [ -n "$AICHAT_ARCH" ]; then
+            AICHAT_VERSION=$(curl -s https://api.github.com/repos/sigoden/aichat/releases/latest 2>/dev/null | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
+            if [ -n "$AICHAT_VERSION" ]; then
+                AICHAT_URL="https://github.com/sigoden/aichat/releases/download/${AICHAT_VERSION}/aichat-${AICHAT_VERSION}-${AICHAT_ARCH}.tar.gz"
+                curl -fsSL "$AICHAT_URL" 2>/dev/null | tar -xzf - -C "$HOME/.local/bin" 2>/dev/null || true
+            fi
+        fi
+    fi
+
+    # Install mods - AI for the command line (by Charm)
+    if ! command -v mods >/dev/null 2>&1; then
+        ARCH=$(uname -m)
+        case "$ARCH" in
+            x86_64|amd64) MODS_ARCH="Linux_x86_64" ;;
+            aarch64|arm64) MODS_ARCH="Linux_arm64" ;;
+            *) MODS_ARCH="" ;;
+        esac
+        if [ -n "$MODS_ARCH" ]; then
+            MODS_VERSION=$(curl -s https://api.github.com/repos/charmbracelet/mods/releases/latest 2>/dev/null | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
+            if [ -n "$MODS_VERSION" ]; then
+                MODS_URL="https://github.com/charmbracelet/mods/releases/download/${MODS_VERSION}/mods_${MODS_VERSION#v}_${MODS_ARCH}.tar.gz"
+                curl -fsSL "$MODS_URL" 2>/dev/null | tar -xzf - -C "$HOME/.local/bin" mods 2>/dev/null || true
+            fi
+        fi
+    fi
+
+    # Install sgpt - Shell GPT for command line AI
+    if command -v pip3 >/dev/null 2>&1 || command -v pip >/dev/null 2>&1; then
+        if ! command -v sgpt >/dev/null 2>&1; then
+            pip3 install --quiet --user shell-gpt 2>/dev/null || pip install --quiet --user shell-gpt 2>/dev/null || true
+        fi
+    fi
+
+    # Install GitHub Copilot CLI (requires gh CLI)
+    if ! command -v gh >/dev/null 2>&1; then
+        ARCH=$(uname -m)
+        case "$ARCH" in
+            x86_64|amd64) GH_ARCH="linux_amd64" ;;
+            aarch64|arm64) GH_ARCH="linux_arm64" ;;
+            *) GH_ARCH="" ;;
+        esac
+        if [ -n "$GH_ARCH" ]; then
+            GH_VERSION=$(curl -s https://api.github.com/repos/cli/cli/releases/latest 2>/dev/null | grep '"tag_name"' | sed -E 's/.*"v([^"]+)".*/\1/')
+            if [ -n "$GH_VERSION" ]; then
+                GH_URL="https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_${GH_ARCH}.tar.gz"
+                curl -fsSL "$GH_URL" 2>/dev/null | tar -xzf - --strip-components=2 -C "$HOME/.local/bin" "gh_${GH_VERSION}_${GH_ARCH}/bin/gh" 2>/dev/null || true
+            fi
+        fi
+    fi
+    # Install Copilot extension if gh is available
+    if command -v gh >/dev/null 2>&1; then
+        gh extension install github/gh-copilot 2>/dev/null || true
+    fi
+
+    # Install Claude Code (Anthropic's CLI) - requires npm
+    if command -v npm >/dev/null 2>&1; then
+        if ! command -v claude >/dev/null 2>&1; then
+            npm install -g @anthropic-ai/claude-code 2>/dev/null || true
+        fi
+    fi
+
+    # Install Gemini CLI (Google's AI CLI) - @google/generative-ai-cli
+    if command -v npm >/dev/null 2>&1; then
+        if ! command -v gemini >/dev/null 2>&1; then
+            npm install -g @google/generative-ai 2>/dev/null || true
+        fi
+    fi
+
+    # Install aider - AI pair programming in terminal
+    if command -v pip3 >/dev/null 2>&1 || command -v pip >/dev/null 2>&1; then
+        if ! command -v aider >/dev/null 2>&1; then
+            pip3 install --quiet --user aider-chat 2>/dev/null || pip install --quiet --user aider-chat 2>/dev/null || true
+        fi
+    fi
+
+    # Install llm - CLI for running LLMs by Simon Willison
+    if command -v pip3 >/dev/null 2>&1 || command -v pip >/dev/null 2>&1; then
+        if ! command -v llm >/dev/null 2>&1; then
+            pip3 install --quiet --user llm 2>/dev/null || pip install --quiet --user llm 2>/dev/null || true
+        fi
+    fi
+}
+
 install_ohmyzsh() {
     export HOME="${HOME:-/root}"
     export ZSH="$HOME/.oh-my-zsh"
@@ -446,19 +594,21 @@ main() {
     echo "Setting up shell environment..."
     wait_for_filesystem || true
     setup_dirs
-    echo "  [1/7] Installing packages..."
+    echo "  [1/8] Installing packages..."
     install_packages
-    echo "  [2/7] Installing oh-my-zsh..."
+    echo "  [2/8] Installing oh-my-zsh..."
     install_ohmyzsh
-    echo "  [3/7] Installing plugins..."
+    echo "  [3/8] Installing plugins..."
     install_plugins
-    echo "  [4/7] Installing opencode..."
+    echo "  [4/8] Installing opencode..."
     install_opencode
-    echo "  [5/7] Creating configuration..."
+    echo "  [5/8] Installing AI tools..."
+    install_ai_tools
+    echo "  [6/8] Creating configuration..."
     create_zshrc
-    echo "  [6/7] Creating theme..."
+    echo "  [7/8] Creating theme..."
     create_theme
-    echo "  [7/7] Setting default shell..."
+    echo "  [8/8] Setting default shell..."
     create_help
     set_default_shell
     echo "Shell setup complete!"
