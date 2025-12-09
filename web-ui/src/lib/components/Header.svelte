@@ -152,6 +152,10 @@
             <StatusIcon status="pricing" size={14} />
             <span>Pricing</span>
         </button>
+        <a class="nav-link" href="/marketplace">
+            <StatusIcon status="store" size={14} />
+            <span>Snippets</span>
+        </a>
     </nav>
 
     <nav class="nav-actions">

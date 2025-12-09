@@ -38,6 +38,18 @@
         showCollabPanel = false;
     }
 
+    function openSnippetsForActive() {
+        if (activeId) {
+            const session = $terminal.sessions.get(activeId);
+            if (session) {
+                panelContainerId = session.containerId;
+                showSnippetsModal = true;
+                showRecordingsPanel = false;
+                showCollabPanel = false;
+            }
+        }
+    }
+
     function handleRunSnippet(e: CustomEvent<{snippet: any}>) {
         const snippet = e.detail.snippet;
         if (panelContainerId && snippet) {
@@ -97,7 +109,6 @@
     // Inline create terminal state
     let showCreatePanel = false;
     let showAddMenu = false;
-    let addMenuPosition = { x: 0, y: 0 };
 
     function openCreatePanel() {
         showCreatePanel = true;
@@ -114,9 +125,7 @@
         toast.success(`Created and connected to ${name}`);
     }
 
-    function toggleAddMenu(e: MouseEvent) {
-        const rect = (e.target as HTMLElement).getBoundingClientRect();
-        addMenuPosition = { x: rect.left, y: rect.bottom + 4 };
+    function toggleAddMenu() {
         showAddMenu = !showAddMenu;
     }
 
@@ -617,32 +626,23 @@
                         >
                             +
                         </button>
-                        {#if showAddMenu}
-                            <div class="add-menu" style="left: {addMenuPosition.x}px; top: {addMenuPosition.y}px;">
-                                <button class="add-menu-item" onclick={openCreatePanel}>
-                                    <span class="menu-icon">+</span>
-                                    <span>Create New Terminal</span>
-                                </button>
-                                {#if sessions.length > 0}
-                                    <div class="add-menu-divider"></div>
-                                    <div class="add-menu-label">Switch to existing</div>
-                                    {#each sessions as [id, session]}
-                                        <button 
-                                            class="add-menu-item" 
-                                            class:active={id === activeId}
-                                            onclick={() => selectExistingSession(id)}
-                                        >
-                                            <span class="menu-icon status-dot {session.status}"></span>
-                                            <span>{session.name}</span>
-                                        </button>
-                                    {/each}
-                                {/if}
-                            </div>
-                        {/if}
                     </div>
                 </div>
 
                 <div class="fullscreen-actions">
+                    <button
+                        class="btn btn-secondary btn-sm btn-icon snippets-btn"
+                        onclick={openSnippetsForActive}
+                        title="Snippets"
+                        disabled={!activeId}
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                        </svg>
+                    </button>
                     <button
                         class="btn btn-secondary btn-sm btn-icon share-btn"
                         onclick={() => {
@@ -776,32 +776,23 @@
                             >
                                 +
                             </button>
-                            {#if showAddMenu}
-                                <div class="add-menu floating-add-menu">
-                                    <button class="add-menu-item" onclick={openCreatePanel}>
-                                        <span class="menu-icon">+</span>
-                                        <span>Create New Terminal</span>
-                                    </button>
-                                    {#if sessions.length > 0}
-                                        <div class="add-menu-divider"></div>
-                                        <div class="add-menu-label">Switch to existing</div>
-                                        {#each sessions as [id, session]}
-                                            <button 
-                                                class="add-menu-item" 
-                                                class:active={id === activeId}
-                                                onclick={() => selectExistingSession(id)}
-                                            >
-                                                <span class="menu-icon status-dot {session.status}"></span>
-                                                <span>{session.name}</span>
-                                            </button>
-                                        {/each}
-                                    {/if}
-                                </div>
-                            {/if}
                         </div>
                     </div>
 
                     <div class="floating-actions">
+                        <button 
+                            class="float-action-btn snippets-btn"
+                            onclick={openSnippetsForActive}
+                            title="Snippets"
+                            disabled={!activeId}
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12">
+                                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                                <line x1="16" y1="13" x2="8" y2="13"/>
+                                <line x1="16" y1="17" x2="8" y2="17"/>
+                            </svg>
+                        </button>
                         <button 
                             class="float-action-btn share-btn"
                             onclick={() => {
@@ -992,34 +983,25 @@
                             >
                                 +
                             </button>
-                            {#if showAddMenu}
-                                <div class="add-menu docked-add-menu">
-                                    <button class="add-menu-item" onclick={openCreatePanel}>
-                                        <span class="menu-icon">+</span>
-                                        <span>Create New Terminal</span>
-                                    </button>
-                                    {#if sessions.length > 0}
-                                        <div class="add-menu-divider"></div>
-                                        <div class="add-menu-label">Switch to existing</div>
-                                        {#each sessions as [id, session]}
-                                            <button 
-                                                class="add-menu-item" 
-                                                class:active={id === activeId}
-                                                onclick={() => selectExistingSession(id)}
-                                            >
-                                                <span class="menu-icon status-dot {session.status}"></span>
-                                                <span>{session.name}</span>
-                                            </button>
-                                        {/each}
-                                    {/if}
-                                </div>
-                            {/if}
                         </div>
                     </div>
 
                     <div class="docked-spacer"></div>
 
                     <div class="docked-actions">
+                        <button
+                            class="btn btn-secondary btn-sm btn-icon snippets-btn"
+                            onclick={openSnippetsForActive}
+                            title="Snippets"
+                            disabled={!activeId}
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                                <line x1="16" y1="13" x2="8" y2="13"/>
+                                <line x1="16" y1="17" x2="8" y2="17"/>
+                            </svg>
+                        </button>
                         <button
                             class="btn btn-secondary btn-sm btn-icon share-btn"
                             onclick={() => {
@@ -1195,50 +1177,159 @@
     />
 {/if}
 
+<!-- Add Terminal Menu Modal -->
+{#if showAddMenu}
+    <div class="add-menu-overlay" onclick={closeAddMenu} role="presentation">
+        <div class="add-menu-modal" onclick={(e) => e.stopPropagation()}>
+            <div class="add-menu-header">
+                <span class="add-menu-title">Terminal Options</span>
+                <button class="add-menu-close" onclick={closeAddMenu}>×</button>
+            </div>
+            <div class="add-menu-content">
+                <button class="add-menu-item primary" onclick={openCreatePanel}>
+                    <span class="menu-icon">+</span>
+                    <span>Create New Terminal</span>
+                </button>
+                {#if sessions.length > 0}
+                    <div class="add-menu-divider"></div>
+                    <div class="add-menu-label">Switch to existing terminal</div>
+                    <div class="add-menu-sessions">
+                        {#each sessions as [id, session]}
+                            <button 
+                                class="add-menu-item" 
+                                class:active={id === activeId}
+                                onclick={() => selectExistingSession(id)}
+                            >
+                                <span class="menu-icon status-dot {session.status}"></span>
+                                <span>{session.name}</span>
+                                {#if id === activeId}
+                                    <span class="current-badge">Current</span>
+                                {/if}
+                            </button>
+                        {/each}
+                    </div>
+                {/if}
+            </div>
+        </div>
+    </div>
+{/if}
+
 <style>
-    /* Add Menu Dropdown */
-    .add-menu-container {
-        position: relative;
+    /* Add Menu Modal Overlay */
+    .add-menu-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10001;
+        backdrop-filter: blur(2px);
     }
 
-    .add-menu {
-        position: absolute;
-        top: 100%;
-        left: 0;
-        margin-top: 4px;
-        min-width: 200px;
+    .add-menu-modal {
         background: var(--bg-card);
         border: 1px solid var(--border);
-        border-radius: 4px;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-        z-index: 10000;
+        border-radius: 12px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        width: 90%;
+        max-width: 340px;
+        max-height: 80vh;
         overflow: hidden;
+        animation: modalSlideIn 0.2s ease-out;
     }
 
-    .docked-add-menu {
-        bottom: 100%;
-        top: auto;
-        margin-bottom: 4px;
-        margin-top: 0;
+    @keyframes modalSlideIn {
+        from {
+            opacity: 0;
+            transform: scale(0.95) translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+    }
+
+    .add-menu-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .add-menu-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text);
+    }
+
+    .add-menu-close {
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        font-size: 20px;
+        cursor: pointer;
+        border-radius: 6px;
+        transition: all 0.15s;
+    }
+
+    .add-menu-close:hover {
+        background: var(--bg-secondary);
+        color: var(--text);
+    }
+
+    .add-menu-content {
+        padding: 12px;
+        overflow-y: auto;
+        max-height: calc(80vh - 60px);
+    }
+
+    .add-menu-sessions {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    /* Add Menu Dropdown (legacy - keeping for compatibility) */
+    .add-menu-container {
+        position: relative;
     }
 
     .add-menu-item {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
         width: 100%;
-        padding: 10px 14px;
+        padding: 12px 16px;
         background: none;
         border: none;
         color: var(--text);
-        font-size: 12px;
+        font-size: 13px;
         cursor: pointer;
         text-align: left;
-        transition: background 0.15s;
+        transition: all 0.15s;
+        border-radius: 8px;
     }
 
     .add-menu-item:hover {
         background: var(--bg-secondary);
+    }
+
+    .add-menu-item.primary {
+        background: rgba(0, 255, 65, 0.1);
+        border: 1px solid rgba(0, 255, 65, 0.2);
+    }
+
+    .add-menu-item.primary:hover {
+        background: rgba(0, 255, 65, 0.15);
     }
 
     .add-menu-item.active {
@@ -1247,35 +1338,50 @@
     }
 
     .add-menu-item .menu-icon {
-        width: 16px;
-        text-align: center;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         color: var(--accent);
+        font-size: 16px;
     }
 
     .add-menu-item .status-dot {
-        width: 8px;
-        height: 8px;
+        width: 10px;
+        height: 10px;
         border-radius: 50%;
-        margin: 0 4px;
     }
 
     .add-menu-item .status-dot.connected {
         background: var(--accent);
+        box-shadow: 0 0 8px rgba(0, 255, 65, 0.5);
     }
 
     .add-menu-item .status-dot.disconnected {
         background: var(--text-muted);
     }
 
+    .current-badge {
+        margin-left: auto;
+        padding: 2px 8px;
+        background: rgba(0, 255, 65, 0.15);
+        color: var(--accent);
+        font-size: 10px;
+        border-radius: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
     .add-menu-divider {
         height: 1px;
         background: var(--border);
-        margin: 4px 0;
+        margin: 12px 0;
     }
 
     .add-menu-label {
-        padding: 6px 14px;
-        font-size: 10px;
+        padding: 8px 16px 4px;
+        font-size: 11px;
         color: var(--text-muted);
         text-transform: uppercase;
         letter-spacing: 0.5px;
@@ -1505,6 +1611,11 @@
     .float-action-btn:hover {
         color: var(--text);
         background: rgba(255, 255, 255, 0.1);
+    }
+
+    .float-action-btn.snippets-btn:hover {
+        color: #fbbf24;
+        background: rgba(251, 191, 36, 0.15);
     }
 
     .float-action-btn.share-btn:hover {
@@ -1759,6 +1870,12 @@
 
     .btn-icon svg {
         flex-shrink: 0;
+    }
+
+    .btn-icon.snippets-btn:hover {
+        border-color: #fbbf24 !important;
+        color: #fbbf24 !important;
+        background: rgba(251, 191, 36, 0.1) !important;
     }
 
     .btn-icon.share-btn:hover {
