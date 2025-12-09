@@ -756,6 +756,11 @@ function createContainersStore() {
         ),
       }));
     },
+
+    // Clear creating state (useful after settings updates)
+    clearCreating() {
+      update((state) => ({ ...state, creating: null }));
+    },
   };
 }
 

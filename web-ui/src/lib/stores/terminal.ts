@@ -51,6 +51,7 @@ export interface TerminalSession {
   resizeObserver: ResizeObserver | null;
   isSettingUp: boolean;
   setupMessage: string;
+  hasConnectedOnce: boolean; // Track if session has ever successfully connected
   // Collaboration mode
   isCollabSession: boolean;
   collabMode: "view" | "control" | null; // null if not a collab session
@@ -499,6 +500,7 @@ function createTerminalStore() {
         resizeObserver: null,
         isSettingUp: false,
         setupMessage: "",
+        hasConnectedOnce: false,
         isCollabSession: false,
         collabMode: null,
         collabRole: null,
@@ -604,10 +606,15 @@ function createTerminalStore() {
       updateSession(sessionId, (s) => ({ ...s, ws, status: "connecting" }));
 
       ws.onopen = () => {
+        // Check if this is a reconnect (hasConnectedOnce tracks if we've ever connected)
+        const currentState = getState().sessions.get(sessionId);
+        const isReconnect = currentState?.hasConnectedOnce === true;
+        
         updateSession(sessionId, (s) => ({
           ...s,
           status: "connected",
           reconnectAttempts: 0,
+          hasConnectedOnce: true,
         }));
 
         // Fit terminal first to get accurate dimensions
@@ -626,17 +633,23 @@ function createTerminalStore() {
           }),
         );
 
-        // Clear terminal, reset state, and write banner
-        // This ensures clean state on reconnect even if previous session had garbled output
-        session.terminal.clear();
-        // Reset terminal state: clear screen, reset attributes, show cursor
-        session.terminal.write("\x1b[0m\x1b[?25h\x1b[H\x1b[2J");
-        session.terminal.write(REXEC_BANNER);
-
-        session.terminal.writeln("\x1b[32m› Connected\x1b[0m");
-        session.terminal.writeln(
-          "\x1b[38;5;243m  Type 'help' for tips & shortcuts · Ctrl+C to interrupt\x1b[0m\r\n",
-        );
+        if (isReconnect) {
+          // On reconnect, don't clear/reset - just send Ctrl+L to refresh the display
+          // This preserves TUI apps like opencode that are running in tmux
+          session.terminal.writeln("\r\n\x1b[32m› Reconnected\x1b[0m\r\n");
+          // Send Ctrl+L (form feed) to trigger a screen redraw in tmux/shell
+          ws.send(JSON.stringify({ type: "input", data: "\x0c" }));
+        } else {
+          // First connect - clear terminal and show banner
+          session.terminal.clear();
+          // Reset terminal state: clear screen, reset attributes, show cursor
+          session.terminal.write("\x1b[0m\x1b[?25h\x1b[H\x1b[2J");
+          session.terminal.write(REXEC_BANNER);
+          session.terminal.writeln("\x1b[32m› Connected\x1b[0m");
+          session.terminal.writeln(
+            "\x1b[38;5;243m  Type 'help' for tips & shortcuts · Ctrl+C to interrupt\x1b[0m\r\n",
+          );
+        }
 
         // Setup ping interval
         const pingInterval = setInterval(() => {

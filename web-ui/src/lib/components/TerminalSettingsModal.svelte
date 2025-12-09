@@ -300,7 +300,8 @@
                     dispatch("updated", responseData.container);
                 }
                 handleClose();
-                // Refresh containers to get latest data
+                // Clear any stuck creating state and refresh containers
+                containers.clearCreating();
                 containers.fetchContainers();
             } else {
                 toast.error(response.error || "Failed to update settings");
