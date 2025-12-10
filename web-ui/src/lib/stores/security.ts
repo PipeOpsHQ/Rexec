@@ -1,4 +1,4 @@
-import { writable, derived } from "svelte/store";
+import { writable, derived, get } from "svelte/store";
 
 // Types
 export interface SecurityState {
@@ -53,7 +53,8 @@ async function hashPasscode(passcode: string): Promise<string> {
 
 // Create the store
 function createSecurityStore() {
-  const { subscribe, set, update } = writable<SecurityState>(loadPersistedSecurity());
+  const store = writable<SecurityState>(loadPersistedSecurity());
+  const { subscribe, set, update } = store;
 
   // Persist to localStorage
   function persist(state: SecurityState) {
@@ -92,14 +93,9 @@ function createSecurityStore() {
 
     // Verify passcode
     async verifyPasscode(passcode: string): Promise<boolean> {
-      return new Promise((resolve) => {
-        const unsubscribe = subscribe((state) => {
-          unsubscribe();
-          hashPasscode(passcode).then((hash) => {
-            resolve(hash === state.passcodeHash);
-          });
-        });
-      });
+      const state = get(store);
+      const hash = await hashPasscode(passcode);
+      return hash === state.passcodeHash;
     },
 
     // Lock the screen
@@ -150,28 +146,18 @@ function createSecurityStore() {
 
     // Check if should lock based on inactivity
     checkInactivity(): boolean {
-      let shouldLock = false;
-      const unsubscribe = subscribe((state) => {
-        unsubscribe();
-        if (!state.passcodeHash || state.isLocked) {
-          shouldLock = false;
-          return;
-        }
-        const elapsed = Date.now() - state.lastActivity;
-        const timeoutMs = state.lockAfterMinutes * 60 * 1000;
-        shouldLock = elapsed >= timeoutMs;
-      });
-      return shouldLock;
+      const state = get(store);
+      if (!state.passcodeHash || state.isLocked) {
+        return false;
+      }
+      const elapsed = Date.now() - state.lastActivity;
+      const timeoutMs = state.lockAfterMinutes * 60 * 1000;
+      return elapsed >= timeoutMs;
     },
 
     // Get current state synchronously
     getState(): SecurityState {
-      let currentState = initialState;
-      const unsubscribe = subscribe((state) => {
-        currentState = state;
-      });
-      unsubscribe();
-      return currentState;
+      return get(store);
     },
   };
 }

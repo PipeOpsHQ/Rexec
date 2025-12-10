@@ -15,7 +15,7 @@ set -e
 #   # or
 #   sudo ./setup.sh                    # Docker + containerd only
 #   sudo ./setup.sh --with-gvisor      # Docker + gVisor sandboxing (recommended)
-#   sudo ./setup.sh --with-gvisor --force-xfs  # Enable XFS with disk quotas (wipes volume data)
+#   sudo ./setup.sh --with-gvisor --force-xfs  # Enable FS with disk quotas (wipes volume data)
 #   sudo ./setup.sh --force-certs      # Regenerate TLS certificates even if valid ones exist
 #
 # Runtime Options (set via OCI_RUNTIME env var in Rexec):
@@ -153,54 +153,54 @@ done
 if [ -n "$ATTACHED_VOLUME" ] && [ -n "$ATTACHED_VOLUME_DEVICE" ]; then
     VOLUME_FS_TYPE=$(df -T "$ATTACHED_VOLUME" --output=fstype 2>/dev/null | tail -1)
     echo -e "${CYAN}Found attached volume: $ATTACHED_VOLUME ($ATTACHED_VOLUME_DEVICE) - $VOLUME_FS_TYPE${NC}"
-    
+
     # Check if Docker is already using this volume
     if [ -L "$DOCKER_DIR" ] && [ "$(readlink -f "$DOCKER_DIR")" = "$ATTACHED_VOLUME/docker" ]; then
         echo -e "${GREEN}✓ Docker already configured to use attached volume${NC}"
     else
         # Docker directory exists - check if we should migrate to XFS volume
         SHOULD_MIGRATE=false
-        
+
         # Check if volume needs to be formatted as XFS
         if [ "$VOLUME_FS_TYPE" != "xfs" ]; then
             echo -e "${YELLOW}Volume is $VOLUME_FS_TYPE, needs XFS for disk quotas${NC}"
-            
+
             # Check if volume is empty or has only lost+found, or if force flag is set
             VOLUME_CONTENTS=$(ls -A "$ATTACHED_VOLUME" 2>/dev/null | grep -v "^lost+found$" | wc -l)
-            
+
             if [ "$FORCE_XFS" = true ]; then
                 echo -e "${YELLOW}Force XFS enabled - will format volume and migrate Docker data...${NC}"
                 SHOULD_MIGRATE=true
-                
+
                 # Stop Docker first
                 echo -e "${CYAN}Stopping Docker...${NC}"
                 systemctl stop docker 2>/dev/null || true
                 sleep 2
-                
+
                 # Unmount the volume
                 umount "$ATTACHED_VOLUME" 2>/dev/null || true
-                
+
                 # Format as XFS with quota support
                 echo -e "${CYAN}Formatting $ATTACHED_VOLUME_DEVICE as XFS...${NC}"
                 if mkfs.xfs -f -m crc=1,finobt=1 "$ATTACHED_VOLUME_DEVICE"; then
                     echo -e "${GREEN}✓ Formatted volume as XFS${NC}"
-                    
+
                     # Update fstab to use XFS with pquota
                     cp /etc/fstab /etc/fstab.backup.$(date +%s)
-                    
+
                     # Get UUID of new XFS filesystem
                     NEW_UUID=$(blkid -s UUID -o value "$ATTACHED_VOLUME_DEVICE" 2>/dev/null)
-                    
+
                     # Remove old entry and add new one
                     sed -i "\|$ATTACHED_VOLUME_DEVICE|d" /etc/fstab
                     sed -i "\|$ATTACHED_VOLUME|d" /etc/fstab
                     echo "UUID=$NEW_UUID $ATTACHED_VOLUME xfs defaults,pquota,nofail 0 2" >> /etc/fstab
-                    
+
                     # Mount with pquota
                     mkdir -p "$ATTACHED_VOLUME"
                     mount -o defaults,pquota "$ATTACHED_VOLUME"
                     echo -e "${GREEN}✓ Mounted volume with pquota support${NC}"
-                    
+
                     VOLUME_FS_TYPE="xfs"
                 else
                     echo -e "${RED}Failed to format volume as XFS${NC}"
@@ -209,29 +209,29 @@ if [ -n "$ATTACHED_VOLUME" ] && [ -n "$ATTACHED_VOLUME_DEVICE" ]; then
             elif [ "$VOLUME_CONTENTS" -eq 0 ]; then
                 echo -e "${CYAN}Volume is empty, formatting as XFS with quota support...${NC}"
                 SHOULD_MIGRATE=true
-                
+
                 # Stop Docker first
                 systemctl stop docker 2>/dev/null || true
-                
+
                 # Unmount the volume
                 umount "$ATTACHED_VOLUME" 2>/dev/null || true
-                
+
                 # Format as XFS with quota support
                 if mkfs.xfs -f -m crc=1,finobt=1 "$ATTACHED_VOLUME_DEVICE"; then
                     echo -e "${GREEN}✓ Formatted volume as XFS${NC}"
-                    
+
                     # Update fstab
                     cp /etc/fstab /etc/fstab.backup.$(date +%s)
                     NEW_UUID=$(blkid -s UUID -o value "$ATTACHED_VOLUME_DEVICE" 2>/dev/null)
                     sed -i "\|$ATTACHED_VOLUME_DEVICE|d" /etc/fstab
                     sed -i "\|$ATTACHED_VOLUME|d" /etc/fstab
                     echo "UUID=$NEW_UUID $ATTACHED_VOLUME xfs defaults,pquota,nofail 0 2" >> /etc/fstab
-                    
+
                     # Mount with pquota
                     mkdir -p "$ATTACHED_VOLUME"
                     mount -o defaults,pquota "$ATTACHED_VOLUME"
                     echo -e "${GREEN}✓ Mounted volume with pquota support${NC}"
-                    
+
                     VOLUME_FS_TYPE="xfs"
                 else
                     echo -e "${RED}Failed to format volume as XFS${NC}"
@@ -248,11 +248,11 @@ if [ -n "$ATTACHED_VOLUME" ] && [ -n "$ATTACHED_VOLUME_DEVICE" ]; then
             # Volume is already XFS
             SHOULD_MIGRATE=true
         fi
-        
+
         # If volume is XFS, migrate Docker to use it
         if [ "$VOLUME_FS_TYPE" = "xfs" ] && [ "$SHOULD_MIGRATE" = true ]; then
             echo -e "${CYAN}Setting up Docker to use XFS volume at $ATTACHED_VOLUME...${NC}"
-            
+
             # Ensure pquota is in fstab
             if ! grep -q "pquota" /etc/fstab || ! grep -q "$ATTACHED_VOLUME" /etc/fstab; then
                 cp /etc/fstab /etc/fstab.backup.$(date +%s)
@@ -262,16 +262,16 @@ if [ -n "$ATTACHED_VOLUME" ] && [ -n "$ATTACHED_VOLUME_DEVICE" ]; then
                 sed -i "\|UUID=$NEW_UUID|d" /etc/fstab
                 echo "UUID=$NEW_UUID $ATTACHED_VOLUME xfs defaults,pquota,nofail 0 2" >> /etc/fstab
             fi
-            
+
             # Ensure mounted with pquota
             if ! mount | grep "$ATTACHED_VOLUME" | grep -q "pquota"; then
                 umount "$ATTACHED_VOLUME" 2>/dev/null || true
                 mount -o defaults,pquota "$ATTACHED_VOLUME"
             fi
-            
+
             # Create Docker directory on volume
             mkdir -p "$ATTACHED_VOLUME/docker"
-            
+
             # Check if Docker dir is already a symlink to the volume
             if [ -L "$DOCKER_DIR" ] && [ "$(readlink -f "$DOCKER_DIR")" = "$ATTACHED_VOLUME/docker" ]; then
                 echo -e "${GREEN}✓ Docker already using XFS volume${NC}"
@@ -280,7 +280,7 @@ if [ -n "$ATTACHED_VOLUME" ] && [ -n "$ATTACHED_VOLUME_DEVICE" ]; then
                 echo -e "${CYAN}Stopping Docker for migration...${NC}"
                 systemctl stop docker 2>/dev/null || true
                 sleep 2
-                
+
                 # Move existing Docker data to volume
                 if [ -d "$DOCKER_DIR" ] && [ ! -L "$DOCKER_DIR" ]; then
                     if [ -n "$(ls -A $DOCKER_DIR 2>/dev/null)" ]; then
@@ -290,7 +290,7 @@ if [ -n "$ATTACHED_VOLUME" ] && [ -n "$ATTACHED_VOLUME_DEVICE" ]; then
                     fi
                     rm -rf "$DOCKER_DIR"
                 fi
-                
+
                 # Create symlink
                 ln -sf "$ATTACHED_VOLUME/docker" "$DOCKER_DIR"
                 echo -e "${GREEN}✓ Docker directory linked to XFS volume with quota support${NC}"
@@ -316,10 +316,10 @@ update_fstab_quota() {
     local device="$1"
     local mount_point="$2"
     local quota_opt="$3"
-    
+
     # Backup fstab
     cp /etc/fstab /etc/fstab.backup.$(date +%s)
-    
+
     # Get the UUID if device is a block device
     local fstab_entry=""
     if [[ "$device" == /dev/* ]]; then
@@ -332,7 +332,7 @@ update_fstab_quota() {
     else
         fstab_entry="$device"
     fi
-    
+
     # Check if entry exists in fstab
     if grep -qE "(^$device|^$fstab_entry|UUID=.*$mount_point)" /etc/fstab 2>/dev/null; then
         # Entry exists - add quota option if not present
@@ -363,21 +363,21 @@ update_fstab_quota() {
 
 if [ -n "$DOCKER_DEVICE" ] && [ "$DOCKER_DEVICE" != "-" ]; then
     echo -e "${CYAN}Docker storage device: $DOCKER_DEVICE mounted at $DOCKER_MOUNT${NC}"
-    
+
     # Check if filesystem supports project quotas (xfs or ext4)
     FS_TYPE=$(df -T "$DOCKER_DIR" --output=fstype 2>/dev/null | tail -1)
     echo -e "${CYAN}Filesystem type: $FS_TYPE${NC}"
-    
+
     # Check current mount options from /proc/mounts (more reliable than mount command)
     CURRENT_OPTS=$(grep " $DOCKER_MOUNT " /proc/mounts 2>/dev/null | awk '{print $4}' || echo "")
     echo -e "${CYAN}Current mount options: $CURRENT_OPTS${NC}"
-    
+
     if echo "$FS_TYPE" | grep -qE "^(xfs|ext4)$"; then
         if echo "$CURRENT_OPTS" | grep -qE "pquota|prjquota"; then
             echo -e "${GREEN}✓ Project quotas already enabled${NC}"
         else
             echo -e "${YELLOW}Enabling project quotas for disk limits...${NC}"
-            
+
             # For XFS, we need to remount with pquota
             if [ "$FS_TYPE" = "xfs" ]; then
                 # Check if pquota is supported (XFS must be formatted with quota support)
@@ -385,12 +385,12 @@ if [ -n "$DOCKER_DEVICE" ] && [ "$DOCKER_DEVICE" != "-" ]; then
                 XFS_INFO=$(xfs_info "$DOCKER_MOUNT" 2>/dev/null || echo "")
                 if echo "$XFS_INFO" | grep -qE "crc=1|crc=enabled"; then
                     echo -e "${CYAN}XFS v5 format detected (quota-ready)${NC}"
-                    
+
                     # First update fstab to ensure persistence
                     if update_fstab_quota "$DOCKER_DEVICE" "$DOCKER_MOUNT" "pquota"; then
                         QUOTA_NEEDS_REBOOT=true
                     fi
-                    
+
                     # Try to enable pquota via remount
                     echo -e "${CYAN}Attempting live remount with pquota...${NC}"
                     if mount -o remount,pquota "$DOCKER_MOUNT" 2>/dev/null; then
@@ -1081,7 +1081,7 @@ WRAPPER
             echo -e "${YELLOW}  Run with --with-gvisor to install gVisor${NC}"
         else
             echo -e "${GREEN}✓ Found runsc at $RUNSC_PATH${NC}"
-            
+
             if [ -n "$RUNTIMES_JSON" ]; then
                 RUNTIMES_JSON="${RUNTIMES_JSON}, "
             fi
@@ -1126,7 +1126,7 @@ WRAPPER
     # Docker overlay2 storage driver needs backing filesystem with pquota/prjquota support
     QUOTA_AVAILABLE=false
     DOCKER_MOUNT=$(df /var/lib/docker --output=target 2>/dev/null | tail -1)
-    
+
     # Check mount options for pquota or prjquota
     if mount | grep " $DOCKER_MOUNT " | grep -qE "pquota|prjquota"; then
         QUOTA_AVAILABLE=true
@@ -1144,7 +1144,7 @@ WRAPPER
 
     # Write daemon config with optional runtimes and storage opts
     # Build the JSON dynamically to handle optional sections
-    
+
     # Determine what optional sections we need to add trailing commas correctly
     HAS_STORAGE_OPTS=false
     HAS_RUNTIMES=false
@@ -1154,7 +1154,7 @@ WRAPPER
     if [ -n "$RUNTIMES_JSON" ]; then
         HAS_RUNTIMES=true
     fi
-    
+
     {
         echo '{'
         echo '  "tls": true,'
@@ -1167,14 +1167,14 @@ WRAPPER
         echo '    "max-size": "10m",'
         echo '    "max-file": "3"'
         echo '  },'
-        
+
         # Add storage-driver with comma if more sections follow
         if [ "$HAS_STORAGE_OPTS" = true ] || [ "$HAS_RUNTIMES" = true ]; then
             echo '  "storage-driver": "overlay2",'
         else
             echo '  "storage-driver": "overlay2"'
         fi
-        
+
         # Add storage-opts if quotas available
         if [ "$HAS_STORAGE_OPTS" = true ]; then
             if [ "$HAS_RUNTIMES" = true ]; then
@@ -1183,17 +1183,17 @@ WRAPPER
                 echo '  "storage-opts": ["overlay2.size=10G"]'
             fi
         fi
-        
+
         # Add runtimes if configured (always last, no trailing comma)
         if [ "$HAS_RUNTIMES" = true ]; then
             echo '  "runtimes": {'
             echo "    ${RUNTIMES_JSON}"
             echo '  }'
         fi
-        
+
         echo '}'
     } > /etc/docker/daemon.json
-    
+
     # Validate JSON syntax
     if command -v jq &> /dev/null; then
         if ! jq . /etc/docker/daemon.json > /dev/null 2>&1; then
@@ -1203,7 +1203,7 @@ WRAPPER
         fi
         echo -e "${GREEN}✓ daemon.json validated${NC}"
     fi
-    
+
     if [ -n "$RUNTIMES_JSON" ]; then
         echo -e "${CYAN}Docker configured with additional runtimes${NC}"
     fi
@@ -1220,21 +1220,21 @@ EOF
     # Stop Docker and clean up before restart
     echo -e "${CYAN}Restarting Docker daemon...${NC}"
     systemctl stop docker.socket docker.service 2>/dev/null || true
-    
+
     # Kill any stale Docker/containerd processes
     pkill -9 dockerd 2>/dev/null || true
     pkill -9 containerd-shim 2>/dev/null || true
     sleep 2
-    
+
     # Clean up stale pid/socket files
     rm -f /var/run/docker.pid /var/run/docker.sock 2>/dev/null || true
-    
+
     # Reset failed state
     systemctl reset-failed docker.service 2>/dev/null || true
-    
+
     # Reload systemd configuration
     systemctl daemon-reload
-    
+
     # Start Docker with timeout to prevent hang
     echo -e "${CYAN}Starting Docker daemon (timeout: 60s)...${NC}"
     if ! timeout 60 systemctl start docker; then
@@ -1262,7 +1262,7 @@ EOF
         fi
         sleep 1
     done
-    
+
     if [ "$DOCKER_READY" = false ]; then
         echo -e "${RED}✗ Docker started but is not responding!${NC}"
         systemctl status docker.service --no-pager -l 2>&1 | head -20 || true
@@ -1366,22 +1366,22 @@ if [ "$USE_PODMAN" != true ]; then
     STORAGE_INFO=$(docker info 2>/dev/null | grep -A5 "Storage Driver")
     echo -e "${CYAN}Storage configuration:${NC}"
     echo "$STORAGE_INFO"
-    
+
     # Check if overlay2.size is in daemon.json
     if grep -q "overlay2.size" /etc/docker/daemon.json 2>/dev/null; then
         echo -e "${GREEN}✓ Storage limit configured in daemon.json${NC}"
-        
+
         # Check mount options for pquota
         DOCKER_MOUNT=$(df /var/lib/docker --output=target 2>/dev/null | tail -1)
         MOUNT_OPTS=$(mount | grep " $DOCKER_MOUNT " | grep -oE '\([^)]+\)' || echo "(unknown)")
         echo -e "${CYAN}Mount options for $DOCKER_MOUNT: $MOUNT_OPTS${NC}"
-        
+
         if echo "$MOUNT_OPTS" | grep -qE "pquota|prjquota"; then
             echo -e "${GREEN}✓ Project quotas enabled in mount options${NC}"
-            
+
             # Test by creating a container with storage limit
             echo -e "${CYAN}Testing disk quota enforcement...${NC}"
-            
+
             # Create a test container with 50MB limit
             TEST_OUTPUT=$(docker run --rm --storage-opt size=50M alpine sh -c 'echo "Quota test passed"' 2>&1)
             if echo "$TEST_OUTPUT" | grep -q "Quota test passed"; then
@@ -1607,7 +1607,7 @@ if [ "$QUOTA_NEEDS_REBOOT" = true ]; then
     echo "  # or for ext4:"
     echo "  mount | grep prjquota"
     echo ""
-    
+
     # Check if running interactively
     if [ -t 0 ]; then
         read -p "Would you like to reboot now to enable disk quotas? (y/N): " REBOOT_NOW
