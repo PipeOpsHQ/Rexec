@@ -26,11 +26,16 @@ BOLD='\033[1m'
 TOKEN=""
 NAME=""
 LABELS=""
+AGENT_ID=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
         --token|-t)
             TOKEN="$2"
+            shift 2
+            ;;
+        --agent-id|-i)
+            AGENT_ID="$2"
             shift 2
             ;;
         --name|-n)
@@ -51,11 +56,12 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: curl -fsSL https://rexec.pipeops.io/install-agent.sh | bash -s -- [OPTIONS]"
             echo ""
             echo "Options:"
-            echo "  --token, -t TOKEN    Agent registration token (required)"
-            echo "  --name, -n NAME      Custom name for this agent (default: hostname)"
-            echo "  --labels, -l LABELS  Comma-separated labels (e.g., 'prod,web,us-east')"
-            echo "  --api URL            Rexec API URL (default: https://rexec.pipeops.io)"
-            echo "  --help, -h           Show this help message"
+            echo "  --token, -t TOKEN      Agent registration token (required)"
+            echo "  --agent-id, -i ID      Pre-registered agent ID (optional)"
+            echo "  --name, -n NAME        Custom name for this agent (default: hostname)"
+            echo "  --labels, -l LABELS    Comma-separated labels (e.g., 'prod,web,us-east')"
+            echo "  --api URL              Rexec API URL (default: https://rexec.pipeops.io)"
+            echo "  --help, -h             Show this help message"
             exit 0
             ;;
         *)
@@ -239,6 +245,7 @@ api_url: ${REXEC_API}
 
 # Agent identification
 token: ${TOKEN}
+agent_id: ${AGENT_ID}
 name: ${NAME}
 labels:
 $(echo "$LABELS" | tr ',' '\n' | sed 's/^/  - /' | grep -v '^  - $')
