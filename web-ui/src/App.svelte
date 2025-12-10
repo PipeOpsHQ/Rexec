@@ -1,6 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { auth, isAuthenticated, isAdmin } from "$stores/auth";
+    import { get } from "svelte/store";
+    import { auth, isAuthenticated, isAdmin, token } from "$stores/auth";
     import {
         containers,
         startAutoRefresh,
@@ -505,7 +506,7 @@
             const agentId = agentMatch[1];
             // Create agent terminal session - fetch agent info first
             try {
-                const authToken = localStorage.getItem("rexec_token");
+                const authToken = get(token);
                 const response = await fetch(`/api/agents/${agentId}/status`, {
                     headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
                 });
