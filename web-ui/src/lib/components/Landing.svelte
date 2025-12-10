@@ -130,6 +130,34 @@
                 <p>Access from any browser, anywhere. SSH support included</p>
             </div>
         </div>
+
+        <div class="cli-section">
+            <div class="cli-header">
+                <StatusIcon status="server" size={20} />
+                <h3>Connect Your Own Machine</h3>
+            </div>
+            <p class="cli-description">
+                Use the rexec agent to connect your own server, VM, or local machine to the rexec dashboard.
+                Or use our CLI with interactive TUI mode.
+            </p>
+            <div class="cli-options">
+                <div class="cli-option">
+                    <span class="cli-label">Agent Install</span>
+                    <code class="cli-code">curl -fsSL https://rexec.pipeops.io/install-agent.sh | bash</code>
+                </div>
+                <div class="cli-option">
+                    <span class="cli-label">CLI Install</span>
+                    <code class="cli-code">brew install rexec/tap/rexec</code>
+                </div>
+                <div class="cli-option">
+                    <span class="cli-label">Interactive TUI</span>
+                    <code class="cli-code">rexec -i</code>
+                </div>
+            </div>
+            <button class="link-btn cli-docs-link" onclick={() => navigateTo('agent-docs')}>
+                <StatusIcon status="book" size={14} /> View Documentation
+            </button>
+        </div>
     </div>
 </div>
 
@@ -407,6 +435,87 @@
         }
     }
 
+    /* CLI Section */
+    .cli-section {
+        margin-top: 48px;
+        padding: 24px;
+        background: linear-gradient(135deg, rgba(13, 17, 23, 0.8) 0%, rgba(22, 27, 34, 0.8) 100%);
+        border: 1px solid var(--border);
+        text-align: left;
+        position: relative;
+    }
+
+    .cli-section::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 3px;
+        height: 100%;
+        background: var(--accent);
+    }
+
+    .cli-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 12px;
+    }
+
+    .cli-header h3 {
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text);
+        margin: 0;
+    }
+
+    .cli-description {
+        font-size: 13px;
+        color: var(--text-muted);
+        line-height: 1.5;
+        margin-bottom: 20px;
+    }
+
+    .cli-options {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .cli-option {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .cli-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+        min-width: 100px;
+        letter-spacing: 0.5px;
+    }
+
+    .cli-code {
+        flex: 1;
+        font-family: var(--font-mono);
+        font-size: 12px;
+        padding: 8px 12px;
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid var(--border);
+        color: var(--accent);
+        white-space: nowrap;
+        overflow-x: auto;
+    }
+
+    .cli-docs-link {
+        display: inline-flex;
+        margin-top: 8px;
+    }
+
     @media (max-width: 768px) {
         h1 {
             font-size: 24px;
@@ -418,6 +527,19 @@
 
         .features {
             grid-template-columns: 1fr;
+        }
+
+        .cli-option {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .cli-label {
+            min-width: auto;
+        }
+
+        .cli-code {
+            width: 100%;
         }
     }
 </style>
