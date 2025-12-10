@@ -1,7 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { isAuthenticated, token } from "../stores/auth";
-    import { login as pipeopsLogin } from "../utils/api";
+    import { isAuthenticated, token, authStore } from "../stores/auth";
 
     let callback = "";
     let isLoggingIn = false;
@@ -27,7 +26,7 @@
         isLoggingIn = true;
         error = "";
         try {
-            await pipeopsLogin();
+            await authStore.oauthLogin();
             // After successful login, check if we need to redirect
             if (callback && $token) {
                 redirectWithToken($token);
