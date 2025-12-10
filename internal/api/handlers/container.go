@@ -64,17 +64,18 @@ func truncateOutput(s string, n int) string {
 
 // ContainerHandler handles container-related HTTP requests
 type ContainerHandler struct {
-	manager   *container.Manager
-	store     *storage.PostgresStore
-	eventsHub *ContainerEventsHub
-	adminEventsHub *admin_events.AdminEventsHub // New field
+	manager        *container.Manager
+	store          *storage.PostgresStore
+	eventsHub      *ContainerEventsHub
+	adminEventsHub *admin_events.AdminEventsHub
+	agentHandler   *AgentHandler // Reference to get online agents
 }
 
 // NewContainerHandler creates a new container handler
 func NewContainerHandler(manager *container.Manager, store *storage.PostgresStore, adminEventsHub *admin_events.AdminEventsHub) *ContainerHandler {
 	return &ContainerHandler{
-		manager: manager,
-		store:   store,
+		manager:        manager,
+		store:          store,
 		adminEventsHub: adminEventsHub,
 	}
 }
@@ -82,6 +83,11 @@ func NewContainerHandler(manager *container.Manager, store *storage.PostgresStor
 // SetEventsHub sets the events hub for real-time notifications
 func (h *ContainerHandler) SetEventsHub(hub *ContainerEventsHub) {
 	h.eventsHub = hub
+}
+
+// SetAgentHandler sets the agent handler reference for getting online agents
+func (h *ContainerHandler) SetAgentHandler(ah *AgentHandler) {
+	h.agentHandler = ah
 }
 
 // List returns all containers for the authenticated user
@@ -154,6 +160,13 @@ func (h *ContainerHandler) List(c *gin.Context) {
 				"disk_mb":    diskMB,
 			},
 		})
+	}
+
+	// Include online agents as virtual containers
+	if h.agentHandler != nil {
+		onlineAgents := h.agentHandler.GetOnlineAgentsForUser(userID)
+		// Prepend agents to containers (agents first)
+		containers = append(onlineAgents, containers...)
 	}
 
 	c.JSON(http.StatusOK, gin.H{

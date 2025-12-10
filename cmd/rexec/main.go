@@ -322,6 +322,9 @@ func runServer() {
 
 	// Initialize agent handler
 	agentHandler := handlers.NewAgentHandler(store)
+	
+	// Connect agent handler to container handler for unified API
+	containerHandler.SetAgentHandler(agentHandler)
 
 	// Setup Gin router
 	router := gin.Default()

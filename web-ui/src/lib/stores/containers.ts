@@ -132,74 +132,27 @@ function createContainersStore() {
         update((state) => ({ ...state, isLoading: true, error: null }));
       }
 
-      // Fetch containers and agents in parallel
-      const [containerResult, agentResult] = await Promise.all([
-        apiCall<{
-          containers: Container[];
-          count: number;
-          limit: number;
-        }>("/api/containers"),
-        apiCall<Array<{
-          id: string;
-          name: string;
-          description?: string;
-          os: string;
-          arch: string;
-          shell: string;
-          status: string;
-          connected_at?: string;
-          system_info?: {
-            num_cpu?: number;
-            memory?: { total?: number };
-            disk?: { total?: number };
-          };
-          stats?: {
-            cpu_percent?: number;
-            memory?: number;
-            memory_limit?: number;
-            disk_usage?: number;
-            disk_limit?: number;
-          };
-        }>>("/api/agents"),
-      ]);
+      // Server now returns both containers AND online agents in one call
+      const { data, error } = await apiCall<{
+        containers: Container[];
+        count: number;
+        limit: number;
+      }>("/api/containers");
 
-      if (containerResult.error) {
-        update((state) => ({ ...state, isLoading: false, error: silent ? state.error : containerResult.error }));
-        return { success: false, error: containerResult.error };
+      if (error) {
+        update((state) => ({ ...state, isLoading: false, error: silent ? state.error : error }));
+        return { success: false, error };
       }
-
-      // Convert online agents to container-like objects
-      const agents = (agentResult.data || [])
-        .filter(agent => agent.status === 'online')
-        .map(agent => ({
-          id: `agent:${agent.id}`,
-          user_id: '',
-          name: agent.name,
-          image: `${agent.os}/${agent.arch}`,
-          status: 'running' as const,
-          created_at: agent.connected_at || new Date().toISOString(),
-          session_type: 'agent',
-          resources: {
-            memory_mb: agent.stats?.memory_limit ? Math.round(agent.stats.memory_limit / 1024 / 1024) : 
-                       (agent.system_info?.memory?.total ? Math.round(agent.system_info.memory.total / 1024 / 1024) : 0),
-            cpu_shares: (agent.system_info?.num_cpu || 1) * 1024,
-            disk_mb: agent.stats?.disk_limit ? Math.round(agent.stats.disk_limit / 1024 / 1024) :
-                     (agent.system_info?.disk?.total ? Math.round(agent.system_info.disk.total / 1024 / 1024) : 0),
-          },
-        } as Container));
-
-      // Combine containers + agents (agents first for visibility)
-      const allTerminals = [...agents, ...(containerResult.data?.containers || [])];
 
       update((state) => ({
         ...state,
-        containers: allTerminals,
-        limit: containerResult.data?.limit || 2,
+        containers: data?.containers || [],
+        limit: data?.limit || 2,
         isLoading: false,
         error: null,
       }));
 
-      return { success: true, containers: allTerminals };
+      return { success: true, containers: data?.containers || [] };
     },
 
     // Get a single container
