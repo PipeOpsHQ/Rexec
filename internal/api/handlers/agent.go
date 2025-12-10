@@ -417,11 +417,15 @@ func (h *AgentHandler) HandleUserWebSocket(c *gin.Context) {
 		})
 	}
 
+	// Check if this is a new session request (for split panes)
+	newSession := c.Query("newSession") == "true"
+
 	// Tell agent to start shell
 	agentConn.conn.WriteJSON(map[string]interface{}{
 		"type": "shell_start",
-		"data": map[string]string{
-			"session_id": sessionID,
+		"data": map[string]interface{}{
+			"session_id":  sessionID,
+			"new_session": newSession, // If true, create new tmux window instead of sharing
 		},
 	})
 

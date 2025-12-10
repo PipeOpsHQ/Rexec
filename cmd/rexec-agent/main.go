@@ -62,12 +62,20 @@ type AgentConfig struct {
 	AutoStart   bool     `json:"auto_start"`
 }
 
+// ShellSession represents a single shell/PTY session
+type ShellSession struct {
+	ID       string
+	Cmd      *exec.Cmd
+	Ptmx     *os.File
+	IsMain   bool // Main session shares tmux, split sessions get new windows
+}
+
 type Agent struct {
 	config     *AgentConfig
 	conn       *websocket.Conn
-	pty        *os.File
-	ptmx       *os.File
-	cmd        *exec.Cmd
+	sessions   map[string]*ShellSession // Multiple shell sessions for split panes
+	mainPtmx   *os.File                 // Main PTY for backwards compatibility
+	mainCmd    *exec.Cmd                // Main command for backwards compatibility
 	mu         sync.Mutex
 	running    bool
 	reconnects int
@@ -701,7 +709,16 @@ func (a *Agent) handleConnection() {
 
 		switch msg.Type {
 		case "shell_start":
-			go a.startShell()
+			var startData struct {
+				SessionID  string `json:"session_id"`
+				NewSession bool   `json:"new_session"`
+			}
+			if err := json.Unmarshal(msg.Data, &startData); err == nil {
+				go a.startShellSession(startData.SessionID, startData.NewSession)
+			} else {
+				// Backwards compatibility - no data means main session
+				go a.startShellSession("main", false)
+			}
 
 		case "shell_input":
 			var input struct {
@@ -709,23 +726,40 @@ func (a *Agent) handleConnection() {
 				Data      []byte `json:"data"`
 			}
 			if err := json.Unmarshal(msg.Data, &input); err == nil {
-				if a.ptmx != nil && len(input.Data) > 0 {
-					a.ptmx.Write(input.Data)
+				a.mu.Lock()
+				// Route input to the right session, or main PTY for backwards compat
+				session := a.sessions[input.SessionID]
+				if session != nil && session.Ptmx != nil && len(input.Data) > 0 {
+					session.Ptmx.Write(input.Data)
+				} else if a.mainPtmx != nil && len(input.Data) > 0 {
+					// Fallback to main PTY
+					a.mainPtmx.Write(input.Data)
 				}
+				a.mu.Unlock()
 			}
 
 		case "shell_resize":
 			var size struct {
-				Cols int `json:"cols"`
-				Rows int `json:"rows"`
+				SessionID string `json:"session_id"`
+				Cols      int    `json:"cols"`
+				Rows      int    `json:"rows"`
 			}
 			if err := json.Unmarshal(msg.Data, &size); err == nil {
-				if a.ptmx != nil {
-					pty.Setsize(a.ptmx, &pty.Winsize{
+				a.mu.Lock()
+				session := a.sessions[size.SessionID]
+				if session != nil && session.Ptmx != nil {
+					pty.Setsize(session.Ptmx, &pty.Winsize{
+						Cols: uint16(size.Cols),
+						Rows: uint16(size.Rows),
+					})
+				} else if a.mainPtmx != nil {
+					// Fallback to main PTY
+					pty.Setsize(a.mainPtmx, &pty.Winsize{
 						Cols: uint16(size.Cols),
 						Rows: uint16(size.Rows),
 					})
 				}
+				a.mu.Unlock()
 			}
 
 		case "shell_stop":
@@ -745,44 +779,69 @@ func (a *Agent) handleConnection() {
 	}
 }
 
-func (a *Agent) startShell() {
+// startShellSession starts a shell session with the given ID
+// If newSession is true, creates a new tmux window instead of sharing main session
+func (a *Agent) startShellSession(sessionID string, newSession bool) {
 	a.mu.Lock()
-	if a.cmd != nil {
+	if a.sessions == nil {
+		a.sessions = make(map[string]*ShellSession)
+	}
+	
+	// Check if session already exists
+	if _, exists := a.sessions[sessionID]; exists {
+		a.mu.Unlock()
+		return
+	}
+	
+	// For main session, check if mainCmd is already running
+	if !newSession && a.mainCmd != nil {
 		a.mu.Unlock()
 		return
 	}
 	a.mu.Unlock()
 
 	// Use tmux for resumable sessions
-	// Check if tmux session exists, attach to it; otherwise create new one
-	sessionName := "rexec-agent"
+	tmuxSessionName := "rexec-agent"
 	
 	// Check if tmux is available, install if not
 	tmuxPath, err := exec.LookPath("tmux")
 	if err != nil {
-		// Try to install tmux
 		log.Printf("%sInstalling tmux...%s", Yellow, Reset)
 		if a.installTmux() {
 			tmuxPath, err = exec.LookPath("tmux")
 		}
 		if err != nil {
 			log.Printf("%sFailed to install tmux, using plain shell%s", Yellow, Reset)
-			a.startPlainShell()
+			a.startPlainShellSession(sessionID)
 			return
 		}
 	}
 
-	// Check if session already exists
-	checkCmd := exec.Command(tmuxPath, "has-session", "-t", sessionName)
-	sessionExists := checkCmd.Run() == nil
+	// Check if tmux session already exists
+	checkCmd := exec.Command(tmuxPath, "has-session", "-t", tmuxSessionName)
+	tmuxSessionExists := checkCmd.Run() == nil
 
 	var cmd *exec.Cmd
-	if sessionExists {
-		// Attach to existing session
-		cmd = exec.Command(tmuxPath, "attach-session", "-t", sessionName)
+	if newSession {
+		// Create a new tmux window for split panes
+		if tmuxSessionExists {
+			// Create new window in existing session
+			windowName := fmt.Sprintf("split-%s", sessionID[:8])
+			cmd = exec.Command(tmuxPath, "new-window", "-t", tmuxSessionName, "-n", windowName)
+			cmd.Run() // Create the window first
+			cmd = exec.Command(tmuxPath, "attach-session", "-t", fmt.Sprintf("%s:%s", tmuxSessionName, windowName))
+		} else {
+			// Create new session with unique name for this split
+			splitSessionName := fmt.Sprintf("rexec-split-%s", sessionID[:8])
+			cmd = exec.Command(tmuxPath, "new-session", "-s", splitSessionName)
+		}
 	} else {
-		// Create new session
-		cmd = exec.Command(tmuxPath, "new-session", "-s", sessionName)
+		// Main session - attach or create main tmux session
+		if tmuxSessionExists {
+			cmd = exec.Command(tmuxPath, "attach-session", "-t", tmuxSessionName)
+		} else {
+			cmd = exec.Command(tmuxPath, "new-session", "-s", tmuxSessionName)
+		}
 	}
 
 	cmd.Env = append(os.Environ(),
@@ -792,17 +851,26 @@ func (a *Agent) startShell() {
 
 	ptmx, err := pty.Start(cmd)
 	if err != nil {
-		// Fallback to plain shell
-		a.startPlainShell()
+		a.startPlainShellSession(sessionID)
 		return
 	}
 
+	session := &ShellSession{
+		ID:     sessionID,
+		Cmd:    cmd,
+		Ptmx:   ptmx,
+		IsMain: !newSession,
+	}
+
 	a.mu.Lock()
-	a.cmd = cmd
-	a.ptmx = ptmx
+	a.sessions[sessionID] = session
+	if !newSession {
+		a.mainCmd = cmd
+		a.mainPtmx = ptmx
+	}
 	a.mu.Unlock()
 
-	a.sendMessage("shell_started", nil)
+	a.sendMessage("shell_started", map[string]string{"session_id": sessionID})
 
 	// Read PTY output and send to WebSocket
 	go func() {
@@ -813,22 +881,42 @@ func (a *Agent) startShell() {
 				break
 			}
 
-			// Send output as string for proper display
 			a.sendMessage("shell_output", map[string]interface{}{
-				"data": buf[:n],
+				"session_id": sessionID,
+				"data":       buf[:n],
 			})
 		}
 
-		a.sendMessage("shell_stopped", nil)
-		a.stopShell()
+		a.sendMessage("shell_stopped", map[string]string{"session_id": sessionID})
+		a.cleanupSession(sessionID)
 	}()
 
-	// Wait for shell to exit
 	cmd.Wait()
 }
 
-// startPlainShell is fallback when tmux is not available
-func (a *Agent) startPlainShell() {
+// cleanupSession removes a session from the map
+func (a *Agent) cleanupSession(sessionID string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	
+	if session, exists := a.sessions[sessionID]; exists {
+		if session.Ptmx != nil {
+			session.Ptmx.Close()
+		}
+		if session.Cmd != nil && session.Cmd.Process != nil {
+			session.Cmd.Process.Kill()
+		}
+		delete(a.sessions, sessionID)
+		
+		if session.IsMain {
+			a.mainCmd = nil
+			a.mainPtmx = nil
+		}
+	}
+}
+
+// startPlainShellSession starts a plain shell for a session (fallback)
+func (a *Agent) startPlainShellSession(sessionID string) {
 	cmd := exec.Command(a.config.Shell, "-l")
 	cmd.Env = append(os.Environ(),
 		"TERM=xterm-256color",
@@ -837,18 +925,28 @@ func (a *Agent) startPlainShell() {
 
 	ptmx, err := pty.Start(cmd)
 	if err != nil {
-		a.sendMessage("shell_error", map[string]string{"error": err.Error()})
+		a.sendMessage("shell_error", map[string]string{"session_id": sessionID, "error": err.Error()})
 		return
 	}
 
+	session := &ShellSession{
+		ID:     sessionID,
+		Cmd:    cmd,
+		Ptmx:   ptmx,
+		IsMain: true,
+	}
+
 	a.mu.Lock()
-	a.cmd = cmd
-	a.ptmx = ptmx
+	if a.sessions == nil {
+		a.sessions = make(map[string]*ShellSession)
+	}
+	a.sessions[sessionID] = session
+	a.mainCmd = cmd
+	a.mainPtmx = ptmx
 	a.mu.Unlock()
 
-	a.sendMessage("shell_started", nil)
+	a.sendMessage("shell_started", map[string]string{"session_id": sessionID})
 
-	// Read PTY output and send to WebSocket
 	go func() {
 		buf := make([]byte, 8192)
 		for {
@@ -858,31 +956,40 @@ func (a *Agent) startPlainShell() {
 			}
 
 			a.sendMessage("shell_output", map[string]interface{}{
-				"data": buf[:n],
+				"session_id": sessionID,
+				"data":       buf[:n],
 			})
 		}
 
-		a.sendMessage("shell_stopped", nil)
-		a.stopShell()
+		a.sendMessage("shell_stopped", map[string]string{"session_id": sessionID})
+		a.cleanupSession(sessionID)
 	}()
 
-	// Wait for shell to exit
 	cmd.Wait()
+}
+
+// Legacy startShell for backwards compatibility
+func (a *Agent) startShell() {
+	a.startShellSession("main", false)
 }
 
 func (a *Agent) stopShell() {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	if a.ptmx != nil {
-		a.ptmx.Close()
-		a.ptmx = nil
+	// Stop all sessions
+	for sessionID, session := range a.sessions {
+		if session.Ptmx != nil {
+			session.Ptmx.Close()
+		}
+		if session.Cmd != nil && session.Cmd.Process != nil {
+			session.Cmd.Process.Kill()
+		}
+		delete(a.sessions, sessionID)
 	}
 
-	if a.cmd != nil && a.cmd.Process != nil {
-		a.cmd.Process.Kill()
-		a.cmd = nil
-	}
+	a.mainPtmx = nil
+	a.mainCmd = nil
 }
 
 // installTmux attempts to install tmux using the system package manager
