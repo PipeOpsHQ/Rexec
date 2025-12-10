@@ -30,7 +30,7 @@
 ARG CACHE_BUST=2025-12-10-v1
 
 # Frontend build stage
-FROM node:20-alpine AS frontend-builder
+FROM node:22-alpine AS frontend-builder
 
 WORKDIR /app/web-ui
 

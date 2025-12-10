@@ -32,6 +32,7 @@
     "vite-plugin-pwa": "^0.21.1"
   },
   "optionalDependencies": {
+    "@rollup/rollup-darwin-arm64": "^4.53.3",
     "@rollup/rollup-darwin-x64": "^4.53.3"
   }
 }
