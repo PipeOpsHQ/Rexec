@@ -436,11 +436,16 @@ func (h *AgentHandler) HandleUserWebSocket(c *gin.Context) {
 			switch msg.Type {
 			case "input":
 				// Forward text input to agent as shell_input
+				// msg.Data is a JSON-encoded string, need to unmarshal it first
+				var inputStr string
+				if err := json.Unmarshal(msg.Data, &inputStr); err != nil {
+					continue
+				}
 				agentConn.conn.WriteJSON(map[string]interface{}{
 					"type": "shell_input",
 					"data": map[string]interface{}{
 						"session_id": sessionID,
-						"data":       []byte(msg.Data),
+						"data":       []byte(inputStr),
 					},
 				})
 
