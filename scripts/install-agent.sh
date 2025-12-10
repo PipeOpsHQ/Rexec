@@ -176,41 +176,42 @@ get_latest_version() {
 
 download_agent() {
     SUFFIX="${PLATFORM}"
-    TEMP_DIR=$(mktemp -d)
-    AGENT_PATH="${TEMP_DIR}/rexec-agent"
+    DOWNLOAD_TEMP_DIR=$(mktemp -d)
+    AGENT_PATH="${DOWNLOAD_TEMP_DIR}/rexec-agent"
 
-    echo -e "${CYAN}Downloading rexec-agent...${NC}"
+    echo -e "${CYAN}Downloading rexec-agent...${NC}" >&2
     
     # Try rexec.pipeops.io first (direct binary hosting)
     AGENT_URL="${REXEC_API}/downloads/rexec-agent-${SUFFIX}"
     if curl -fsSL "$AGENT_URL" -o "$AGENT_PATH" 2>/dev/null; then
-        echo -e "${GREEN}Downloaded from rexec.pipeops.io${NC}"
+        echo -e "${GREEN}Downloaded from rexec.pipeops.io${NC}" >&2
         chmod +x "$AGENT_PATH"
+        echo "$DOWNLOAD_TEMP_DIR"
         return 0
     fi
     
     # Fall back to GitHub releases
     AGENT_URL="https://github.com/${REPO}/releases/download/${VERSION}/rexec-agent-${SUFFIX}"
     if curl -fsSL "$AGENT_URL" -o "$AGENT_PATH" 2>/dev/null; then
-        echo -e "${GREEN}Downloaded from GitHub releases${NC}"
+        echo -e "${GREEN}Downloaded from GitHub releases${NC}" >&2
         chmod +x "$AGENT_PATH"
+        echo "$DOWNLOAD_TEMP_DIR"
         return 0
     fi
     
     # If all else fails, try to build instructions
-    echo -e "${RED}Failed to download rexec-agent${NC}"
-    echo ""
-    echo -e "${YELLOW}The agent binary is not yet available for download.${NC}"
-    echo ""
-    echo "You can build it manually:"
-    echo "  1. Clone: git clone https://github.com/rexec/rexec.git"
-    echo "  2. Build: cd rexec && go build -o rexec-agent ./cmd/rexec-agent"
-    echo "  3. Install: sudo mv rexec-agent /usr/local/bin/"
-    echo ""
-    echo "Or wait for the next release at:"
-    echo "  https://github.com/${REPO}/releases"
+    echo -e "${RED}Failed to download rexec-agent${NC}" >&2
+    echo "" >&2
+    echo -e "${YELLOW}The agent binary is not yet available for download.${NC}" >&2
+    echo "" >&2
+    echo "You can build it manually:" >&2
+    echo "  1. Clone: git clone https://github.com/rexec/rexec.git" >&2
+    echo "  2. Build: cd rexec && go build -o rexec-agent ./cmd/rexec-agent" >&2
+    echo "  3. Install: sudo mv rexec-agent /usr/local/bin/" >&2
+    echo "" >&2
+    echo "Or wait for the next release at:" >&2
+    echo "  https://github.com/${REPO}/releases" >&2
     exit 1
-    echo "$TEMP_DIR"
 }
 
 install_agent() {
