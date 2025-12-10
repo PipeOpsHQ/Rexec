@@ -890,55 +890,49 @@
                             </div>
                         </div>
                         <span class="container-status status-running">
-                            <span class="status-dot"></span>
+                            <span class="status-dot status-dot-pulse"></span>
                             running
                         </span>
                     </div>
 
-                    <!-- Resource Stats -->
-                    {#if agent.stats || agent.system_info}
-                        <div class="container-resources">
-                            <div class="resource-item">
-                                <span class="resource-label">CPU</span>
-                                <span class="resource-value">
-                                    {agent.system_info?.num_cpu || 1} vCPU
-                                    {#if agent.stats?.cpu_percent}
-                                        <span class="resource-usage">({agent.stats.cpu_percent.toFixed(0)}%)</span>
-                                    {/if}
-                                </span>
-                            </div>
-                            <div class="resource-item">
-                                <span class="resource-label">Memory</span>
-                                <span class="resource-value">
-                                    {#if agent.stats?.memory_limit}
-                                        {formatMemory(agent.stats.memory_limit / 1024 / 1024)}
-                                        {#if agent.stats.memory}
-                                            <span class="resource-usage">({((agent.stats.memory / agent.stats.memory_limit) * 100).toFixed(0)}%)</span>
-                                        {/if}
-                                    {:else if agent.system_info?.memory?.total}
-                                        {formatMemory(agent.system_info.memory.total / 1024 / 1024)}
-                                    {:else}
-                                        --
-                                    {/if}
-                                </span>
-                            </div>
-                            <div class="resource-item">
-                                <span class="resource-label">Disk</span>
-                                <span class="resource-value">
-                                    {#if agent.stats?.disk_limit}
-                                        {formatStorage(agent.stats.disk_limit / 1024 / 1024)}
-                                        {#if agent.stats.disk_usage}
-                                            <span class="resource-usage">({((agent.stats.disk_usage / agent.stats.disk_limit) * 100).toFixed(0)}%)</span>
-                                        {/if}
-                                    {:else if agent.system_info?.disk?.total}
-                                        {formatStorage(agent.system_info.disk.total / 1024 / 1024)}
-                                    {:else}
-                                        --
-                                    {/if}
-                                </span>
-                            </div>
-                        </div>
-                    {/if}
+                    <!-- Resource Stats - same format as containers -->
+                    <div class="container-resources">
+                        <span class="resource-spec">
+                            <svg class="resource-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="4" y="4" width="16" height="16" rx="2"/>
+                                <path d="M9 9h6M9 13h6M9 17h6"/>
+                            </svg>
+                            {agent.system_info?.num_cpu || 1} vCPU
+                        </span>
+                        <span class="resource-divider">·</span>
+                        <span class="resource-spec">
+                            <svg class="resource-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M6 19v-3M10 19v-6M14 19v-9M18 19v-12"/>
+                            </svg>
+                            {#if agent.stats?.memory_limit}
+                                {formatMemory(agent.stats.memory_limit / 1024 / 1024)}
+                            {:else if agent.system_info?.memory?.total}
+                                {formatMemory(agent.system_info.memory.total / 1024 / 1024)}
+                            {:else}
+                                --
+                            {/if}
+                        </span>
+                        <span class="resource-divider">·</span>
+                        <span class="resource-spec">
+                            <svg class="resource-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+                                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                            </svg>
+                            {#if agent.stats?.disk_limit}
+                                {formatStorage(agent.stats.disk_limit / 1024 / 1024)}
+                            {:else if agent.system_info?.disk?.total}
+                                {formatStorage(agent.system_info.disk.total / 1024 / 1024)}
+                            {:else}
+                                --
+                            {/if}
+                        </span>
+                    </div>
 
                     <div class="container-meta">
                         <div class="meta-item">
@@ -947,16 +941,6 @@
                                 {agent.connected_at ? formatRelativeTime(agent.connected_at) : 'Just now'}
                             </span>
                         </div>
-                        <div class="meta-item">
-                            <span class="meta-label">Shell</span>
-                            <span class="meta-value">{agent.shell || '/bin/bash'}</span>
-                        </div>
-                        {#if agent.system_info?.hostname}
-                            <div class="meta-item">
-                                <span class="meta-label">Hostname</span>
-                                <span class="meta-value">{agent.system_info.hostname}</span>
-                            </div>
-                        {/if}
                     </div>
 
                     <div class="container-actions">
@@ -1511,6 +1495,22 @@
 
     .status-running .status-dot {
         background: var(--green);
+    }
+
+    .status-dot-pulse {
+        animation: pulse-green 2s infinite;
+    }
+
+    @keyframes pulse-green {
+        0% {
+            box-shadow: 0 0 0 0 rgba(0, 255, 65, 0.7);
+        }
+        70% {
+            box-shadow: 0 0 0 6px rgba(0, 255, 65, 0);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(0, 255, 65, 0);
+        }
     }
 
     .status-stopped {

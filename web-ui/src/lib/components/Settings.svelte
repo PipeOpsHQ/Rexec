@@ -480,40 +480,59 @@
       {:else}
         <div class="agents-list">
           {#each $agents.agents as agent}
-            <div class="agent-card">
-              <div class="agent-status">
-                <span class="status-dot" style="background: {getStatusColor(agent.status)}"></span>
-                <span class="status-text">{agent.status}</span>
+            <div class="agent-card" class:agent-online={agent.status === 'online'}>
+              <div class="agent-header">
+                <div class="agent-status">
+                  <span 
+                    class="status-dot" 
+                    class:status-dot-pulse={agent.status === 'online'}
+                    style="background: {getStatusColor(agent.status)}"
+                  ></span>
+                  <span class="status-text">{agent.status}</span>
+                </div>
+                <div class="agent-actions">
+                  {#if agent.status === 'online'}
+                    <button 
+                      class="btn btn-sm btn-primary" 
+                      title="Connect to terminal"
+                      onclick={() => handleConnectAgent(agent)}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="4 17 10 11 4 5"></polyline>
+                        <line x1="12" y1="19" x2="20" y2="19"></line>
+                      </svg>
+                      Connect
+                    </button>
+                  {/if}
+                  <button class="btn btn-icon btn-sm btn-danger-subtle" title="Delete agent" onclick={() => handleDeleteAgent(agent.id)}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="3 6 5 6 21 6"></polyline>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                  </button>
+                </div>
               </div>
-              <div class="agent-info">
+              <div class="agent-body">
                 <span class="agent-name">{agent.name}</span>
                 {#if agent.description}
                   <span class="agent-desc">{agent.description}</span>
                 {/if}
-                <span class="agent-meta">
-                  {agent.os || 'Unknown OS'} • {agent.arch || 'Unknown Arch'}
-                </span>
               </div>
-              <div class="agent-actions">
-                {#if agent.status === 'online'}
-                  <button 
-                    class="btn btn-sm btn-primary" 
-                    title="Connect to terminal"
-                    onclick={() => handleConnectAgent(agent)}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <polyline points="4 17 10 11 4 5"></polyline>
-                      <line x1="12" y1="19" x2="20" y2="19"></line>
-                    </svg>
-                    Connect
-                  </button>
+              <div class="agent-details">
+                <div class="agent-detail-item">
+                  <span class="detail-label">Platform</span>
+                  <span class="detail-value">{agent.os || 'Unknown'}/{agent.arch || 'Unknown'}</span>
+                </div>
+                <div class="agent-detail-item">
+                  <span class="detail-label">Shell</span>
+                  <span class="detail-value">{agent.shell || '/bin/bash'}</span>
+                </div>
+                {#if agent.connected_at}
+                  <div class="agent-detail-item">
+                    <span class="detail-label">Connected</span>
+                    <span class="detail-value">{new Date(agent.connected_at).toLocaleString()}</span>
+                  </div>
                 {/if}
-                <button class="btn btn-icon btn-sm" title="Delete agent" onclick={() => handleDeleteAgent(agent.id)}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="3 6 5 6 21 6"></polyline>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                  </svg>
-                </button>
               </div>
             </div>
           {/each}
@@ -1112,29 +1131,59 @@
 
   .agent-card {
     display: flex;
-    align-items: center;
+    flex-direction: column;
     gap: 12px;
-    padding: 12px 16px;
+    padding: 16px;
     background: var(--bg-secondary);
     border: 1px solid var(--border);
+    border-radius: 8px;
     transition: border-color 0.2s;
   }
 
   .agent-card:hover {
+    border-color: var(--border-hover);
+  }
+
+  .agent-card.agent-online {
+    border-color: rgba(0, 255, 65, 0.3);
+  }
+
+  .agent-card.agent-online:hover {
     border-color: var(--accent);
+  }
+
+  .agent-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
   }
 
   .agent-status {
     display: flex;
     align-items: center;
     gap: 6px;
-    min-width: 80px;
   }
 
   .status-dot {
     width: 8px;
     height: 8px;
     border-radius: 50%;
+  }
+
+  .status-dot-pulse {
+    animation: pulse-green 2s infinite;
+  }
+
+  @keyframes pulse-green {
+    0% {
+      box-shadow: 0 0 0 0 rgba(0, 255, 65, 0.7);
+    }
+    70% {
+      box-shadow: 0 0 0 6px rgba(0, 255, 65, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(0, 255, 65, 0);
+    }
   }
 
   .status-text {
@@ -1144,40 +1193,62 @@
     color: var(--text-muted);
   }
 
-  .agent-info {
-    flex: 1;
+  .agent-body {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    min-width: 0;
+    gap: 4px;
   }
 
   .agent-name {
-    font-size: 13px;
-    font-weight: 500;
+    font-size: 14px;
+    font-weight: 600;
     color: var(--text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 
   .agent-desc {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--text-secondary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 
-  .agent-meta {
+  .agent-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .agent-detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .detail-label {
     font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
     color: var(--text-muted);
+  }
+
+  .detail-value {
+    font-size: 12px;
+    color: var(--text);
     font-family: var(--font-mono);
   }
 
   .agent-actions {
     display: flex;
     gap: 8px;
+  }
+
+  .btn-danger-subtle {
+    color: var(--text-muted);
+  }
+
+  .btn-danger-subtle:hover {
+    color: var(--red, #ff6b6b);
+    border-color: var(--red, #ff6b6b);
   }
 
   .btn-icon {
