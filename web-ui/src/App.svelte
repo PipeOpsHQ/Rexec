@@ -363,8 +363,8 @@
             return;
         }
 
-        // Check for /docs/agent route
-        if (path === "/docs/agent") {
+        // Check for /docs/agent or /agents route
+        if (path === "/docs/agent" || path === "/agents") {
             currentView = "agent-docs";
             return;
         }
@@ -435,6 +435,8 @@
             "/settings",
             "/sshkeys",
             "/promo",
+            "/agents",
+            "/docs/agent",
         ];
         const isKnownPath =
             knownPaths.includes(path) ||
@@ -613,19 +615,8 @@
     }
 
     function goToAgents() {
-        currentView = "settings";
-        // Scroll to agents section after view updates
-        setTimeout(() => {
-            const agentsSection = document.querySelector('.settings-section h2');
-            if (agentsSection) {
-                const sections = document.querySelectorAll('.settings-section h2');
-                sections.forEach(section => {
-                    if (section.textContent === 'Agents') {
-                        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }
-                });
-            }
-        }, 100);
+        currentView = "agent-docs";
+        window.history.pushState({}, "", "/agents");
     }
 
     function goToBilling() {
@@ -683,6 +674,10 @@
             }
         } else if (path === "/snippets") {
             currentView = $isAuthenticated ? "snippets" : "landing";
+        } else if (path === "/agents" || path === "/docs/agent") {
+            currentView = "agent-docs";
+        } else if (path === "/marketplace") {
+            currentView = "marketplace";
         }
     }
 </script>
