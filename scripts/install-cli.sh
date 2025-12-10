@@ -1,9 +1,14 @@
 #!/bin/bash
 # Rexec CLI Installer
-# Usage: curl -fsSL https://raw.githubusercontent.com/rexec/rexec/main/scripts/install-cli.sh | bash
+# Usage: curl -fsSL https://rexec.pipeops.io/install-cli.sh | bash
+#
+# This script installs the rexec CLI tool for managing cloud terminals
+# from your local machine.
 
 set -e
 
+# Configuration
+REXEC_API="${REXEC_API:-https://rexec.pipeops.io}"
 REPO="rexec/rexec"
 INSTALL_DIR="/usr/local/bin"
 
@@ -67,10 +72,15 @@ detect_platform() {
 
 get_latest_version() {
     echo -e "${CYAN}Fetching latest version...${NC}"
-    VERSION=$(curl -s "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+    # Try GitHub releases first
+    VERSION=$(curl -s "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
     
     if [ -z "$VERSION" ]; then
-        echo -e "${YELLOW}Could not fetch latest version, using v1.0.0${NC}"
+        # Try rexec API for version
+        VERSION=$(curl -s "${REXEC_API}/api/version" 2>/dev/null | grep -o '"version":"[^"]*"' | cut -d'"' -f4)
+    fi
+    
+    if [ -z "$VERSION" ]; then
         VERSION="v1.0.0"
     fi
     
@@ -83,33 +93,61 @@ download_binaries() {
         SUFFIX="${SUFFIX}.exe"
     fi
 
-    CLI_URL="https://github.com/${REPO}/releases/download/${VERSION}/rexec-cli-${SUFFIX}"
-    TUI_URL="https://github.com/${REPO}/releases/download/${VERSION}/rexec-tui-${SUFFIX}"
-
     TEMP_DIR=$(mktemp -d)
     CLI_PATH="${TEMP_DIR}/rexec"
-    TUI_PATH="${TEMP_DIR}/rexec-tui"
 
     if [ "$OS" = "windows" ]; then
         CLI_PATH="${CLI_PATH}.exe"
-        TUI_PATH="${TUI_PATH}.exe"
     fi
 
-    echo -e "${CYAN}Downloading rexec-cli...${NC}"
-    if ! curl -fsSL "$CLI_URL" -o "$CLI_PATH"; then
-        echo -e "${RED}Failed to download rexec-cli${NC}"
-        exit 1
+    echo -e "${CYAN}Downloading rexec-cli...${NC}" >&2
+    
+    # Try GitHub releases first (most reliable for releases)
+    CLI_URL="https://github.com/${REPO}/releases/download/${VERSION}/rexec-cli-${SUFFIX}"
+    if curl -fsSL "$CLI_URL" -o "$CLI_PATH" 2>/dev/null; then
+        # Verify it's a binary, not an HTML error page
+        if file "$CLI_PATH" | grep -qE 'executable|ELF|Mach-O'; then
+            echo -e "${GREEN}Downloaded from GitHub releases${NC}" >&2
+            chmod +x "$CLI_PATH"
+            echo "$TEMP_DIR"
+            return 0
+        fi
     fi
-
-    echo -e "${CYAN}Downloading rexec-tui...${NC}"
-    if ! curl -fsSL "$TUI_URL" -o "$TUI_PATH"; then
-        echo -e "${YELLOW}Failed to download rexec-tui (optional)${NC}"
+    
+    # Try rexec.pipeops.io (direct binary hosting)
+    CLI_URL="${REXEC_API}/downloads/rexec-cli-${SUFFIX}"
+    if curl -fsSL "$CLI_URL" -o "$CLI_PATH" 2>/dev/null; then
+        # Verify it's a binary, not an HTML error page
+        if file "$CLI_PATH" | grep -qE 'executable|ELF|Mach-O'; then
+            echo -e "${GREEN}Downloaded from rexec.pipeops.io${NC}" >&2
+            chmod +x "$CLI_PATH"
+            echo "$TEMP_DIR"
+            return 0
+        fi
     fi
-
-    chmod +x "$CLI_PATH" 2>/dev/null || true
-    chmod +x "$TUI_PATH" 2>/dev/null || true
-
-    echo "$TEMP_DIR"
+    
+    # If all else fails, provide build instructions
+    echo "" >&2
+    echo -e "${RED}═══════════════════════════════════════════════════════════${NC}" >&2
+    echo -e "${RED}  CLI binary not available for download${NC}" >&2
+    echo -e "${RED}═══════════════════════════════════════════════════════════${NC}" >&2
+    echo "" >&2
+    echo -e "${YELLOW}The CLI binary hasn't been released yet for ${PLATFORM}.${NC}" >&2
+    echo "" >&2
+    echo -e "${BOLD}Option 1: Build from source${NC}" >&2
+    echo "" >&2
+    echo "  # Install Go 1.21+ if not installed" >&2
+    echo "  git clone https://github.com/${REPO}.git" >&2
+    echo "  cd rexec" >&2
+    echo "  go build -o rexec ./cmd/rexec-cli" >&2
+    echo "  sudo mv rexec /usr/local/bin/" >&2
+    echo "  sudo chmod +x /usr/local/bin/rexec" >&2
+    echo "" >&2
+    echo -e "${BOLD}Option 2: Wait for release${NC}" >&2
+    echo "  Check: https://github.com/${REPO}/releases" >&2
+    echo "" >&2
+    rm -rf "$TEMP_DIR"
+    exit 1
 }
 
 install_binaries() {
@@ -127,10 +165,8 @@ install_binaries() {
 
     if [ "$OS" = "windows" ]; then
         $SUDO mv "${TEMP_DIR}/rexec.exe" "${INSTALL_DIR}/rexec.exe"
-        [ -f "${TEMP_DIR}/rexec-tui.exe" ] && $SUDO mv "${TEMP_DIR}/rexec-tui.exe" "${INSTALL_DIR}/rexec-tui.exe"
     else
         $SUDO mv "${TEMP_DIR}/rexec" "${INSTALL_DIR}/rexec"
-        [ -f "${TEMP_DIR}/rexec-tui" ] && $SUDO mv "${TEMP_DIR}/rexec-tui" "${INSTALL_DIR}/rexec-tui"
     fi
 
     rm -rf "$TEMP_DIR"
@@ -167,7 +203,7 @@ show_next_steps() {
     echo -e "  5. Launch interactive TUI:"
     echo -e "     ${CYAN}rexec -i${NC}"
     echo ""
-    echo -e "${BOLD}Documentation:${NC} https://rexec.pipeops.io/docs"
+    echo -e "${BOLD}Documentation:${NC} https://rexec.pipeops.io/agents"
     echo ""
 }
 
