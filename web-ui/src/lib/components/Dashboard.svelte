@@ -1271,7 +1271,6 @@
         box-shadow: 0 0 12px rgba(168, 85, 247, 0.3);
     }
 
-    .agent-badge {
     .agent-env {
         background: rgba(168, 85, 247, 0.15);
         border-color: rgba(168, 85, 247, 0.3);
