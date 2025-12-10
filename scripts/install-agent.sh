@@ -181,36 +181,51 @@ download_agent() {
 
     echo -e "${CYAN}Downloading rexec-agent...${NC}" >&2
     
-    # Try rexec.pipeops.io first (direct binary hosting)
-    AGENT_URL="${REXEC_API}/downloads/rexec-agent-${SUFFIX}"
-    if curl -fsSL "$AGENT_URL" -o "$AGENT_PATH" 2>/dev/null; then
-        echo -e "${GREEN}Downloaded from rexec.pipeops.io${NC}" >&2
-        chmod +x "$AGENT_PATH"
-        echo "$DOWNLOAD_TEMP_DIR"
-        return 0
-    fi
-    
-    # Fall back to GitHub releases
+    # Try GitHub releases first (most reliable for releases)
     AGENT_URL="https://github.com/${REPO}/releases/download/${VERSION}/rexec-agent-${SUFFIX}"
     if curl -fsSL "$AGENT_URL" -o "$AGENT_PATH" 2>/dev/null; then
-        echo -e "${GREEN}Downloaded from GitHub releases${NC}" >&2
-        chmod +x "$AGENT_PATH"
-        echo "$DOWNLOAD_TEMP_DIR"
-        return 0
+        # Verify it's a binary, not an HTML error page
+        if file "$AGENT_PATH" | grep -qE 'executable|ELF|Mach-O'; then
+            echo -e "${GREEN}Downloaded from GitHub releases${NC}" >&2
+            chmod +x "$AGENT_PATH"
+            echo "$DOWNLOAD_TEMP_DIR"
+            return 0
+        fi
     fi
     
-    # If all else fails, try to build instructions
-    echo -e "${RED}Failed to download rexec-agent${NC}" >&2
+    # Try rexec.pipeops.io (direct binary hosting)
+    AGENT_URL="${REXEC_API}/downloads/rexec-agent-${SUFFIX}"
+    if curl -fsSL "$AGENT_URL" -o "$AGENT_PATH" 2>/dev/null; then
+        # Verify it's a binary, not an HTML error page
+        if file "$AGENT_PATH" | grep -qE 'executable|ELF|Mach-O'; then
+            echo -e "${GREEN}Downloaded from rexec.pipeops.io${NC}" >&2
+            chmod +x "$AGENT_PATH"
+            echo "$DOWNLOAD_TEMP_DIR"
+            return 0
+        fi
+    fi
+    
+    # If all else fails, provide build instructions
     echo "" >&2
-    echo -e "${YELLOW}The agent binary is not yet available for download.${NC}" >&2
+    echo -e "${RED}═══════════════════════════════════════════════════════════${NC}" >&2
+    echo -e "${RED}  Agent binary not available for download${NC}" >&2
+    echo -e "${RED}═══════════════════════════════════════════════════════════${NC}" >&2
     echo "" >&2
-    echo "You can build it manually:" >&2
-    echo "  1. Clone: git clone https://github.com/rexec/rexec.git" >&2
-    echo "  2. Build: cd rexec && go build -o rexec-agent ./cmd/rexec-agent" >&2
-    echo "  3. Install: sudo mv rexec-agent /usr/local/bin/" >&2
+    echo -e "${YELLOW}The agent binary hasn't been released yet for ${PLATFORM}.${NC}" >&2
     echo "" >&2
-    echo "Or wait for the next release at:" >&2
-    echo "  https://github.com/${REPO}/releases" >&2
+    echo -e "${BOLD}Option 1: Build from source${NC}" >&2
+    echo "" >&2
+    echo "  # Install Go 1.21+ if not installed" >&2
+    echo "  git clone https://github.com/${REPO}.git" >&2
+    echo "  cd rexec" >&2
+    echo "  go build -o rexec-agent ./cmd/rexec-agent" >&2
+    echo "  sudo mv rexec-agent /usr/local/bin/" >&2
+    echo "  sudo chmod +x /usr/local/bin/rexec-agent" >&2
+    echo "" >&2
+    echo -e "${BOLD}Option 2: Wait for release${NC}" >&2
+    echo "  Check: https://github.com/${REPO}/releases" >&2
+    echo "" >&2
+    rm -rf "$DOWNLOAD_TEMP_DIR"
     exit 1
 }
 
@@ -280,7 +295,7 @@ setup_systemd() {
     cat > "${SERVICE_DIR}/rexec-agent.service" << EOF
 [Unit]
 Description=Rexec Agent - Cloud Terminal Connection
-Documentation=https://rexec.pipeops.io/docs/agents
+Documentation=https://rexec.pipeops.io/agents
 After=network-online.target
 Wants=network-online.target
 
@@ -508,7 +523,7 @@ show_next_steps() {
     echo -e "  ${CYAN}curl -fsSL https://rexec.pipeops.io/install-agent.sh | sudo bash -s -- --uninstall${NC}"
     echo ""
     echo -e "${BOLD}Dashboard:${NC} ${CYAN}https://rexec.pipeops.io${NC}"
-    echo -e "${BOLD}Documentation:${NC} ${CYAN}https://rexec.pipeops.io/docs/agents${NC}"
+    echo -e "${BOLD}Documentation:${NC} ${CYAN}https://rexec.pipeops.io/agents${NC}"
     echo ""
 }
 

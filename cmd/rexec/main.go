@@ -615,6 +615,38 @@ func runServer() {
 			c.File(filepath.Join(scriptsDir, "install-agent.sh"))
 		})
 
+		// Serve downloadable binaries (agent, cli)
+		downloadsDir := os.Getenv("DOWNLOADS_DIR")
+		if downloadsDir == "" {
+			downloadsDir = "downloads"
+		}
+		if _, err := os.Stat(downloadsDir); err == nil {
+			router.GET("/downloads/:filename", func(c *gin.Context) {
+				filename := c.Param("filename")
+				// Security: only allow specific filenames
+				allowedPrefixes := []string{"rexec-agent-", "rexec-cli-", "rexec-"}
+				allowed := false
+				for _, prefix := range allowedPrefixes {
+					if len(filename) > len(prefix) && filename[:len(prefix)] == prefix {
+						allowed = true
+						break
+					}
+				}
+				if !allowed {
+					c.JSON(404, gin.H{"error": "File not found"})
+					return
+				}
+				filePath := filepath.Join(downloadsDir, filename)
+				if _, err := os.Stat(filePath); os.IsNotExist(err) {
+					c.JSON(404, gin.H{"error": "Binary not found. Please build from source or wait for release."})
+					return
+				}
+				c.Header("Content-Type", "application/octet-stream")
+				c.Header("Content-Disposition", "attachment; filename="+filename)
+				c.File(filePath)
+			})
+		}
+
 		// SPA routes - serve index.html for client-side routing
 		router.GET("/guides", func(c *gin.Context) {
 			c.File(indexFile)
