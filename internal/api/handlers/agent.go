@@ -293,12 +293,25 @@ func (h *AgentHandler) HandleAgentWebSocket(c *gin.Context) {
 
 		switch msg.Type {
 		case "shell_output":
-			// Forward to all connected user sessions
-			agentConn.sessionsMu.RLock()
-			for _, session := range agentConn.sessions {
-				session.UserConn.WriteMessage(websocket.BinaryMessage, msg.Data)
+			// Forward to all connected user sessions in the format the frontend expects
+			var outputData struct {
+				Data json.RawMessage `json:"data"`
 			}
-			agentConn.sessionsMu.RUnlock()
+			if err := json.Unmarshal(msg.Data, &outputData); err == nil {
+				// Convert bytes to string for the frontend
+				var rawBytes []byte
+				if err := json.Unmarshal(outputData.Data, &rawBytes); err == nil {
+					outputMsg := map[string]interface{}{
+						"type": "output",
+						"data": string(rawBytes),
+					}
+					agentConn.sessionsMu.RLock()
+					for _, session := range agentConn.sessions {
+						session.UserConn.WriteJSON(outputMsg)
+					}
+					agentConn.sessionsMu.RUnlock()
+				}
+			}
 
 		case "shell_started", "shell_stopped", "shell_error":
 			// Forward status to sessions
