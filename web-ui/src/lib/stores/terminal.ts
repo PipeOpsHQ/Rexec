@@ -743,9 +743,15 @@ function createTerminalStore() {
         }
       };
 
-      ws.onmessage = (event) => {
+      ws.onmessage = async (event) => {
+        // Handle Blob data from WebSocket (common with agent connections)
+        let eventData = event.data;
+        if (eventData instanceof Blob) {
+          eventData = await eventData.text();
+        }
+
         try {
-          const msg = JSON.parse(event.data);
+          const msg = JSON.parse(eventData);
           if (msg.type === "output") {
             const data = msg.data as string;
 
@@ -889,7 +895,7 @@ function createTerminalStore() {
           }
         } catch {
           // Raw data fallback - also buffer this
-          outputBuffer += event.data;
+          outputBuffer += eventData;
           if (outputBuffer.length >= OUTPUT_MAX_BUFFER) {
             if (flushTimeout) clearTimeout(flushTimeout);
             if (rafId) cancelAnimationFrame(rafId);
@@ -2027,9 +2033,15 @@ function createTerminalStore() {
         }
       };
 
-      ws.onmessage = (event) => {
+      ws.onmessage = async (event) => {
+        // Handle Blob data from WebSocket (common with agent connections)
+        let eventData = event.data;
+        if (eventData instanceof Blob) {
+          eventData = await eventData.text();
+        }
+
         try {
-          const msg = JSON.parse(event.data);
+          const msg = JSON.parse(eventData);
           if (msg.type === "output") {
             const data = msg.data as string;
 
@@ -2053,7 +2065,7 @@ function createTerminalStore() {
             ws.send(JSON.stringify({ type: "pong" }));
           }
         } catch {
-          outputBuffer += event.data;
+          outputBuffer += eventData;
           if (outputBuffer.length >= OUTPUT_MAX_BUFFER) {
             if (flushTimeout) clearTimeout(flushTimeout);
             if (rafId) cancelAnimationFrame(rafId);
