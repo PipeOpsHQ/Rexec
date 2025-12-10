@@ -19,6 +19,7 @@
         sshkeys: void;
         snippets: void;
         billing: void;
+        agents: void;
         guest: void;
         pricing: void;
         guides: void;
@@ -285,6 +286,24 @@
                         >
                             <StatusIcon status="key" size={14} />
                             SSH Keys
+                            {#if $isGuest}<span class="lock-icon"><StatusIcon status="lock" size={12} /></span>{/if}
+                        </button>
+                        <button
+                            class="user-menu-item"
+                            class:disabled={$isGuest}
+                            disabled={$isGuest}
+                            title={$isGuest
+                                ? "Sign in with PipeOps to access Agents"
+                                : ""}
+                            onclick={() => {
+                                if (!$isGuest) {
+                                    showUserMenu = false;
+                                    dispatch("agents");
+                                }
+                            }}
+                        >
+                            <StatusIcon status="server" size={14} />
+                            Agents
                             {#if $isGuest}<span class="lock-icon"><StatusIcon status="lock" size={12} /></span>{/if}
                         </button>
                         <button

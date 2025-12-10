@@ -612,6 +612,22 @@
         window.history.pushState({}, "", "/marketplace");
     }
 
+    function goToAgents() {
+        currentView = "settings";
+        // Scroll to agents section after view updates
+        setTimeout(() => {
+            const agentsSection = document.querySelector('.settings-section h2');
+            if (agentsSection) {
+                const sections = document.querySelectorAll('.settings-section h2');
+                sections.forEach(section => {
+                    if (section.textContent === 'Agents') {
+                        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                });
+            }
+        }, 100);
+    }
+
     function goToBilling() {
         currentView = "billing";
         window.history.pushState({}, "", "/billing");
@@ -687,6 +703,7 @@
             on:sshkeys={goToSSHKeys}
             on:snippets={goToSnippets}
             on:billing={goToBilling}
+            on:agents={goToAgents}
             on:guest={openGuestModal}
             on:pricing={() => {
                 currentView = "pricing";
