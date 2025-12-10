@@ -353,7 +353,7 @@
             {/if}
             <button
                 class="btn btn-secondary btn-sm"
-                onclick={toggleShortcuts}
+                on:click={toggleShortcuts}
                 title="Keyboard Shortcuts"
             >
                 <svg
@@ -372,7 +372,7 @@
             </button>
             <button
                 class="btn btn-secondary btn-sm"
-                onclick={() => containers.fetchContainers()}
+                on:click={() => containers.fetchContainers()}
             >
                 <svg
                     class="icon"
@@ -389,7 +389,7 @@
             </button>
             <button
                 class="btn btn-secondary btn-sm"
-                onclick={() => dispatch("showAgentDocs")}
+                on:click={() => dispatch("showAgentDocs")}
                 title="Connect your own machine"
             >
                 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -401,7 +401,7 @@
             </button>
             <button
                 class="btn btn-primary"
-                onclick={() => dispatch("create")}
+                on:click={() => dispatch("create")}
                 disabled={effectiveCount >= containerLimit || currentlyCreating}
             >
                 {#if currentlyCreating}
@@ -452,7 +452,7 @@
             </p>
             <button
                 class="btn btn-primary btn-lg"
-                onclick={() => dispatch("create")}
+                on:click={() => dispatch("create")}
             >
                 <svg
                     class="icon"
@@ -657,7 +657,7 @@
                                 {#if !containerConnected && !isConnecting(container.id)}
                                     <button
                                         class="btn btn-primary btn-sm flex-1"
-                                        onclick={() =>
+                                        on:click={() =>
                                             handleConnect(container)}
                                         disabled={isContainerLoading(container.id)}
                                     >
@@ -707,7 +707,7 @@
                                 <button
                                     class="btn btn-icon btn-sm"
                                     title="Settings"
-                                    onclick={() => openSettings(container)}
+                                    on:click={() => openSettings(container)}
                                     disabled={isContainerLoading(container.id)}
                                 >
                                     <svg
@@ -725,7 +725,7 @@
                             <div class="action-row">
                                 <button
                                     class="btn btn-secondary btn-sm flex-1"
-                                    onclick={() => handleStop(container)}
+                                    on:click={() => handleStop(container)}
                                     disabled={isContainerLoading(container.id)}
                                 >
                                     <svg
@@ -746,7 +746,7 @@
                                 </button>
                                 <button
                                     class="btn btn-danger btn-sm flex-1"
-                                    onclick={() => handleDelete(container)}
+                                    on:click={() => handleDelete(container)}
                                     disabled={getLoadingState(container.id) === 'deleting'}
                                 >
                                     <svg
@@ -767,7 +767,7 @@
                             <div class="action-row">
                                 <button
                                     class="btn btn-primary btn-sm flex-1"
-                                    onclick={() => handleStart(container)}
+                                    on:click={() => handleStart(container)}
                                     disabled={isContainerLoading(container.id)}
                                 >
                                     <svg
@@ -783,7 +783,7 @@
                                 </button>
                                 <button
                                     class="btn btn-danger btn-sm flex-1"
-                                    onclick={() => handleDelete(container)}
+                                    on:click={() => handleDelete(container)}
                                     disabled={getLoadingState(container.id) === 'deleting'}
                                 >
                                     <svg
@@ -804,7 +804,7 @@
                             <div class="action-row">
                                 <button
                                     class="btn btn-danger btn-sm flex-1"
-                                    onclick={() => handleDelete(container)}
+                                    on:click={() => handleDelete(container)}
                                     disabled={getLoadingState(container.id) === 'deleting'}
                                 >
                                     <svg
@@ -840,11 +840,11 @@
 </div>
 
 {#if showShortcutsModal}
-    <div class="modal-backdrop" onclick={toggleShortcuts}>
-        <div class="modal-content shortcuts-modal" onclick={(e) => e.stopPropagation()}>
+    <div class="modal-backdrop" on:click={toggleShortcuts}>
+        <div class="modal-content shortcuts-modal" on:click={(e) => e.stopPropagation()}>
             <div class="modal-header">
                 <h3>Keyboard Shortcuts</h3>
-                <button class="close-btn" onclick={toggleShortcuts}>×</button>
+                <button class="close-btn" on:click={toggleShortcuts}>×</button>
             </div>
             <div class="shortcuts-list">
                 <div class="shortcut-group">

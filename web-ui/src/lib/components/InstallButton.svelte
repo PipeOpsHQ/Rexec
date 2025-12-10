@@ -24,7 +24,7 @@
 {#if $canInstall}
   <button
     class="install-button"
-    onclick={handleInstall}
+    on:click={handleInstall}
     disabled={installing}
     title="Install Rexec as an app"
   >

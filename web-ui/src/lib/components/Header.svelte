@@ -136,20 +136,20 @@
     }
 </script>
 
-<svelte:window onclick={closeUserMenu} />
+<svelte:window on:click={closeUserMenu} />
 
 <header class="header">
-    <button class="mobile-menu-btn" onclick={toggleMobileMenu}>
+    <button class="mobile-menu-btn" on:click={toggleMobileMenu}>
         <StatusIcon status="menu" size={20} />
     </button>
 
-    <button class="logo" onclick={() => dispatch("home")}>
+    <button class="logo" on:click={() => dispatch("home")}>
         <span class="logo-icon">R</span>
         <span class="logo-text">Rexec</span>
     </button>
 
     <nav class="nav-links">
-        <button class="nav-link" onclick={() => dispatch("pricing")}>
+        <button class="nav-link" on:click={() => dispatch("pricing")}>
             <StatusIcon status="pricing" size={14} />
             <span>Pricing</span>
         </button>
@@ -172,7 +172,7 @@
             <div class="user-menu-container">
                 <button
                     class="user-badge"
-                    onclick={(e) => { e.stopPropagation(); toggleUserMenu(); }}
+                    on:click={(e) => { e.stopPropagation(); toggleUserMenu(); }}
                 >
                     <span class="user-avatar">
                         {$auth.user?.name?.charAt(0).toUpperCase() || "U"}
@@ -217,7 +217,7 @@
                         
                         <button
                             class="user-menu-item"
-                            onclick={() => {
+                            on:click={() => {
                                 showUserMenu = false;
                                 dispatch("pricing");
                             }}
@@ -229,7 +229,7 @@
                         {#if !$isGuest}
                             <button
                                 class="user-menu-item"
-                                onclick={() => {
+                                on:click={() => {
                                     showUserMenu = false;
                                     dispatch("home");
                                 }}
@@ -242,7 +242,7 @@
                         {#if $isAdmin}
                             <button
                                 class="user-menu-item"
-                                onclick={() => {
+                                on:click={() => {
                                     showUserMenu = false;
                                     dispatch("admin");
                                 }}
@@ -259,7 +259,7 @@
                             title={$isGuest
                                 ? "Sign in with PipeOps to access Settings"
                                 : ""}
-                            onclick={() => {
+                            on:click={() => {
                                 if (!$isGuest) {
                                     showUserMenu = false;
                                     dispatch("settings");
@@ -277,7 +277,7 @@
                             title={$isGuest
                                 ? "Sign in with PipeOps to manage SSH Keys"
                                 : ""}
-                            onclick={() => {
+                            on:click={() => {
                                 if (!$isGuest) {
                                     showUserMenu = false;
                                     dispatch("sshkeys");
@@ -295,7 +295,7 @@
                             title={$isGuest
                                 ? "Sign in with PipeOps to access Agents"
                                 : ""}
-                            onclick={() => {
+                            on:click={() => {
                                 if (!$isGuest) {
                                     showUserMenu = false;
                                     dispatch("agents");
@@ -310,7 +310,7 @@
                             class="user-menu-item"
                             class:disabled={$isGuest}
                             disabled={$isGuest}
-                            onclick={() => {
+                            on:click={() => {
                                 if (!$isGuest) {
                                     showUserMenu = false;
                                     dispatch("snippets");
@@ -327,7 +327,7 @@
                             title={$isGuest
                                 ? "Sign in with PipeOps to access Billing"
                                 : ""}
-                            onclick={() => {
+                            on:click={() => {
                                 if (!$isGuest) {
                                     showUserMenu = false;
                                     dispatch("billing");
@@ -342,7 +342,7 @@
                             <div class="user-menu-divider"></div>
                             <button
                                 class="user-menu-item accent"
-                                onclick={handleOAuthLogin}
+                                on:click={handleOAuthLogin}
                                 disabled={isOAuthLoading}
                             >
                                 {#if isOAuthLoading}
@@ -359,7 +359,7 @@
 
                         <button
                             class="user-menu-item danger"
-                            onclick={handleLogout}
+                            on:click={handleLogout}
                         >
                             <StatusIcon status="logout" size={14} />
                             Sign Out
@@ -370,13 +370,13 @@
         {:else}
             <button
                 class="btn btn-secondary btn-sm"
-                onclick={handleGuestClick}
+                on:click={handleGuestClick}
             >
                 Try as Guest
             </button>
             <button
                 class="btn btn-primary btn-sm"
-                onclick={handleOAuthLogin}
+                on:click={handleOAuthLogin}
                 disabled={isOAuthLoading}
             >
                 {#if isOAuthLoading}
@@ -391,23 +391,23 @@
 </header>
 
 {#if showMobileMenu}
-    <div class="mobile-menu-overlay" onclick={closeMobileMenu}>
-        <div class="mobile-menu-content" onclick={(e) => e.stopPropagation()}>
+    <div class="mobile-menu-overlay" on:click={closeMobileMenu}>
+        <div class="mobile-menu-content" on:click={(e) => e.stopPropagation()}>
             <div class="mobile-menu-header">
                 <span class="logo-text">Menu</span>
-                <button class="close-btn" onclick={closeMobileMenu}>
+                <button class="close-btn" on:click={closeMobileMenu}>
                     <StatusIcon status="close" size={20} />
                 </button>
             </div>
             <div class="mobile-nav-links">
-                <button class="mobile-nav-link" onclick={() => { closeMobileMenu(); dispatch("pricing"); }}>
+                <button class="mobile-nav-link" on:click={() => { closeMobileMenu(); dispatch("pricing"); }}>
                     <StatusIcon status="pricing" size={16} /> Pricing
                 </button>
-                <button class="mobile-nav-link" onclick={() => { closeMobileMenu(); dispatch("home"); }}>
+                <button class="mobile-nav-link" on:click={() => { closeMobileMenu(); dispatch("home"); }}>
                     <StatusIcon status="chart" size={16} /> Dashboard
                 </button>
                 <div class="user-menu-divider"></div>
-                <button class="mobile-nav-link" onclick={() => { closeMobileMenu(); dispatch("create"); }}>
+                <button class="mobile-nav-link" on:click={() => { closeMobileMenu(); dispatch("create"); }}>
                     <StatusIcon status="plus" size={16} /> New Terminal
                 </button>
             </div>

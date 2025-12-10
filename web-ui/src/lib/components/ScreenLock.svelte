@@ -1,10 +1,8 @@
 <script lang="ts">
-    import { onMount, onDestroy, createEventDispatcher } from "svelte";
+    import { onMount, onDestroy } from "svelte";
     import { security, hasPasscode, isLocked } from "$stores/security";
     import { isAuthenticated } from "$stores/auth";
     import { toast } from "$stores/toast";
-
-    const dispatch = createEventDispatcher();
 
     let passcodeInput = "";
     let newPasscode = "";

@@ -94,7 +94,7 @@
 
 <div class="billing-page">
     <div class="page-header">
-        <button class="back-btn" onclick={() => dispatch("back")}>
+        <button class="back-btn" on:click={() => dispatch("back")}>
             <StatusIcon status="back" size={16} />
             Back
         </button>
@@ -145,13 +145,13 @@
 
                 <div class="plan-actions">
                     {#if $userTier === "free" || $userTier === "guest"}
-                        <button class="btn btn-primary" onclick={() => dispatch("pricing")}>
+                        <button class="btn btn-primary" on:click={() => dispatch("pricing")}>
                             Upgrade Plan
                         </button>
                     {:else}
                         <button
                             class="btn btn-secondary"
-                            onclick={openBillingPortal}
+                            on:click={openBillingPortal}
                             disabled={isPortalLoading}
                         >
                             {#if isPortalLoading}
@@ -240,7 +240,7 @@
                 {#if $userTier !== "free" && $userTier !== "guest"}
                     <button
                         class="btn btn-secondary"
-                        onclick={openBillingPortal}
+                        on:click={openBillingPortal}
                         disabled={isPortalLoading}
                     >
                         {#if isPortalLoading}

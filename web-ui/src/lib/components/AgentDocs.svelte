@@ -1,21 +1,28 @@
 <script lang="ts">
-    import { createEventDispatcher } from "svelte";
     import StatusIcon from "./icons/StatusIcon.svelte";
     import PlatformIcon from "./icons/PlatformIcon.svelte";
 
-    const dispatch = createEventDispatcher<{ back: void }>();
+    interface Props {
+        onback?: () => void;
+    }
 
-    let copiedCommand = "";
+    let { onback }: Props = $props();
+
+    let copiedCommand = $state("");
 
     function copyToClipboard(text: string, id: string) {
         navigator.clipboard.writeText(text);
         copiedCommand = id;
         setTimeout(() => { copiedCommand = ""; }, 2000);
     }
+
+    function handleBack() {
+        if (onback) onback();
+    }
 </script>
 
 <div class="docs-page">
-    <button class="back-btn" onclick={() => dispatch("back")}>
+    <button class="back-btn" onclick={handleBack}>
         <span class="back-icon">←</span>
         <span>Back</span>
     </button>

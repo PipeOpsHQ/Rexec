@@ -172,7 +172,7 @@
 
 <div class="snippets-page">
     <div class="page-header">
-        <button class="back-btn" onclick={() => dispatch("back")}>
+        <button class="back-btn" on:click={() => dispatch("back")}>
             ← Back
         </button>
         <div class="title-group">
@@ -184,7 +184,7 @@
                 🏪 Marketplace
             </a>
             {#if !showCreate}
-                <button class="btn btn-primary" onclick={() => showCreate = true}>
+                <button class="btn btn-primary" on:click={() => showCreate = true}>
                     + Create New
                 </button>
             {/if}
@@ -195,7 +195,7 @@
         <div class="create-form-card">
             <div class="card-header">
                 <h3>New Snippet</h3>
-                <button class="close-btn" onclick={() => showCreate = false}>×</button>
+                <button class="close-btn" on:click={() => showCreate = false}>×</button>
             </div>
             <div class="card-body">
                 <div class="form-group">
@@ -235,7 +235,7 @@
                     </label>
                 </div>
                 <div class="form-actions">
-                    <button class="btn btn-secondary" onclick={() => {
+                    <button class="btn btn-secondary" on:click={() => {
                         showCreate = false;
                         newContent = "";
                         newName = "";
@@ -244,7 +244,7 @@
                     }}>Cancel</button>
                     <button 
                         class="btn btn-primary" 
-                        onclick={createSnippet}
+                        on:click={createSnippet}
                         disabled={isCreating || !newName.trim() || !newContent.trim()}
                     >
                         {isCreating ? "Saving..." : "Save Snippet"}
@@ -265,7 +265,7 @@
                 <div class="empty-icon"><StatusIcon status="script" size={48} /></div>
                 <h2>No Snippets</h2>
                 <p>Save your favorite commands to run them instantly in any terminal.</p>
-                <button class="btn btn-primary" onclick={() => showCreate = true}>
+                <button class="btn btn-primary" on:click={() => showCreate = true}>
                     Create Your First Snippet
                 </button>
             </div>
@@ -284,20 +284,20 @@
                                 <button 
                                     class="action-btn" 
                                     title={snippet.is_public ? "Make private" : "Make public"}
-                                    onclick={() => togglePublic(snippet)}
+                                    on:click={() => togglePublic(snippet)}
                                 >
                                     <StatusIcon status={snippet.is_public ? "unlock" : "lock"} size={14} />
                                 </button>
                                 <button 
                                     class="btn-icon" 
-                                    onclick={() => copyToClipboard(snippet.content)}
+                                    on:click={() => copyToClipboard(snippet.content)}
                                     title="Copy to clipboard"
                                 >
                                     <StatusIcon status="copy" size={14} />
                                 </button>
                                 <button 
                                     class="btn-icon danger" 
-                                    onclick={() => deleteSnippet(snippet.id, snippet.name)}
+                                    on:click={() => deleteSnippet(snippet.id, snippet.name)}
                                     title="Delete"
                                 >
                                     <StatusIcon status="close" size={14} />

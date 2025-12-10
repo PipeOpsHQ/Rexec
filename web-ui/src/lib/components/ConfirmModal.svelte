@@ -34,7 +34,7 @@
     }
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
+<svelte:window on:keydown={handleKeydown} />
 
 {#if show}
     <div class="modal-backdrop" transition:fade={{ duration: 150 }}>
@@ -79,10 +79,10 @@
             </div>
 
             <div class="modal-actions">
-                <button class="btn btn-cancel" onclick={handleCancel}>
+                <button class="btn btn-cancel" on:click={handleCancel}>
                     {cancelText}
                 </button>
-                <button class="btn btn-confirm {variant}" onclick={handleConfirm}>
+                <button class="btn btn-confirm {variant}" on:click={handleConfirm}>
                     {confirmText}
                 </button>
             </div>

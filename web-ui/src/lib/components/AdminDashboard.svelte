@@ -81,7 +81,7 @@
             {/if}
             <button
                 class="btn btn-secondary btn-sm"
-                onclick={loadData}
+                on:click={loadData}
                 disabled={isLoading}
             >
                 <svg
@@ -105,21 +105,21 @@
         <button
             class="tab-btn"
             class:active={activeTab === "users"}
-            onclick={() => setTab("users")}
+            on:click={() => setTab("users")}
         >
             Users ({users.length})
         </button>
         <button
             class="tab-btn"
             class:active={activeTab === "containers"}
-            onclick={() => setTab("containers")}
+            on:click={() => setTab("containers")}
         >
             Containers ({containers.length})
         </button>
         <button
             class="tab-btn"
             class:active={activeTab === "terminals"}
-            onclick={() => setTab("terminals")}
+            on:click={() => setTab("terminals")}
         >
             Active Terminals ({terminals.length})
         </button>
@@ -169,7 +169,7 @@
                                     <td>{new Date(user.created_at).toLocaleDateString()}</td>
                                     <td>{user.updated_at ? formatRelativeTime(user.updated_at) : '-'}</td>
                                     <td>
-                                        <button class="btn-icon danger" onclick={() => handleDeleteUser(user.id)} title="Delete User">
+                                        <button class="btn-icon danger" on:click={() => handleDeleteUser(user.id)} title="Delete User">
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                 <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2" />
                                             </svg>
@@ -228,7 +228,7 @@
                                     </td>
                                     <td>{formatRelativeTime(container.created_at)}</td>
                                     <td>
-                                        <button class="btn-icon danger" onclick={() => handleDeleteContainer(container.id)} title="Delete Container">
+                                        <button class="btn-icon danger" on:click={() => handleDeleteContainer(container.id)} title="Delete Container">
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                 <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2" />
                                             </svg>

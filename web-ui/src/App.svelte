@@ -776,7 +776,7 @@
                 />
             {:else if currentView === "agent-docs"}
                 <AgentDocs 
-                    on:back={() => {
+                    onback={() => {
                         window.history.back();
                     }}
                 />
@@ -888,9 +888,9 @@
         {#if showGuestModal}
             <div
                 class="modal-overlay"
-                onclick={(e) =>
+                on:click={(e) =>
                     e.target === e.currentTarget && closeGuestModal()}
-                onkeydown={handleGuestKeydown}
+                on:keydown={handleGuestKeydown}
                 role="presentation"
             >
                 <div
@@ -903,7 +903,7 @@
                         <h2 id="guest-modal-title">Get Started</h2>
                         <button
                             class="modal-close"
-                            onclick={closeGuestModal}
+                            on:click={closeGuestModal}
                             aria-label="Close">×</button
                         >
                     </div>
@@ -921,7 +921,7 @@
                                 type="email"
                                 id="guest-email"
                                 bind:value={guestEmail}
-                                onkeydown={handleGuestKeydown}
+                                on:keydown={handleGuestKeydown}
                                 placeholder="you@example.com"
                                 disabled={isGuestSubmitting}
                             />
@@ -936,14 +936,14 @@
                     <div class="modal-footer">
                         <button
                             class="btn btn-secondary"
-                            onclick={closeGuestModal}
+                            on:click={closeGuestModal}
                             disabled={isGuestSubmitting}
                         >
                             Cancel
                         </button>
                         <button
                             class="btn btn-primary"
-                            onclick={handleGuestSubmit}
+                            on:click={handleGuestSubmit}
                             disabled={isGuestSubmitting || !guestEmail.trim()}
                         >
                             {isGuestSubmitting

@@ -59,12 +59,12 @@
         </p>
 
         <div class="landing-actions">
-            <button class="btn btn-primary btn-lg" onclick={handleGuestClick}>
+            <button class="btn btn-primary btn-lg" on:click={handleGuestClick}>
                 Try Now — No Sign Up
             </button>
             <button
                 class="btn btn-secondary btn-lg"
-                onclick={handleOAuthLogin}
+                on:click={handleOAuthLogin}
                 disabled={isOAuthLoading}
             >
                 {#if isOAuthLoading}
@@ -77,11 +77,11 @@
         </div>
 
         <div class="landing-links">
-            <button class="link-btn" onclick={() => navigateTo('use-cases')}>
+            <button class="link-btn" on:click={() => navigateTo('use-cases')}>
                 <StatusIcon status="bolt" size={14} /> Use Cases
             </button>
             <span class="divider"></span>
-            <button class="link-btn" onclick={() => navigateTo('guides')}>
+            <button class="link-btn" on:click={() => navigateTo('guides')}>
                 <StatusIcon status="book" size={14} /> Product Guide
             </button>
         </div>
@@ -154,7 +154,7 @@
                     <code class="cli-code">rexec -i</code>
                 </div>
             </div>
-            <button class="link-btn cli-docs-link" onclick={() => navigateTo('agent-docs')}>
+            <button class="link-btn cli-docs-link" on:click={() => navigateTo('agent-docs')}>
                 <StatusIcon status="book" size={14} /> View Documentation
             </button>
         </div>

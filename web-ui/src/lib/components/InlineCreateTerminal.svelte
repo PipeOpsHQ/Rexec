@@ -548,7 +548,7 @@
             </div>
             <button
                 class="retry-btn"
-                onclick={() => {
+                on:click={() => {
                     errorMessage = "";
                 }}
             >
@@ -634,7 +634,7 @@
                             <button
                                 class="role-card"
                                 class:selected={selectedRole === role.id}
-                                onclick={() => (selectedRole = role.id)}
+                                on:click={() => (selectedRole = role.id)}
                                 title={role.description || ''}
                             >
                                 <PlatformIcon platform={role.id} size={28} />
@@ -671,7 +671,7 @@
             <div class="create-section">
                 <button
                     class="resource-toggle"
-                    onclick={() => (showResources = !showResources)}
+                    on:click={() => (showResources = !showResources)}
                 >
                     <span class="toggle-icon">{showResources ? "▼" : "▶"}</span>
                     <h4>Resources</h4>
@@ -694,7 +694,7 @@
                             <input
                                 type="range"
                                 value={memoryMB}
-                                oninput={handleMemoryChange}
+                                on:input={handleMemoryChange}
                                 min={resourceLimits.minMemory}
                                 max={resourceLimits.maxMemory}
                                 step="128"
@@ -723,7 +723,7 @@
                             <input
                                 type="range"
                                 value={cpuShares}
-                                oninput={handleCpuChange}
+                                on:input={handleCpuChange}
                                 min={resourceLimits.minCPU}
                                 max={resourceLimits.maxCPU}
                                 step="128"
@@ -744,7 +744,7 @@
                             <input
                                 type="range"
                                 value={diskMB}
-                                oninput={handleDiskChange}
+                                on:input={handleDiskChange}
                                 min={resourceLimits.minDisk}
                                 max={resourceLimits.maxDisk}
                                 step="256"
@@ -775,7 +775,7 @@
                                         {formatCPU(nextTierLimits.maxCPU)}, and {formatStorage(nextTierLimits.maxDisk)} storage.
                                     </span>
                                 </div>
-                                <button class="upgrade-btn" onclick={() => dispatch("upgrade")}>
+                                <button class="upgrade-btn" on:click={() => dispatch("upgrade")}>
                                     Upgrade
                                 </button>
                             </div>
@@ -785,7 +785,7 @@
                                     Enterprise plan resources
                                 {:else}
                                     {$userTier === "guest" ? "Guest" : $userTier === "free" ? "Free" : "Pro"} plan limits — 
-                                    <button class="upgrade-link" onclick={() => dispatch("upgrade")}>upgrade for more</button>
+                                    <button class="upgrade-link" on:click={() => dispatch("upgrade")}>upgrade for more</button>
                                 {/if}
                             </p>
                         {/if}
@@ -800,7 +800,7 @@
                     {#each images as image (image.name)}
                         <button
                             class="os-card"
-                            onclick={() => selectAndCreate(image.name)}
+                            on:click={() => selectAndCreate(image.name)}
                         >
                             <PlatformIcon platform={image.name} size={28} />
                             <span class="os-name"
@@ -814,7 +814,7 @@
                     <button
                         class="os-card"
                         class:selected={selectedImage === "custom"}
-                        onclick={() => selectAndCreate("custom")}
+                        on:click={() => selectAndCreate("custom")}
                     >
                         <PlatformIcon platform="custom" size={28} />
                         <span class="os-name">Custom</span>
@@ -829,14 +829,14 @@
                                 type="text"
                                 bind:value={customImage}
                                 placeholder="e.g. ubuntu:20.04"
-                                onkeydown={(e) =>
+                                on:keydown={(e) =>
                                     e.key === "Enter" &&
                                     customImage &&
                                     createContainer()}
                             />
                             <button
                                 class="btn-create"
-                                onclick={createContainer}
+                                on:click={createContainer}
                                 disabled={!customImage}
                             >
                                 Create
@@ -873,7 +873,7 @@
                                 <code>curl -fsSL https://rexec.pipeops.io/install-agent.sh | bash</code>
                                 <button 
                                     class="copy-btn" 
-                                    onclick={() => {
+                                    on:click={() => {
                                         navigator.clipboard.writeText('curl -fsSL https://rexec.pipeops.io/install-agent.sh | bash');
                                         const btn = document.activeElement;
                                         if (btn) btn.textContent = 'Copied!';
@@ -895,7 +895,7 @@
                                 <code>rexec agent start --token YOUR_TOKEN</code>
                                 <button 
                                     class="copy-btn" 
-                                    onclick={() => {
+                                    on:click={() => {
                                         navigator.clipboard.writeText('rexec agent start --token YOUR_TOKEN');
                                         const btn = document.activeElement;
                                         if (btn) btn.textContent = 'Copied!';
@@ -917,7 +917,7 @@
                                 <code>rexec -i</code>
                                 <button 
                                     class="copy-btn" 
-                                    onclick={() => {
+                                    on:click={() => {
                                         navigator.clipboard.writeText('rexec -i');
                                         const btn = document.activeElement;
                                         if (btn) btn.textContent = 'Copied!';
