@@ -1,0 +1,496 @@
+#!/bin/bash
+# Rexec Agent Installer
+# Usage: curl -fsSL https://rexec.pipeops.io/install-agent.sh | bash -s -- --token YOUR_TOKEN
+#
+# This script installs the Rexec agent on your server, allowing it to appear
+# as a terminal in your Rexec dashboard.
+
+set -e
+
+# Configuration
+REXEC_API="${REXEC_API:-https://rexec.pipeops.io}"
+INSTALL_DIR="/usr/local/bin"
+CONFIG_DIR="/etc/rexec"
+SERVICE_DIR="/etc/systemd/system"
+REPO="rexec/rexec"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+BOLD='\033[1m'
+
+# Parse arguments
+TOKEN=""
+NAME=""
+LABELS=""
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --token|-t)
+            TOKEN="$2"
+            shift 2
+            ;;
+        --name|-n)
+            NAME="$2"
+            shift 2
+            ;;
+        --labels|-l)
+            LABELS="$2"
+            shift 2
+            ;;
+        --api)
+            REXEC_API="$2"
+            shift 2
+            ;;
+        --help|-h)
+            echo "Rexec Agent Installer"
+            echo ""
+            echo "Usage: curl -fsSL https://rexec.pipeops.io/install-agent.sh | bash -s -- [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  --token, -t TOKEN    Agent registration token (required)"
+            echo "  --name, -n NAME      Custom name for this agent (default: hostname)"
+            echo "  --labels, -l LABELS  Comma-separated labels (e.g., 'prod,web,us-east')"
+            echo "  --api URL            Rexec API URL (default: https://rexec.pipeops.io)"
+            echo "  --help, -h           Show this help message"
+            exit 0
+            ;;
+        *)
+            echo -e "${RED}Unknown option: $1${NC}"
+            exit 1
+            ;;
+    esac
+done
+
+print_banner() {
+    echo -e "${CYAN}${BOLD}"
+    echo "██████╗ ███████╗██╗  ██╗███████╗ ██████╗"
+    echo "██╔══██╗██╔════╝╚██╗██╔╝██╔════╝██╔════╝"
+    echo "██████╔╝█████╗   ╚███╔╝ █████╗  ██║     "
+    echo "██╔══██╗██╔══╝   ██╔██╗ ██╔══╝  ██║     "
+    echo "██║  ██║███████╗██╔╝ ██╗███████╗╚██████╗"
+    echo "╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚══════╝ ╚═════╝"
+    echo -e "${NC}"
+    echo -e "${BOLD}Agent Installer - Connect Any Server${NC}"
+    echo ""
+}
+
+check_root() {
+    if [ "$EUID" -ne 0 ]; then
+        echo -e "${RED}This script must be run as root (use sudo)${NC}"
+        exit 1
+    fi
+}
+
+check_token() {
+    if [ -z "$TOKEN" ]; then
+        echo -e "${RED}Error: Registration token is required${NC}"
+        echo ""
+        echo "Get your token from:"
+        echo "  1. Login to https://rexec.pipeops.io"
+        echo "  2. Go to Settings > Agents"
+        echo "  3. Click 'Add Agent' to generate a token"
+        echo ""
+        echo "Then run:"
+        echo "  curl -fsSL https://rexec.pipeops.io/install-agent.sh | sudo bash -s -- --token YOUR_TOKEN"
+        exit 1
+    fi
+}
+
+detect_platform() {
+    OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+    ARCH=$(uname -m)
+
+    case "$OS" in
+        linux)
+            OS="linux"
+            ;;
+        darwin)
+            OS="darwin"
+            ;;
+        *)
+            echo -e "${RED}Unsupported OS: $OS${NC}"
+            echo "Rexec agent currently supports Linux and macOS only."
+            exit 1
+            ;;
+    esac
+
+    case "$ARCH" in
+        x86_64|amd64)
+            ARCH="amd64"
+            ;;
+        arm64|aarch64)
+            ARCH="arm64"
+            ;;
+        armv7l)
+            ARCH="armv7"
+            ;;
+        *)
+            echo -e "${RED}Unsupported architecture: $ARCH${NC}"
+            exit 1
+            ;;
+    esac
+
+    PLATFORM="${OS}-${ARCH}"
+    echo -e "${GREEN}Detected platform: ${PLATFORM}${NC}"
+}
+
+detect_init_system() {
+    if command -v systemctl &> /dev/null && [ -d /run/systemd/system ]; then
+        INIT_SYSTEM="systemd"
+    elif command -v launchctl &> /dev/null && [ "$OS" = "darwin" ]; then
+        INIT_SYSTEM="launchd"
+    elif [ -f /etc/init.d/cron ] || [ -d /etc/init.d ]; then
+        INIT_SYSTEM="sysvinit"
+    else
+        INIT_SYSTEM="none"
+    fi
+    echo -e "${GREEN}Init system: ${INIT_SYSTEM}${NC}"
+}
+
+get_latest_version() {
+    echo -e "${CYAN}Fetching latest version...${NC}"
+    VERSION=$(curl -s "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+    
+    if [ -z "$VERSION" ]; then
+        echo -e "${YELLOW}Could not fetch latest version, using v1.0.0${NC}"
+        VERSION="v1.0.0"
+    fi
+    
+    echo -e "${GREEN}Latest version: ${VERSION}${NC}"
+}
+
+download_agent() {
+    SUFFIX="${PLATFORM}"
+    AGENT_URL="https://github.com/${REPO}/releases/download/${VERSION}/rexec-agent-${SUFFIX}"
+
+    TEMP_DIR=$(mktemp -d)
+    AGENT_PATH="${TEMP_DIR}/rexec-agent"
+
+    echo -e "${CYAN}Downloading rexec-agent...${NC}"
+    if ! curl -fsSL "$AGENT_URL" -o "$AGENT_PATH"; then
+        echo -e "${RED}Failed to download rexec-agent${NC}"
+        echo "URL: $AGENT_URL"
+        exit 1
+    fi
+
+    chmod +x "$AGENT_PATH"
+    echo "$TEMP_DIR"
+}
+
+install_agent() {
+    TEMP_DIR=$1
+
+    echo -e "${CYAN}Installing agent to ${INSTALL_DIR}...${NC}"
+    mv "${TEMP_DIR}/rexec-agent" "${INSTALL_DIR}/rexec-agent"
+    rm -rf "$TEMP_DIR"
+
+    # Create config directory
+    mkdir -p "$CONFIG_DIR"
+}
+
+create_config() {
+    echo -e "${CYAN}Creating configuration...${NC}"
+
+    # Generate agent name from hostname if not provided
+    if [ -z "$NAME" ]; then
+        NAME=$(hostname -s 2>/dev/null || hostname)
+    fi
+
+    # Get system info
+    SYSTEM_INFO=$(uname -a)
+    IP_ADDR=$(hostname -I 2>/dev/null | awk '{print $1}' || curl -s ifconfig.me 2>/dev/null || echo "unknown")
+
+    cat > "${CONFIG_DIR}/agent.yaml" << EOF
+# Rexec Agent Configuration
+# Generated: $(date -Iseconds)
+
+# API endpoint
+api_url: ${REXEC_API}
+
+# Agent identification
+token: ${TOKEN}
+name: ${NAME}
+labels:
+$(echo "$LABELS" | tr ',' '\n' | sed 's/^/  - /' | grep -v '^  - $')
+
+# System information (auto-detected)
+system:
+  platform: ${PLATFORM}
+  hostname: $(hostname)
+  ip: ${IP_ADDR}
+
+# Connection settings
+reconnect_interval: 5s
+heartbeat_interval: 30s
+
+# Shell configuration
+shell: ${SHELL:-/bin/bash}
+working_dir: /root
+
+# Logging
+log_level: info
+log_file: /var/log/rexec-agent.log
+EOF
+
+    chmod 600 "${CONFIG_DIR}/agent.yaml"
+    echo -e "${GREEN}Configuration saved to ${CONFIG_DIR}/agent.yaml${NC}"
+}
+
+setup_systemd() {
+    echo -e "${CYAN}Setting up systemd service...${NC}"
+
+    cat > "${SERVICE_DIR}/rexec-agent.service" << EOF
+[Unit]
+Description=Rexec Agent - Cloud Terminal Connection
+Documentation=https://rexec.pipeops.io/docs/agents
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=${INSTALL_DIR}/rexec-agent --config ${CONFIG_DIR}/agent.yaml
+Restart=always
+RestartSec=5
+User=root
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=rexec-agent
+
+# Security hardening
+NoNewPrivileges=false
+ProtectSystem=false
+ProtectHome=false
+
+# Environment
+Environment=REXEC_API=${REXEC_API}
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    systemctl daemon-reload
+    systemctl enable rexec-agent
+    systemctl start rexec-agent
+
+    echo -e "${GREEN}Systemd service installed and started${NC}"
+}
+
+setup_launchd() {
+    echo -e "${CYAN}Setting up launchd service...${NC}"
+
+    PLIST_PATH="/Library/LaunchDaemons/io.pipeops.rexec-agent.plist"
+
+    cat > "$PLIST_PATH" << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>io.pipeops.rexec-agent</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>${INSTALL_DIR}/rexec-agent</string>
+        <string>--config</string>
+        <string>${CONFIG_DIR}/agent.yaml</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/var/log/rexec-agent.log</string>
+    <key>StandardErrorPath</key>
+    <string>/var/log/rexec-agent.error.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>REXEC_API</key>
+        <string>${REXEC_API}</string>
+    </dict>
+</dict>
+</plist>
+EOF
+
+    launchctl load "$PLIST_PATH"
+    launchctl start io.pipeops.rexec-agent
+
+    echo -e "${GREEN}Launchd service installed and started${NC}"
+}
+
+setup_sysvinit() {
+    echo -e "${CYAN}Setting up init.d service...${NC}"
+
+    cat > "/etc/init.d/rexec-agent" << 'INITSCRIPT'
+#!/bin/bash
+### BEGIN INIT INFO
+# Provides:          rexec-agent
+# Required-Start:    $network $remote_fs
+# Required-Stop:     $network $remote_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Rexec Agent
+# Description:       Rexec Agent - Cloud Terminal Connection
+### END INIT INFO
+
+DAEMON=/usr/local/bin/rexec-agent
+DAEMON_ARGS="--config /etc/rexec/agent.yaml"
+PIDFILE=/var/run/rexec-agent.pid
+LOGFILE=/var/log/rexec-agent.log
+
+case "$1" in
+    start)
+        echo "Starting rexec-agent..."
+        start-stop-daemon --start --background --make-pidfile --pidfile $PIDFILE \
+            --exec $DAEMON -- $DAEMON_ARGS >> $LOGFILE 2>&1
+        ;;
+    stop)
+        echo "Stopping rexec-agent..."
+        start-stop-daemon --stop --pidfile $PIDFILE
+        rm -f $PIDFILE
+        ;;
+    restart)
+        $0 stop
+        sleep 1
+        $0 start
+        ;;
+    status)
+        if [ -f $PIDFILE ] && kill -0 $(cat $PIDFILE) 2>/dev/null; then
+            echo "rexec-agent is running"
+        else
+            echo "rexec-agent is not running"
+            exit 1
+        fi
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status}"
+        exit 1
+        ;;
+esac
+exit 0
+INITSCRIPT
+
+    chmod +x /etc/init.d/rexec-agent
+    update-rc.d rexec-agent defaults 2>/dev/null || chkconfig --add rexec-agent 2>/dev/null || true
+    /etc/init.d/rexec-agent start
+
+    echo -e "${GREEN}Init.d service installed and started${NC}"
+}
+
+setup_service() {
+    case "$INIT_SYSTEM" in
+        systemd)
+            setup_systemd
+            ;;
+        launchd)
+            setup_launchd
+            ;;
+        sysvinit)
+            setup_sysvinit
+            ;;
+        *)
+            echo -e "${YELLOW}No supported init system found. Agent installed but not running as service.${NC}"
+            echo "To run manually: rexec-agent --config ${CONFIG_DIR}/agent.yaml"
+            ;;
+    esac
+}
+
+verify_installation() {
+    echo ""
+    echo -e "${CYAN}Verifying installation...${NC}"
+    
+    sleep 2
+
+    if command -v rexec-agent &> /dev/null; then
+        echo -e "${GREEN}${BOLD}✓ Agent binary installed${NC}"
+    else
+        echo -e "${RED}✗ Agent binary not found in PATH${NC}"
+    fi
+
+    if [ -f "${CONFIG_DIR}/agent.yaml" ]; then
+        echo -e "${GREEN}${BOLD}✓ Configuration created${NC}"
+    else
+        echo -e "${RED}✗ Configuration not found${NC}"
+    fi
+
+    # Check service status
+    case "$INIT_SYSTEM" in
+        systemd)
+            if systemctl is-active --quiet rexec-agent; then
+                echo -e "${GREEN}${BOLD}✓ Service running${NC}"
+            else
+                echo -e "${RED}✗ Service not running${NC}"
+                echo "Check logs: journalctl -u rexec-agent -f"
+            fi
+            ;;
+        launchd)
+            if launchctl list | grep -q io.pipeops.rexec-agent; then
+                echo -e "${GREEN}${BOLD}✓ Service running${NC}"
+            else
+                echo -e "${RED}✗ Service not running${NC}"
+                echo "Check logs: tail -f /var/log/rexec-agent.log"
+            fi
+            ;;
+        *)
+            if pgrep -x rexec-agent > /dev/null; then
+                echo -e "${GREEN}${BOLD}✓ Agent process running${NC}"
+            else
+                echo -e "${YELLOW}! Agent process not detected${NC}"
+            fi
+            ;;
+    esac
+}
+
+show_next_steps() {
+    echo ""
+    echo -e "${GREEN}${BOLD}═══════════════════════════════════════════════════════════${NC}"
+    echo -e "${GREEN}${BOLD}  Installation Complete!${NC}"
+    echo -e "${GREEN}${BOLD}═══════════════════════════════════════════════════════════${NC}"
+    echo ""
+    echo -e "${BOLD}Your server '${NAME}' should now appear in your Rexec dashboard.${NC}"
+    echo ""
+    echo -e "${BOLD}Useful commands:${NC}"
+    echo ""
+    case "$INIT_SYSTEM" in
+        systemd)
+            echo -e "  View logs:        ${CYAN}journalctl -u rexec-agent -f${NC}"
+            echo -e "  Check status:     ${CYAN}systemctl status rexec-agent${NC}"
+            echo -e "  Restart agent:    ${CYAN}systemctl restart rexec-agent${NC}"
+            echo -e "  Stop agent:       ${CYAN}systemctl stop rexec-agent${NC}"
+            ;;
+        launchd)
+            echo -e "  View logs:        ${CYAN}tail -f /var/log/rexec-agent.log${NC}"
+            echo -e "  Restart agent:    ${CYAN}launchctl stop io.pipeops.rexec-agent && launchctl start io.pipeops.rexec-agent${NC}"
+            ;;
+        *)
+            echo -e "  View logs:        ${CYAN}tail -f /var/log/rexec-agent.log${NC}"
+            echo -e "  Restart agent:    ${CYAN}/etc/init.d/rexec-agent restart${NC}"
+            ;;
+    esac
+    echo ""
+    echo -e "${BOLD}To uninstall:${NC}"
+    echo -e "  ${CYAN}curl -fsSL https://rexec.pipeops.io/install-agent.sh | sudo bash -s -- --uninstall${NC}"
+    echo ""
+    echo -e "${BOLD}Dashboard:${NC} ${CYAN}https://rexec.pipeops.io${NC}"
+    echo -e "${BOLD}Documentation:${NC} ${CYAN}https://rexec.pipeops.io/docs/agents${NC}"
+    echo ""
+}
+
+main() {
+    print_banner
+    check_root
+    check_token
+    detect_platform
+    detect_init_system
+    get_latest_version
+    TEMP_DIR=$(download_agent)
+    install_agent "$TEMP_DIR"
+    create_config
+    setup_service
+    verify_installation
+    show_next_steps
+}
+
+main "$@"

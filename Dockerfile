@@ -108,6 +108,10 @@ COPY --from=builder /app/rexec /usr/local/bin/rexec
 # Copy web directory for frontend
 COPY --from=builder /app/web /app/web
 
+# Copy install scripts for static serving
+COPY scripts/install-cli.sh /app/scripts/install-cli.sh
+COPY scripts/install-agent.sh /app/scripts/install-agent.sh
+
 # Copy entrypoint script
 COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
@@ -127,6 +131,7 @@ EXPOSE 8080
 # Set default environment variables
 ENV PORT=8080
 ENV RECORDINGS_PATH=/app/recordings
+ENV SCRIPTS_DIR=/app/scripts
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \

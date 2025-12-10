@@ -593,6 +593,20 @@ func runServer() {
 		router.StaticFile("/apple-touch-icon.png", filepath.Join(webDir, "favicon.svg"))
 		router.StaticFile("/apple-touch-icon-precomposed.png", filepath.Join(webDir, "favicon.svg"))
 
+		// Install scripts - served with correct content type for curl | bash
+		scriptsDir := os.Getenv("SCRIPTS_DIR")
+		if scriptsDir == "" {
+			scriptsDir = "./scripts"
+		}
+		router.GET("/install-cli.sh", func(c *gin.Context) {
+			c.Header("Content-Type", "text/x-shellscript")
+			c.File(filepath.Join(scriptsDir, "install-cli.sh"))
+		})
+		router.GET("/install-agent.sh", func(c *gin.Context) {
+			c.Header("Content-Type", "text/x-shellscript")
+			c.File(filepath.Join(scriptsDir, "install-agent.sh"))
+		})
+
 		// SPA routes - serve index.html for client-side routing
 		router.GET("/guides", func(c *gin.Context) {
 			c.File(indexFile)
