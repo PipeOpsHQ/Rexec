@@ -23,6 +23,7 @@ type AgentHandler struct {
 	agentsMu    sync.RWMutex
 	upgrader    websocket.Upgrader
 	jwtSecret   []byte
+	eventsHub   *ContainerEventsHub // For broadcasting agent connect/disconnect
 }
 
 type AgentConnection struct {
@@ -70,6 +71,11 @@ func NewAgentHandler(store *storage.PostgresStore) *AgentHandler {
 			WriteBufferSize: 1024,
 		},
 	}
+}
+
+// SetEventsHub sets the container events hub for agent notifications
+func (h *AgentHandler) SetEventsHub(hub *ContainerEventsHub) {
+	h.eventsHub = hub
 }
 
 // RegisterAgent handles agent registration
@@ -249,6 +255,11 @@ func (h *AgentHandler) HandleAgentWebSocket(c *gin.Context) {
 
 	log.Printf("Agent connected: %s (%s)", agent.Name, agentID)
 
+	// Broadcast agent connected event via WebSocket
+	if h.eventsHub != nil {
+		h.eventsHub.NotifyAgentConnected(agent.UserID, h.buildAgentData(agentConn))
+	}
+
 	// Handle messages
 	defer func() {
 		h.agentsMu.Lock()
@@ -256,6 +267,11 @@ func (h *AgentHandler) HandleAgentWebSocket(c *gin.Context) {
 		h.agentsMu.Unlock()
 		conn.Close()
 		log.Printf("Agent disconnected: %s (%s)", agent.Name, agentID)
+
+		// Broadcast agent disconnected event via WebSocket
+		if h.eventsHub != nil {
+			h.eventsHub.NotifyAgentDisconnected(agent.UserID, agentID)
+		}
 	}()
 
 	// Set up ping/pong
@@ -616,6 +632,60 @@ func (h *AgentHandler) GetOnlineAgentsForUser(userID string) []gin.H {
 	}
 
 	return agents
+}
+
+// buildAgentData builds agent data in the same format as container data
+func (h *AgentHandler) buildAgentData(agent *AgentConnection) gin.H {
+	agentData := gin.H{
+		"id":           "agent:" + agent.ID,
+		"name":         agent.Name,
+		"image":        agent.OS + "/" + agent.Arch,
+		"status":       "running",
+		"session_type": "agent",
+		"created_at":   agent.ConnectedAt,
+		"last_used_at": agent.LastPing,
+		"os":           agent.OS,
+		"arch":         agent.Arch,
+		"shell":        agent.Shell,
+	}
+
+	resources := gin.H{
+		"memory_mb":  0,
+		"cpu_shares": 1024,
+		"disk_mb":    0,
+	}
+
+	if agent.SystemInfo != nil {
+		if numCPU, ok := agent.SystemInfo["num_cpu"].(int); ok {
+			resources["cpu_shares"] = numCPU * 1024
+		}
+		if mem, ok := agent.SystemInfo["memory"].(map[string]interface{}); ok {
+			if total, ok := mem["total"].(float64); ok {
+				resources["memory_mb"] = int(total / 1024 / 1024)
+			}
+		}
+		if disk, ok := agent.SystemInfo["disk"].(map[string]interface{}); ok {
+			if total, ok := disk["total"].(float64); ok {
+				resources["disk_mb"] = int(total / 1024 / 1024)
+			}
+		}
+		if hostname, ok := agent.SystemInfo["hostname"].(string); ok {
+			agentData["hostname"] = hostname
+		}
+	}
+
+	if agent.Stats != nil {
+		if memLimit, ok := agent.Stats["memory_limit"].(float64); ok && memLimit > 0 {
+			resources["memory_mb"] = int(memLimit / 1024 / 1024)
+		}
+		if diskLimit, ok := agent.Stats["disk_limit"].(float64); ok && diskLimit > 0 {
+			resources["disk_mb"] = int(diskLimit / 1024 / 1024)
+		}
+		agentData["stats"] = agent.Stats
+	}
+
+	agentData["resources"] = resources
+	return agentData
 }
 
 // verifyToken parses and validates a JWT token, returning the user ID

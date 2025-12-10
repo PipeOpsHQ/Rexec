@@ -321,3 +321,21 @@ func (h *ContainerEventsHub) NotifyContainerProgress(userID string, progressData
 		Timestamp: time.Now(),
 	})
 }
+
+// NotifyAgentConnected notifies a user that an agent connected
+func (h *ContainerEventsHub) NotifyAgentConnected(userID string, agentData interface{}) {
+	h.BroadcastToUser(userID, ContainerEvent{
+		Type:      "agent_connected",
+		Container: agentData,
+		Timestamp: time.Now(),
+	})
+}
+
+// NotifyAgentDisconnected notifies a user that an agent disconnected
+func (h *ContainerEventsHub) NotifyAgentDisconnected(userID string, agentID string) {
+	h.BroadcastToUser(userID, ContainerEvent{
+		Type:      "agent_disconnected",
+		Container: gin.H{"id": "agent:" + agentID},
+		Timestamp: time.Now(),
+	})
+}

@@ -1039,6 +1039,25 @@ function handleContainerEvent(event: {
       }));
       break;
 
+    case "agent_connected":
+      // Agent connected - add to containers list
+      containers.update((state) => ({
+        ...state,
+        containers: [
+          containerData,
+          ...state.containers.filter((c) => c.id !== containerData.id),
+        ],
+      }));
+      break;
+
+    case "agent_disconnected":
+      // Agent disconnected - remove from containers list
+      containers.update((state) => ({
+        ...state,
+        containers: state.containers.filter((c) => c.id !== containerData.id),
+      }));
+      break;
+
     default:
       break;
   }

@@ -325,6 +325,9 @@ func runServer() {
 	
 	// Connect agent handler to container handler for unified API
 	containerHandler.SetAgentHandler(agentHandler)
+	
+	// Connect events hub to agent handler for real-time updates
+	agentHandler.SetEventsHub(containerEventsHub)
 
 	// Setup Gin router
 	router := gin.Default()
