@@ -153,10 +153,15 @@ detect_init_system() {
 
 get_latest_version() {
     echo -e "${CYAN}Fetching latest version...${NC}"
-    VERSION=$(curl -s "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+    # Try GitHub releases first
+    VERSION=$(curl -s "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
     
     if [ -z "$VERSION" ]; then
-        echo -e "${YELLOW}Could not fetch latest version, using v1.0.0${NC}"
+        # Try rexec API for version
+        VERSION=$(curl -s "${REXEC_API}/api/version" 2>/dev/null | grep -o '"version":"[^"]*"' | cut -d'"' -f4)
+    fi
+    
+    if [ -z "$VERSION" ]; then
         VERSION="v1.0.0"
     fi
     
@@ -165,19 +170,40 @@ get_latest_version() {
 
 download_agent() {
     SUFFIX="${PLATFORM}"
-    AGENT_URL="https://github.com/${REPO}/releases/download/${VERSION}/rexec-agent-${SUFFIX}"
-
     TEMP_DIR=$(mktemp -d)
     AGENT_PATH="${TEMP_DIR}/rexec-agent"
 
     echo -e "${CYAN}Downloading rexec-agent...${NC}"
-    if ! curl -fsSL "$AGENT_URL" -o "$AGENT_PATH"; then
-        echo -e "${RED}Failed to download rexec-agent${NC}"
-        echo "URL: $AGENT_URL"
-        exit 1
+    
+    # Try rexec.pipeops.io first (direct binary hosting)
+    AGENT_URL="${REXEC_API}/downloads/rexec-agent-${SUFFIX}"
+    if curl -fsSL "$AGENT_URL" -o "$AGENT_PATH" 2>/dev/null; then
+        echo -e "${GREEN}Downloaded from rexec.pipeops.io${NC}"
+        chmod +x "$AGENT_PATH"
+        return 0
     fi
-
-    chmod +x "$AGENT_PATH"
+    
+    # Fall back to GitHub releases
+    AGENT_URL="https://github.com/${REPO}/releases/download/${VERSION}/rexec-agent-${SUFFIX}"
+    if curl -fsSL "$AGENT_URL" -o "$AGENT_PATH" 2>/dev/null; then
+        echo -e "${GREEN}Downloaded from GitHub releases${NC}"
+        chmod +x "$AGENT_PATH"
+        return 0
+    fi
+    
+    # If all else fails, try to build instructions
+    echo -e "${RED}Failed to download rexec-agent${NC}"
+    echo ""
+    echo -e "${YELLOW}The agent binary is not yet available for download.${NC}"
+    echo ""
+    echo "You can build it manually:"
+    echo "  1. Clone: git clone https://github.com/rexec/rexec.git"
+    echo "  2. Build: cd rexec && go build -o rexec-agent ./cmd/rexec-agent"
+    echo "  3. Install: sudo mv rexec-agent /usr/local/bin/"
+    echo ""
+    echo "Or wait for the next release at:"
+    echo "  https://github.com/${REPO}/releases"
+    exit 1
     echo "$TEMP_DIR"
 }
 

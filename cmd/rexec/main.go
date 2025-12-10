@@ -372,6 +372,14 @@ func runServer() {
 		c.JSON(200, health)
 	})
 
+	// Version endpoint for agent installer
+	router.GET("/api/version", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"version": "v1.0.0",
+			"build":   "2024-12-10",
+		})
+	})
+
 	// Auth routes (public) - strict rate limiting
 	authGroup := router.Group("/api/auth") // Renamed to avoid conflict with `authHandler`
 	authGroup.Use(authLimiter.Middleware())
