@@ -1,0 +1,213 @@
+<script lang="ts">
+    import { createEventDispatcher } from "svelte";
+    import { auth } from "$stores/auth";
+    import StatusIcon from "./icons/StatusIcon.svelte";
+
+    export let section: string; // current section (settings, ssh, billing, snippets)
+
+    const dispatch = createEventDispatcher<{
+        navigate: { view: string };
+        logout: void;
+    }>();
+
+    function navigate(view: string) {
+        dispatch("navigate", { view });
+    }
+
+    // Navigation items
+    const navItems = [
+        { id: "overview", label: "Overview", href: "/account", icon: "chart" },
+        { id: "settings", label: "Settings", href: "/account/settings", icon: "settings" },
+        { id: "ssh", label: "SSH Keys", href: "/account/ssh", icon: "key" },
+        { id: "billing", label: "Billing", href: "/account/billing", icon: "invoice" },
+        { id: "snippets", label: "Snippets", href: "/account/snippets", icon: "script" },
+    ];
+
+    function isActive(itemId: string): boolean {
+        if (!section && itemId === "overview") return true;
+        return section === itemId;
+    }
+
+    function handleNav(href: string) {
+        window.history.pushState({}, "", href);
+        window.dispatchEvent(new PopStateEvent("popstate"));
+    }
+</script>
+
+<div class="account-layout">
+    <div class="account-header">
+        <div class="header-left">
+            <button class="back-btn" onclick={() => navigate('dashboard')}>
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+            </button>
+            <div class="header-info">
+                <h1>Account</h1>
+                <p class="user-info">{$auth.user?.email || "User"} · {$auth.user?.tier?.toUpperCase() || "FREE"}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="account-content">
+        <nav class="account-nav">
+            {#each navItems as item}
+                <button
+                    class="nav-item"
+                    class:active={isActive(item.id)}
+                    onclick={() => handleNav(item.href)}
+                >
+                    <StatusIcon status={item.icon} size={18} />
+                    <span>{item.label}</span>
+                </button>
+            {/each}
+        </nav>
+
+        <div class="account-main">
+            <slot />
+        </div>
+    </div>
+</div>
+
+<style>
+    .account-layout {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .account-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 32px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .header-left {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .back-btn {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        cursor: pointer;
+        color: var(--text-secondary);
+        transition: all 0.2s;
+    }
+
+    .back-btn:hover {
+        background: var(--bg-tertiary);
+        border-color: var(--accent);
+        color: var(--accent);
+    }
+
+    .back-btn .icon {
+        width: 20px;
+        height: 20px;
+    }
+
+    .header-info h1 {
+        font-size: 24px;
+        font-weight: 700;
+        margin: 0 0 4px 0;
+        color: var(--text);
+    }
+
+    .user-info {
+        font-size: 13px;
+        color: var(--text-muted);
+        margin: 0;
+    }
+
+    .account-content {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        gap: 32px;
+    }
+
+    .account-nav {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        position: sticky;
+        top: 80px;
+        height: fit-content;
+    }
+
+    .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        color: var(--text-secondary);
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: left;
+        width: 100%;
+    }
+
+    .nav-item:hover {
+        background: var(--bg-secondary);
+        color: var(--text);
+    }
+
+    .nav-item.active {
+        background: var(--bg-secondary);
+        border-color: var(--accent);
+        color: var(--accent);
+    }
+
+    .account-main {
+        min-height: 400px;
+    }
+
+    @media (max-width: 768px) {
+        .account-content {
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        .account-nav {
+            position: static;
+            flex-direction: row;
+            overflow-x: auto;
+            padding-bottom: 8px;
+        }
+
+        .nav-item {
+            white-space: nowrap;
+            min-width: fit-content;
+        }
+
+        .nav-item span {
+            display: none;
+        }
+
+        .header-left {
+            gap: 12px;
+        }
+
+        .header-info h1 {
+            font-size: 20px;
+        }
+
+        .user-info {
+            font-size: 12px;
+        }
+    }
+</style>
