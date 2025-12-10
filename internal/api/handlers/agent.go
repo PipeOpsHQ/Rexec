@@ -294,23 +294,23 @@ func (h *AgentHandler) HandleAgentWebSocket(c *gin.Context) {
 		switch msg.Type {
 		case "shell_output":
 			// Forward to all connected user sessions in the format the frontend expects
+			// Agent sends: {"type": "shell_output", "data": {"data": <base64-encoded-bytes>}}
 			var outputData struct {
-				Data json.RawMessage `json:"data"`
+				Data []byte `json:"data"`
 			}
 			if err := json.Unmarshal(msg.Data, &outputData); err == nil {
-				// Convert bytes to string for the frontend
-				var rawBytes []byte
-				if err := json.Unmarshal(outputData.Data, &rawBytes); err == nil {
-					outputMsg := map[string]interface{}{
-						"type": "output",
-						"data": string(rawBytes),
-					}
-					agentConn.sessionsMu.RLock()
-					for _, session := range agentConn.sessions {
-						session.UserConn.WriteJSON(outputMsg)
-					}
-					agentConn.sessionsMu.RUnlock()
+				// outputData.Data is now the decoded bytes
+				outputMsg := map[string]interface{}{
+					"type": "output",
+					"data": string(outputData.Data),
 				}
+				agentConn.sessionsMu.RLock()
+				for _, session := range agentConn.sessions {
+					session.UserConn.WriteJSON(outputMsg)
+				}
+				agentConn.sessionsMu.RUnlock()
+			} else {
+				log.Printf("Failed to unmarshal shell_output: %v", err)
 			}
 
 		case "shell_started", "shell_stopped", "shell_error":

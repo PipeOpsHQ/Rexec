@@ -600,7 +600,75 @@ func (a *Agent) startShell() {
 	}
 	a.mu.Unlock()
 
-	// Start shell with PTY
+	// Use tmux for resumable sessions
+	// Check if tmux session exists, attach to it; otherwise create new one
+	sessionName := "rexec-agent"
+	
+	// Check if tmux is available
+	tmuxPath, err := exec.LookPath("tmux")
+	if err != nil {
+		// Fallback to plain shell if tmux not available
+		a.startPlainShell()
+		return
+	}
+
+	// Check if session already exists
+	checkCmd := exec.Command(tmuxPath, "has-session", "-t", sessionName)
+	sessionExists := checkCmd.Run() == nil
+
+	var cmd *exec.Cmd
+	if sessionExists {
+		// Attach to existing session
+		cmd = exec.Command(tmuxPath, "attach-session", "-t", sessionName)
+	} else {
+		// Create new session
+		cmd = exec.Command(tmuxPath, "new-session", "-s", sessionName)
+	}
+
+	cmd.Env = append(os.Environ(),
+		"TERM=xterm-256color",
+		"REXEC_AGENT=1",
+	)
+
+	ptmx, err := pty.Start(cmd)
+	if err != nil {
+		// Fallback to plain shell
+		a.startPlainShell()
+		return
+	}
+
+	a.mu.Lock()
+	a.cmd = cmd
+	a.ptmx = ptmx
+	a.mu.Unlock()
+
+	a.sendMessage("shell_started", nil)
+
+	// Read PTY output and send to WebSocket
+	go func() {
+		buf := make([]byte, 8192)
+		for {
+			n, err := ptmx.Read(buf)
+			if err != nil {
+				break
+			}
+
+			// Send output as string for proper display
+			a.sendMessage("shell_output", map[string]interface{}{
+				"data": buf[:n],
+			})
+		}
+
+		a.sendMessage("shell_stopped", nil)
+		a.stopShell()
+	}()
+
+	// Wait for shell to exit
+	cmd.Wait()
+}
+
+// startPlainShell is fallback when tmux is not available
+func (a *Agent) startPlainShell() {
 	cmd := exec.Command(a.config.Shell, "-l")
 	cmd.Env = append(os.Environ(),
 		"TERM=xterm-256color",
@@ -622,7 +690,7 @@ func (a *Agent) startShell() {
 
 	// Read PTY output and send to WebSocket
 	go func() {
-		buf := make([]byte, 4096)
+		buf := make([]byte, 8192)
 		for {
 			n, err := ptmx.Read(buf)
 			if err != nil {
