@@ -78,6 +78,17 @@ jobs:
             -o rexec-tui-${{ matrix.suffix }} \
             ./cmd/rexec-tui
 
+      - name: Build rexec-agent
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          go build -ldflags "-s -w -X main.Version=${VERSION}" \
+            -o rexec-agent-${{ matrix.suffix }} \
+            ./cmd/rexec-agent
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -85,6 +96,7 @@ jobs:
           path: |
             rexec-cli-${{ matrix.suffix }}
             rexec-tui-${{ matrix.suffix }}
+            rexec-agent-${{ matrix.suffix }}
 
   release:
     name: Create Release
@@ -124,20 +136,21 @@ jobs:
           files: |
             binaries/rexec-cli-*
             binaries/rexec-tui-*
+            binaries/rexec-agent-*
             binaries/checksums.txt
           body: |
-            ## Rexec CLI ${{ steps.version.outputs.version }}
+            ## Rexec ${{ steps.version.outputs.version }}
 
-            Cloud Terminal Environment CLI & TUI
+            Cloud Terminal Environment - CLI, TUI & Agent
 
-            ### Installation
+            ### CLI Installation
 
             #### Quick Install (Linux/macOS)
             ```bash
             curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/install-cli.sh | bash
             ```
 
-            #### Manual Install
+            #### Manual CLI Install
             Download the appropriate binary for your platform:
             - **Linux (x64)**: `rexec-cli-linux-amd64`
             - **Linux (ARM64)**: `rexec-cli-linux-arm64`
@@ -155,7 +168,23 @@ jobs:
             rexec version
             ```
 
-            ### Usage
+            ### Agent Installation (Connect Your Own Server)
+
+            #### Quick Install
+            ```bash
+            curl -fsSL https://rexec.pipeops.io/install-agent.sh | sudo bash -s -- --token YOUR_TOKEN --agent-id YOUR_AGENT_ID
+            ```
+
+            #### Manual Agent Install
+            - **Linux (x64)**: `rexec-agent-linux-amd64`
+            - **Linux (ARM64)**: `rexec-agent-linux-arm64`
+
+            ```bash
+            sudo mv rexec-agent-* /usr/local/bin/rexec-agent
+            sudo chmod +x /usr/local/bin/rexec-agent
+            ```
+
+            ### CLI Usage
             ```bash
             # Login
             rexec login
