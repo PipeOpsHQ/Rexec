@@ -1,6 +1,5 @@
 <script lang="ts">
     import { onMount, onDestroy, createEventDispatcher } from "svelte";
-    import { get } from "svelte/store";
     import { security, hasPasscode, isLocked } from "$stores/security";
     import { isAuthenticated } from "$stores/auth";
     import { toast } from "$stores/toast";
@@ -16,13 +15,26 @@
     let showSetupPrompt = false;
     let inactivityTimer: ReturnType<typeof setInterval> | null = null;
     let activityTimeout: ReturnType<typeof setTimeout> | null = null;
+    
+    // Cache current values to avoid get() in handlers
+    let currentIsAuthenticated = false;
+    let currentHasPasscode = false;
+    
+    // Subscribe to auth state
+    const unsubAuth = isAuthenticated.subscribe(value => {
+        currentIsAuthenticated = value;
+    });
+    
+    const unsubPasscode = hasPasscode.subscribe(value => {
+        currentHasPasscode = value;
+    });
 
     // Activity tracking
     const ACTIVITY_EVENTS = ["mousedown", "mousemove", "keydown", "scroll", "touchstart", "click"];
     const ACTIVITY_DEBOUNCE = 1000; // Debounce activity updates
 
     function handleActivity() {
-        if (!get(isAuthenticated)) return;
+        if (!currentIsAuthenticated) return;
         
         // Debounce activity updates
         if (activityTimeout) {
@@ -34,7 +46,7 @@
     }
 
     function checkInactivity() {
-        if (!get(isAuthenticated) || !get(hasPasscode)) return;
+        if (!currentIsAuthenticated || !currentHasPasscode) return;
         
         if (security.checkInactivity()) {
             security.lock();
@@ -43,14 +55,14 @@
 
     // Handle visibility change (tab hidden/shown)
     function handleVisibilityChange() {
-        if (!get(isAuthenticated)) return;
+        if (!currentIsAuthenticated) return;
         
         if (document.hidden) {
             // User switched away
             // Optional: Could lock immediately or start shorter timer
         } else {
             // User came back - check if we should be locked
-            if (get(hasPasscode) && security.checkInactivity()) {
+            if (currentHasPasscode && security.checkInactivity()) {
                 security.lock();
             }
         }
@@ -70,7 +82,7 @@
 
         // Check if should prompt for passcode setup (after 30 seconds)
         setTimeout(() => {
-            if (get(isAuthenticated) && !get(hasPasscode)) {
+            if (currentIsAuthenticated && !currentHasPasscode) {
                 const state = security.getState();
                 if (!state.passcodeSetupPromptDismissed) {
                     showSetupPrompt = true;
@@ -80,6 +92,10 @@
     });
 
     onDestroy(() => {
+        // Cleanup subscriptions
+        unsubAuth();
+        unsubPasscode();
+        
         ACTIVITY_EVENTS.forEach((event) => {
             document.removeEventListener(event, handleActivity);
         });
