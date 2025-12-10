@@ -26,9 +26,6 @@
 #   DATABASE_URL       - PostgreSQL connection string
 #   JWT_SECRET         - Secret for signing JWT tokens
 
-# Cache bust arg - update this value to invalidate build cache
-ARG CACHE_BUST=2025-12-10-v1
-
 # Frontend build stage
 FROM node:22-alpine AS frontend-builder
 

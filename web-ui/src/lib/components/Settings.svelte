@@ -242,7 +242,7 @@
 
 <div class="settings">
   <div class="settings-header">
-    <button class="back-btn" on:click={() => dispatch('back')}>
+    <button class="back-btn" onclick={() => dispatch('back')}>
       ← Back
     </button>
     <h1>Settings</h1>
@@ -284,7 +284,7 @@
             </span>
           </div>
           <div class="setting-value">
-            <button class="btn btn-primary btn-sm" on:click={() => auth.getOAuthUrl().then(url => url && (window.location.href = url))}>
+            <button class="btn btn-primary btn-sm" onclick={() => auth.getOAuthUrl().then(url => url && (window.location.href = url))}>
               Sign In
             </button>
           </div>
@@ -404,11 +404,11 @@
         </div>
         <div class="setting-value">
           {#if $hasPasscode}
-            <button class="btn btn-secondary btn-sm" on:click={() => openPasscodeModal(true)}>
+            <button class="btn btn-secondary btn-sm" onclick={() => openPasscodeModal(true)}>
               Change Passcode
             </button>
           {:else}
-            <button class="btn btn-primary btn-sm" on:click={() => openPasscodeModal(false)}>
+            <button class="btn btn-primary btn-sm" onclick={() => openPasscodeModal(false)}>
               Set Passcode
             </button>
           {/if}
@@ -422,7 +422,7 @@
             <span class="setting-description">Auto-lock after inactivity</span>
           </div>
           <div class="setting-value">
-            <select id="lock-timeout" bind:value={lockTimeout} on:change={updateLockTimeout} class="select-sm">
+            <select id="lock-timeout" bind:value={lockTimeout} onchange={updateLockTimeout} class="select-sm">
               <option value={1}>1 minute</option>
               <option value={2}>2 minutes</option>
               <option value={5}>5 minutes</option>
@@ -439,7 +439,7 @@
             <span class="setting-description">Remove passcode protection</span>
           </div>
           <div class="setting-value">
-            <button class="btn btn-danger btn-sm" on:click={() => { isChangingPasscode = false; showPasscodeModal = true; }}>
+            <button class="btn btn-danger btn-sm" onclick={() => { isChangingPasscode = false; showPasscodeModal = true; }}>
               Disable
             </button>
           </div>
@@ -456,7 +456,7 @@
       </p>
 
       <div class="agents-header">
-        <button class="btn btn-primary btn-sm" on:click={() => showAgentModal = true}>
+        <button class="btn btn-primary btn-sm" onclick={() => showAgentModal = true}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -533,10 +533,10 @@
 
     <!-- Actions -->
     <div class="settings-actions">
-      <button class="btn btn-secondary" on:click={resetSettings}>
+      <button class="btn btn-secondary" onclick={resetSettings}>
         Reset to Defaults
       </button>
-      <button class="btn btn-primary" on:click={saveSettings}>
+      <button class="btn btn-primary" onclick={saveSettings}>
         Save Settings
       </button>
     </div>
@@ -545,7 +545,7 @@
 
 <!-- Passcode Modal -->
 {#if showPasscodeModal}
-  <div class="modal-overlay" on:click={(e) => e.target === e.currentTarget && closePasscodeModal()}>
+  <div class="modal-overlay" onclick={(e) => e.target === e.currentTarget && closePasscodeModal()}>
     <div class="modal">
       <div class="modal-header">
         <h3>
@@ -557,7 +557,7 @@
             Set Screen Lock Passcode
           {/if}
         </h3>
-        <button class="modal-close" on:click={closePasscodeModal}>×</button>
+        <button class="modal-close" onclick={closePasscodeModal}>×</button>
       </div>
 
       <div class="modal-body">
@@ -604,15 +604,15 @@
       </div>
 
       <div class="modal-footer">
-        <button class="btn btn-secondary" on:click={closePasscodeModal}>
+        <button class="btn btn-secondary" onclick={closePasscodeModal}>
           Cancel
         </button>
         {#if $hasPasscode && !isChangingPasscode}
-          <button class="btn btn-danger" on:click={handleRemovePasscode}>
+          <button class="btn btn-danger" onclick={handleRemovePasscode}>
             Disable Lock
           </button>
         {:else}
-          <button class="btn btn-primary" on:click={handleSetPasscode}>
+          <button class="btn btn-primary" onclick={handleSetPasscode}>
             {$hasPasscode ? 'Update Passcode' : 'Set Passcode'}
           </button>
         {/if}
@@ -623,11 +623,11 @@
 
 <!-- Agent Modal -->
 {#if showAgentModal}
-  <div class="modal-overlay" on:click={(e) => e.target === e.currentTarget && closeAgentModal()}>
+  <div class="modal-overlay" onclick={(e) => e.target === e.currentTarget && closeAgentModal()}>
     <div class="modal modal-lg">
       <div class="modal-header">
         <h3>{showInstallScript ? 'Install Agent' : 'Add New Agent'}</h3>
-        <button class="modal-close" on:click={closeAgentModal}>×</button>
+        <button class="modal-close" onclick={closeAgentModal}>×</button>
       </div>
 
       <div class="modal-body">
@@ -643,7 +643,7 @@
 
           <div class="install-script-box">
             <code>{agents.getInstallScript(createdAgent.id)}</code>
-            <button class="btn btn-sm copy-btn" on:click={copyInstallScript}>
+            <button class="btn btn-sm copy-btn" onclick={copyInstallScript}>
               {copiedScript ? 'Copied!' : 'Copy'}
             </button>
           </div>
@@ -683,14 +683,14 @@
 
       <div class="modal-footer">
         {#if showInstallScript}
-          <button class="btn btn-primary" on:click={closeAgentModal}>
+          <button class="btn btn-primary" onclick={closeAgentModal}>
             Done
           </button>
         {:else}
-          <button class="btn btn-secondary" on:click={closeAgentModal}>
+          <button class="btn btn-secondary" onclick={closeAgentModal}>
             Cancel
           </button>
-          <button class="btn btn-primary" on:click={handleCreateAgent}>
+          <button class="btn btn-primary" onclick={handleCreateAgent}>
             Create Agent
           </button>
         {/if}
