@@ -96,6 +96,35 @@
             <span>Launch Terminal</span>
         </button>
     </section>
+
+    <section class="docs-section">
+        <div class="section-header">
+            <h2>Developer Documentation</h2>
+            <p>Master the platform with our comprehensive guides.</p>
+        </div>
+        <div class="docs-grid">
+            <button class="doc-card" on:click={() => dispatch('navigate', { view: 'docs/cli' })}>
+                <div class="doc-icon">
+                    <StatusIcon status="cli" size={32} />
+                </div>
+                <div class="doc-content">
+                    <h3>CLI Reference</h3>
+                    <p>Manage terminals, snippets, and agents directly from your command line.</p>
+                    <span class="link-text">View Documentation →</span>
+                </div>
+            </button>
+            <button class="doc-card" on:click={() => dispatch('navigate', { view: 'docs/agent' })}>
+                <div class="doc-icon">
+                    <StatusIcon status="server" size={32} />
+                </div>
+                <div class="doc-content">
+                    <h3>Agent Documentation</h3>
+                    <p>Connect your own servers and machines to your Rexec dashboard.</p>
+                    <span class="link-text">View Documentation →</span>
+                </div>
+            </button>
+        </div>
+    </section>
 </div>
 
 <style>
@@ -248,6 +277,77 @@
         color: var(--text-muted);
         margin-bottom: 32px;
         font-size: 18px;
+    }
+
+    .docs-section {
+        margin-top: 80px;
+    }
+
+    .section-header {
+        text-align: center;
+        margin-bottom: 40px;
+    }
+
+    .section-header h2 {
+        font-size: 32px;
+        margin-bottom: 12px;
+        color: var(--text);
+    }
+
+    .section-header p {
+        font-size: 16px;
+        color: var(--text-muted);
+    }
+
+    .docs-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 24px;
+    }
+
+    .doc-card {
+        display: flex;
+        align-items: flex-start;
+        gap: 20px;
+        padding: 30px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        text-align: left;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        width: 100%;
+    }
+
+    .doc-card:hover {
+        border-color: var(--accent);
+        transform: translateY(-2px);
+    }
+
+    .doc-icon {
+        color: var(--accent);
+        background: rgba(var(--accent-rgb), 0.1);
+        padding: 12px;
+        border-radius: 8px;
+    }
+
+    .doc-content h3 {
+        font-size: 18px;
+        margin: 0 0 8px 0;
+        color: var(--text);
+    }
+
+    .doc-content p {
+        font-size: 14px;
+        color: var(--text-secondary);
+        margin: 0 0 16px 0;
+        line-height: 1.5;
+    }
+
+    .link-text {
+        font-size: 13px;
+        color: var(--accent);
+        font-weight: 500;
     }
 
     @keyframes blink {

@@ -35,6 +35,7 @@
     import AgentDocs from "$components/AgentDocs.svelte";
     import CLIDocs from "$components/CLIDocs.svelte";
     import CLILogin from "$components/CLILogin.svelte";
+    import Account from "$components/Account.svelte";
 
     // App state
     let currentView:
@@ -56,6 +57,7 @@
         | "agent-docs"
         | "cli-docs"
         | "cli-login"
+        | "account"
         | "404" = "landing";
     let isLoading = true;
     let isInitialized = false; // Prevents reactive statements from firing before token validation
@@ -398,6 +400,16 @@
             return;
         }
 
+        // Check for /account route
+        if (path === "/account" || path === "/profile") {
+            if (!$isAuthenticated) {
+                currentView = "landing";
+                return;
+            }
+            currentView = "account";
+            return;
+        }
+
         // Check for /cli-login route (CLI login with callback)
         if (path === "/cli-login") {
             const callback = params.get("callback");
@@ -486,6 +498,8 @@
             "/agents",
             "/docs/agent",
             "/docs/cli",
+            "/account",
+            "/profile",
         ];
         const isKnownPath =
             knownPaths.includes(path) ||
@@ -627,6 +641,7 @@
         currentView !== "marketplace" &&
         currentView !== "agent-docs" &&
         currentView !== "cli-docs" &&
+        currentView !== "account" &&
         currentView !== "join" &&
         currentView !== "pricing" &&
         currentView !== "404"
@@ -677,6 +692,11 @@
     function goToBilling() {
         currentView = "billing";
         window.history.pushState({}, "", "/billing");
+    }
+
+    function goToAccount() {
+        currentView = "account";
+        window.history.pushState({}, "", "/account");
     }
 
     function goToAdmin() {
@@ -733,6 +753,8 @@
             currentView = "agent-docs";
         } else if (path === "/docs/cli") {
             currentView = "cli-docs";
+        } else if (path === "/account" || path === "/profile") {
+            currentView = $isAuthenticated ? "account" : "landing";
         } else if (path === "/marketplace") {
             currentView = "marketplace";
         }
@@ -757,6 +779,7 @@
             on:billing={goToBilling}
             on:agents={goToAgents}
             on:cli={goToCLI}
+            on:account={goToAccount}
             on:guest={openGuestModal}
             on:pricing={() => {
                 currentView = "pricing";
@@ -778,8 +801,14 @@
                 {:else if currentView === "dashboard"}                <Dashboard
                     on:create={goToCreate}
                     on:connect={(e) => {
-                        // Only create session - TerminalPanel will handle WebSocket connection
-                        terminal.createSession(e.detail.id, e.detail.name);
+                        // Check if this is an agent connection (id starts with 'agent:')
+                        if (e.detail.id.startsWith('agent:')) {
+                            const agentId = e.detail.id.replace('agent:', '');
+                            terminal.createAgentSession(agentId, e.detail.name);
+                        } else {
+                            // Regular container connection
+                            terminal.createSession(e.detail.id, e.detail.name);
+                        }
                     }}
                     on:showAgentDocs={goToAgents}
                 />
@@ -856,6 +885,26 @@
                 />
             {:else if currentView === "cli-login"}
                 <CLILogin />
+            {:else if currentView === "account"}
+                <Account 
+                    on:navigate={(e) => {
+                        // Handle internal navigation from Account page
+                        const view = e.detail.view;
+                        if (view === 'dashboard') goToDashboard();
+                        else if (view === 'settings') goToSettings();
+                        else if (view === 'sshkeys') goToSSHKeys();
+                        else if (view === 'billing') goToBilling();
+                        else if (view === 'snippets') goToSnippets();
+                        else if (view === 'pricing') {
+                            currentView = "pricing";
+                            window.history.pushState({}, "", "/pricing");
+                        }
+                        else if (view === 'admin') goToAdmin();
+                        else if (view === 'docs/cli') goToCLI();
+                        else if (view === 'docs/agent') goToAgents();
+                    }}
+                    on:logout={() => auth.logout()}
+                />
             {:else if currentView === "join"}
                 <JoinSession
                     code={joinCode}

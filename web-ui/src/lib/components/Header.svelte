@@ -25,6 +25,7 @@
         guides: void;
         usecases: void;
         admin: void;
+        account: void;
     }>();
 
     let showUserMenu = false;
@@ -199,7 +200,13 @@
 
                 {#if showUserMenu}
                     <div class="user-menu">
-                        <div class="user-menu-header">
+                        <div 
+                            class="user-menu-header clickable"
+                            on:click={() => {
+                                showUserMenu = false;
+                                dispatch("account");
+                            }}
+                        >
                             <span class="user-menu-name"
                                 >{$auth.user?.name || "User"}</span
                             >
@@ -741,6 +748,15 @@
         display: flex;
         flex-direction: column;
         gap: 4px;
+    }
+
+    .user-menu-header.clickable {
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+
+    .user-menu-header.clickable:hover {
+        background: var(--bg-tertiary);
     }
 
     .user-menu-name {

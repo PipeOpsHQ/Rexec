@@ -18,6 +18,14 @@
     import PlatformIcon from "./icons/PlatformIcon.svelte";
     import StatusIcon from "./icons/StatusIcon.svelte";
 
+    let copiedCommand = ""; // To show 'Copied!' feedback
+
+    function copyToClipboard(text: string, id: string) {
+        navigator.clipboard.writeText(text);
+        copiedCommand = id;
+        setTimeout(() => { copiedCommand = ""; }, 2000);
+    }
+
     const dispatch = createEventDispatcher<{
         create: void;
         connect: { id: string; name: string };
@@ -367,7 +375,7 @@
             {/if}
             <button
                 class="btn btn-secondary btn-sm"
-                on:click={toggleShortcuts}
+                onclick={toggleShortcuts}
                 title="Keyboard Shortcuts"
             >
                 <svg
@@ -386,7 +394,7 @@
             </button>
             <button
                 class="btn btn-secondary btn-sm"
-                on:click={() => containers.fetchContainers()}
+                onclick={() => containers.fetchContainers()}
             >
                 <svg
                     class="icon"
@@ -403,7 +411,7 @@
             </button>
             <button
                 class="btn btn-secondary btn-sm"
-                on:click={() => dispatch("showAgentDocs")}
+                onclick={() => dispatch("showAgentDocs")}
                 title="Connect your own machine"
             >
                 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -415,7 +423,7 @@
             </button>
             <button
                 class="btn btn-primary"
-                on:click={() => dispatch("create")}
+                onclick={() => dispatch("create")}
                 disabled={effectiveCount >= containerLimit || currentlyCreating}
             >
                 {#if currentlyCreating}
@@ -466,7 +474,7 @@
             </p>
             <button
                 class="btn btn-primary btn-lg"
-                on:click={() => dispatch("create")}
+                onclick={() => dispatch("create")}
             >
                 <svg
                     class="icon"
@@ -493,7 +501,15 @@
                 <p class="tip-text">
                     Use the rexec agent to connect your own server, VM, or local machine.
                 </p>
-                <code class="tip-code">curl -fsSL https://rexec.pipeops.io/install-agent.sh | bash</code>
+                <div class="tip-code-block">
+                    <code class="tip-code">curl -fsSL https://rexec.pipeops.io/install-agent.sh | bash</code>
+                    <button 
+                        class="copy-btn"
+                        onclick={() => copyToClipboard('curl -fsSL https://rexec.pipeops.io/install-agent.sh | bash', 'agent-install')}
+                    >
+                        {copiedCommand === 'agent-install' ? 'Copied!' : 'Copy'}
+                    </button>
+                </div>
             </div>
         </div>
     {:else}
@@ -671,7 +687,7 @@
                                 {#if !containerConnected && !isConnecting(container.id)}
                                     <button
                                         class="btn btn-primary btn-sm flex-1"
-                                        on:click={() =>
+                                        onclick={() =>
                                             handleConnect(container)}
                                         disabled={isContainerLoading(container.id)}
                                     >
@@ -721,7 +737,7 @@
                                 <button
                                     class="btn btn-icon btn-sm"
                                     title="Settings"
-                                    on:click={() => openSettings(container)}
+                                    onclick={() => openSettings(container)}
                                     disabled={isContainerLoading(container.id)}
                                 >
                                     <svg
@@ -739,7 +755,7 @@
                             <div class="action-row">
                                 <button
                                     class="btn btn-secondary btn-sm flex-1"
-                                    on:click={() => handleStop(container)}
+                                    onclick={() => handleStop(container)}
                                     disabled={isContainerLoading(container.id)}
                                 >
                                     <svg
@@ -760,7 +776,7 @@
                                 </button>
                                 <button
                                     class="btn btn-danger btn-sm flex-1"
-                                    on:click={() => handleDelete(container)}
+                                    onclick={() => handleDelete(container)}
                                     disabled={getLoadingState(container.id) === 'deleting'}
                                 >
                                     <svg
@@ -781,7 +797,7 @@
                             <div class="action-row">
                                 <button
                                     class="btn btn-primary btn-sm flex-1"
-                                    on:click={() => handleStart(container)}
+                                    onclick={() => handleStart(container)}
                                     disabled={isContainerLoading(container.id)}
                                 >
                                     <svg
@@ -797,7 +813,7 @@
                                 </button>
                                 <button
                                     class="btn btn-danger btn-sm flex-1"
-                                    on:click={() => handleDelete(container)}
+                                    onclick={() => handleDelete(container)}
                                     disabled={getLoadingState(container.id) === 'deleting'}
                                 >
                                     <svg
@@ -818,7 +834,7 @@
                             <div class="action-row">
                                 <button
                                     class="btn btn-danger btn-sm flex-1"
-                                    on:click={() => handleDelete(container)}
+                                    onclick={() => handleDelete(container)}
                                     disabled={getLoadingState(container.id) === 'deleting'}
                                 >
                                     <svg
@@ -902,7 +918,7 @@
                     <div class="container-actions">
                         <button
                             class="btn btn-primary btn-sm flex-1"
-                            on:click={() => dispatch('connect', { id: `agent:${agent.id}`, name: agent.name })}
+                            onclick={() => dispatch('connect', { id: `agent:${agent.id}`, name: agent.name })}
                         >
                             <svg
                                 class="icon"
@@ -918,7 +934,7 @@
                         <button
                             class="btn btn-danger btn-sm"
                             title="Disconnect Agent"
-                            on:click={() => agents.deleteAgent(agent.id)}
+                            onclick={() => agents.deleteAgent(agent.id)}
                         >
                             <svg
                                 class="icon"
@@ -938,11 +954,11 @@
 </div>
 
 {#if showShortcutsModal}
-    <div class="modal-backdrop" on:click={toggleShortcuts}>
-        <div class="modal-content shortcuts-modal" on:click={(e) => e.stopPropagation()}>
+    <div class="modal-backdrop" onclick={toggleShortcuts}>
+        <div class="modal-content shortcuts-modal" onclick={(e) => e.stopPropagation()}>
             <div class="modal-header">
                 <h3>Keyboard Shortcuts</h3>
-                <button class="close-btn" on:click={toggleShortcuts}>×</button>
+                <button class="close-btn" onclick={toggleShortcuts}>×</button>
             </div>
             <div class="shortcuts-list">
                 <div class="shortcut-group">
@@ -1145,17 +1161,42 @@
         line-height: 1.5;
     }
 
-    .tip-code {
-        display: block;
-        padding: 8px 12px;
+    .tip-code-block {
+        display: flex;
+        align-items: center;
+        gap: 10px;
         background: #0d0d0d;
         border: 1px solid #222;
         border-radius: 4px;
+        padding: 8px 12px;
+    }
+
+    .tip-code {
+        flex: 1;
         font-family: var(--font-mono);
         font-size: 11px;
         color: var(--accent);
         overflow-x: auto;
         white-space: nowrap;
+    }
+
+    .copy-btn {
+        flex-shrink: 0;
+        padding: 4px 8px;
+        background: transparent;
+        border: 1px solid #333;
+        border-radius: 4px;
+        color: var(--text-muted);
+        font-size: 10px;
+        font-family: var(--font-mono);
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .copy-btn:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+        background: rgba(0, 255, 65, 0.05);
     }
 
     /* Live indicator */
