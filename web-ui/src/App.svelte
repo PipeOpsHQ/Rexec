@@ -728,6 +728,7 @@
                         // Only create session - TerminalPanel will handle WebSocket connection
                         terminal.createSession(e.detail.id, e.detail.name);
                     }}
+                    on:showAgentDocs={goToAgents}
                 />
             {:else if currentView === "admin"}
                 <AdminDashboard />
