@@ -3,6 +3,7 @@
     import { security, hasPasscode, isLocked } from "$stores/security";
     import { isAuthenticated } from "$stores/auth";
     import { toast } from "$stores/toast";
+    import { get } from "svelte/store";
 
     let passcodeInput = "";
     let newPasscode = "";
@@ -18,14 +19,9 @@
     let currentIsAuthenticated = false;
     let currentHasPasscode = false;
     
-    // Subscribe to auth state
-    const unsubAuth = isAuthenticated.subscribe(value => {
-        currentIsAuthenticated = value;
-    });
-    
-    const unsubPasscode = hasPasscode.subscribe(value => {
-        currentHasPasscode = value;
-    });
+    // Subscriptions - initialized in onMount to avoid effect_orphan error
+    let unsubAuth: (() => void) | null = null;
+    let unsubPasscode: (() => void) | null = null;
 
     // Activity tracking
     const ACTIVITY_EVENTS = ["mousedown", "mousemove", "keydown", "scroll", "touchstart", "click"];
@@ -67,6 +63,15 @@
     }
 
     onMount(() => {
+        // Subscribe to stores inside onMount to avoid effect_orphan error in Svelte 5
+        unsubAuth = isAuthenticated.subscribe(value => {
+            currentIsAuthenticated = value;
+        });
+        
+        unsubPasscode = hasPasscode.subscribe(value => {
+            currentHasPasscode = value;
+        });
+        
         // Set up activity listeners
         ACTIVITY_EVENTS.forEach((event) => {
             document.addEventListener(event, handleActivity, { passive: true });
@@ -91,8 +96,8 @@
 
     onDestroy(() => {
         // Cleanup subscriptions
-        unsubAuth();
-        unsubPasscode();
+        if (unsubAuth) unsubAuth();
+        if (unsubPasscode) unsubPasscode();
         
         ACTIVITY_EVENTS.forEach((event) => {
             document.removeEventListener(event, handleActivity);
