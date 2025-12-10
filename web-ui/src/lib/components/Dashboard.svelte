@@ -872,13 +872,6 @@
                     class="container-card agent-card"
                     class:connected={true}
                 >
-                    <div class="agent-badge">
-                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="2" y="3" width="20" height="14" rx="2" />
-                            <path d="M8 21h8M12 17v4" />
-                        </svg>
-                        Agent
-                    </div>
                     <div class="container-header">
                         <span class="container-icon">
                             <PlatformIcon platform={agent.os === 'darwin' ? 'macos' : agent.os === 'windows' ? 'windows' : 'linux'} size={32} />
@@ -887,18 +880,18 @@
                             <h2 class="container-name">{agent.name}</h2>
                             <div class="container-meta-row">
                                 <span class="container-image">{agent.os}/{agent.arch}</span>
-                                <span class="environment-badge agent-env" title="Connected Machine">
+                                <span class="environment-badge agent-env" title="Connected via Agent">
                                     <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <circle cx="12" cy="12" r="10" />
-                                        <path d="M12 16v-4M12 8h.01" />
+                                        <rect x="2" y="3" width="20" height="14" rx="2" />
+                                        <path d="M8 21h8M12 17v4" />
                                     </svg>
-                                    <span class="badge-text">BYOS</span>
+                                    <span class="badge-text">Agent</span>
                                 </span>
                             </div>
                         </div>
                         <span class="container-status status-running">
                             <span class="status-dot"></span>
-                            online
+                            running
                         </span>
                     </div>
 
@@ -1279,28 +1272,6 @@
     }
 
     .agent-badge {
-        position: absolute;
-        top: 8px;
-        right: 8px;
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        padding: 2px 8px;
-        background: rgba(168, 85, 247, 0.2);
-        border: 1px solid rgba(168, 85, 247, 0.4);
-        border-radius: 4px;
-        font-size: 10px;
-        font-weight: 500;
-        color: #a855f7;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    .agent-badge .icon {
-        width: 12px;
-        height: 12px;
-    }
-
     .agent-env {
         background: rgba(168, 85, 247, 0.15);
         border-color: rgba(168, 85, 247, 0.3);
