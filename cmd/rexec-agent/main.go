@@ -73,21 +73,43 @@ type Agent struct {
 	reconnects int
 }
 
+var configPath string
+
 func main() {
-	if len(os.Args) < 2 {
+	// Parse global flags first
+	args := os.Args[1:]
+	var cmdArgs []string
+	
+	for i := 0; i < len(args); i++ {
+		if args[i] == "--config" || args[i] == "-c" {
+			if i+1 < len(args) {
+				configPath = args[i+1]
+				i++
+			}
+		} else {
+			cmdArgs = append(cmdArgs, args[i])
+		}
+	}
+
+	if len(cmdArgs) < 1 {
+		// If --config is provided without command, default to start
+		if configPath != "" {
+			handleStart([]string{})
+			return
+		}
 		showHelp()
 		return
 	}
 
-	switch os.Args[1] {
+	switch cmdArgs[0] {
 	case "help", "-h", "--help":
 		showHelp()
 	case "version", "-v", "--version":
 		fmt.Printf("%srexec-agent%s v%s\n", Bold, Reset, Version)
 	case "register":
-		handleRegister(os.Args[2:])
+		handleRegister(cmdArgs[1:])
 	case "start":
-		handleStart(os.Args[2:])
+		handleStart(cmdArgs[1:])
 	case "stop":
 		handleStop()
 	case "status":
@@ -97,7 +119,7 @@ func main() {
 	case "install":
 		handleInstall()
 	default:
-		fmt.Printf("%sUnknown command: %s%s\n", Red, os.Args[1], Reset)
+		fmt.Printf("%sUnknown command: %s%s\n", Red, cmdArgs[0], Reset)
 		showHelp()
 		os.Exit(1)
 	}
@@ -108,7 +130,10 @@ func showHelp() {
 %s%sRexec Agent%s - Connect your server to Rexec
 
 %sUSAGE:%s
-  rexec-agent <command> [options]
+  rexec-agent [--config path] <command> [options]
+
+%sGLOBAL OPTIONS:%s
+  --config, -c     Path to config file (default: /etc/rexec/agent.yaml or ~/.rexec/agent.json)
 
 %sCOMMANDS:%s
   register     Register this machine as a Rexec terminal
@@ -129,13 +154,17 @@ func showHelp() {
 %sEXAMPLES:%s
   rexec-agent register --name "prod-server-1" --tags "production,aws"
   rexec-agent start
+  rexec-agent --config /etc/rexec/agent.yaml start
   rexec-agent status
 
 %sENVIRONMENT:%s
   REXEC_TOKEN      Auth token
   REXEC_HOST       API host
+  REXEC_API        API host (alternative)
+  REXEC_CONFIG     Config file path
 
 `, Bold, Cyan, Reset,
+		Yellow, Reset,
 		Yellow, Reset,
 		Yellow, Reset,
 		Yellow, Reset,
@@ -145,27 +174,97 @@ func showHelp() {
 }
 
 func getConfigPath() string {
+	// If --config flag was provided, use that
+	if configPath != "" {
+		return configPath
+	}
+	
+	// Check for REXEC_CONFIG env var
+	if envConfig := os.Getenv("REXEC_CONFIG"); envConfig != "" {
+		return envConfig
+	}
+	
+	// Check /etc/rexec/agent.yaml first (system-wide)
+	if _, err := os.Stat("/etc/rexec/agent.yaml"); err == nil {
+		return "/etc/rexec/agent.yaml"
+	}
+	
+	// Fall back to ~/.rexec/agent.json (user-specific)
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ConfigDir, AgentFile)
 }
 
 func loadAgentConfig() (*AgentConfig, error) {
-	data, err := os.ReadFile(getConfigPath())
+	cfgPath := getConfigPath()
+	data, err := os.ReadFile(cfgPath)
 	if err != nil {
 		return nil, err
 	}
 
 	var cfg AgentConfig
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return nil, err
+	
+	// Check if it's YAML (from install script) or JSON (from register command)
+	if strings.HasSuffix(cfgPath, ".yaml") || strings.HasSuffix(cfgPath, ".yml") {
+		// Parse YAML config
+		lines := strings.Split(string(data), "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "#") || line == "" {
+				continue
+			}
+			
+			parts := strings.SplitN(line, ":", 2)
+			if len(parts) != 2 {
+				continue
+			}
+			
+			key := strings.TrimSpace(parts[0])
+			value := strings.TrimSpace(parts[1])
+			
+			switch key {
+			case "api_url":
+				cfg.Host = value
+			case "token":
+				cfg.Token = value
+			case "agent_id":
+				cfg.ID = value
+			case "name":
+				cfg.Name = value
+			case "shell":
+				cfg.Shell = value
+			}
+		}
+		cfg.Registered = cfg.Token != "" && (cfg.ID != "" || cfg.Host != "")
+	} else {
+		// Parse JSON config
+		if err := json.Unmarshal(data, &cfg); err != nil {
+			return nil, err
+		}
 	}
 
 	// Override with env vars
 	if host := os.Getenv("REXEC_HOST"); host != "" {
 		cfg.Host = host
 	}
+	if host := os.Getenv("REXEC_API"); host != "" {
+		cfg.Host = host
+	}
 	if token := os.Getenv("REXEC_TOKEN"); token != "" {
 		cfg.Token = token
+	}
+	
+	// Set defaults
+	if cfg.Host == "" {
+		cfg.Host = DefaultHost
+	}
+	if cfg.Shell == "" {
+		cfg.Shell = os.Getenv("SHELL")
+		if cfg.Shell == "" {
+			cfg.Shell = "/bin/bash"
+		}
+	}
+	if cfg.Name == "" {
+		cfg.Name, _ = os.Hostname()
 	}
 
 	return &cfg, nil
@@ -313,12 +412,13 @@ func handleRegister(args []string) {
 func handleStart(args []string) {
 	cfg, err := loadAgentConfig()
 	if err != nil {
-		fmt.Printf("%sAgent not registered. Run 'rexec-agent register' first.%s\n", Red, Reset)
+		fmt.Printf("%sError loading config: %v%s\n", Red, err, Reset)
+		fmt.Printf("Agent not configured. Run 'rexec-agent register' or provide --config flag.\n")
 		os.Exit(1)
 	}
 
-	if !cfg.Registered {
-		fmt.Printf("%sAgent not registered. Run 'rexec-agent register' first.%s\n", Red, Reset)
+	if cfg.Token == "" {
+		fmt.Printf("%sNo token found in config. Set token in config or REXEC_TOKEN env var.%s\n", Red, Reset)
 		os.Exit(1)
 	}
 

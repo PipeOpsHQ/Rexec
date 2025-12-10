@@ -301,7 +301,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=${INSTALL_DIR}/rexec-agent --config ${CONFIG_DIR}/agent.yaml
+ExecStart=${INSTALL_DIR}/rexec-agent start
 Restart=always
 RestartSec=5
 User=root
@@ -316,6 +316,7 @@ ProtectHome=false
 
 # Environment
 Environment=REXEC_API=${REXEC_API}
+Environment=REXEC_CONFIG=${CONFIG_DIR}/agent.yaml
 
 [Install]
 WantedBy=multi-user.target
