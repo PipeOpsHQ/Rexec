@@ -74,6 +74,19 @@ COPY --from=frontend-builder /app/web ./web
 # Build the binary
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o rexec ./cmd/rexec
 
+# Build agent binaries for multiple platforms
+RUN mkdir -p downloads && \
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o downloads/rexec-agent-linux-amd64 ./cmd/rexec-agent && \
+    CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags "-s -w" -o downloads/rexec-agent-linux-arm64 ./cmd/rexec-agent && \
+    CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags "-s -w" -o downloads/rexec-agent-darwin-amd64 ./cmd/rexec-agent && \
+    CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w" -o downloads/rexec-agent-darwin-arm64 ./cmd/rexec-agent
+
+# Build CLI binaries for multiple platforms
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o downloads/rexec-cli-linux-amd64 ./cmd/rexec-cli && \
+    CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags "-s -w" -o downloads/rexec-cli-linux-arm64 ./cmd/rexec-cli && \
+    CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags "-s -w" -o downloads/rexec-cli-darwin-amd64 ./cmd/rexec-cli && \
+    CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w" -o downloads/rexec-cli-darwin-arm64 ./cmd/rexec-cli
+
 # Runtime stage - lightweight Alpine
 FROM alpine:3.20
 
@@ -116,6 +129,9 @@ COPY --from=builder /app/web /app/web
 COPY scripts/install-cli.sh /app/scripts/install-cli.sh
 COPY scripts/install-agent.sh /app/scripts/install-agent.sh
 
+# Copy downloadable binaries from builder
+COPY --from=builder /app/downloads /app/downloads
+
 # Copy entrypoint script
 COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
@@ -136,6 +152,7 @@ EXPOSE 8080
 ENV PORT=8080
 ENV RECORDINGS_PATH=/app/recordings
 ENV SCRIPTS_DIR=/app/scripts
+ENV DOWNLOADS_DIR=/app/downloads
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \

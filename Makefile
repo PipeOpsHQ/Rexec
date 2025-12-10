@@ -1,4 +1,4 @@
-.PHONY: build run dev clean test docker-build docker-run help images ui ui-dev ui-install cli cli-all
+.PHONY: build run dev clean test docker-build docker-run help images ui ui-dev ui-install cli cli-all agent-all cli-all-platforms tui-all-platforms dist downloads-dir
 
 # Variables
 BINARY_NAME=rexec
@@ -49,6 +49,59 @@ agent:
 # Build all CLI tools
 cli-all: cli tui agent
 	@echo "All CLI tools built!"
+
+# Build multi-arch binaries for distribution
+PLATFORMS = linux-amd64 linux-arm64 darwin-amd64 darwin-arm64
+DOWNLOADS_DIR = downloads
+
+downloads-dir:
+	@mkdir -p $(DOWNLOADS_DIR)
+
+# Build agent for all platforms
+agent-all: downloads-dir
+	@echo "Building agent for all platforms..."
+	@for platform in $(PLATFORMS); do \
+		os=$$(echo $$platform | cut -d- -f1); \
+		arch=$$(echo $$platform | cut -d- -f2); \
+		echo "  Building rexec-agent-$$platform..."; \
+		CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch $(GOBUILD) -ldflags "-X main.Version=$(VERSION) -s -w" \
+			-o $(DOWNLOADS_DIR)/rexec-agent-$$platform ./cmd/rexec-agent; \
+	done
+	@echo "Agent binaries built in $(DOWNLOADS_DIR)/"
+	@ls -la $(DOWNLOADS_DIR)/rexec-agent-*
+
+# Build CLI for all platforms
+cli-all-platforms: downloads-dir
+	@echo "Building CLI for all platforms..."
+	@for platform in $(PLATFORMS); do \
+		os=$$(echo $$platform | cut -d- -f1); \
+		arch=$$(echo $$platform | cut -d- -f2); \
+		echo "  Building rexec-cli-$$platform..."; \
+		CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch $(GOBUILD) -ldflags "-X main.Version=$(VERSION) -s -w" \
+			-o $(DOWNLOADS_DIR)/rexec-cli-$$platform ./cmd/rexec-cli; \
+	done
+	@echo "CLI binaries built in $(DOWNLOADS_DIR)/"
+	@ls -la $(DOWNLOADS_DIR)/rexec-cli-*
+
+# Build TUI for all platforms
+tui-all-platforms: downloads-dir
+	@echo "Building TUI for all platforms..."
+	@for platform in $(PLATFORMS); do \
+		os=$$(echo $$platform | cut -d- -f1); \
+		arch=$$(echo $$platform | cut -d- -f2); \
+		echo "  Building rexec-tui-$$platform..."; \
+		CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch $(GOBUILD) -ldflags "-X main.Version=$(VERSION) -s -w" \
+			-o $(DOWNLOADS_DIR)/rexec-tui-$$platform ./cmd/rexec-tui; \
+	done
+	@echo "TUI binaries built in $(DOWNLOADS_DIR)/"
+	@ls -la $(DOWNLOADS_DIR)/rexec-tui-*
+
+# Build all distribution binaries
+dist: agent-all cli-all-platforms tui-all-platforms
+	@echo ""
+	@echo "All distribution binaries built!"
+	@echo "Contents of $(DOWNLOADS_DIR)/:"
+	@ls -la $(DOWNLOADS_DIR)/
 
 # Build everything (UI + Go binary + CLI tools)
 build-all: ui build cli-all
@@ -158,7 +211,12 @@ help:
 	@echo "  make cli          - Build the rexec-cli tool"
 	@echo "  make tui          - Build the rexec-tui dashboard"
 	@echo "  make agent        - Build the rexec-agent"
-	@echo "  make cli-all      - Build all CLI tools"
+	@echo "  make cli-all      - Build all CLI tools (local platform)"
+	@echo ""
+	@echo "  make agent-all          - Build agent for all platforms (linux/darwin amd64/arm64)"
+	@echo "  make cli-all-platforms  - Build CLI for all platforms"
+	@echo "  make tui-all-platforms  - Build TUI for all platforms"
+	@echo "  make dist               - Build all binaries for all platforms (for distribution)"
 	@echo ""
 	@echo "  make ui           - Build the Svelte web UI"
 	@echo "  make ui-dev       - Run web UI dev server (port 3000)"
