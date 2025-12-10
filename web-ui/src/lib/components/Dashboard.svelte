@@ -457,6 +457,17 @@
                 </svg>
                 Create Terminal
             </button>
+            
+            <div class="connect-own-tip">
+                <div class="tip-header">
+                    <StatusIcon status="connected" size={16} />
+                    <span>Or connect your own machine</span>
+                </div>
+                <p class="tip-text">
+                    Use the rexec agent to connect your own server, VM, or local machine.
+                </p>
+                <code class="tip-code">curl -fsSL https://rexec.pipeops.io/install-agent.sh | bash</code>
+            </div>
         </div>
     {:else}
         <div class="containers-grid">
@@ -986,6 +997,54 @@
         max-width: 400px;
         margin-bottom: 24px;
         line-height: 1.5;
+    }
+
+    /* Connect Own Tip in Empty State */
+    .connect-own-tip {
+        margin-top: 32px;
+        padding: 16px 20px;
+        background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        max-width: 400px;
+        text-align: left;
+    }
+
+    .tip-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+
+    .tip-header :global(svg) {
+        color: var(--accent);
+    }
+
+    .tip-header span {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text);
+    }
+
+    .tip-text {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin: 0 0 12px 0;
+        line-height: 1.5;
+    }
+
+    .tip-code {
+        display: block;
+        padding: 8px 12px;
+        background: #0d0d0d;
+        border: 1px solid #222;
+        border-radius: 4px;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--accent);
+        overflow-x: auto;
+        white-space: nowrap;
     }
 
     /* Live indicator */

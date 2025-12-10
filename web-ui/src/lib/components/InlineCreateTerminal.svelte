@@ -845,6 +845,113 @@
                     </div>
                 {/if}
             </div>
+
+            <!-- Connect Your Own Machine Section -->
+            <div class="create-section connect-own-section">
+                <div class="section-divider">
+                    <span class="divider-line"></span>
+                    <span class="divider-text">OR</span>
+                    <span class="divider-line"></span>
+                </div>
+                
+                <div class="connect-own-card">
+                    <div class="connect-own-header">
+                        <StatusIcon status="connected" size={24} />
+                        <div class="connect-own-title">
+                            <h4>Connect Your Own Machine</h4>
+                            <p>Turn any server, VM, or local machine into a rexec terminal</p>
+                        </div>
+                    </div>
+                    
+                    <div class="connect-methods">
+                        <div class="connect-method">
+                            <div class="method-header">
+                                <StatusIcon status="terminal" size={16} />
+                                <span class="method-title">Quick Install (One-liner)</span>
+                            </div>
+                            <div class="code-block">
+                                <code>curl -fsSL https://rexec.pipeops.io/install-agent.sh | bash</code>
+                                <button 
+                                    class="copy-btn" 
+                                    onclick={() => {
+                                        navigator.clipboard.writeText('curl -fsSL https://rexec.pipeops.io/install-agent.sh | bash');
+                                        const btn = document.activeElement;
+                                        if (btn) btn.textContent = 'Copied!';
+                                        setTimeout(() => { if (btn) btn.textContent = 'Copy'; }, 2000);
+                                    }}
+                                    title="Copy to clipboard"
+                                >
+                                    Copy
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="connect-method">
+                            <div class="method-header">
+                                <StatusIcon status="wrench" size={16} />
+                                <span class="method-title">Using rexec CLI</span>
+                            </div>
+                            <div class="code-block">
+                                <code>rexec agent start --token YOUR_TOKEN</code>
+                                <button 
+                                    class="copy-btn" 
+                                    onclick={() => {
+                                        navigator.clipboard.writeText('rexec agent start --token YOUR_TOKEN');
+                                        const btn = document.activeElement;
+                                        if (btn) btn.textContent = 'Copied!';
+                                        setTimeout(() => { if (btn) btn.textContent = 'Copy'; }, 2000);
+                                    }}
+                                    title="Copy to clipboard"
+                                >
+                                    Copy
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="connect-method">
+                            <div class="method-header">
+                                <StatusIcon status="ai" size={16} />
+                                <span class="method-title">Interactive TUI</span>
+                            </div>
+                            <div class="code-block">
+                                <code>rexec -i</code>
+                                <button 
+                                    class="copy-btn" 
+                                    onclick={() => {
+                                        navigator.clipboard.writeText('rexec -i');
+                                        const btn = document.activeElement;
+                                        if (btn) btn.textContent = 'Copied!';
+                                        setTimeout(() => { if (btn) btn.textContent = 'Copy'; }, 2000);
+                                    }}
+                                    title="Copy to clipboard"
+                                >
+                                    Copy
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="connect-features">
+                        <div class="feature-item">
+                            <StatusIcon status="ready" size={14} />
+                            <span>Resumable sessions with tmux</span>
+                        </div>
+                        <div class="feature-item">
+                            <StatusIcon status="ready" size={14} />
+                            <span>Works on Linux, macOS, Windows (WSL)</span>
+                        </div>
+                        <div class="feature-item">
+                            <StatusIcon status="ready" size={14} />
+                            <span>Cloud VMs, Raspberry Pi, local dev machines</span>
+                        </div>
+                    </div>
+
+                    <a href="/docs/agent" class="learn-more-link">
+                        <span>Learn more about the rexec agent</span>
+                        <StatusIcon status="connected" size={12} />
+                    </a>
+                </div>
+            </div>
         </div>
     {/if}
 </div>
@@ -1684,5 +1791,224 @@
         background: rgba(0, 255, 65, 0.05);
         box-shadow: 0 0 8px rgba(0, 255, 65, 0.2);
         color: var(--accent);
+    }
+
+    /* Connect Your Own Machine Section */
+    .connect-own-section {
+        margin-top: 24px;
+    }
+
+    .section-divider {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+
+    .divider-line {
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, #333, transparent);
+    }
+
+    .divider-text {
+        font-size: 12px;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        font-weight: 500;
+    }
+
+    .connect-own-card {
+        background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+        border: 1px solid #30363d;
+        border-radius: 12px;
+        padding: 24px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .connect-own-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, var(--accent), #00d4ff, var(--accent));
+        opacity: 0.6;
+    }
+
+    .connect-own-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+
+    .connect-own-header :global(svg) {
+        color: var(--accent);
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+
+    .connect-own-title h4 {
+        margin: 0 0 4px 0;
+        font-size: 16px;
+        color: var(--text);
+        font-weight: 600;
+    }
+
+    .connect-own-title p {
+        margin: 0;
+        font-size: 13px;
+        color: var(--text-muted);
+    }
+
+    .connect-methods {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    .connect-method {
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 12px;
+    }
+
+    .method-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+
+    .method-header :global(svg) {
+        color: var(--text-muted);
+    }
+
+    .method-title {
+        font-size: 12px;
+        color: var(--text-muted);
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .code-block {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: #0d0d0d;
+        border: 1px solid #222;
+        border-radius: 6px;
+        padding: 8px 12px;
+        overflow-x: auto;
+    }
+
+    .code-block code {
+        flex: 1;
+        font-family: var(--font-mono);
+        font-size: 12px;
+        color: var(--accent);
+        white-space: nowrap;
+    }
+
+    .copy-btn {
+        flex-shrink: 0;
+        padding: 4px 10px;
+        background: transparent;
+        border: 1px solid #444;
+        border-radius: 4px;
+        color: var(--text-muted);
+        font-size: 11px;
+        font-family: var(--font-mono);
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .copy-btn:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+        background: rgba(0, 255, 65, 0.05);
+    }
+
+    .connect-features {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 16px;
+        padding-top: 16px;
+        border-top: 1px solid #222;
+    }
+
+    .feature-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--text-muted);
+    }
+
+    .feature-item :global(svg) {
+        color: var(--accent);
+    }
+
+    .learn-more-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--accent);
+        text-decoration: none;
+        transition: all 0.15s ease;
+    }
+
+    .learn-more-link:hover {
+        text-decoration: underline;
+        filter: brightness(1.2);
+    }
+
+    .learn-more-link :global(svg) {
+        transition: transform 0.15s ease;
+    }
+
+    .learn-more-link:hover :global(svg) {
+        transform: translateX(2px);
+    }
+
+    /* Responsive adjustments for connect section */
+    @media (max-width: 600px) {
+        .connect-own-card {
+            padding: 16px;
+        }
+
+        .connect-own-header {
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .connect-features {
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .code-block {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 8px;
+        }
+
+        .code-block code {
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+
+        .copy-btn {
+            align-self: flex-end;
+        }
     }
 </style>

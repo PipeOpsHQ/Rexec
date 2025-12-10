@@ -32,6 +32,7 @@
     import Promo from "$components/Promo.svelte";
     import Billing from "$components/Billing.svelte";
     import ScreenLock from "$components/ScreenLock.svelte";
+    import AgentDocs from "$components/AgentDocs.svelte";
 
     // App state
     let currentView:
@@ -50,6 +51,7 @@
         | "pricing"
         | "promo"
         | "billing"
+        | "agent-docs"
         | "404" = "landing";
     let isLoading = true;
     let isInitialized = false; // Prevents reactive statements from firing before token validation
@@ -361,6 +363,12 @@
             return;
         }
 
+        // Check for /docs/agent route
+        if (path === "/docs/agent") {
+            currentView = "agent-docs";
+            return;
+        }
+
         // Check for pending join after authentication
         const pendingJoin = localStorage.getItem("pendingJoinCode");
         if (pendingJoin && $isAuthenticated) {
@@ -566,6 +574,7 @@
         currentView !== "use-cases" &&
         currentView !== "use-case-detail" &&
         currentView !== "marketplace" &&
+        currentView !== "agent-docs" &&
         currentView !== "join" &&
         currentView !== "pricing" &&
         currentView !== "404"
@@ -750,6 +759,12 @@
                     on:use={(e) => {
                         // Copy to clipboard handled in component
                         goToDashboard();
+                    }}
+                />
+            {:else if currentView === "agent-docs"}
+                <AgentDocs 
+                    on:back={() => {
+                        window.history.back();
                     }}
                 />
             {:else if currentView === "join"}
