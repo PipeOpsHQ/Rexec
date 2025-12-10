@@ -138,6 +138,58 @@
                 "See all output that happened while away",
                 "Perfect for builds, training, and deployments"
             ]
+        },
+        {
+            slug: "rexec-cli",
+            title: "Rexec CLI & TUI",
+            icon: "terminal",
+            description: "Manage your terminals from anywhere using our powerful command-line interface with an interactive TUI mode.",
+            points: [
+                "Full terminal management from your shell",
+                "Interactive TUI dashboard (rexec -i)",
+                "Create, connect, and manage terminals",
+                "Run snippets and macros directly",
+                "Install via: curl -fsSL rexec.pipeops.io/install.sh | bash"
+            ]
+        },
+        {
+            slug: "rexec-agent",
+            title: "Connect Your Own Servers",
+            icon: "connected",
+            description: "Turn any Linux server into a Rexec terminal. Install our lightweight agent on your VPS, cloud instance, or bare metal.",
+            points: [
+                "Connect existing servers to Rexec",
+                "Works on any cloud provider (AWS, GCP, Azure, DO)",
+                "Lightweight agent with minimal footprint",
+                "Secure WebSocket tunneling",
+                "Manage all servers from one dashboard"
+            ]
+        },
+        {
+            slug: "hybrid-infrastructure",
+            title: "Hybrid Infrastructure Access",
+            icon: "shield",
+            description: "Mix cloud-managed terminals with your own infrastructure. Access everything through a single, unified interface.",
+            points: [
+                "Combine Rexec terminals with self-hosted",
+                "Unified access control and audit logging",
+                "No VPN or complex networking required",
+                "Share access without sharing SSH keys",
+                "Perfect for multi-cloud environments"
+            ]
+        },
+        {
+            slug: "remote-debugging",
+            title: "Remote Debugging & Troubleshooting",
+            icon: "bug",
+            description: "Debug production issues directly from your browser. Connect to any server running the Rexec agent for instant access.",
+            points: [
+                "Instant shell access to production servers",
+                "No SSH key distribution needed",
+                "Browser-based with full terminal capabilities",
+                "Share sessions for pair debugging",
+                "Complete audit trail of all commands"
+            ]
         }
     ];
 </script>
