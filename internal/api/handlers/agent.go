@@ -71,7 +71,7 @@ func NewAgentHandler(store *storage.PostgresStore) *AgentHandler {
 
 // RegisterAgent handles agent registration
 func (h *AgentHandler) RegisterAgent(c *gin.Context) {
-	userID, exists := c.Get("user_id")
+	userID, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -121,7 +121,7 @@ func (h *AgentHandler) RegisterAgent(c *gin.Context) {
 
 // ListAgents returns all agents for the user
 func (h *AgentHandler) ListAgents(c *gin.Context) {
-	userID, exists := c.Get("user_id")
+	userID, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -152,7 +152,7 @@ func (h *AgentHandler) ListAgents(c *gin.Context) {
 
 // DeleteAgent removes an agent
 func (h *AgentHandler) DeleteAgent(c *gin.Context) {
-	userID, exists := c.Get("user_id")
+	userID, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
