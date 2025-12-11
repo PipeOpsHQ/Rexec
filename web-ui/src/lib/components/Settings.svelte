@@ -58,6 +58,19 @@
   let showInstallScript = false;
   let copiedScript = false;
 
+  // Profile state
+  let profileUsername = '';
+  let profileFirstName = '';
+  let profileLastName = '';
+  let profileLoaded = false;
+
+  $: if ($auth.user && !profileLoaded) {
+    profileUsername = $auth.user.username;
+    profileFirstName = $auth.user.firstName || '';
+    profileLastName = $auth.user.lastName || '';
+    profileLoaded = true;
+  }
+
   onMount(() => {
     if (!$isGuest) {
       // Initial fetch of registered agents
@@ -145,8 +158,8 @@
     }
   }
 
-  // Save settings to localStorage
-  function saveSettings() {
+  // Save settings to localStorage and Backend
+  async function saveSettings() {
     try {
       localStorage.setItem('rexec_settings', JSON.stringify({
         theme,
@@ -156,6 +169,21 @@
         scrollback,
         copyOnSelect,
       }));
+
+      // Save profile if loaded
+      if (profileLoaded && $auth.user) {
+          const res = await auth.updateProfile({
+              username: profileUsername,
+              firstName: profileFirstName,
+              lastName: profileLastName,
+              allowedIPs: $auth.user.allowedIPs
+          });
+          if (!res.success) {
+               toast.error(res.error || 'Failed to update profile');
+               return;
+          }
+      }
+
       toast.success('Settings saved');
     } catch (e) {
       console.error('Failed to save settings:', e);
@@ -424,6 +452,45 @@
     <!-- Account Section -->
     <section class="settings-section">
       <h2>Account</h2>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <label for="username">Username</label>
+          <span class="setting-description">Unique identifier for your account</span>
+        </div>
+        <div class="setting-value">
+          <input
+            type="text"
+            id="username"
+            bind:value={profileUsername}
+            class="input-full"
+            style="max-width: 200px;"
+          />
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <label for="firstname">Full Name</label>
+          <span class="setting-description">Your first and last name</span>
+        </div>
+        <div class="setting-value profile-names">
+          <input
+            type="text"
+            id="firstname"
+            bind:value={profileFirstName}
+            placeholder="First Name"
+            class="input-full"
+          />
+          <input
+            type="text"
+            id="lastname"
+            bind:value={profileLastName}
+            placeholder="Last Name"
+            class="input-full"
+          />
+        </div>
+      </div>
 
       <div class="setting-item">
         <div class="setting-info">
@@ -2044,5 +2111,12 @@
     text-align: center;
     padding: 20px;
     color: var(--text-muted);
+  }
+
+  .profile-names {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    max-width: 300px;
   }
 </style>

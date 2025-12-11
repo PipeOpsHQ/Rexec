@@ -255,6 +255,8 @@ function createAuthStore() {
           id: userData.id,
           email: userData.email || "",
           username: userData.username || "", // Map username
+          firstName: userData.first_name,
+          lastName: userData.last_name,
           name: userData.username || userData.name || userData.email || "User",
           avatar: userData.avatar,
           tier: userData.tier || "free",
@@ -284,6 +286,43 @@ function createAuthStore() {
         const error =
           e instanceof Error ? e.message : "Failed to fetch profile";
         update((state) => ({ ...state, isLoading: false }));
+        return { success: false, error };
+      }
+    },
+
+    // Update user profile
+    async updateProfile(data: { username: string; firstName: string; lastName: string; allowedIPs?: string[] }) {
+      update((state) => ({ ...state, isLoading: true, error: null }));
+
+      try {
+        const token = localStorage.getItem("rexec_token");
+        if (!token) throw new Error("No token");
+
+        const response = await fetch("/api/profile", {
+          method: "PUT",
+          headers: { 
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}` 
+          },
+          body: JSON.stringify({
+            username: data.username,
+            first_name: data.firstName,
+            last_name: data.lastName,
+            allowed_ips: data.allowedIPs,
+          }),
+        });
+
+        if (!response.ok) {
+          const resData = await response.json();
+          throw new Error(resData.error || "Failed to update profile");
+        }
+
+        // Refresh profile to get updated data
+        await this.fetchProfile();
+        return { success: true };
+      } catch (e) {
+        const error = e instanceof Error ? e.message : "Failed to update profile";
+        update((state) => ({ ...state, isLoading: false, error }));
         return { success: false, error };
       }
     },
