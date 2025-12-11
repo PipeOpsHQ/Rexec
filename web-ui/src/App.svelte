@@ -38,6 +38,7 @@
     import CLILogin from "$components/CLILogin.svelte";
     import Account from "$components/Account.svelte";
     import AccountLayout from "$components/AccountLayout.svelte";
+    import APITokens from "$components/APITokens.svelte";
 
     // App state
     let currentView:
@@ -64,6 +65,7 @@
         | "account-ssh"
         | "account-billing"
         | "account-snippets"
+        | "account-api"
         | "404" = "landing";
     let accountSection: string | null = null; // Track which account sub-section we're in
     let isLoading = true;
@@ -471,6 +473,9 @@
             } else if (path === "/account/snippets") {
                 currentView = "account-snippets";
                 accountSection = "snippets";
+            } else if (path === "/account/api" || path === "/account/tokens") {
+                currentView = "account-api";
+                accountSection = "api";
             } else if (path === "/account" || path === "/profile") {
                 currentView = "account";
                 accountSection = null;
@@ -600,6 +605,8 @@
             "/account/sshkeys",
             "/account/billing",
             "/account/snippets",
+            "/account/api",
+            "/account/tokens",
             "/profile",
         ];
         const isKnownPath =
@@ -897,6 +904,9 @@
                 } else if (path === "/account/snippets") {
                     currentView = "account-snippets";
                     accountSection = "snippets";
+                } else if (path === "/account/api" || path === "/account/tokens") {
+                    currentView = "account-api";
+                    accountSection = "api";
                 } else {
                     currentView = "account";
                     accountSection = null;
@@ -1151,6 +1161,13 @@
                             window.history.pushState({}, "", "/account");
                         }}
                     />
+                </AccountLayout>
+            {:else if currentView === "account-api"}
+                <AccountLayout section="api" on:navigate={(e) => {
+                    const view = e.detail.view;
+                    if (view === 'dashboard') goToDashboard();
+                }}>
+                    <APITokens />
                 </AccountLayout>
             {:else if currentView === "join"}
                 <JoinSession

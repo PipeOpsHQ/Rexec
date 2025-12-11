@@ -370,6 +370,9 @@ func runServer() {
 	// Initialize snippet handler
 	snippetHandler := handlers.NewSnippetHandler(store)
 
+	// Initialize token handler for API tokens
+	tokenHandler := handlers.NewTokenHandler(store)
+
 	// Initialize admin handler
 	adminHandler := handlers.NewAdminHandler(store, adminEventsHub)
 
@@ -552,6 +555,18 @@ func runServer() {
 			snippets.DELETE("/:id", snippetHandler.DeleteSnippet)
 			snippets.POST("/:id/use", snippetHandler.UseSnippet)
 		}
+
+		// API Tokens for CLI/API authentication
+		tokens := api.Group("/tokens")
+		{
+			tokens.GET("", tokenHandler.ListTokens)
+			tokens.POST("", tokenHandler.CreateToken)
+			tokens.DELETE("/:id", tokenHandler.RevokeToken)
+			tokens.DELETE("/:id/permanent", tokenHandler.DeleteToken)
+		}
+
+		// Token validation endpoint (for CLI)
+		api.GET("/tokens/validate", tokenHandler.ValidateToken)
 
 		// Public snippets marketplace (authenticated users can see who owns)
 		api.GET("/snippets/marketplace", snippetHandler.ListPublicSnippets)

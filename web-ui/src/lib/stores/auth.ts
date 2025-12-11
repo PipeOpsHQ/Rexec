@@ -12,6 +12,8 @@ export interface User {
   isAdmin?: boolean;
   subscriptionActive?: boolean;
   expiresAt?: number; // Unix timestamp for guest session expiration
+  allowedIPs?: string[];
+  mfaEnabled?: boolean;
 }
 
 export interface AuthState {
@@ -257,6 +259,8 @@ function createAuthStore() {
           isGuest: userData.tier === "guest",
           isAdmin: userData.is_admin || userData.role === 'admin' || false,
           subscriptionActive: userData.subscription_active || false,
+          allowedIPs: userData.allowed_ips || [],
+          mfaEnabled: userData.mfa_enabled || false,
           // For guests, prefer localStorage expiresAt (from login) over profile response
           // because profile calculates from user.CreatedAt which may be stale for returning guests
           expiresAt:

@@ -80,6 +80,20 @@ type Snippet struct {
 	CreatedAt        time.Time `json:"created_at"`
 }
 
+// APIToken represents a personal access token for CLI/API usage
+type APIToken struct {
+	ID          string     `json:"id"`
+	UserID      string     `json:"user_id"`
+	Name        string     `json:"name"`                    // User-friendly name for the token
+	TokenHash   string     `json:"-"`                       // Hashed token (never exposed)
+	TokenPrefix string     `json:"token_prefix"`            // First 8 chars for identification
+	Scopes      []string   `json:"scopes"`                  // Permissions: read, write, admin
+	LastUsedAt  *time.Time `json:"last_used_at,omitempty"`  // Last time token was used
+	ExpiresAt   *time.Time `json:"expires_at,omitempty"`    // Optional expiration
+	CreatedAt   time.Time  `json:"created_at"`
+	RevokedAt   *time.Time `json:"revoked_at,omitempty"`    // When token was revoked
+}
+
 // Container represents a user's terminal container
 type Container struct {
 	ID         string            `json:"id"`

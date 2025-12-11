@@ -307,27 +307,49 @@ func handleLogin(args []string) {
 	// Check for --token flag
 	for i, arg := range args {
 		if arg == "--token" && i+1 < len(args) {
-			cfg.Token = args[i+1]
+			token := args[i+1]
+			cfg.Token = token
 			
-			// Verify token
-			resp, err := apiRequest("GET", "/api/profile", nil)
-			if err != nil {
-				fmt.Printf("%sError: %v%s\n", Red, err, Reset)
-				os.Exit(1)
-			}
-			defer resp.Body.Close()
-			
-			if resp.StatusCode != 200 {
-				fmt.Printf("%sInvalid token%s\n", Red, Reset)
-				os.Exit(1)
-			}
-			
+			// Determine if this is an API token (starts with rexec_) or JWT
 			var profile struct {
 				Username string `json:"username"`
 				Email    string `json:"email"`
 				Tier     string `json:"tier"`
+				Valid    bool   `json:"valid"`
+				UserID   string `json:"user_id"`
 			}
-			json.NewDecoder(resp.Body).Decode(&profile)
+			
+			if strings.HasPrefix(token, "rexec_") {
+				// API token - use token validation endpoint
+				resp, err := apiRequest("GET", "/api/tokens/validate", nil)
+				if err != nil {
+					fmt.Printf("%sError: %v%s\n", Red, err, Reset)
+					os.Exit(1)
+				}
+				defer resp.Body.Close()
+				
+				if resp.StatusCode != 200 {
+					fmt.Printf("%sInvalid or expired API token%s\n", Red, Reset)
+					os.Exit(1)
+				}
+				
+				json.NewDecoder(resp.Body).Decode(&profile)
+			} else {
+				// JWT token - use profile endpoint
+				resp, err := apiRequest("GET", "/api/profile", nil)
+				if err != nil {
+					fmt.Printf("%sError: %v%s\n", Red, err, Reset)
+					os.Exit(1)
+				}
+				defer resp.Body.Close()
+				
+				if resp.StatusCode != 200 {
+					fmt.Printf("%sInvalid token%s\n", Red, Reset)
+					os.Exit(1)
+				}
+				
+				json.NewDecoder(resp.Body).Decode(&profile)
+			}
 			
 			cfg.Username = profile.Username
 			cfg.Email = profile.Email

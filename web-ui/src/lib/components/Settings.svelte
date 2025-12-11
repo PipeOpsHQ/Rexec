@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
+  import QRCode from 'qrcode';
   import { auth, isGuest } from '$stores/auth';
   import { security, hasPasscode } from '$stores/security';
   import { agents, type Agent } from '$stores/agents';
@@ -26,6 +27,28 @@
   let currentPasscode = '';
   let passcodeError = '';
   let isChangingPasscode = false;
+
+  // MFA state
+  let showMFAModal = false;
+  let mfaStep: 'intro' | 'setup' | 'verify' | 'disable' = 'intro';
+  let mfaSecret = '';
+  let mfaQrDataUrl = '';
+  let mfaCode = '';
+  let mfaError = '';
+  let mfaLoading = false;
+
+  // IP Whitelist state
+  let showIPModal = false;
+  let allowedIPs: string[] = [];
+  let newIP = '';
+  let ipError = '';
+  let ipLoading = false;
+
+  // Audit Logs state
+  let showAuditModal = false;
+  let auditLogs: any[] = [];
+  let auditLoading = false;
+  let auditError = '';
 
   // Agents state
   let showAgentModal = false;
@@ -223,6 +246,166 @@
     security.removePasscode();
     closePasscodeModal();
     toast.success('Screen lock disabled');
+  }
+
+  // MFA Functions
+  async function openMFAModal(mode: 'enable' | 'disable') {
+    showMFAModal = true;
+    mfaError = '';
+    mfaCode = '';
+    if (mode === 'enable') {
+      mfaStep = 'intro';
+    } else {
+      mfaStep = 'disable';
+    }
+  }
+
+  async function startMFASetup() {
+    mfaLoading = true;
+    mfaError = '';
+    try {
+      const res = await fetch('/api/mfa/setup', {
+        headers: { Authorization: `Bearer ${$auth.token}` }
+      });
+      if (!res.ok) throw new Error('Failed to start MFA setup');
+      const data = await res.json();
+      mfaSecret = data.secret;
+      
+      // Generate QR Code
+      mfaQrDataUrl = await QRCode.toDataURL(data.otp_url);
+      mfaStep = 'setup';
+    } catch (e: any) {
+      mfaError = e.message || 'Setup failed';
+    } finally {
+      mfaLoading = false;
+    }
+  }
+
+  async function verifyMFA() {
+    if (!mfaCode) return;
+    mfaLoading = true;
+    mfaError = '';
+    try {
+      const res = await fetch('/api/mfa/verify', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${$auth.token}` 
+        },
+        body: JSON.stringify({ secret: mfaSecret, code: mfaCode })
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Verification failed');
+      }
+      
+      toast.success('MFA Enabled Successfully');
+      auth.fetchProfile(); // Refresh profile to update mfaEnabled status
+      showMFAModal = false;
+    } catch (e: any) {
+      mfaError = e.message || 'Verification failed';
+    } finally {
+      mfaLoading = false;
+    }
+  }
+
+  async function disableMFA() {
+    if (!mfaCode) return;
+    mfaLoading = true;
+    mfaError = '';
+    try {
+      const res = await fetch('/api/mfa/disable', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${$auth.token}` 
+        },
+        body: JSON.stringify({ code: mfaCode })
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Disable failed');
+      }
+      
+      toast.success('MFA Disabled');
+      auth.fetchProfile();
+      showMFAModal = false;
+    } catch (e: any) {
+      mfaError = e.message || 'Disable failed';
+    } finally {
+      mfaLoading = false;
+    }
+  }
+
+  // IP Whitelist Functions
+  function openIPModal() {
+    allowedIPs = [...($auth.user?.allowedIPs || [])];
+    showIPModal = true;
+    ipError = '';
+    newIP = '';
+  }
+
+  function addIP() {
+    if (!newIP.trim()) return;
+    // Basic validation
+    if (!/^[\d\.\/]+$/.test(newIP.trim())) {
+      ipError = 'Invalid IP format';
+      return;
+    }
+    if (allowedIPs.includes(newIP.trim())) {
+        ipError = 'IP already in list';
+        return;
+    }
+    allowedIPs = [...allowedIPs, newIP.trim()];
+    newIP = '';
+    ipError = '';
+  }
+
+  function removeIP(ip: string) {
+    allowedIPs = allowedIPs.filter(i => i !== ip);
+  }
+
+  async function saveIPs() {
+    ipLoading = true;
+    ipError = '';
+    try {
+      // Need to send username as well since PUT /profile expects it
+      const res = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${$auth.token}` 
+        },
+        body: JSON.stringify({ username: $auth.user?.username, allowed_ips: allowedIPs })
+      });
+      if (!res.ok) throw new Error('Failed to save IP whitelist');
+      
+      toast.success('IP Whitelist Updated');
+      auth.fetchProfile();
+      showIPModal = false;
+    } catch (e: any) {
+      ipError = e.message || 'Save failed';
+    } finally {
+      ipLoading = false;
+    }
+  }
+
+  // Audit Logs Functions
+  async function openAuditModal() {
+    showAuditModal = true;
+    auditLoading = true;
+    auditError = '';
+    try {
+      const res = await fetch('/api/audit-logs?limit=50', {
+        headers: { Authorization: `Bearer ${$auth.token}` }
+      });
+      if (!res.ok) throw new Error('Failed to fetch logs');
+      auditLogs = await res.json();
+    } catch (e: any) {
+      auditError = e.message || 'Failed to load logs';
+    } finally {
+      auditLoading = false;
+    }
   }
 
   // Load on mount
@@ -434,6 +617,54 @@
           </div>
         </div>
       {/if}
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <label>Two-Factor Authentication</label>
+          <span class="setting-description">
+            {#if $auth.user?.mfaEnabled}
+              MFA is enabled
+            {:else}
+              Add an extra layer of security
+            {/if}
+          </span>
+        </div>
+        <div class="setting-value">
+          {#if $auth.user?.mfaEnabled}
+            <button class="btn btn-danger btn-sm" onclick={() => openMFAModal('disable')}>
+              Disable MFA
+            </button>
+          {:else}
+            <button class="btn btn-primary btn-sm" onclick={() => openMFAModal('enable')}>
+              Enable MFA
+            </button>
+          {/if}
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <label>IP Whitelist</label>
+          <span class="setting-description">Restrict access to specific IPs</span>
+        </div>
+        <div class="setting-value">
+          <button class="btn btn-secondary btn-sm" onclick={openIPModal}>
+            Manage IPs
+          </button>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <label>Audit Logs</label>
+          <span class="setting-description">View security events</span>
+        </div>
+        <div class="setting-value">
+          <button class="btn btn-secondary btn-sm" onclick={openAuditModal}>
+            View Logs
+          </button>
+        </div>
+      </div>
     </section>
 
     <!-- Agents Section -->
@@ -715,6 +946,143 @@
             Create Agent
           </button>
         {/if}
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- MFA Modal -->
+{#if showMFAModal}
+  <div class="modal-overlay" onclick={(e) => e.target === e.currentTarget && (showMFAModal = false)}>
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Two-Factor Authentication</h3>
+        <button class="modal-close" onclick={() => showMFAModal = false}>×</button>
+      </div>
+      <div class="modal-body">
+        {#if mfaStep === 'intro'}
+          <p class="modal-text">Two-factor authentication adds an extra layer of security to your account. You'll need an authenticator app like Google Authenticator or Authy.</p>
+        {:else if mfaStep === 'setup'}
+          <div class="qr-container">
+            {#if mfaQrDataUrl}
+              <img src={mfaQrDataUrl} alt="MFA QR Code" class="qr-code" />
+            {:else}
+              <div class="loading-spinner">Loading QR...</div>
+            {/if}
+          </div>
+          <p class="secret-text">Secret: <code>{mfaSecret}</code></p>
+          <div class="form-group">
+            <label>Verification Code</label>
+            <input type="text" bind:value={mfaCode} placeholder="Enter 6-digit code" class="input-full" maxlength="6" />
+          </div>
+        {:else if mfaStep === 'disable'}
+          <p class="modal-text">Enter a code from your authenticator app to disable MFA.</p>
+          <div class="form-group">
+            <label>Verification Code</label>
+            <input type="text" bind:value={mfaCode} placeholder="Enter 6-digit code" class="input-full" maxlength="6" />
+          </div>
+        {/if}
+        {#if mfaError}
+          <p class="error-text">{mfaError}</p>
+        {/if}
+      </div>
+      <div class="modal-footer">
+        {#if mfaStep === 'intro'}
+          <button class="btn btn-secondary" onclick={() => showMFAModal = false}>Cancel</button>
+          <button class="btn btn-primary" onclick={startMFASetup} disabled={mfaLoading}>Start Setup</button>
+        {:else if mfaStep === 'setup'}
+          <button class="btn btn-secondary" onclick={() => showMFAModal = false}>Cancel</button>
+          <button class="btn btn-primary" onclick={verifyMFA} disabled={mfaLoading || !mfaCode}>Verify & Enable</button>
+        {:else if mfaStep === 'disable'}
+          <button class="btn btn-secondary" onclick={() => showMFAModal = false}>Cancel</button>
+          <button class="btn btn-danger" onclick={disableMFA} disabled={mfaLoading || !mfaCode}>Disable MFA</button>
+        {/if}
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- IP Whitelist Modal -->
+{#if showIPModal}
+  <div class="modal-overlay" onclick={(e) => e.target === e.currentTarget && (showIPModal = false)}>
+    <div class="modal">
+      <div class="modal-header">
+        <h3>IP Whitelist</h3>
+        <button class="modal-close" onclick={() => showIPModal = false}>×</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-text">Only allow access from these IP addresses. Leave empty to allow all.</p>
+        
+        <div class="ip-list">
+          {#each allowedIPs as ip}
+            <div class="ip-item">
+              <span>{ip}</span>
+              <button class="btn-icon btn-sm" onclick={() => removeIP(ip)}>×</button>
+            </div>
+          {/each}
+          {#if allowedIPs.length === 0}
+            <p class="empty-text">No IPs whitelisted (All allowed)</p>
+          {/if}
+        </div>
+
+        <div class="add-ip-form">
+          <input type="text" bind:value={newIP} placeholder="e.g. 192.168.1.1 or 10.0.0.0/24" class="input-full" />
+          <button class="btn btn-secondary btn-sm" onclick={addIP}>Add</button>
+        </div>
+
+        {#if ipError}
+          <p class="error-text">{ipError}</p>
+        {/if}
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick={() => showIPModal = false}>Cancel</button>
+        <button class="btn btn-primary" onclick={saveIPs} disabled={ipLoading}>Save Changes</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Audit Logs Modal -->
+{#if showAuditModal}
+  <div class="modal-overlay" onclick={(e) => e.target === e.currentTarget && (showAuditModal = false)}>
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h3>Audit Logs</h3>
+        <button class="modal-close" onclick={() => showAuditModal = false}>×</button>
+      </div>
+      <div class="modal-body">
+        {#if auditLoading}
+          <div class="loading-text">Loading logs...</div>
+        {:else if auditLogs.length === 0}
+          <div class="empty-text">No logs found</div>
+        {:else}
+          <div class="logs-table-wrapper">
+            <table class="logs-table">
+              <thead>
+                <tr>
+                  <th>Action</th>
+                  <th>IP Address</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {#each auditLogs as log}
+                  <tr>
+                    <td>{log.action}</td>
+                    <td>{log.ip_address}</td>
+                    <td>{new Date(log.created_at).toLocaleString()}</td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+        {/if}
+        {#if auditError}
+          <p class="error-text">{auditError}</p>
+        {/if}
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick={() => showAuditModal = false}>Close</button>
       </div>
     </div>
   </div>
@@ -1310,5 +1678,125 @@
     font-size: 12px;
     color: var(--text-muted);
     margin-bottom: 4px;
+  }
+
+  /* MFA and Security Styles */
+  .modal-text {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+
+  .qr-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: white;
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    min-height: 200px;
+  }
+
+  .qr-code {
+    max-width: 200px;
+    height: auto;
+  }
+
+  .loading-spinner {
+    color: var(--bg); /* Dark text on white bg */
+    font-size: 14px;
+  }
+
+  .secret-text {
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-align: center;
+    margin-bottom: 20px;
+    word-break: break-all;
+  }
+
+  .secret-text code {
+    background: var(--bg-tertiary);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    color: var(--accent);
+    user-select: all;
+  }
+
+  .ip-list {
+    max-height: 200px;
+    overflow-y: auto;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 16px;
+  }
+
+  .ip-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-muted);
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+
+  .ip-item:last-child {
+    border-bottom: none;
+  }
+
+  .empty-text {
+    padding: 16px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-style: italic;
+  }
+
+  .add-ip-form {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .logs-table-wrapper {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+
+  .logs-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  .logs-table th, .logs-table td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-muted);
+  }
+
+  .logs-table th {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+  }
+
+  .logs-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  .loading-text {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-muted);
   }
 </style>

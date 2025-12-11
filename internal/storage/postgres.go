@@ -385,6 +385,23 @@ func (s *PostgresStore) migrate() error {
 	
 	CREATE INDEX IF NOT EXISTS idx_agents_user_id ON agents(user_id);
 	
+	-- API tokens table for CLI/API authentication
+	CREATE TABLE IF NOT EXISTS api_tokens (
+		id VARCHAR(36) PRIMARY KEY,
+		user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		name VARCHAR(255) NOT NULL,
+		token_hash VARCHAR(255) NOT NULL,
+		token_prefix VARCHAR(12) NOT NULL,
+		scopes TEXT[] DEFAULT ARRAY['read', 'write'],
+		last_used_at TIMESTAMP WITH TIME ZONE,
+		expires_at TIMESTAMP WITH TIME ZONE,
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+		revoked_at TIMESTAMP WITH TIME ZONE
+	);
+	
+	CREATE INDEX IF NOT EXISTS idx_api_tokens_user_id ON api_tokens(user_id);
+	CREATE INDEX IF NOT EXISTS idx_api_tokens_token_hash ON api_tokens(token_hash);
+	
 	-- Add new columns if missing (for existing installations)
 	DO $$ BEGIN
 		IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='agents' AND column_name='last_heartbeat') THEN

@@ -52,7 +52,47 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService) g
 			return
 		}
 
-		// Parse and validate token
+		// Check if this is an API token (starts with rexec_)
+		if strings.HasPrefix(tokenString, "rexec_") {
+			// Validate API token
+			apiToken, err := store.ValidateAPIToken(context.Background(), tokenString)
+			if err != nil {
+				store.CreateAuditLog(context.Background(), &models.AuditLog{
+					ID:        uuid.New().String(),
+					UserID:    "anonymous",
+					Action:    "api_token_auth_failed",
+					IPAddress: c.ClientIP(),
+					UserAgent: c.Request.UserAgent(),
+					Details:   fmt.Sprintf("Invalid API token: %v", err),
+					CreatedAt: time.Now(),
+				})
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired API token"})
+				c.Abort()
+				return
+			}
+
+			// Get user info
+			user, err := store.GetUserByID(context.Background(), apiToken.UserID)
+			if err != nil {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
+				c.Abort()
+				return
+			}
+
+			// Set user info in context
+			c.Set("userID", user.ID)
+			c.Set("email", user.Email)
+			c.Set("username", user.Username)
+			c.Set("tier", user.Tier)
+			c.Set("guest", false)
+			c.Set("subscription_active", user.SubscriptionActive)
+			c.Set("api_token", true)
+			c.Set("api_token_scopes", apiToken.Scopes)
+			c.Next()
+			return
+		}
+
+		// Parse and validate JWT token
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			// Validate signing method
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
