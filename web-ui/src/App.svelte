@@ -29,6 +29,7 @@
     import UseCases from "$components/UseCases.svelte";
     import UseCaseDetail from "$components/UseCaseDetail.svelte";
     import SnippetsPage from "$components/SnippetsPage.svelte";
+    import RecordingsPage from "$components/RecordingsPage.svelte";
     import MarketplacePage from "$components/MarketplacePage.svelte";
     import NotFound from "$components/NotFound.svelte";
     import Promo from "$components/Promo.svelte";
@@ -67,6 +68,7 @@
         | "account-ssh"
         | "account-billing"
         | "account-snippets"
+        | "account-recordings"
         | "account-api"
         | "docs"
         | "404" = "landing";
@@ -187,6 +189,11 @@
             description: "Manage your command snippets.",
             robots: "noindex, nofollow",
         },
+        "account-recordings": {
+            title: "Recordings - Rexec",
+            description: "View and manage your terminal session recordings.",
+            robots: "noindex, nofollow",
+        },
         "account-api": {
             title: "API Tokens - Rexec",
             description: "Manage your API tokens for CLI and programmatic access.",
@@ -244,33 +251,45 @@
         meta.setAttribute("content", content);
     }
 
-    $: {
-        if (typeof document !== "undefined") {
-            const seo = seoConfig[currentView] || seoConfig.landing;
-            
-            // Update title
-            document.title = seo.title;
-            
-            // Update description
-            updateMeta("description", seo.description);
-            
-            // Update robots
-            updateMeta("robots", seo.robots || "index, follow");
-            
-            // Update keywords if provided
-            if (seo.keywords) {
-                updateMeta("keywords", seo.keywords);
-            }
-            
-            // Update Open Graph tags
-            updateOGMeta("og:title", seo.ogTitle || seo.title);
-            updateOGMeta("og:description", seo.description);
-            updateOGMeta("og:url", `https://rexec.pipeops.io${window.location.pathname}`);
-            
-            // Update Twitter tags
-            updateMeta("twitter:title", seo.ogTitle || seo.title);
-            updateMeta("twitter:description", seo.description);
+    // Explicit function to update SEO - can be called after route changes
+    function updateSEO(view: string) {
+        if (typeof document === "undefined") return;
+        
+        const seo = seoConfig[view] || seoConfig.landing;
+        
+        // Update title
+        document.title = seo.title;
+        
+        // Update description
+        updateMeta("description", seo.description);
+        
+        // Update robots
+        updateMeta("robots", seo.robots || "index, follow");
+        
+        // Update keywords if provided
+        if (seo.keywords) {
+            updateMeta("keywords", seo.keywords);
         }
+        
+        // Update Open Graph tags
+        updateOGMeta("og:title", seo.ogTitle || seo.title);
+        updateOGMeta("og:description", seo.description);
+        updateOGMeta("og:url", `https://rexec.pipeops.io${window.location.pathname}`);
+        
+        // Update Twitter tags
+        updateMeta("twitter:title", seo.ogTitle || seo.title);
+        updateMeta("twitter:description", seo.description);
+        
+        // Update canonical URL
+        let canonical = document.querySelector('link[rel="canonical"]');
+        if (canonical) {
+            canonical.setAttribute("href", `https://rexec.pipeops.io${window.location.pathname}`);
+        }
+    }
+
+    // Reactive SEO update when currentView changes
+    $: if (typeof document !== "undefined" && currentView) {
+        updateSEO(currentView);
     }
 
     function openGuestModal() {
@@ -620,6 +639,9 @@
             } else if (path === "/account/snippets") {
                 currentView = "account-snippets";
                 accountSection = "snippets";
+            } else if (path === "/account/recordings") {
+                currentView = "account-recordings";
+                accountSection = "recordings";
             } else if (path === "/account/api" || path === "/account/tokens") {
                 currentView = "account-api";
                 accountSection = "api";
@@ -753,6 +775,7 @@
             "/account/sshkeys",
             "/account/billing",
             "/account/snippets",
+            "/account/recordings",
             "/account/api",
             "/account/tokens",
             "/profile",
@@ -1069,6 +1092,9 @@
                 } else if (path === "/account/snippets") {
                     currentView = "account-snippets";
                     accountSection = "snippets";
+                } else if (path === "/account/recordings") {
+                    currentView = "account-recordings";
+                    accountSection = "recordings";
                 } else if (path === "/account/api" || path === "/account/tokens") {
                     currentView = "account-api";
                     accountSection = "api";
@@ -1250,6 +1276,11 @@
                             accountSection = "snippets";
                             window.history.pushState({}, "", "/account/snippets");
                         }
+                        else if (view === 'recordings') {
+                            currentView = "account-recordings";
+                            accountSection = "recordings";
+                            window.history.pushState({}, "", "/account/recordings");
+                        }
                         else if (view === 'pricing') {
                             currentView = "pricing";
                             window.history.pushState({}, "", "/pricing");
@@ -1339,6 +1370,13 @@
                             window.history.pushState({}, "", "/account");
                         }}
                     />
+                </AccountLayout>
+            {:else if currentView === "account-recordings"}
+                <AccountLayout section="recordings" on:navigate={(e) => {
+                    const view = e.detail.view;
+                    if (view === 'dashboard') goToDashboard();
+                }}>
+                    <RecordingsPage />
                 </AccountLayout>
             {:else if currentView === "account-api"}
                 <AccountLayout section="api" on:navigate={(e) => {

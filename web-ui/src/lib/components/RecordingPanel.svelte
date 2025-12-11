@@ -146,9 +146,13 @@
       fitAddon.fit();
     }
     
-    if (playerTerminal) {
-      playerTerminal.clear();
-      playerTerminal.reset();
+    if (playerTerminal && playerTerminal.element) {
+      try {
+        playerTerminal.clear();
+        playerTerminal.reset();
+      } catch (e) {
+        // Ignore reset errors if terminal not fully initialized
+      }
     }
     
     // Fetch recording data
@@ -255,17 +259,25 @@
     isPaused = false;
     currentEventIndex = 0;
     playbackProgress = 0;
-    if (playerTerminal) {
-      playerTerminal.clear();
-      playerTerminal.reset();
+    if (playerTerminal && playerTerminal.element) {
+      try {
+        playerTerminal.clear();
+        playerTerminal.reset();
+      } catch (e) {
+        // Ignore reset errors if terminal not fully initialized
+      }
     }
   }
 
   function restartPlayback() {
     stopPlayback();
-    if (playerTerminal) {
-      playerTerminal.clear();
-      playerTerminal.reset();
+    if (playerTerminal && playerTerminal.element) {
+      try {
+        playerTerminal.clear();
+        playerTerminal.reset();
+      } catch (e) {
+        // Ignore reset errors if terminal not fully initialized
+      }
     }
     currentEventIndex = 0;
     playbackProgress = 0;

@@ -105,6 +105,16 @@
                 </div>
             </button>
 
+            <button class="link-card" onclick={() => navigate('recordings')} disabled={$isGuest}>
+                <div class="icon-wrapper">
+                    <StatusIcon status="recording" size={24} />
+                </div>
+                <div class="card-content">
+                    <h3>Recordings</h3>
+                    <p>View and manage your terminal session recordings.</p>
+                </div>
+            </button>
+
             <button class="link-card" onclick={() => navigate('pricing')}>
                 <div class="icon-wrapper">
                     <StatusIcon status="pricing" size={24} />
