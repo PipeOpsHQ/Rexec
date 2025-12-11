@@ -240,6 +240,85 @@ install_agent() {
     mkdir -p "$CONFIG_DIR"
 }
 
+register_agent() {
+    echo -e "${CYAN}Registering agent with Rexec...${NC}"
+    
+    # Generate agent name from hostname if not provided
+    if [ -z "$NAME" ]; then
+        NAME=$(hostname -s 2>/dev/null || hostname)
+    fi
+    
+    # If token is already an API token (starts with rexec_), use it directly
+    if [[ "$TOKEN" == rexec_* ]]; then
+        echo -e "${GREEN}Using API token for authentication${NC}"
+        # If no agent_id, we need to register
+        if [ -z "$AGENT_ID" ]; then
+            # Register new agent with API token
+            REGISTER_RESPONSE=$(curl -s -X POST "${REXEC_API}/api/agents/register" \
+                -H "Authorization: Bearer ${TOKEN}" \
+                -H "Content-Type: application/json" \
+                -d "{\"name\": \"${NAME}\", \"os\": \"$(uname -s | tr '[:upper:]' '[:lower:]')\", \"arch\": \"${ARCH}\", \"shell\": \"${SHELL:-/bin/bash}\", \"hostname\": \"$(hostname)\"}")
+            
+            # Extract agent ID from response
+            AGENT_ID=$(echo "$REGISTER_RESPONSE" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+            
+            if [ -z "$AGENT_ID" ]; then
+                echo -e "${RED}Failed to register agent. Response: ${REGISTER_RESPONSE}${NC}"
+                exit 1
+            fi
+            
+            # Check if a new token was returned (use it if so)
+            NEW_TOKEN=$(echo "$REGISTER_RESPONSE" | grep -o '"token":"[^"]*"' | head -1 | cut -d'"' -f4)
+            if [ -n "$NEW_TOKEN" ]; then
+                TOKEN="$NEW_TOKEN"
+                echo -e "${GREEN}Received new API token for agent${NC}"
+            fi
+            
+            echo -e "${GREEN}Agent registered with ID: ${AGENT_ID}${NC}"
+        fi
+        return 0
+    fi
+    
+    # Token is a JWT (doesn't start with rexec_)
+    # We MUST register to get an API token, otherwise it will expire
+    if [ -n "$AGENT_ID" ]; then
+        echo -e "${YELLOW}Warning: You provided a JWT token with an existing agent ID.${NC}"
+        echo -e "${YELLOW}JWT tokens expire after 24 hours. We recommend using an API token.${NC}"
+        echo -e "${YELLOW}Generate one at: ${REXEC_API}/account/api${NC}"
+        echo ""
+        echo -e "${CYAN}Attempting to register a new agent and get a permanent API token...${NC}"
+        # Clear AGENT_ID to force registration
+        AGENT_ID=""
+    fi
+    
+    # Register new agent - this returns an API token that doesn't expire
+    REGISTER_RESPONSE=$(curl -s -X POST "${REXEC_API}/api/agents/register" \
+        -H "Authorization: Bearer ${TOKEN}" \
+        -H "Content-Type: application/json" \
+        -d "{\"name\": \"${NAME}\", \"os\": \"$(uname -s | tr '[:upper:]' '[:lower:]')\", \"arch\": \"${ARCH}\", \"shell\": \"${SHELL:-/bin/bash}\", \"hostname\": \"$(hostname)\"}")
+    
+    # Extract agent ID from response
+    AGENT_ID=$(echo "$REGISTER_RESPONSE" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+    
+    if [ -z "$AGENT_ID" ]; then
+        echo -e "${RED}Failed to register agent. Response: ${REGISTER_RESPONSE}${NC}"
+        echo -e "${RED}Make sure your token is valid and not expired.${NC}"
+        exit 1
+    fi
+    
+    # Extract the new API token from registration response
+    NEW_TOKEN=$(echo "$REGISTER_RESPONSE" | grep -o '"token":"[^"]*"' | head -1 | cut -d'"' -f4)
+    
+    if [ -n "$NEW_TOKEN" ]; then
+        TOKEN="$NEW_TOKEN"
+        echo -e "${GREEN}✓ Received permanent API token (never expires)${NC}"
+    else
+        echo -e "${YELLOW}Warning: No API token returned. Using original token (may expire).${NC}"
+    fi
+    
+    echo -e "${GREEN}✓ Agent registered: ${AGENT_ID}${NC}"
+}
+
 create_config() {
     echo -e "${CYAN}Creating configuration...${NC}"
 
@@ -550,6 +629,7 @@ main() {
     get_latest_version
     TEMP_DIR=$(download_agent)
     install_agent "$TEMP_DIR"
+    register_agent
     create_config
     setup_service
     verify_installation
