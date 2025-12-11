@@ -31,7 +31,7 @@ type CreateCheckoutSessionRequest struct {
 // CreateCheckoutSession creates a Stripe checkout session for subscription upgrade
 // POST /api/billing/checkout
 func (h *BillingHandler) CreateCheckoutSession(c *gin.Context) {
-	userID, exists := c.Get("user_id")
+	userID, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -81,7 +81,7 @@ func (h *BillingHandler) CreateCheckoutSession(c *gin.Context) {
 // GetSubscription returns the current subscription status
 // GET /api/billing/subscription
 func (h *BillingHandler) GetSubscription(c *gin.Context) {
-	userID, exists := c.Get("user_id")
+	userID, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -148,7 +148,7 @@ func (h *BillingHandler) GetSubscription(c *gin.Context) {
 // CreatePortalSession creates a Stripe billing portal session
 // POST /api/billing/portal
 func (h *BillingHandler) CreatePortalSession(c *gin.Context) {
-	userID, exists := c.Get("user_id")
+	userID, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -184,7 +184,7 @@ func (h *BillingHandler) CreatePortalSession(c *gin.Context) {
 // CancelSubscription cancels the current subscription at period end
 // POST /api/billing/cancel
 func (h *BillingHandler) CancelSubscription(c *gin.Context) {
-	userID, exists := c.Get("user_id")
+	userID, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -368,7 +368,7 @@ func (h *BillingHandler) GetPlans(c *gin.Context) {
 // GetBillingHistory returns the user's invoice history
 // GET /api/billing/history
 func (h *BillingHandler) GetBillingHistory(c *gin.Context) {
-	userID, exists := c.Get("user_id")
+	userID, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return

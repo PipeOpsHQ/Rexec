@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount, onDestroy } from 'svelte';
+    import { onMount, onDestroy, tick } from 'svelte';
     import { get } from 'svelte/store';
     import { recordings, type Recording } from '../stores/recordings';
     import { token } from '../stores/auth';
@@ -48,9 +48,16 @@
         currentEventIndex = 0;
         recordingEvents = [];
         
-        await new Promise(r => setTimeout(r, 100));
+        // Wait for Svelte to update DOM and render playerElement
+        await tick();
+        await new Promise(r => setTimeout(r, 50));
         
-        if (playerElement && !playerTerminal) {
+        if (!playerElement) {
+            console.error('Player element not available');
+            return;
+        }
+        
+        if (!playerTerminal) {
             playerTerminal = new Terminal({
                 theme: {
                     background: '#0a0a14',
@@ -97,6 +104,7 @@
             
             if (response.ok) {
                 const text = await response.text();
+                console.log('[Recording] Fetched stream data, length:', text.length);
                 const lines = text.trim().split('\n');
                 
                 for (let i = 1; i < lines.length; i++) {
@@ -110,9 +118,14 @@
                     }
                 }
                 
+                console.log('[Recording] Parsed events:', recordingEvents.length);
                 if (recordingEvents.length > 0) {
                     startPlayback();
+                } else {
+                    console.error('[Recording] No events parsed from recording');
                 }
+            } else {
+                console.error('[Recording] Failed to fetch stream:', response.status, await response.text());
             }
         } catch (e) {
             console.error('Failed to load recording:', e);
@@ -290,7 +303,7 @@
     {#if selectedRecording}
         <div class="player-section">
             <div class="player-header">
-                <button class="back-btn" on:click={closePlayer}>
+                <button class="back-btn" onclick={closePlayer}>
                     <StatusIcon status="back" size={16} />
                     Back to list
                 </button>
@@ -299,11 +312,11 @@
                     <span class="meta">{formatDate(selectedRecording.createdAt)} · {selectedRecording.duration}</span>
                 </div>
                 <div class="player-actions">
-                    <button class="action-btn" on:click={() => downloadRecording(selectedRecording)} title="Download">
+                    <button class="action-btn" onclick={() => downloadRecording(selectedRecording)} title="Download">
                         <StatusIcon status="download" size={16} />
                     </button>
                     {#if selectedRecording.isPublic}
-                        <button class="action-btn" on:click={() => copyShareLink(selectedRecording)} title="Copy share link">
+                        <button class="action-btn" onclick={() => copyShareLink(selectedRecording)} title="Copy share link">
                             <StatusIcon status="link" size={16} />
                         </button>
                     {/if}
@@ -316,14 +329,14 @@
                 </div>
                 <div class="control-buttons">
                     {#if isPlaying}
-                        <button class="ctrl-btn" on:click={togglePause} title={isPaused ? 'Resume' : 'Pause'}>
+                        <button class="ctrl-btn" onclick={togglePause} title={isPaused ? 'Resume' : 'Pause'}>
                             <StatusIcon status={isPaused ? 'play' : 'validating'} size={18} />
                         </button>
-                        <button class="ctrl-btn" on:click={stopPlayback} title="Stop">
+                        <button class="ctrl-btn" onclick={stopPlayback} title="Stop">
                             <StatusIcon status="close" size={18} />
                         </button>
                     {:else}
-                        <button class="ctrl-btn primary" on:click={restartPlayback} title="Play">
+                        <button class="ctrl-btn primary" onclick={restartPlayback} title="Play">
                             <StatusIcon status="play" size={18} />
                         </button>
                     {/if}
@@ -346,7 +359,7 @@
             {:else}
                 {#each filteredRecordings as recording}
                     <div class="recording-card">
-                        <div class="card-header" on:click={() => playRecording(recording)}>
+                        <div class="card-header" onclick={() => playRecording(recording)}>
                             <div class="rec-icon">
                                 <StatusIcon status="recording" size={20} />
                             </div>
@@ -361,20 +374,20 @@
                             <button 
                                 class="icon-btn" 
                                 class:active={recording.isPublic}
-                                on:click|stopPropagation={() => togglePublic(recording)}
+                                onclick={(e) => { e.stopPropagation(); togglePublic(recording); }}
                                 title={recording.isPublic ? 'Make private' : 'Make public'}
                             >
                                 <StatusIcon status={recording.isPublic ? 'globe' : 'lock'} size={14} />
                             </button>
                             {#if recording.isPublic}
-                                <button class="icon-btn" on:click|stopPropagation={() => copyShareLink(recording)} title="Copy link">
+                                <button class="icon-btn" onclick={(e) => { e.stopPropagation(); copyShareLink(recording); }} title="Copy link">
                                     <StatusIcon status="link" size={14} />
                                 </button>
                             {/if}
-                            <button class="icon-btn" on:click|stopPropagation={() => downloadRecording(recording)} title="Download">
+                            <button class="icon-btn" onclick={(e) => { e.stopPropagation(); downloadRecording(recording); }} title="Download">
                                 <StatusIcon status="download" size={14} />
                             </button>
-                            <button class="icon-btn delete" on:click|stopPropagation={() => deleteRecording(recording)} title="Delete">
+                            <button class="icon-btn delete" onclick={(e) => { e.stopPropagation(); deleteRecording(recording); }} title="Delete">
                                 <StatusIcon status="trash" size={14} />
                             </button>
                         </div>
