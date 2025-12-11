@@ -483,9 +483,10 @@ func (a *Agent) Start() error {
 			}
 
 			a.reconnects++
-			backoff := time.Duration(min(a.reconnects*2, 30)) * time.Second
+			// Exponential backoff: 5s, 10s, 20s, 30s (max)
+			backoff := time.Duration(min(5*(1<<min(a.reconnects, 3)), 30)) * time.Second
 
-			log.Printf("%sConnection lost: %v. Reconnecting in %v...%s", Yellow, err, backoff, Reset)
+			log.Printf("Connection lost: %v. Reconnecting in %v... (attempt %d)", err, backoff, a.reconnects)
 			time.Sleep(backoff)
 			continue
 		}
@@ -523,7 +524,7 @@ func (a *Agent) connect() error {
 			if resp.StatusCode == http.StatusUnauthorized || 
 			   resp.StatusCode == http.StatusForbidden || 
 			   resp.StatusCode == http.StatusNotFound {
-				log.Printf("%sFatal Error: Server rejected connection (Status %d). Stopping agent.%s", Red, resp.StatusCode, Reset)
+				log.Printf("Fatal: Server rejected connection (Status %d). Agent will exit.", resp.StatusCode)
 				a.running = false
 				return nil // Return nil to stop the retry loop naturally
 			}
@@ -535,7 +536,7 @@ func (a *Agent) connect() error {
 	a.conn = conn
 	a.mu.Unlock()
 
-	log.Printf("%s✓ Connected to Rexec%s", Green, Reset)
+	log.Printf("Connected to Rexec successfully")
 
 	// Send system info on connect
 	a.sendSystemInfo()

@@ -301,9 +301,9 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=${INSTALL_DIR}/rexec-agent start
+ExecStart=${INSTALL_DIR}/rexec-agent --config ${CONFIG_DIR}/agent.yaml start
 Restart=always
-RestartSec=5
+RestartSec=10
 User=root
 StandardOutput=journal
 StandardError=journal
@@ -316,7 +316,11 @@ ProtectHome=false
 
 # Environment
 Environment=REXEC_API=${REXEC_API}
+Environment=REXEC_TOKEN=${TOKEN}
 Environment=REXEC_CONFIG=${CONFIG_DIR}/agent.yaml
+
+# Watchdog timeout (restart if agent hangs)
+WatchdogSec=120
 
 [Install]
 WantedBy=multi-user.target
@@ -346,11 +350,19 @@ setup_launchd() {
         <string>${INSTALL_DIR}/rexec-agent</string>
         <string>--config</string>
         <string>${CONFIG_DIR}/agent.yaml</string>
+        <string>start</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
-    <true/>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+        <key>NetworkState</key>
+        <true/>
+    </dict>
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
     <key>StandardOutPath</key>
     <string>/var/log/rexec-agent.log</string>
     <key>StandardErrorPath</key>
@@ -359,6 +371,8 @@ setup_launchd() {
     <dict>
         <key>REXEC_API</key>
         <string>${REXEC_API}</string>
+        <key>REXEC_TOKEN</key>
+        <string>${TOKEN}</string>
     </dict>
 </dict>
 </plist>
@@ -386,7 +400,7 @@ setup_sysvinit() {
 ### END INIT INFO
 
 DAEMON=/usr/local/bin/rexec-agent
-DAEMON_ARGS="--config /etc/rexec/agent.yaml"
+DAEMON_ARGS="--config /etc/rexec/agent.yaml start"
 PIDFILE=/var/run/rexec-agent.pid
 LOGFILE=/var/log/rexec-agent.log
 
