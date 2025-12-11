@@ -153,15 +153,18 @@
     
     // Fetch recording data
     try {
+      const authToken = get(token);
       const response = await fetch(`/api/recordings/${recording.id}/stream`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${authToken || localStorage.getItem('token')}`
         }
       });
       
       if (response.ok) {
         const text = await response.text();
+        console.log('[Recording] Fetched recording data:', text.length, 'bytes');
         const lines = text.trim().split('\n');
+        console.log('[Recording] Total lines:', lines.length);
         
         // Parse asciicast format
         for (let i = 1; i < lines.length; i++) {
@@ -171,13 +174,18 @@
               recordingEvents.push(event as [number, string, string]);
             }
           } catch (e) {
-            // Skip malformed lines
+            console.warn('[Recording] Failed to parse line', i, ':', lines[i].substring(0, 100));
           }
         }
         
+        console.log('[Recording] Parsed events:', recordingEvents.length);
         if (recordingEvents.length > 0) {
           startPlayback();
+        } else {
+          console.error('[Recording] No events found in recording');
         }
+      } else {
+        console.error('[Recording] Failed to fetch:', response.status, await response.text());
       }
     } catch (e) {
       console.error('Failed to load recording:', e);

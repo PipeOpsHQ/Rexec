@@ -122,7 +122,10 @@ func (h *RecordingHandler) StartRecording(c *gin.Context) {
 
 	// Resolve container ID to actual Docker ID
 	dockerID := h.resolveContainerID(req.ContainerID)
-	log.Printf("[Recording] Start request for container: %s (resolved: %s) by user: %s", req.ContainerID, dockerID, userID)
+	log.Printf("[Recording] Start request: input_id=%s resolved_id=%s user=%s", 
+		req.ContainerID[:min(12, len(req.ContainerID))], 
+		dockerID[:min(12, len(dockerID))], 
+		userID)
 
 	// Check if already recording this container
 	h.mu.RLock()
@@ -170,6 +173,18 @@ func (h *RecordingHandler) AddEvent(containerID string, eventType string, data s
 	h.mu.RUnlock()
 
 	if !exists {
+		// Debug: Log when events come in but no recording exists
+		// This helps identify container ID mismatches
+		h.mu.RLock()
+		activeCount := len(h.recordings)
+		var activeIDs []string
+		for id := range h.recordings {
+			activeIDs = append(activeIDs, id[:min(12, len(id))])
+		}
+		h.mu.RUnlock()
+		if activeCount > 0 && eventType == "o" && len(data) > 0 {
+			log.Printf("[Recording] Event for non-recorded container %s (active recordings: %v)", containerID[:min(12, len(containerID))], activeIDs)
+		}
 		return
 	}
 
@@ -190,6 +205,12 @@ func (h *RecordingHandler) AddEvent(containerID string, eventType string, data s
 	}
 
 	recording.Events = append(recording.Events, event)
+	
+	// Log first few events to confirm recording is working
+	if len(recording.Events) <= 3 || len(recording.Events)%100 == 0 {
+		log.Printf("[Recording] Event added: container=%s type=%s events=%d", 
+			containerID[:min(12, len(containerID))], eventType, len(recording.Events))
+	}
 }
 
 // StopRecording stops and saves a recording
