@@ -379,8 +379,13 @@ func handleLogin(args []string) {
 	server := &http.Server{Addr: fmt.Sprintf(":%d", port)}
 	
 	http.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
+		// Debug: log the incoming request
+		fmt.Printf("\n%sCallback received from: %s%s\n", Dim, r.URL.String(), Reset)
+		
 		token := r.URL.Query().Get("token")
 		if token != "" {
+			fmt.Printf("%sToken length: %d characters%s\n", Dim, len(token), Reset)
+			
 			// Return success page
 			w.Header().Set("Content-Type", "text/html")
 			w.Write([]byte(`
@@ -453,6 +458,17 @@ func handleLogin(args []string) {
 		server.Close()
 		cfg.Token = token
 		
+		// Debug: print token info (first/last chars only for security)
+		if len(token) > 20 {
+			fmt.Printf("\n%sReceived token: %s...%s%s\n", Dim, token[:10], token[len(token)-5:], Reset)
+		}
+		
+		// Save config first so apiRequest can use the token
+		if err := saveConfig(cfg); err != nil {
+			fmt.Printf("\n%sError saving config: %v%s\n", Red, err, Reset)
+			os.Exit(1)
+		}
+		
 		// Verify and get profile
 		resp, err := apiRequest("GET", "/api/profile", nil)
 		if err != nil {
@@ -462,7 +478,8 @@ func handleLogin(args []string) {
 		defer resp.Body.Close()
 		
 		if resp.StatusCode != 200 {
-			fmt.Printf("\n%sInvalid token received%s\n", Red, Reset)
+			body, _ := io.ReadAll(resp.Body)
+			fmt.Printf("\n%sInvalid token received (status %d): %s%s\n", Red, resp.StatusCode, string(body), Reset)
 			os.Exit(1)
 		}
 		
