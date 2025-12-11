@@ -87,7 +87,10 @@
   <div class="tokens-header">
     <div class="header-content">
       <h2>API Tokens</h2>
-      <p class="description">Create personal access tokens to authenticate with the CLI or API.</p>
+      <p class="description">
+        Create personal access tokens to authenticate with the CLI or API. 
+        <a href="/docs/cli" class="text-accent link-underline">Learn more about the CLI</a>
+      </p>
     </div>
     <button class="btn btn-primary" onclick={() => showCreateModal = true}>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
