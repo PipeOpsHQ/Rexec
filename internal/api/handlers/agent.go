@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -995,8 +996,18 @@ func (h *AgentHandler) buildAgentData(agent *AgentConnection) gin.H {
 	return agentData
 }
 
-// verifyToken parses and validates a JWT token, returning the user ID
+// verifyToken parses and validates a JWT token or API token, returning the user ID
 func (h *AgentHandler) verifyToken(tokenString string) (string, error) {
+	// Check if this is an API token (starts with rexec_)
+	if strings.HasPrefix(tokenString, "rexec_") {
+		apiToken, err := h.store.ValidateAPIToken(context.Background(), tokenString)
+		if err != nil {
+			return "", fmt.Errorf("invalid API token: %w", err)
+		}
+		return apiToken.UserID, nil
+	}
+
+	// Otherwise, treat as JWT token
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, jwt.ErrSignatureInvalid

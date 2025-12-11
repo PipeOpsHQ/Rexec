@@ -520,11 +520,17 @@ func (a *Agent) connect() error {
 	if err != nil {
 		if resp != nil {
 			// If we get a 4xx error (Unauthorized, Forbidden, Not Found), stop the agent
-			// This happens when the agent is deleted from the server or token is invalid
+			// This happens when the agent is deleted from the server or token is invalid/expired
 			if resp.StatusCode == http.StatusUnauthorized || 
 			   resp.StatusCode == http.StatusForbidden || 
 			   resp.StatusCode == http.StatusNotFound {
-				log.Printf("Fatal: Server rejected connection (Status %d). Agent will exit.", resp.StatusCode)
+				log.Printf("Fatal: Server rejected connection (Status %d).", resp.StatusCode)
+				if resp.StatusCode == http.StatusUnauthorized {
+					log.Printf("Token may be expired or invalid. Use an API token (rexec_...) for persistent connections.")
+					log.Printf("Generate one at: %s/account/api", a.config.Host)
+				} else if resp.StatusCode == http.StatusNotFound {
+					log.Printf("Agent not found. It may have been deleted. Run 'rexec-agent register' to re-register.")
+				}
 				a.running = false
 				return nil // Return nil to stop the retry loop naturally
 			}
