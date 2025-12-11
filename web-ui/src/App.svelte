@@ -607,6 +607,7 @@
             "/sshkeys",
             "/promo",
             "/agents",
+            "/docs",
             "/docs/agent",
             "/docs/cli",
             "/account",
