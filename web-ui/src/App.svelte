@@ -704,6 +704,14 @@
                         }
                     }
 
+                    // Check for CLI callback - redirect with token if present
+                    const cliCallback = localStorage.getItem("cli_callback");
+                    if (cliCallback) {
+                        localStorage.removeItem("cli_callback");
+                        window.location.href = `${cliCallback}?token=${encodeURIComponent(storedToken)}`;
+                        return; // Stop further processing
+                    }
+
                     currentView = "dashboard";
                     await containers.fetchContainers();
                     startAutoRefresh(); // Start polling for container updates
