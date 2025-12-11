@@ -688,14 +688,46 @@
       {#if $agents.loading}
         <div class="agents-loading">Loading agents...</div>
       {:else if $agents.agents.length === 0}
-        <div class="agents-empty">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5">
-            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-            <line x1="8" y1="21" x2="16" y2="21"></line>
-            <line x1="12" y1="17" x2="12" y2="21"></line>
-          </svg>
-          <p>No agents registered yet</p>
-          <span class="agents-empty-hint">Add an agent to connect your own servers</span>
+        <div class="agents-empty-state">
+          <div class="empty-icon">
+            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+          </div>
+          <h3>Connect Your Own Machine</h3>
+          <p class="empty-desc">Bring your own server, VM, or local machine to rexec. Run the command below to install the agent.</p>
+          
+          <div class="install-box">
+            <div class="install-command-row">
+              <code class="install-cmd">curl -sSL https://rexec.pipeops.io/install-agent.sh | bash</code>
+              <button 
+                class="btn btn-sm btn-icon copy-btn" 
+                title="Copy command"
+                onclick={() => {
+                  navigator.clipboard.writeText('curl -sSL https://rexec.pipeops.io/install-agent.sh | bash');
+                  toast.success('Copied to clipboard');
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="empty-actions">
+            <button class="btn btn-primary" onclick={() => showAgentModal = true}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              Register Agent
+            </button>
+            <a href="/docs/agent" class="btn btn-secondary">View Documentation</a>
+          </div>
         </div>
       {:else}
         <div class="agents-list">
@@ -757,29 +789,27 @@
             </div>
           {/each}
         </div>
-      {/if}
 
-      <div class="agents-docs">
-        <h4>Quick Start</h4>
-        <p>Install the rexec agent on any server:</p>
-        <div class="install-command-wrapper">
-          <code class="install-command">curl -sSL https://rexec.pipeops.io/install-agent.sh | bash</code>
-          <button 
-            class="btn btn-sm copy-btn-inline" 
-            onclick={() => {
-              navigator.clipboard.writeText('curl -sSL https://rexec.pipeops.io/install-agent.sh | bash');
-              const btn = document.activeElement;
-              if (btn) btn.textContent = 'Copied!';
-              setTimeout(() => { if (btn) btn.textContent = 'Copy'; }, 2000);
-            }}
-          >
-            Copy
-          </button>
+        <div class="agents-footer">
+          <div class="install-inline">
+            <span>Install on another machine:</span>
+            <code>curl -sSL https://rexec.pipeops.io/install-agent.sh | bash</code>
+            <button 
+              class="btn btn-sm btn-icon copy-btn" 
+              title="Copy"
+              onclick={() => {
+                navigator.clipboard.writeText('curl -sSL https://rexec.pipeops.io/install-agent.sh | bash');
+                toast.success('Copied!');
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+            </button>
+          </div>
         </div>
-        <p class="docs-link">
-          <a href="/agents">View full documentation →</a>
-        </p>
-      </div>
+      {/if}
     </section>
     {/if}
 
@@ -1466,6 +1496,129 @@
     text-align: center;
     background: var(--bg-secondary);
     border: 1px dashed var(--border);
+  }
+
+  .agents-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 24px;
+    text-align: center;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+
+  .agents-empty-state .empty-icon {
+    margin-bottom: 16px;
+    opacity: 0.8;
+  }
+
+  .agents-empty-state h3 {
+    margin: 0 0 8px;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .agents-empty-state .empty-desc {
+    margin: 0 0 24px;
+    font-size: 13px;
+    color: var(--text-muted);
+    max-width: 400px;
+    line-height: 1.5;
+  }
+
+  .agents-empty-state .install-box {
+    width: 100%;
+    max-width: 500px;
+    margin-bottom: 24px;
+  }
+
+  .agents-empty-state .install-command-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+
+  .agents-empty-state .install-cmd {
+    flex: 1;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--accent);
+    word-break: break-all;
+    text-align: left;
+  }
+
+  .agents-empty-state .copy-btn {
+    flex-shrink: 0;
+    padding: 6px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .agents-empty-state .copy-btn:hover {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+
+  .agents-empty-state .empty-actions {
+    display: flex;
+    gap: 12px;
+  }
+
+  .agents-footer {
+    margin-top: 16px;
+    padding: 12px 16px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+
+  .agents-footer .install-inline {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .agents-footer .install-inline span {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .agents-footer .install-inline code {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--accent);
+    background: var(--bg-secondary);
+    padding: 4px 8px;
+    border-radius: 4px;
+  }
+
+  .agents-footer .copy-btn {
+    padding: 4px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .agents-footer .copy-btn:hover {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
   }
 
   .agents-empty p {
