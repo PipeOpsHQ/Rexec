@@ -42,16 +42,16 @@
 </div>
 
 <style>
-    .toast-container {
-        position: fixed;
-        top: 120px;
-        right: 20px;
-        z-index: 900; /* Below modals (1000+) but above most UI */
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        pointer-events: none;
-    }
+	    .toast-container {
+	        position: fixed;
+	        top: 120px;
+	        right: 20px;
+	        z-index: 11000; /* Above modal overlays so toasts stay visible */
+	        display: flex;
+	        flex-direction: column;
+	        gap: 8px;
+	        pointer-events: none;
+	    }
 
     .toast {
         display: flex;

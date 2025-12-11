@@ -725,6 +725,8 @@ show_next_steps() {
 main() {
     print_banner
     check_root
+    # Detect platform first so init detection can rely on $OS.
+    detect_platform
     detect_init_system
     
     # Handle uninstall
@@ -734,7 +736,6 @@ main() {
     fi
     
     check_token
-    detect_platform
     get_latest_version
     TEMP_DIR=$(download_agent)
     install_agent "$TEMP_DIR"
