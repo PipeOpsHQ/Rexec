@@ -26,10 +26,14 @@ type Message struct {
 
 // AgentLocationMessage represents an agent's connection location
 type AgentLocationMessage struct {
-	AgentID    string `json:"agent_id"`
-	InstanceID string `json:"instance_id"`
-	UserID     string `json:"user_id"`
-	Status     string `json:"status"` // "connected", "disconnected"
+	AgentID     string `json:"agent_id"`
+	InstanceID  string `json:"instance_id"`
+	UserID      string `json:"user_id"`
+	Status      string `json:"status"` // "connected", "disconnected"
+	Name        string `json:"name,omitempty"`
+	OS          string `json:"os,omitempty"`
+	Arch        string `json:"arch,omitempty"`
+	ConnectedAt time.Time `json:"connected_at,omitempty"`
 }
 
 // TerminalProxyMessage represents terminal I/O to be proxied
@@ -271,7 +275,7 @@ func (h *Hub) PublishAgentEvent(userID string, eventType string, data interface{
 }
 
 // RegisterAgentLocation registers which instance an agent is connected to
-func (h *Hub) RegisterAgentLocation(agentID, userID string) error {
+func (h *Hub) RegisterAgentLocation(agentID, userID, name, os, arch string, connectedAt time.Time) error {
 	ctx := context.Background()
 	
 	// Store in Redis with TTL
@@ -287,10 +291,14 @@ func (h *Hub) RegisterAgentLocation(agentID, userID string) error {
 
 	// Broadcast location update
 	msg := AgentLocationMessage{
-		AgentID:    agentID,
-		InstanceID: h.instanceID,
-		UserID:     userID,
-		Status:     "connected",
+		AgentID:     agentID,
+		InstanceID:  h.instanceID,
+		UserID:      userID,
+		Status:      "connected",
+		Name:        name,
+		OS:          os,
+		Arch:        arch,
+		ConnectedAt: connectedAt,
 	}
 	return h.Publish(ChannelAgentLocations, "agent_location", msg)
 }

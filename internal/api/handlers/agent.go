@@ -30,6 +30,8 @@ type AgentHandler struct {
 	pubsubHub        *pubsub.Hub              // For horizontal scaling
 	remoteSessions   map[string]*AgentSession // Sessions connected to remote agents
 	remoteSessionsMu sync.RWMutex
+	remoteAgents     map[string]*AgentConnection // Cache of remote agents from other instances
+	remoteAgentsMu   sync.RWMutex
 }
 
 type AgentConnection struct {
@@ -70,6 +72,7 @@ func NewAgentHandler(store *storage.PostgresStore) *AgentHandler {
 		store:          store,
 		agents:         make(map[string]*AgentConnection),
 		remoteSessions: make(map[string]*AgentSession),
+		remoteAgents:   make(map[string]*AgentConnection),
 		jwtSecret:      []byte(secret),
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
@@ -115,9 +118,39 @@ func (h *AgentHandler) SetEventsHub(hub *ContainerEventsHub) {
 // SetPubSubHub sets the redis hub for horizontal scaling
 func (h *AgentHandler) SetPubSubHub(hub *pubsub.Hub) {
 	h.pubsubHub = hub
-	// Subscribe to terminal proxy channel
+	// Subscribe to terminal proxy channel and agent locations
 	if h.pubsubHub != nil {
 		h.pubsubHub.Subscribe(pubsub.ChannelTerminalProxy, h.handleTerminalProxyMessage)
+		h.pubsubHub.Subscribe(pubsub.ChannelAgentLocations, h.handleAgentLocationMessage)
+	}
+}
+
+// handleAgentLocationMessage handles agent location updates from other instances
+func (h *AgentHandler) handleAgentLocationMessage(msg pubsub.Message) {
+	var locMsg pubsub.AgentLocationMessage
+	if err := json.Unmarshal(msg.Payload, &locMsg); err != nil {
+		log.Printf("Failed to unmarshal agent location message: %v", err)
+		return
+	}
+
+	h.remoteAgentsMu.Lock()
+	defer h.remoteAgentsMu.Unlock()
+
+	if locMsg.Status == "connected" {
+		// Add or update remote agent
+		h.remoteAgents[locMsg.AgentID] = &AgentConnection{
+			ID:          locMsg.AgentID,
+			Name:        locMsg.Name,
+			OS:          locMsg.OS,
+			Arch:        locMsg.Arch,
+			UserID:      locMsg.UserID,
+			Status:      "online",
+			ConnectedAt: locMsg.ConnectedAt,
+			LastPing:    time.Now(),
+			// conn is nil for remote agents
+		}
+	} else if locMsg.Status == "disconnected" {
+		delete(h.remoteAgents, locMsg.AgentID)
 	}
 }
 
@@ -270,8 +303,15 @@ func (h *AgentHandler) ListAgents(c *gin.Context) {
 
 	// Add online status
 	h.agentsMu.RLock()
+	h.remoteAgentsMu.RLock()
 	for i := range agents {
+		// Check local agents
 		if conn, ok := h.agents[agents[i].ID]; ok {
+			agents[i].Status = "online"
+			agents[i].ConnectedAt = conn.ConnectedAt
+			agents[i].LastPing = conn.LastPing
+		} else if conn, ok := h.remoteAgents[agents[i].ID]; ok {
+			// Check remote agents
 			agents[i].Status = "online"
 			agents[i].ConnectedAt = conn.ConnectedAt
 			agents[i].LastPing = conn.LastPing
@@ -279,6 +319,7 @@ func (h *AgentHandler) ListAgents(c *gin.Context) {
 			agents[i].Status = "offline"
 		}
 	}
+	h.remoteAgentsMu.RUnlock()
 	h.agentsMu.RUnlock()
 
 	c.JSON(http.StatusOK, agents)
@@ -382,7 +423,7 @@ func (h *AgentHandler) HandleAgentWebSocket(c *gin.Context) {
 
 	// Register agent location in Redis
 	if h.pubsubHub != nil {
-		if err := h.pubsubHub.RegisterAgentLocation(agentID, userID); err != nil {
+		if err := h.pubsubHub.RegisterAgentLocation(agentID, userID, agent.Name, agent.OS, agent.Arch, agentConn.ConnectedAt); err != nil {
 			log.Printf("Failed to register agent location: %v", err)
 		}
 	}
@@ -796,10 +837,6 @@ func (h *AgentHandler) GetAgentStatus(c *gin.Context) {
 // GetOnlineAgentsForUser returns all online agents for a specific user
 // Used by ContainerHandler to include agents in the containers list
 func (h *AgentHandler) GetOnlineAgentsForUser(userID string) []gin.H {
-	h.agentsMu.RLock()
-	defer h.agentsMu.RUnlock()
-
-	agents := make([]gin.H, 0)
 	// Create a slice of agents to sort
 	type sortableAgent struct {
 		Agent *AgentConnection
@@ -807,61 +844,29 @@ func (h *AgentHandler) GetOnlineAgentsForUser(userID string) []gin.H {
 	}
 	var sortedAgents []sortableAgent
 
+	// 1. Get local agents
+	h.agentsMu.RLock()
 	for _, agent := range h.agents {
 		if agent.UserID == userID && agent.Status == "online" {
-			agentData := gin.H{
-				"id":           "agent:" + agent.ID,
-				"name":         agent.Name,
-				"image":        agent.OS + "/" + agent.Arch,
-				"status":       "running",
-				"session_type": "agent",
-				"created_at":   agent.ConnectedAt,
-				"last_used_at": agent.LastPing,
-				"os":           agent.OS,
-				"arch":         agent.Arch,
-				"shell":        agent.Shell,
-			}
-
-			// Add resources from system info/stats
-			resources := gin.H{
-				"memory_mb":  0,
-				"cpu_shares": 1024,
-				"disk_mb":    0,
-			}
-
-			if agent.SystemInfo != nil {
-				if numCPU, ok := agent.SystemInfo["num_cpu"].(int); ok {
-					resources["cpu_shares"] = numCPU * 1024
-				}
-				if mem, ok := agent.SystemInfo["memory"].(map[string]interface{}); ok {
-					if total, ok := mem["total"].(float64); ok {
-						resources["memory_mb"] = int(total / 1024 / 1024)
-					}
-				}
-				if disk, ok := agent.SystemInfo["disk"].(map[string]interface{}); ok {
-					if total, ok := disk["total"].(float64); ok {
-						resources["disk_mb"] = int(total / 1024 / 1024)
-					}
-				}
-				if hostname, ok := agent.SystemInfo["hostname"].(string); ok {
-					agentData["hostname"] = hostname
-				}
-			}
-
-			if agent.Stats != nil {
-				if memLimit, ok := agent.Stats["memory_limit"].(float64); ok && memLimit > 0 {
-					resources["memory_mb"] = int(memLimit / 1024 / 1024)
-				}
-				if diskLimit, ok := agent.Stats["disk_limit"].(float64); ok && diskLimit > 0 {
-					resources["disk_mb"] = int(diskLimit / 1024 / 1024)
-				}
-				agentData["stats"] = agent.Stats
-			}
-
-			agentData["resources"] = resources
-			sortedAgents = append(sortedAgents, sortableAgent{Agent: agent, Data: agentData})
+			sortedAgents = append(sortedAgents, sortableAgent{
+				Agent: agent,
+				Data:  h.buildAgentData(agent),
+			})
 		}
 	}
+	h.agentsMu.RUnlock()
+
+	// 2. Get remote agents
+	h.remoteAgentsMu.RLock()
+	for _, agent := range h.remoteAgents {
+		if agent.UserID == userID {
+			sortedAgents = append(sortedAgents, sortableAgent{
+				Agent: agent,
+				Data:  h.buildAgentData(agent),
+			})
+		}
+	}
+	h.remoteAgentsMu.RUnlock()
 
 	// Sort agents by ConnectedAt descending (newest first), then by Name
 	sort.Slice(sortedAgents, func(i, j int) bool {
@@ -871,6 +876,7 @@ func (h *AgentHandler) GetOnlineAgentsForUser(userID string) []gin.H {
 		return sortedAgents[i].Agent.ConnectedAt.After(sortedAgents[j].Agent.ConnectedAt)
 	})
 
+	agents := make([]gin.H, 0, len(sortedAgents))
 	for _, sa := range sortedAgents {
 		agents = append(agents, sa.Data)
 	}
