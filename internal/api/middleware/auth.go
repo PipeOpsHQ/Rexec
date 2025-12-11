@@ -101,6 +101,21 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService) g
 			return jwtSecret, nil
 		})
 
+		if err != nil || token == nil {
+			store.CreateAuditLog(context.Background(), &models.AuditLog{
+				ID:        uuid.New().String(),
+				UserID:    "anonymous",
+				Action:    "authentication_failed",
+				IPAddress: c.ClientIP(),
+				UserAgent: c.Request.UserAgent(),
+				Details:   fmt.Sprintf("Failed to parse token: %v", err),
+				CreatedAt: time.Now(),
+			})
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
+			c.Abort()
+			return
+		}
+
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok || !token.Valid {
 			// Log failed audit attempt

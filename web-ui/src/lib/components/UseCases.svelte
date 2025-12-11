@@ -42,14 +42,26 @@
         },
         {
             slug: "universal-jump-host",
-            title: "Universal Jump Host",
+            title: "Secure Jump Host & Gateway",
             icon: "shield",
-            description: "Access your private infrastructure securely from any browser. No VPNs, no complex SSH config management.",
+            description: "Zero-trust access to your private infrastructure. Replace VPNs with a secure, audited browser-based gateway.",
             points: [
-                "Browser-based SSH client",
-                "Access private VPCs/subnets securely",
-                "Manage keys centrally",
-                "Audit logs for all session activity"
+                "Enforce MFA and IP Whitelisting",
+                "Audit logs for every command executed",
+                "Access private VPCs securely",
+                "No SSH key management required"
+            ]
+        },
+        {
+            slug: "rexec-agent",
+            title: "Hybrid Cloud & Remote Agents",
+            icon: "connected",
+            description: "Unify your infrastructure. Connect any Linux server, IoT device, or cloud instance to your Rexec dashboard.",
+            points: [
+                "Real-time resource monitoring (CPU/RAM)",
+                "Secure outbound WebSocket tunnels",
+                "Manage on-prem and cloud side-by-side",
+                "Works on AWS, Azure, or Raspberry Pi"
             ]
         },
         {
@@ -150,19 +162,6 @@
                 "Create, connect, and manage terminals",
                 "Run snippets and macros directly",
                 "Install via: curl -fsSL rexec.pipeops.io/install.sh | bash"
-            ]
-        },
-        {
-            slug: "rexec-agent",
-            title: "Connect Your Own Servers",
-            icon: "connected",
-            description: "Turn any Linux server into a Rexec terminal. Install our lightweight agent on your VPS, cloud instance, or bare metal.",
-            points: [
-                "Connect existing servers to Rexec",
-                "Works on any cloud provider (AWS, GCP, Azure, DO)",
-                "Lightweight agent with minimal footprint",
-                "Secure WebSocket tunneling",
-                "Manage all servers from one dashboard"
             ]
         },
         {
@@ -324,12 +323,31 @@
         font-family: var(--font-mono);
         width: 100%;
         animation: fadeInUp 0.5s ease both;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .case-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, var(--accent), transparent);
+        opacity: 0;
+        transition: opacity 0.3s ease;
     }
 
     .case-card:hover {
         transform: translateY(-8px) scale(1.02);
         border-color: var(--accent);
-        box-shadow: 0 20px 40px rgba(0, 255, 65, 0.15);
+        box-shadow: 0 20px 40px rgba(0, 255, 65, 0.1);
+        background: linear-gradient(135deg, var(--bg-card) 0%, rgba(0, 255, 65, 0.05) 100%);
+    }
+
+    .case-card:hover::before {
+        opacity: 0.5;
     }
 
     .case-card:hover .arrow {
@@ -340,18 +358,35 @@
         color: var(--accent);
     }
 
+    .case-card:hover .case-icon {
+        background: var(--accent);
+        color: #000;
+        border-color: var(--accent);
+        box-shadow: 0 0 20px var(--accent-glow);
+    }
+
     .case-card:active {
         transform: translateY(-4px) scale(1.01);
     }
 
     .case-card.coming-soon {
-        border-color: var(--yellow);
-        background: rgba(252, 238, 10, 0.03);
+        border-color: var(--border);
+        background: rgba(255, 255, 255, 0.02);
+        opacity: 0.8;
     }
 
     .case-card.coming-soon:hover {
         border-color: var(--yellow);
-        box-shadow: 0 10px 30px rgba(252, 238, 10, 0.15);
+        box-shadow: 0 10px 30px rgba(252, 238, 10, 0.1);
+        background: linear-gradient(135deg, var(--bg-card) 0%, rgba(252, 238, 10, 0.05) 100%);
+        transform: translateY(-4px);
+    }
+
+    .case-card.coming-soon:hover .case-icon {
+        background: var(--yellow);
+        color: #000;
+        border-color: var(--yellow);
+        box-shadow: 0 0 20px rgba(252, 238, 10, 0.4);
     }
 
     .case-card.coming-soon .case-icon {
@@ -375,6 +410,7 @@
         justify-content: center;
         border-radius: 12px;
         border: 1px solid rgba(0, 255, 65, 0.2);
+        transition: all 0.3s ease;
     }
 
     h3 {

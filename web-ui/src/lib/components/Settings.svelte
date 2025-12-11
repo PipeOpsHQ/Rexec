@@ -1917,13 +1917,27 @@
     line-height: 1.5;
   }
 
+  /* Ensure no purple focus styles anywhere */
+  .modal input:focus,
+  .modal button:focus,
+  .modal select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(0, 255, 65, 0.2);
+  }
+
+  .modal button:focus {
+    outline: none;
+  }
+
   .qr-container {
     display: flex;
     justify-content: center;
     align-items: center;
-    background: white;
-    padding: 16px;
-    border-radius: 8px;
+    background: var(--bg-secondary);
+    padding: 20px;
+    border: 1px solid var(--border);
+    border-radius: 0;
     margin-bottom: 16px;
     min-height: 200px;
   }

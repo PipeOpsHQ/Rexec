@@ -478,12 +478,12 @@ func (h *AuthHandler) generateToken(user *models.User) (string, error) {
 
 // generateMFAToken creates a short-lived token for MFA validation
 func (h *AuthHandler) generateMFAToken(user *models.User) (string, error) {
-	// MFA tokens are valid for 5 minutes only
+	// MFA tokens are valid for 10 minutes
 	claims := jwt.MapClaims{
 		"user_id":      user.ID,
 		"email":        user.Email,
 		"mfa_pending":  true,
-		"exp":          time.Now().Add(5 * time.Minute).Unix(),
+		"exp":          time.Now().Add(10 * time.Minute).Unix(),
 		"iat":          time.Now().Unix(),
 	}
 
@@ -948,7 +948,7 @@ func renderMFAPage(mfaToken string, user *models.User) string {
             transform: translate(-50%, -50%);
             width: 600px;
             height: 600px;
-            background: radial-gradient(circle, rgba(139, 92, 246, 0.15) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(34, 197, 94, 0.15) 0%, transparent 70%);
             pointer-events: none;
         }
         .container {
@@ -959,8 +959,8 @@ func renderMFAPage(mfaToken string, user *models.User) string {
             background: linear-gradient(145deg, rgba(26, 26, 26, 0.95) 0%, rgba(15, 15, 15, 0.98) 100%);
             padding: 48px 44px;
             border-radius: 20px;
-            border: 1px solid rgba(139, 92, 246, 0.2);
-            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6), 0 0 60px rgba(139, 92, 246, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6), 0 0 60px rgba(34, 197, 94, 0.1);
             backdrop-filter: blur(20px);
         }
         .logo {
@@ -984,13 +984,14 @@ func renderMFAPage(mfaToken string, user *models.User) string {
         .icon-container {
             width: 88px;
             height: 88px;
-            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             margin: 0 auto 28px;
             color: white;
+            box-shadow: 0 8px 32px rgba(34, 197, 94, 0.4);
         }
         .icon-container svg {
             width: 44px;
@@ -1025,7 +1026,7 @@ func renderMFAPage(mfaToken string, user *models.User) string {
             transition: border-color 0.2s;
         }
         input:focus {
-            border-color: #8b5cf6;
+            border-color: #22c55e;
         }
         input::placeholder {
             letter-spacing: normal;
@@ -1036,7 +1037,7 @@ func renderMFAPage(mfaToken string, user *models.User) string {
             padding: 14px 24px;
             font-size: 16px;
             font-weight: 600;
-            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
             border: none;
             border-radius: 10px;
             color: #fff;
@@ -1045,7 +1046,7 @@ func renderMFAPage(mfaToken string, user *models.User) string {
         }
         .btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4);
+            box-shadow: 0 8px 25px rgba(34, 197, 94, 0.4);
         }
         .btn:disabled {
             opacity: 0.6;

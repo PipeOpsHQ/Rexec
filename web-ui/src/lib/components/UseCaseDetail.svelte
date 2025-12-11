@@ -76,29 +76,29 @@
             relatedUseCases: ["ephemeral-dev-environments", "resumable-sessions", "technical-interviews"]
         },
         "universal-jump-host": {
-            title: "Universal Jump Host",
+            title: "Secure Jump Host & Gateway",
             icon: "shield",
-            tagline: "Access your private infrastructure securely from any browser.",
-            description: "No VPNs, no complex SSH config management. Rexec acts as a secure gateway to your private infrastructure, providing browser-based access with enterprise-grade security and full audit logging.",
+            tagline: "Zero-trust access to private infrastructure.",
+            description: "Replace complex VPNs and bastion hosts. Rexec provides a secure, audited gateway to your private infrastructure. Enforce MFA, restrict IP access, and log every command for complete compliance and security.",
             heroImage: "/images/use-cases/jump-host.svg",
             benefits: [
-                { title: "Browser-Based SSH", description: "Access any server from any device with just a browser. No SSH client installation required.", icon: "terminal" },
-                { title: "Private VPC Access", description: "Securely reach servers in private subnets without exposing them to the internet.", icon: "shield" },
-                { title: "Centralized Key Management", description: "Manage SSH keys in one place. Rotate, revoke, and audit without touching individual servers.", icon: "connected" },
-                { title: "Complete Audit Trail", description: "Every keystroke logged. Know exactly who did what, when, and where.", icon: "data" }
+                { title: "Browser-Based Access", description: "SSH into any server from any device. No client installation or key management required.", icon: "terminal" },
+                { title: "Zero-Trust Security", description: "Enforce Multi-Factor Authentication (MFA) and IP Allow-listing for all connections.", icon: "shield" },
+                { title: "Audit & Compliance", description: "Every session is logged. Review command history, connection times, and origin IPs.", icon: "data" },
+                { title: "Private VPC Reach", description: "Connect securely to servers in private subnets without exposing public ports.", icon: "connected" }
             ],
             workflow: [
-                { step: 1, title: "Add Your Keys", description: "Upload SSH keys or generate new ones securely in Rexec." },
-                { step: 2, title: "Configure Targets", description: "Define the servers and networks you want to access." },
-                { step: 3, title: "Connect Securely", description: "Open a terminal and SSH through Rexec's secure tunnel." },
-                { step: 4, title: "Review Audit Logs", description: "Access complete session recordings and command history." }
+                { step: 1, title: "Deploy Agent", description: "Install the Rexec agent on your bastion or target server." },
+                { step: 2, title: "Configure Security", description: "Enable MFA and set up IP whitelists for your team." },
+                { step: 3, title: "Connect Securely", description: "Access the server instantly via the encrypted WebSocket tunnel." },
+                { step: 4, title: "Monitor Activity", description: "Track all access via the centralized Audit Log dashboard." }
             ],
             examples: [
-                { title: "Production Debugging", description: "Safely access production servers for debugging without exposing SSH ports.", code: "ssh -J rexec@jump.rexec.io user@internal-server.vpc" },
-                { title: "Multi-Cloud Access", description: "Connect to AWS, GCP, and Azure resources through a single secure gateway." },
-                { title: "Contractor Access", description: "Grant temporary, audited access to external contractors without sharing permanent credentials." }
+                { title: "Production Access", description: "Grant temporary, audited access to engineers for emergency debugging.", code: "# No SSH keys to share\n# Just RBAC-controlled access" },
+                { title: "Compliance Auditing", description: "Export session logs to satisfy SOC2 or ISO 27001 requirements." },
+                { title: "Third-Party Access", description: "Give contractors secure access to specific servers without VPN credentials." }
             ],
-            relatedUseCases: ["ephemeral-dev-environments", "edge-device-development", "technical-interviews"]
+            relatedUseCases: ["rexec-agent", "remote-debugging", "hybrid-infrastructure"]
         },
         "instant-education-onboarding": {
             title: "Instant Education & Onboarding",
@@ -305,29 +305,29 @@
             relatedUseCases: ["universal-jump-host", "resumable-sessions", "rexec-agent"]
         },
         "rexec-agent": {
-            title: "Connect Your Own Servers",
+            title: "Hybrid Cloud & Remote Agents",
             icon: "connected",
-            tagline: "Turn any Linux server into a Rexec terminal.",
-            description: "Bring your own infrastructure. Install the lightweight Rexec agent on any Linux server (VPS, Bare Metal, Cloud, Edge) and manage it through the unified Rexec interface. No complex VPNs or open ports required.",
+            tagline: "Unify your infrastructure. One dashboard for everything.",
+            description: "Turn any Linux server, IoT device, or cloud instance into a managed Rexec terminal. Install our lightweight binary to instantly connect remote resources to your Rexec dashboard with real-time resource monitoring.",
             heroImage: "/images/use-cases/agent.svg",
             benefits: [
-                { title: "Any Infrastructure", description: "Works on AWS, GCP, Azure, DigitalOcean, or your Raspberry Pi under the desk.", icon: "connected" },
-                { title: "Secure Tunneling", description: "Outbound-only WebSocket connection. No need to open inbound firewall ports.", icon: "shield" },
-                { title: "Unified Management", description: "View and manage all your dispersed servers from a single pane of glass.", icon: "bolt" },
-                { title: "Zero VPN", description: "Access your private servers securely without setting up and maintaining a VPN.", icon: "wifi" }
+                { title: "Universal Compatibility", description: "Works on AWS, Azure, on-prem, or Raspberry Pi. Static binary, zero dependencies.", icon: "bolt" },
+                { title: "Real-Time Monitoring", description: "Live CPU, Memory, and Disk usage stats for all connected agents.", icon: "data" },
+                { title: "Persistent Connections", description: "Agents maintain a secure outbound tunnel. No inbound firewall ports needed.", icon: "shield" },
+                { title: "Centralized Management", description: "Update, restart, and manage diverse infrastructure from one UI.", icon: "connected" }
             ],
             workflow: [
-                { step: 1, title: "Generate Token", description: "Create a new agent token in the Rexec dashboard." },
-                { step: 2, title: "Install Agent", description: "Run the simple install script on your target server." },
-                { step: 3, title: "Auto-Connect", description: "The agent connects back to Rexec instantly." },
-                { step: 4, title: "Remote Access", description: "Access your server via the Rexec web UI or CLI immediately." }
+                { step: 1, title: "Register Agent", description: "Create a new agent profile in your Rexec settings." },
+                { step: 2, title: "Install One-Liner", description: "Run the curl command on your target machine." },
+                { step: 3, title: "Instant Connection", description: "The agent connects back via WebSocket and appears online." },
+                { step: 4, title: "Monitor & Control", description: "View live stats and open terminal sessions immediately." }
             ],
             examples: [
-                { title: "Cloud VPS Management", description: "Manage a fleet of VPS instances across different providers from one interface.", code: "curl -fsSL rexec.pipeops.io/install-agent.sh | bash" },
-                { title: "Home Lab Access", description: "Access your home server from anywhere without port forwarding on your router." },
-                { title: "Edge Device Control", description: "Deploy agents to remote IoT devices for easy maintenance and debugging." }
+                { title: "Home Lab Gateway", description: "Access your home server from anywhere without exposing it to the internet.", code: "curl -sSL rexec.pipeops.io/install-agent.sh | bash" },
+                { title: "Multi-Cloud Ops", description: "Manage instances across AWS, GCP, and Azure without switching consoles." },
+                { title: "Edge Fleet", description: "Monitor and control a fleet of remote IoT devices." }
             ],
-            relatedUseCases: ["universal-jump-host", "hybrid-infrastructure", "rexec-cli"]
+            relatedUseCases: ["universal-jump-host", "hybrid-infrastructure", "remote-debugging"]
         },
         "hybrid-infrastructure": {
             title: "Hybrid Infrastructure Access",

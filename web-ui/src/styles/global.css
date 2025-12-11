@@ -205,6 +205,28 @@ input:focus,
 textarea:focus,
 select:focus {
     border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(0, 255, 65, 0.15);
+}
+
+/* Override browser default focus colors (purple/blue) */
+*:focus {
+    outline: none;
+}
+
+*:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+button:focus,
+a:focus {
+    outline: none;
+}
+
+button:focus-visible,
+a:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
 }
 
 input::placeholder,
