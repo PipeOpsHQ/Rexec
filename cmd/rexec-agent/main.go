@@ -1133,7 +1133,7 @@ func handleRefreshToken(args []string) {
 	}
 
 	if cfg.ID == "" {
-		fmt.Printf("%sAgent ID not found. Run 'rexec-agent register' first.%s\n", Red, Reset)
+		fmt.Printf("%sAgent ID not found in config. Re-run 'rexec-agent register' or set agent_id in your config file.%s\n", Red, Reset)
 		os.Exit(1)
 	}
 
@@ -1174,7 +1174,8 @@ func handleRefreshToken(args []string) {
 
 	// Test the new token
 	fmt.Printf("Testing new token...")
-	resp, err := apiRequest(cfg.Host, newToken, "GET", "/api/agents/"+cfg.ID, nil)
+	// 1) Validate token works at all.
+	resp, err := apiRequest(cfg.Host, newToken, "GET", "/api/tokens/validate", nil)
 	if err != nil {
 		fmt.Printf(" %sFailed: %v%s\n", Red, err, Reset)
 		os.Exit(1)
@@ -1186,14 +1187,39 @@ func handleRefreshToken(args []string) {
 		os.Exit(1)
 	}
 
-	if resp.StatusCode == 403 {
-		fmt.Printf(" %sToken doesn't have access to this agent%s\n", Red, Reset)
-		os.Exit(1)
-	}
-
 	if resp.StatusCode != 200 {
 		body, _ := io.ReadAll(resp.Body)
 		fmt.Printf(" %sFailed: %s%s\n", Red, string(body), Reset)
+		os.Exit(1)
+	}
+
+	// 2) Ensure token belongs to the same user as this agent by listing agents.
+	listResp, err := apiRequest(cfg.Host, newToken, "GET", "/api/agents", nil)
+	if err != nil {
+		fmt.Printf(" %sFailed listing agents: %v%s\n", Red, err, Reset)
+		os.Exit(1)
+	}
+	defer listResp.Body.Close()
+
+	if listResp.StatusCode != 200 {
+		body, _ := io.ReadAll(listResp.Body)
+		fmt.Printf(" %sFailed listing agents: %s%s\n", Red, string(body), Reset)
+		os.Exit(1)
+	}
+
+	var agents []struct {
+		ID string `json:"id"`
+	}
+	_ = json.NewDecoder(listResp.Body).Decode(&agents)
+	found := false
+	for _, a := range agents {
+		if a.ID == cfg.ID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		fmt.Printf(" %sToken does not have access to agent %s%s\n", Red, cfg.ID, Reset)
 		os.Exit(1)
 	}
 

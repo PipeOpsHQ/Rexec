@@ -306,6 +306,34 @@ func (h *AgentHandler) ListAgents(c *gin.Context) {
 	c.JSON(http.StatusOK, agents)
 }
 
+// GetAgent returns a specific agent record for the authenticated user.
+// GET /api/agents/:id
+func (h *AgentHandler) GetAgent(c *gin.Context) {
+	userID := c.GetString("userID")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	agentID := c.Param("id")
+	ctx := c.Request.Context()
+	agent, err := h.store.GetAgent(ctx, agentID)
+	if err != nil || agent == nil || agent.UserID != userID {
+		c.JSON(http.StatusNotFound, gin.H{"error": "agent not found"})
+		return
+	}
+
+	// Derive online/offline based on heartbeat
+	threshold := time.Now().Add(-2 * time.Minute)
+	if !agent.LastPing.IsZero() && agent.LastPing.After(threshold) {
+		agent.Status = "online"
+	} else {
+		agent.Status = "offline"
+	}
+
+	c.JSON(http.StatusOK, agent)
+}
+
 // DeleteAgent removes an agent
 func (h *AgentHandler) DeleteAgent(c *gin.Context) {
 	userID, exists := c.Get("userID")

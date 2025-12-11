@@ -618,13 +618,14 @@ func runServer() {
 		}
 
 		// Agent endpoints
-		agents := api.Group("/agents")
-		{
-			agents.POST("/register", agentHandler.RegisterAgent)
-			agents.GET("", agentHandler.ListAgents)
-			agents.GET("/:id/status", agentHandler.GetAgentStatus)
-			agents.DELETE("/:id", agentHandler.DeleteAgent)
-		}
+			agents := api.Group("/agents")
+			{
+				agents.POST("/register", agentHandler.RegisterAgent)
+				agents.GET("", agentHandler.ListAgents)
+				agents.GET("/:id", agentHandler.GetAgent)
+				agents.GET("/:id/status", agentHandler.GetAgentStatus)
+				agents.DELETE("/:id", agentHandler.DeleteAgent)
+			}
 
 		// Admin routes
 		admin := api.Group("/admin")
