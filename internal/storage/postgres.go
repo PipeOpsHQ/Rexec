@@ -455,6 +455,23 @@ func (s *PostgresStore) seedExampleSnippets() error {
 		return fmt.Errorf("failed to count snippets: %w", err)
 	}
 
+	// Check if we can decrypt existing snippets (in case encryption key changed)
+	if snippetCount > 0 {
+		var sampleContent string
+		err := s.db.QueryRowContext(ctx, "SELECT content FROM snippets WHERE user_id = $1 LIMIT 1", systemUserID).Scan(&sampleContent)
+		if err == nil {
+			_, decryptErr := s.encryptor.Decrypt(sampleContent)
+			if decryptErr != nil {
+				log.Printf("Warning: Failed to decrypt existing example snippets (key changed?): %v. Re-seeding...", decryptErr)
+				// Delete all system snippets to re-seed with new key
+				if _, delErr := s.db.ExecContext(ctx, "DELETE FROM snippets WHERE user_id = $1", systemUserID); delErr != nil {
+					return fmt.Errorf("failed to clean up stale example snippets: %w", delErr)
+				}
+				snippetCount = 0
+			}
+		}
+	}
+
 	if snippetCount >= 50 {
 		// Already seeded
 		return nil
@@ -1856,36 +1873,37 @@ func (s *PostgresStore) GetSnippetsByUserID(ctx context.Context, userID string) 
 	var snippets []*models.Snippet
 	for rows.Next() {
 		var sn models.Snippet
-		err := rows.Scan(
-			&sn.ID,
-			&sn.UserID,
-			&sn.Name,
-			&sn.Content,
-			&sn.Language,
-			&sn.IsPublic,
-			&sn.Description,
-			&sn.Icon,
-			&sn.Category,
-			&sn.InstallCommand,
-			&sn.RequiresInstall,
-			&sn.UsageCount,
-			&sn.CreatedAt,
-		)
-		if err != nil {
-			return nil, err
+		        err := rows.Scan(
+		            &sn.ID,
+		            &sn.UserID,
+		            &sn.Name,
+		            &sn.Content,
+		            &sn.Language,
+		            &sn.IsPublic,
+		            &sn.Description,
+		            &sn.Icon,
+		            &sn.Category,
+		            &sn.InstallCommand,
+		            &sn.RequiresInstall,
+		            &sn.UsageCount,
+		            &sn.CreatedAt,
+		        )
+		        if err != nil {
+		            return nil, err
+		        }
+		
+		        // Decrypt content
+		        decrypted, err := s.encryptor.Decrypt(sn.Content)
+		        if err == nil {
+		            sn.Content = decrypted
+		        } else {
+		            sn.Content = "[Encrypted Content - Decryption Failed]"
+		        }
+		
+		        snippets = append(snippets, &sn)
+		    }
+		    return snippets, nil
 		}
-
-		// Decrypt content
-		decrypted, err := s.encryptor.Decrypt(sn.Content)
-		if err == nil {
-			sn.Content = decrypted
-		}
-
-		snippets = append(snippets, &sn)
-	}
-	return snippets, nil
-}
-
 // GetSnippetByID retrieves a snippet by ID
 func (s *PostgresStore) GetSnippetByID(ctx context.Context, id string) (*models.Snippet, error) {
 	var sn models.Snippet
