@@ -452,6 +452,16 @@
         const path = window.location.pathname;
         const params = new URLSearchParams(window.location.search);
 
+        // Handle root path - show dashboard if authenticated, landing if not
+        if (path === "/" || path === "") {
+            if (get(isAuthenticated)) {
+                currentView = "dashboard";
+            } else {
+                currentView = "landing";
+            }
+            return;
+        }
+
         // Check for /admin route
         if (path === "/admin" || path === "/admin/") {
             // Ensure auth logic runs first (handled by onMount), then check role
@@ -887,9 +897,16 @@
                         return; // Stop further processing
                     }
 
-                    currentView = "dashboard";
+                    // Fetch containers for authenticated users
                     await containers.fetchContainers();
                     startAutoRefresh(); // Start polling for container updates
+                    
+                    // Set default view to dashboard only if on root path
+                    // handleTerminalUrl() will override for specific routes like /account
+                    const currentPath = window.location.pathname;
+                    if (currentPath === "/" || currentPath === "") {
+                        currentView = "dashboard";
+                    }
                 } else {
                     auth.logout();
                 }
