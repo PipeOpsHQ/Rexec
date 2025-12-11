@@ -222,6 +222,10 @@
                     placeholder="Enter passcode"
                     disabled={isVerifying}
                     autofocus
+                    autocomplete="off"
+                    autocorrect="off"
+                    autocapitalize="off"
+                    spellcheck="false"
                 />
                 
                 {#if error}
@@ -312,27 +316,12 @@
             <div class="setup-body">
                 <div class="form-group">
                     <label for="new-passcode">New Passcode</label>
-                    <input
-                        type="password"
-                        id="new-passcode"
-                        class="passcode-input"
-                        bind:value={newPasscode}
-                        placeholder="Enter passcode (min 4 characters)"
-                        disabled={isVerifying}
-                        autofocus
-                    />
+                <input type="password" class="input" bind:value={newPasscode} placeholder="New Passcode" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" />
                 </div>
 
                 <div class="form-group">
                     <label for="confirm-passcode">Confirm Passcode</label>
-                    <input
-                        type="password"
-                        id="confirm-passcode"
-                        class="passcode-input"
-                        bind:value={confirmPasscode}
-                        placeholder="Confirm passcode"
-                        disabled={isVerifying}
-                    />
+                <input type="password" class="input" bind:value={confirmPasscode} placeholder="Confirm Passcode" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" />
                 </div>
 
                 {#if error}
