@@ -337,7 +337,7 @@
   .token-icon {
     width: 18px;
     height: 18px;
-    color: var(--accent, #8b5cf6);
+    color: var(--accent);
   }
 
   .token-meta {
@@ -364,7 +364,7 @@
     font-size: 0.625rem;
     text-transform: uppercase;
     padding: 0.125rem 0.375rem;
-    background: var(--accent, #8b5cf6);
+    background: var(--accent);
     color: white;
     border-radius: 3px;
     font-weight: 500;
@@ -681,12 +681,14 @@
   }
 
   .btn-primary {
-    background: var(--accent, #8b5cf6);
-    color: white;
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: var(--accent);
   }
 
   .btn-primary:hover:not(:disabled) {
-    background: var(--accent-hover, #7c3aed);
+    background: var(--accent);
+    color: var(--bg);
   }
 
   .btn-primary:disabled {

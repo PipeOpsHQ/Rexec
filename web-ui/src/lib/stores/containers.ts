@@ -926,6 +926,16 @@ function matchesContainer(container: Container, eventData: any): boolean {
   return false;
 }
 
+// Helper to sort containers by created_at descending (newest first)
+function sortContainers(containers: Container[]): Container[] {
+  return [...containers].sort((a, b) => {
+    const timeA = new Date(a.created_at || 0).getTime();
+    const timeB = new Date(b.created_at || 0).getTime();
+    // Sort descending (newest first)
+    return timeB - timeA;
+  });
+}
+
 // Handle incoming container events
 function handleContainerEvent(event: {
   type: string;
@@ -939,7 +949,7 @@ function handleContainerEvent(event: {
       // Full container list received
       containers.update((state) => ({
         ...state,
-        containers: containerData.containers || [],
+        containers: sortContainers(containerData.containers || []),
         limit: containerData.limit || 2,
         isLoading: false,
       }));
@@ -997,10 +1007,10 @@ function handleContainerEvent(event: {
       // New container created - also clear creating state
       containers.update((state) => ({
         ...state,
-        containers: [
+        containers: sortContainers([
           containerData,
           ...state.containers.filter((c) => !matchesContainer(c, containerData)),
-        ],
+        ]),
         creating: null, // Clear creating state
       }));
       break;
@@ -1026,7 +1036,7 @@ function handleContainerEvent(event: {
         // Return new state object
         return {
           ...state,
-          containers: newContainers,
+          containers: sortContainers(newContainers),
         };
       });
       break;
@@ -1043,10 +1053,10 @@ function handleContainerEvent(event: {
       // Agent connected - add to containers list
       containers.update((state) => ({
         ...state,
-        containers: [
+        containers: sortContainers([
           containerData,
           ...state.containers.filter((c) => c.id !== containerData.id),
-        ],
+        ]),
       }));
       // Dispatch event for agents store
       if (typeof window !== 'undefined') {
