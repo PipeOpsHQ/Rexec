@@ -478,7 +478,7 @@
 
         // Check for /billing route
         if (path === "/billing") {
-            if (!$isAuthenticated) {
+            if (!get(isAuthenticated)) {
                 currentView = "landing";
                 return;
             }
@@ -492,7 +492,7 @@
             // Show billing page - the webhook will have updated the tier
             toast.success("Payment successful! Your plan has been upgraded.");
             window.history.replaceState({}, "", "/billing");
-            if ($isAuthenticated) {
+            if (get(isAuthenticated)) {
                 currentView = "billing";
                 // Refresh user profile to get updated tier
                 auth.fetchProfile();
@@ -506,7 +506,7 @@
         if (path === "/billing/cancel") {
             toast.info("Checkout cancelled. No changes were made to your plan.");
             window.history.replaceState({}, "", "/billing");
-            if ($isAuthenticated) {
+            if (get(isAuthenticated)) {
                 currentView = "billing";
             } else {
                 currentView = "landing";
@@ -546,13 +546,14 @@
             return;
         }
 
-        // Check for /join/:code route
-        const joinMatch = path.match(/^\/join\/([A-Z0-9]{6})$/i);
+        // Check for /join/:code route (share codes use base64-URL: letters, numbers, -, _)
+        const joinMatch = path.match(/^\/join\/([A-Z0-9_-]{6})$/i);
         if (joinMatch) {
             joinCode = joinMatch[1].toUpperCase();
 
             // If not authenticated, store join code and show landing with join prompt
-            if (!$isAuthenticated) {
+            // Use get() instead of $ for synchronous access in async context
+            if (!get(isAuthenticated)) {
                 localStorage.setItem("pendingJoinCode", joinCode);
                 currentView = "landing";
                 // Show a message that they need to login
@@ -576,7 +577,7 @@
 
         // Check for /settings route - redirect to /account/settings
         if (path === "/settings") {
-            if (!$isAuthenticated) {
+            if (!get(isAuthenticated)) {
                 currentView = "landing";
                 return;
             }
@@ -588,7 +589,7 @@
 
         // Check for /sshkeys route - redirect to /account/ssh
         if (path === "/sshkeys") {
-            if (!$isAuthenticated) {
+            if (!get(isAuthenticated)) {
                 currentView = "landing";
                 return;
             }
@@ -600,7 +601,7 @@
 
         // Check for /snippets route - redirect to /account/snippets
         if (path === "/snippets") {
-            if (!$isAuthenticated) {
+            if (!get(isAuthenticated)) {
                 currentView = "landing";
                 return;
             }
@@ -668,7 +669,7 @@
         // Check for /cli-login route (CLI login with callback)
         if (path === "/cli-login") {
             const callback = params.get("callback");
-            if ($isAuthenticated && callback) {
+            if (get(isAuthenticated) && callback) {
                 // User is already logged in, redirect to callback with token
                 const token = localStorage.getItem("auth_token");
                 if (token) {
@@ -686,7 +687,7 @@
 
         // Check for pending join after authentication
         const pendingJoin = localStorage.getItem("pendingJoinCode");
-        if (pendingJoin && $isAuthenticated) {
+        if (pendingJoin && get(isAuthenticated)) {
             localStorage.removeItem("pendingJoinCode");
             joinCode = pendingJoin;
             currentView = "join";
@@ -695,7 +696,7 @@
 
         // Check for pending agent redirect after authentication
         const pendingAgent = localStorage.getItem("pendingAgentId");
-        if (pendingAgent && $isAuthenticated) {
+        if (pendingAgent && get(isAuthenticated)) {
             localStorage.removeItem("pendingAgentId");
             window.history.replaceState({}, "", `/agent:${pendingAgent}`);
             await connectToAgent(pendingAgent);
@@ -706,7 +707,7 @@
         const terminalParam = params.get("terminal");
         const nameParam = params.get("name");
 
-        if (terminalParam && $isAuthenticated) {
+        if (terminalParam && get(isAuthenticated)) {
             // Clear URL params
             window.history.replaceState({}, "", window.location.pathname);
 
@@ -725,7 +726,7 @@
         const agentMatch = path.match(/^\/agent:([a-f0-9-]{36})$/i);
         if (agentMatch) {
             const agentId = agentMatch[1];
-            if ($isAuthenticated) {
+            if (get(isAuthenticated)) {
                 await connectToAgent(agentId);
             } else {
                 localStorage.setItem("pendingAgentId", agentId);
@@ -742,7 +743,7 @@
             /^\/(?:terminal\/)?([a-f0-9]{64}|[a-f0-9-]{36})$/i,
         );
 
-        if (match && $isAuthenticated) {
+        if (match && get(isAuthenticated)) {
             const containerId = match[1];
             // Fetch container info and create session - TerminalPanel handles WebSocket
             const result = await containers.getContainer(containerId);
