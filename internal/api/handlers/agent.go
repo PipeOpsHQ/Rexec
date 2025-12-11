@@ -835,6 +835,7 @@ func (h *AgentHandler) GetOnlineAgentsForUser(userID string) []gin.H {
 				"session_type": "agent",
 				"created_at":   agent.CreatedAt, // Use DB creation time
 				"last_used_at": agent.LastPing,
+				"idle_seconds": time.Since(agent.LastPing).Seconds(), // Calculate idle time
 				"os":           agent.OS,
 				"arch":         agent.Arch,
 				"shell":        agent.Shell,

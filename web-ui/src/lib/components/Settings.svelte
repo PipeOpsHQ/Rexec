@@ -1121,107 +1121,31 @@
   .agent-card {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 16px;
+    gap: 8px; /* Reduced from 12px */
+    padding: 12px; /* Reduced from 16px */
     background: var(--bg-secondary);
     border: 1px solid var(--border);
     border-radius: 8px;
     transition: border-color 0.2s;
   }
 
-  .agent-card:hover {
-    border-color: var(--border-hover);
-  }
-
-  .agent-card.agent-online {
-    border-color: rgba(0, 255, 65, 0.3);
-  }
-
-  .agent-card.agent-online:hover {
-    border-color: var(--accent);
-  }
-
-  .agent-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .agent-status {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-  }
-
-  .status-dot-pulse {
-    animation: pulse-green 2s infinite;
-  }
-
-  @keyframes pulse-green {
-    0% {
-      box-shadow: 0 0 0 0 rgba(0, 255, 65, 0.7);
-    }
-    70% {
-      box-shadow: 0 0 0 6px rgba(0, 255, 65, 0);
-    }
-    100% {
-      box-shadow: 0 0 0 0 rgba(0, 255, 65, 0);
-    }
-  }
-
-  .status-text {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--text-muted);
-  }
-
-  .agent-body {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .agent-name {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text);
-  }
-
-  .agent-desc {
-    font-size: 12px;
-    color: var(--text-secondary);
-  }
-
   .agent-details {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 8px;
-    padding-top: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); /* Adjusted minmax */
+    gap: 6px; /* Reduced from 8px */
+    padding-top: 8px; /* Reduced from 12px */
     border-top: 1px solid var(--border);
   }
 
-  .agent-detail-item {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
   .detail-label {
-    font-size: 10px;
+    font-size: 9px; /* Reduced from 10px */
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: var(--text-muted);
   }
 
   .detail-value {
-    font-size: 12px;
+    font-size: 11px; /* Reduced from 12px */
     color: var(--text);
     font-family: var(--font-mono);
   }
