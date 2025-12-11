@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"sort"
 	"sync"
 	"time"
 
@@ -264,6 +265,13 @@ func (h *ContainerEventsHub) sendContainerList(conn *websocket.Conn, userID, tie
 		// Prepend agents to containers (agents first)
 		containers = append(onlineAgents, containers...)
 	}
+
+	// Sort unified list by created_at descending (newest first)
+	sort.Slice(containers, func(i, j int) bool {
+		t1 := containers[i]["created_at"].(time.Time)
+		t2 := containers[j]["created_at"].(time.Time)
+		return t1.After(t2)
+	})
 
 	event := ContainerEvent{
 		Type: "list",

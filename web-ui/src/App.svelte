@@ -455,7 +455,8 @@
 
         // Check for /account routes
         if (path.startsWith("/account")) {
-            if (!$isAuthenticated) {
+            // Use get() to check current store value synchronously
+            if (!get(isAuthenticated)) {
                 currentView = "landing";
                 return;
             }
@@ -1188,10 +1189,15 @@
                 <Guides
                     on:tryNow={openGuestModal}
                     on:navigate={(e) => {
-                        if (e.detail.view === "agentic") {
+                        const view = e.detail.view;
+                        if (view === "agentic") {
                             // Legacy handling
                             currentView = "use-cases";
                             window.history.pushState({}, "", "/use-cases");
+                        } else if (view === "docs/cli") {
+                            goToCLI();
+                        } else if (view === "docs/agent") {
+                            goToAgents();
                         }
                     }}
                 />

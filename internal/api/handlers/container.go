@@ -7,6 +7,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -168,6 +169,18 @@ func (h *ContainerHandler) List(c *gin.Context) {
 		// Prepend agents to containers (agents first)
 		containers = append(onlineAgents, containers...)
 	}
+
+	// Sort unified list by created_at descending (newest first)
+	sort.Slice(containers, func(i, j int) bool {
+		t1, ok1 := containers[i]["created_at"].(time.Time)
+		t2, ok2 := containers[j]["created_at"].(time.Time)
+		
+		// Handle potential missing timestamps gracefully
+		if !ok1 { return false }
+		if !ok2 { return true }
+		
+		return t1.After(t2)
+	})
 
 	c.JSON(http.StatusOK, gin.H{
 		"containers": containers,

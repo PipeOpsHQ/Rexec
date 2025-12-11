@@ -317,21 +317,48 @@ function createAuthStore() {
         const token = localStorage.getItem("rexec_token");
         if (!token) return false;
 
+        // For guest tokens, also check if expired locally first
+        const userJson = localStorage.getItem("rexec_user");
+        if (userJson) {
+          try {
+            const user = JSON.parse(userJson) as User;
+            if (user.isGuest && user.expiresAt) {
+              const now = Math.floor(Date.now() / 1000);
+              if (now >= user.expiresAt) {
+                // Token expired locally
+                return false;
+              }
+            }
+          } catch (e) {
+            // Ignore parse errors
+          }
+        }
+
+        // Validate with server
         const response = await fetch("/api/profile", {
-          method: "HEAD", // Use HEAD to be lighter if supported, otherwise GET
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        // HEAD method might not be supported by all backends for profile, so fallback to GET if 405/404
-        if (response.status === 405 || response.status === 404) {
-             const getResponse = await fetch("/api/profile", {
-                headers: { Authorization: `Bearer ${token}` },
-             });
-             return getResponse.ok;
-        }
-
         return response.ok;
       } catch (e) {
+        // Network error - if we have a valid local token, consider it valid
+        // This allows offline-first behavior
+        const token = localStorage.getItem("rexec_token");
+        const userJson = localStorage.getItem("rexec_user");
+        if (token && userJson) {
+          try {
+            const user = JSON.parse(userJson) as User;
+            // If guest and not expired locally, consider valid
+            if (user.isGuest && user.expiresAt) {
+              const now = Math.floor(Date.now() / 1000);
+              return now < user.expiresAt;
+            }
+            // Non-guest with stored token, assume valid on network error
+            return true;
+          } catch (e) {
+            return false;
+          }
+        }
         return false;
       }
     },
