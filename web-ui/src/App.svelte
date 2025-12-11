@@ -40,6 +40,7 @@
     import Account from "$components/Account.svelte";
     import AccountLayout from "$components/AccountLayout.svelte";
     import APITokens from "$components/APITokens.svelte";
+    import Docs from "$components/Docs.svelte";
 
     // App state
     let currentView:
@@ -67,6 +68,7 @@
         | "account-billing"
         | "account-snippets"
         | "account-api"
+        | "docs"
         | "404" = "landing";
     let accountSection: string | null = null; // Track which account sub-section we're in
     let isLoading = true;
@@ -451,6 +453,12 @@
         // Check for /docs/cli route
         if (path === "/docs/cli") {
             currentView = "cli-docs";
+            return;
+        }
+
+        // Check for /docs route (main documentation page)
+        if (path === "/docs") {
+            currentView = "docs";
             return;
         }
 
