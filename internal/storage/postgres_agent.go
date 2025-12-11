@@ -189,6 +189,17 @@ func (s *PostgresStore) UpdateAgentSystemInfo(ctx context.Context, id string, sy
 	return err
 }
 
+// UpdateAgentMetadata updates the agent's metadata (OS, Arch, Shell)
+func (s *PostgresStore) UpdateAgentMetadata(ctx context.Context, id, os, arch, shell string) error {
+	query := `
+	UPDATE agents
+	SET os = $2, arch = $3, shell = $4, updated_at = NOW()
+	WHERE id = $1
+	`
+	_, err := s.db.ExecContext(ctx, query, id, os, arch, shell)
+	return err
+}
+
 // UpdateAgentStatus updates only the last_heartbeat (for pings)
 func (s *PostgresStore) UpdateAgentStatus(ctx context.Context, id string) error {
 	query := `UPDATE agents SET last_heartbeat = NOW() WHERE id = $1`

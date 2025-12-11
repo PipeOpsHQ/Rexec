@@ -50,6 +50,15 @@ interface AgentsState {
 
 const API_BASE = '/api';
 
+// Helper to sort agents by created_at descending (newest first)
+function sortAgents(agents: Agent[]): Agent[] {
+  return [...agents].sort((a, b) => {
+    const timeA = new Date(a.created_at || 0).getTime();
+    const timeB = new Date(b.created_at || 0).getTime();
+    return timeB - timeA; // Sort descending
+  });
+}
+
 function createAgentsStore() {
   const { subscribe, set, update } = writable<AgentsState>({
     agents: [],
@@ -101,7 +110,7 @@ function createAgentsStore() {
           })
         );
         
-        update(s => ({ ...s, agents: enrichedAgents, loading: false }));
+        update(s => ({ ...s, agents: sortAgents(enrichedAgents), loading: false }));
       } catch (err: any) {
         update(s => ({ ...s, error: err.message, loading: false }));
       }
@@ -122,7 +131,7 @@ function createAgentsStore() {
         const agent = await res.json();
         update(s => ({
           ...s,
-          agents: [...s.agents, { ...agent, status: 'registered' }],
+          agents: sortAgents([...s.agents, { ...agent, status: 'registered' }]),
           loading: false,
         }));
         return agent;
@@ -163,10 +172,10 @@ function createAgentsStore() {
     },
 
     // Update agent status from WebSocket event
-    updateAgentStatus(agentId: string, status: 'online' | 'offline', agentData?: any) {
+    updateAgentStatus(agentId: string, status: 'online' | 'offline' | 'registered', agentData?: any) {
       update(s => ({
         ...s,
-        agents: s.agents.map(agent => {
+        agents: sortAgents(s.agents.map(agent => {
           if (agent.id === agentId) {
             return {
               ...agent,
@@ -174,10 +183,14 @@ function createAgentsStore() {
               ...(agentData?.system_info && { system_info: agentData.system_info }),
               ...(agentData?.stats && { stats: agentData.stats }),
               ...(agentData?.connected_at && { connected_at: agentData.connected_at }),
+              // Also update OS/Arch/Shell if provided by agentData and more specific
+              ...(agentData?.os && { os: agentData.os }),
+              ...(agentData?.arch && { arch: agentData.arch }),
+              ...(agentData?.shell && { shell: agentData.shell }),
             };
           }
           return agent;
-        }),
+        })),
       }));
     },
 
@@ -194,6 +207,7 @@ if (typeof window !== 'undefined') {
   window.addEventListener('container-agent-connected', ((e: CustomEvent) => {
     const agentId = e.detail.id?.replace('agent:', '');
     if (agentId) {
+      // Pass the whole e.detail as agentData to updateAgentStatus
       agents.updateAgentStatus(agentId, 'online', e.detail);
     }
   }) as EventListener);

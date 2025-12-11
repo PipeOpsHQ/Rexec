@@ -188,7 +188,7 @@ func GetUserResourceLimits(tier string, subscriptionActive bool) ResourceLimits 
 			DiskMB:          10240, // 10GB Storage
 			NetworkMB:       10,
 			SessionDuration: AuthenticatedSessionDuration,
-			MaxContainers:   3,
+			MaxContainers:   5,
 		}
 	case "pro":
 		// Legacy pro tier (if not covered by subscriptionActive check)

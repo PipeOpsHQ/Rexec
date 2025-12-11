@@ -276,6 +276,11 @@ func (h *AgentHandler) ListAgents(c *gin.Context) {
 		} else {
 			agents[i].Status = "offline"
 		}
+		
+		// Fallback for ConnectedAt if zero (since DB might not store it yet)
+		if agents[i].ConnectedAt.IsZero() {
+			agents[i].ConnectedAt = agents[i].LastPing
+		}
 	}
 
 	c.JSON(http.StatusOK, agents)
@@ -377,12 +382,13 @@ func (h *AgentHandler) HandleAgentWebSocket(c *gin.Context) {
 
 	log.Printf("Agent connected: %s (%s)", agent.Name, agentID)
 
-	// Update DB: Mark as connected with current instance ID
+	// Update DB: Mark as connected with current instance ID and update metadata
 	instanceID := ""
 	if h.pubsubHub != nil {
 		instanceID = h.pubsubHub.InstanceID()
 	}
 	h.store.UpdateAgentHeartbeat(context.Background(), agentID, instanceID)
+	h.store.UpdateAgentMetadata(context.Background(), agentID, agentConn.OS, agentConn.Arch, agentConn.Shell)
 
 	// Broadcast agent connected event via WebSocket
 	if h.eventsHub != nil {

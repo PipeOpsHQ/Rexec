@@ -378,11 +378,11 @@ func mapSubscriptionStatus(status stripe.SubscriptionStatus) SubscriptionStatus 
 func TierLimits(tier Tier) int {
 	switch tier {
 	case TierPro:
-		return 5
+		return 10
 	case TierEnterprise:
 		return 20
 	default:
-		return 2
+		return 5
 	}
 }
 

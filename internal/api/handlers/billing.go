@@ -97,6 +97,17 @@ func (h *BillingHandler) GetSubscription(c *gin.Context) {
 		return
 	}
 
+	// Check if user has active subscription via PipeOps (OAuth)
+	if user.SubscriptionActive {
+		c.JSON(http.StatusOK, gin.H{
+			"tier":            "pro",
+			"status":          "active",
+			"container_limit": billing.TierLimits(billing.TierPro),
+			"source":          "pipeops",
+		})
+		return
+	}
+
 	// Get customer ID from user metadata
 	customerID, err := h.store.GetUserStripeCustomerID(c.Request.Context(), user.ID)
 	if err != nil || customerID == "" {
