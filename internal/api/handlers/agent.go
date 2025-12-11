@@ -946,9 +946,18 @@ func (h *AgentHandler) buildAgentData(agent *AgentConnection) gin.H {
 	}
 
 	if agent.SystemInfo != nil {
-		if numCPU, ok := agent.SystemInfo["num_cpu"].(int); ok {
-			resources["cpu_shares"] = numCPU * 1024
+		// Handle both float64 (from JSON unmarshal) and int (from internal creation if any)
+		var numCPU float64
+		if val, ok := agent.SystemInfo["num_cpu"].(float64); ok {
+			numCPU = val
+		} else if val, ok := agent.SystemInfo["num_cpu"].(int); ok {
+			numCPU = float64(val)
 		}
+		
+		if numCPU > 0 {
+			resources["cpu_shares"] = int(numCPU * 1024)
+		}
+
 		if mem, ok := agent.SystemInfo["memory"].(map[string]interface{}); ok {
 			if total, ok := mem["total"].(float64); ok {
 				resources["memory_mb"] = int(total / 1024 / 1024)
