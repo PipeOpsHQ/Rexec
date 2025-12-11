@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"os"
@@ -222,12 +223,32 @@ func runServer() {
 		log.Fatal("REXEC_ENCRYPTION_KEY must be set to a production key in release mode")
 	}
 
-	// Validate encryption key length (16, 24, or 32 bytes)
-	if len(encryptionKey) != 16 && len(encryptionKey) != 24 && len(encryptionKey) != 32 {
-		log.Fatalf("Invalid REXEC_ENCRYPTION_KEY length. Must be 16, 24, or 32 characters (bytes).")
+	var keyBytes []byte
+	
+	// Support hex encoded keys (common for 32-byte keys represented as 64-char hex strings)
+	if len(encryptionKey) == 64 {
+		var err error
+		keyBytes, err = hex.DecodeString(encryptionKey)
+		if err != nil {
+			// If not valid hex, assume it's just a very long password? 
+			// crypto.NewEncryptor only supports 16/24/32 bytes.
+			// 64 bytes is not supported by AES-GCM standard key sizes (128/192/256 bits).
+			// So if it's 64 chars and fails hex decode, it's invalid length for raw key.
+			log.Fatalf("Invalid REXEC_ENCRYPTION_KEY: 64-char key must be valid hex: %v", err)
+		}
+	} else if len(encryptionKey) == 16 || len(encryptionKey) == 24 || len(encryptionKey) == 32 {
+		keyBytes = []byte(encryptionKey)
+	} else {
+		log.Fatalf("Invalid REXEC_ENCRYPTION_KEY length. Must be 16, 24, or 32 bytes (raw), or 64 hex characters (32 bytes decoded). Got %d characters.", len(encryptionKey))
 	}
 
-	encryptor, err := crypto.NewEncryptor(encryptionKey)
+	// Pass the byte slice directly to NewEncryptor if we modified it to accept []byte, 
+	// OR convert back to string if it accepts string but we've validated/transformed it.
+	// Looking at crypto package, NewEncryptor(key string). 
+	// If we decoded hex, we have []byte. converting []byte to string might not work if NewEncryptor expects readable chars? 
+	// No, AES key is just bytes. string(keyBytes) is fine in Go as long as NewEncryptor converts it back to []byte.
+	
+	encryptor, err := crypto.NewEncryptor(string(keyBytes))
 	if err != nil {
 		log.Fatalf("Failed to initialize encryptor: %v", err)
 	}
