@@ -24,8 +24,8 @@ func SecurityHeaders() gin.HandlerFunc {
 
 		// Content Security Policy (CSP)
 		// Allow scripts from self and trusted CDNs (adjust as needed for Analytics/Stripe)
-		// This is a strict baseline.
-		c.Header("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' https://js.stripe.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' wss: https:;")
+		// Added cdnjs for Ace editor and Google Fonts
+		c.Header("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' https://js.stripe.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' wss: https:;")
 		
 		// Referrer Policy
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
