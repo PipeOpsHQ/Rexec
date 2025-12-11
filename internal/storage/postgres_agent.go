@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"time"
 
 	"github.com/lib/pq"
@@ -18,11 +19,12 @@ type Agent struct {
 	Arch        string    `json:"arch"`
 	Shell       string    `json:"shell"`
 	Tags        []string  `json:"tags,omitempty"`
-	Status      string    `json:"status"`
-	ConnectedAt time.Time `json:"connected_at,omitempty"`
-	LastPing    time.Time `json:"last_ping,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	Status      string                 `json:"status"`
+	ConnectedAt time.Time              `json:"connected_at,omitempty"`
+	LastPing    time.Time              `json:"last_ping,omitempty"`
+	CreatedAt   time.Time              `json:"created_at"`
+	UpdatedAt   time.Time              `json:"updated_at"`
+	SystemInfo  map[string]interface{} `json:"system_info,omitempty"`
 }
 
 // CreateAgentsTable creates the agents table
@@ -63,18 +65,19 @@ func (s *PostgresStore) CreateAgent(ctx context.Context, id, userID, name, descr
 func (s *PostgresStore) GetAgent(ctx context.Context, id string) (*Agent, error) {
 	query := `
 	SELECT id, user_id, name, COALESCE(description, ''), COALESCE(os, ''), COALESCE(arch, ''), 
-	       COALESCE(shell, ''), tags, created_at, updated_at
+	       COALESCE(shell, ''), tags, created_at, updated_at, system_info
 	FROM agents
 	WHERE id = $1
 	`
 
 	var agent Agent
 	var tags pq.StringArray
+	var systemInfoJSON []byte
 
 	err := s.db.QueryRowContext(ctx, query, id).Scan(
 		&agent.ID, &agent.UserID, &agent.Name, &agent.Description,
 		&agent.OS, &agent.Arch, &agent.Shell, &tags,
-		&agent.CreatedAt, &agent.UpdatedAt,
+		&agent.CreatedAt, &agent.UpdatedAt, &systemInfoJSON,
 	)
 
 	if err == sql.ErrNoRows {
@@ -82,6 +85,10 @@ func (s *PostgresStore) GetAgent(ctx context.Context, id string) (*Agent, error)
 	}
 	if err != nil {
 		return nil, err
+	}
+
+	if len(systemInfoJSON) > 0 {
+		json.Unmarshal(systemInfoJSON, &agent.SystemInfo)
 	}
 
 	agent.Tags = tags
@@ -92,7 +99,7 @@ func (s *PostgresStore) GetAgent(ctx context.Context, id string) (*Agent, error)
 func (s *PostgresStore) GetAgentsByUser(ctx context.Context, userID string) ([]*Agent, error) {
 	query := `
 	SELECT id, user_id, name, COALESCE(description, ''), COALESCE(os, ''), COALESCE(arch, ''), 
-	       COALESCE(shell, ''), tags, created_at, updated_at, last_heartbeat, COALESCE(connected_instance_id, '')
+	       COALESCE(shell, ''), tags, created_at, updated_at, last_heartbeat, COALESCE(connected_instance_id, ''), system_info
 	FROM agents
 	WHERE user_id = $1
 	ORDER BY created_at DESC
@@ -110,11 +117,12 @@ func (s *PostgresStore) GetAgentsByUser(ctx context.Context, userID string) ([]*
 		var tags pq.StringArray
 		var lastHeartbeat sql.NullTime
 		var connectedInstanceID string
+		var systemInfoJSON []byte
 
 		err := rows.Scan(
 			&agent.ID, &agent.UserID, &agent.Name, &agent.Description,
 			&agent.OS, &agent.Arch, &agent.Shell, &tags,
-			&agent.CreatedAt, &agent.UpdatedAt, &lastHeartbeat, &connectedInstanceID,
+			&agent.CreatedAt, &agent.UpdatedAt, &lastHeartbeat, &connectedInstanceID, &systemInfoJSON,
 		)
 		if err != nil {
 			return nil, err
@@ -123,10 +131,10 @@ func (s *PostgresStore) GetAgentsByUser(ctx context.Context, userID string) ([]*
 		if lastHeartbeat.Valid {
 			agent.LastPing = lastHeartbeat.Time
 		}
-		// We could store connectedInstanceID in agent struct if needed, 
-		// but currently Agent struct uses "Status" which we can derive.
-		// Let's add it to Agent struct for clarity if needed, or just use it to set status.
-		// Ideally we update the struct.
+		
+		if len(systemInfoJSON) > 0 {
+			json.Unmarshal(systemInfoJSON, &agent.SystemInfo)
+		}
 		
 		agent.Tags = tags
 		agents = append(agents, &agent)
@@ -162,6 +170,22 @@ func (s *PostgresStore) UpdateAgentHeartbeat(ctx context.Context, id, instanceID
 	WHERE id = $1
 	`
 	_, err := s.db.ExecContext(ctx, query, id, instanceID)
+	return err
+}
+
+// UpdateAgentSystemInfo updates the system info for an agent
+func (s *PostgresStore) UpdateAgentSystemInfo(ctx context.Context, id string, systemInfo map[string]interface{}) error {
+	systemInfoJSON, err := json.Marshal(systemInfo)
+	if err != nil {
+		return err
+	}
+
+	query := `
+	UPDATE agents
+	SET system_info = $2
+	WHERE id = $1
+	`
+	_, err = s.db.ExecContext(ctx, query, id, systemInfoJSON)
 	return err
 }
 

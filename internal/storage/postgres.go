@@ -410,6 +410,9 @@ func (s *PostgresStore) migrate() error {
 		IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='agents' AND column_name='connected_instance_id') THEN
 			ALTER TABLE agents ADD COLUMN connected_instance_id VARCHAR(255);
 		END IF;
+		IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='agents' AND column_name='system_info') THEN
+			ALTER TABLE agents ADD COLUMN system_info JSONB;
+		END IF;
 	END $$;
 	`
 

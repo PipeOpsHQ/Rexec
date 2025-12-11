@@ -496,6 +496,11 @@ func (h *AgentHandler) HandleAgentWebSocket(c *gin.Context) {
 			if err := json.Unmarshal(msg.Data, &sysInfo); err == nil {
 				agentConn.SystemInfo = sysInfo
 				log.Printf("Agent %s system info: %v", agentConn.Name, sysInfo)
+				
+				// Persist system info to DB
+				if err := h.store.UpdateAgentSystemInfo(context.Background(), agentID, sysInfo); err != nil {
+					log.Printf("Failed to persist system info for agent %s: %v", agentID, err)
+				}
 			}
 
 		case "stats":
@@ -774,35 +779,65 @@ func (h *AgentHandler) HandleUserWebSocket(c *gin.Context) {
 func (h *AgentHandler) GetAgentStatus(c *gin.Context) {
 	agentID := c.Param("id")
 
+	// Check local cache first
 	h.agentsMu.RLock()
 	agent, ok := h.agents[agentID]
 	h.agentsMu.RUnlock()
 
-	if !ok {
+	if ok {
+		response := gin.H{
+			"status":       "online",
+			"connected_at": agent.ConnectedAt,
+			"last_ping":    agent.LastPing,
+			"sessions":     len(agent.sessions),
+			"os":           agent.OS,
+			"arch":         agent.Arch,
+		}
+
+		if agent.SystemInfo != nil {
+			response["system_info"] = agent.SystemInfo
+		}
+		if agent.Stats != nil {
+			response["stats"] = agent.Stats
+		}
+
+		c.JSON(http.StatusOK, response)
+		return
+	}
+
+	// Not local, check DB
+	ctx := context.Background()
+	dbAgent, err := h.store.GetAgent(ctx, agentID)
+	if err != nil || dbAgent == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "agent not found"})
+		return
+	}
+
+	// Check if online via heartbeat (2 min threshold)
+	threshold := time.Now().Add(-2 * time.Minute)
+	isOnline := !dbAgent.LastPing.IsZero() && dbAgent.LastPing.After(threshold)
+
+	if !isOnline {
 		c.JSON(http.StatusOK, gin.H{
 			"status": "offline",
 		})
 		return
 	}
 
+	// Online but remote
 	response := gin.H{
 		"status":       "online",
-		"connected_at": agent.ConnectedAt,
-		"last_ping":    agent.LastPing,
-		"sessions":     len(agent.sessions),
-		"os":           agent.OS,
-		"arch":         agent.Arch,
+		"connected_at": dbAgent.ConnectedAt, // Might be empty if not tracked in DB column yet, but we have LastPing
+		"last_ping":    dbAgent.LastPing,
+		"sessions":     0, // We don't know remote session count easily without querying all instances
+		"os":           dbAgent.OS,
+		"arch":         dbAgent.Arch,
 	}
 
-	// Include system info if available
-	if agent.SystemInfo != nil {
-		response["system_info"] = agent.SystemInfo
+	if dbAgent.SystemInfo != nil {
+		response["system_info"] = dbAgent.SystemInfo
 	}
-
-	// Include latest stats if available
-	if agent.Stats != nil {
-		response["stats"] = agent.Stats
-	}
+	// Note: We don't have real-time stats for remote agents in DB
 
 	c.JSON(http.StatusOK, response)
 }
@@ -853,13 +888,33 @@ func (h *AgentHandler) GetOnlineAgentsForUser(userID string) []gin.H {
 					agentData["stats"] = localConn.Stats
 				}
 			} else {
-				// For remote agents, we don't have real-time stats in DB yet
-				// Could add stats column to DB if critical, but for now return basic resources
-				agentData["resources"] = gin.H{
+				// For remote agents, use persisted SystemInfo from DB to calculate capacity
+				resources := gin.H{
 					"memory_mb":  0,
 					"cpu_shares": 1024,
 					"disk_mb":    0,
 				}
+				
+				if agent.SystemInfo != nil {
+					if numCPU, ok := agent.SystemInfo["num_cpu"].(float64); ok { // JSON unmarshals numbers as float64
+						resources["cpu_shares"] = int(numCPU * 1024)
+					}
+					if mem, ok := agent.SystemInfo["memory"].(map[string]interface{}); ok {
+						if total, ok := mem["total"].(float64); ok {
+							resources["memory_mb"] = int(total / 1024 / 1024)
+						}
+					}
+					if disk, ok := agent.SystemInfo["disk"].(map[string]interface{}); ok {
+						if total, ok := disk["total"].(float64); ok {
+							resources["disk_mb"] = int(total / 1024 / 1024)
+						}
+					}
+					if hostname, ok := agent.SystemInfo["hostname"].(string); ok {
+						agentData["hostname"] = hostname
+					}
+				}
+				
+				agentData["resources"] = resources
 			}
 			
 			onlineAgents = append(onlineAgents, agentData)
