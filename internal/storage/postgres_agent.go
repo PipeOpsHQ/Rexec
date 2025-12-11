@@ -92,7 +92,7 @@ func (s *PostgresStore) GetAgent(ctx context.Context, id string) (*Agent, error)
 func (s *PostgresStore) GetAgentsByUser(ctx context.Context, userID string) ([]*Agent, error) {
 	query := `
 	SELECT id, user_id, name, COALESCE(description, ''), COALESCE(os, ''), COALESCE(arch, ''), 
-	       COALESCE(shell, ''), tags, created_at, updated_at
+	       COALESCE(shell, ''), tags, created_at, updated_at, last_heartbeat, COALESCE(connected_instance_id, '')
 	FROM agents
 	WHERE user_id = $1
 	ORDER BY created_at DESC
@@ -108,16 +108,26 @@ func (s *PostgresStore) GetAgentsByUser(ctx context.Context, userID string) ([]*
 	for rows.Next() {
 		var agent Agent
 		var tags pq.StringArray
+		var lastHeartbeat sql.NullTime
+		var connectedInstanceID string
 
 		err := rows.Scan(
 			&agent.ID, &agent.UserID, &agent.Name, &agent.Description,
 			&agent.OS, &agent.Arch, &agent.Shell, &tags,
-			&agent.CreatedAt, &agent.UpdatedAt,
+			&agent.CreatedAt, &agent.UpdatedAt, &lastHeartbeat, &connectedInstanceID,
 		)
 		if err != nil {
 			return nil, err
 		}
 
+		if lastHeartbeat.Valid {
+			agent.LastPing = lastHeartbeat.Time
+		}
+		// We could store connectedInstanceID in agent struct if needed, 
+		// but currently Agent struct uses "Status" which we can derive.
+		// Let's add it to Agent struct for clarity if needed, or just use it to set status.
+		// Ideally we update the struct.
+		
 		agent.Tags = tags
 		agents = append(agents, &agent)
 	}
@@ -142,6 +152,49 @@ func (s *PostgresStore) DeleteAgent(ctx context.Context, id string) error {
 	query := `DELETE FROM agents WHERE id = $1`
 	_, err := s.db.ExecContext(ctx, query, id)
 	return err
+}
+
+// UpdateAgentHeartbeat updates the last_heartbeat and connected_instance_id for an agent
+func (s *PostgresStore) UpdateAgentHeartbeat(ctx context.Context, id, instanceID string) error {
+	query := `
+	UPDATE agents
+	SET last_heartbeat = NOW(), connected_instance_id = $2
+	WHERE id = $1
+	`
+	_, err := s.db.ExecContext(ctx, query, id, instanceID)
+	return err
+}
+
+// UpdateAgentStatus updates only the last_heartbeat (for pings)
+func (s *PostgresStore) UpdateAgentStatus(ctx context.Context, id string) error {
+	query := `UPDATE agents SET last_heartbeat = NOW() WHERE id = $1`
+	_, err := s.db.ExecContext(ctx, query, id)
+	return err
+}
+
+// DisconnectAgent clears the connected_instance_id
+func (s *PostgresStore) DisconnectAgent(ctx context.Context, id string) error {
+	query := `UPDATE agents SET connected_instance_id = NULL WHERE id = $1`
+	_, err := s.db.ExecContext(ctx, query, id)
+	return err
+}
+
+// GetAgentConnectedInstance returns the instance ID an agent is connected to, if online
+func (s *PostgresStore) GetAgentConnectedInstance(ctx context.Context, id string) (string, error) {
+	query := `
+	SELECT connected_instance_id 
+	FROM agents 
+	WHERE id = $1 AND last_heartbeat > NOW() - INTERVAL '2 minutes'
+	`
+	var instanceID sql.NullString
+	err := s.db.QueryRowContext(ctx, query, id).Scan(&instanceID)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return instanceID.String, nil
 }
 
 // GetAllAgents retrieves all agents (admin only)

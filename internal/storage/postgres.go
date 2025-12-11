@@ -378,10 +378,22 @@ func (s *PostgresStore) migrate() error {
 		shell VARCHAR(255),
 		tags TEXT[],
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-		updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+		last_heartbeat TIMESTAMP WITH TIME ZONE,
+		connected_instance_id VARCHAR(255)
 	);
 	
 	CREATE INDEX IF NOT EXISTS idx_agents_user_id ON agents(user_id);
+	
+	-- Add new columns if missing (for existing installations)
+	DO $$ BEGIN
+		IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='agents' AND column_name='last_heartbeat') THEN
+			ALTER TABLE agents ADD COLUMN last_heartbeat TIMESTAMP WITH TIME ZONE;
+		END IF;
+		IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='agents' AND column_name='connected_instance_id') THEN
+			ALTER TABLE agents ADD COLUMN connected_instance_id VARCHAR(255);
+		END IF;
+	END $$;
 	`
 
 	_, err := s.db.Exec(collabTables)

@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -30,8 +29,6 @@ type AgentHandler struct {
 	pubsubHub        *pubsub.Hub              // For horizontal scaling
 	remoteSessions   map[string]*AgentSession // Sessions connected to remote agents
 	remoteSessionsMu sync.RWMutex
-	remoteAgents     map[string]*AgentConnection // Cache of remote agents from other instances
-	remoteAgentsMu   sync.RWMutex
 }
 
 type AgentConnection struct {
@@ -72,7 +69,6 @@ func NewAgentHandler(store *storage.PostgresStore) *AgentHandler {
 		store:          store,
 		agents:         make(map[string]*AgentConnection),
 		remoteSessions: make(map[string]*AgentSession),
-		remoteAgents:   make(map[string]*AgentConnection),
 		jwtSecret:      []byte(secret),
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
@@ -118,39 +114,9 @@ func (h *AgentHandler) SetEventsHub(hub *ContainerEventsHub) {
 // SetPubSubHub sets the redis hub for horizontal scaling
 func (h *AgentHandler) SetPubSubHub(hub *pubsub.Hub) {
 	h.pubsubHub = hub
-	// Subscribe to terminal proxy channel and agent locations
+	// Subscribe to terminal proxy channel
 	if h.pubsubHub != nil {
 		h.pubsubHub.Subscribe(pubsub.ChannelTerminalProxy, h.handleTerminalProxyMessage)
-		h.pubsubHub.Subscribe(pubsub.ChannelAgentLocations, h.handleAgentLocationMessage)
-	}
-}
-
-// handleAgentLocationMessage handles agent location updates from other instances
-func (h *AgentHandler) handleAgentLocationMessage(msg pubsub.Message) {
-	var locMsg pubsub.AgentLocationMessage
-	if err := json.Unmarshal(msg.Payload, &locMsg); err != nil {
-		log.Printf("Failed to unmarshal agent location message: %v", err)
-		return
-	}
-
-	h.remoteAgentsMu.Lock()
-	defer h.remoteAgentsMu.Unlock()
-
-	if locMsg.Status == "connected" {
-		// Add or update remote agent
-		h.remoteAgents[locMsg.AgentID] = &AgentConnection{
-			ID:          locMsg.AgentID,
-			Name:        locMsg.Name,
-			OS:          locMsg.OS,
-			Arch:        locMsg.Arch,
-			UserID:      locMsg.UserID,
-			Status:      "online",
-			ConnectedAt: locMsg.ConnectedAt,
-			LastPing:    time.Now(),
-			// conn is nil for remote agents
-		}
-	} else if locMsg.Status == "disconnected" {
-		delete(h.remoteAgents, locMsg.AgentID)
 	}
 }
 
@@ -301,26 +267,16 @@ func (h *AgentHandler) ListAgents(c *gin.Context) {
 		return
 	}
 
-	// Add online status
-	h.agentsMu.RLock()
-	h.remoteAgentsMu.RLock()
+	threshold := time.Now().Add(-2 * time.Minute) // Consider offline if no heartbeat for 2 mins
+
 	for i := range agents {
-		// Check local agents
-		if conn, ok := h.agents[agents[i].ID]; ok {
+		// Check if online based on DB heartbeat
+		if !agents[i].LastPing.IsZero() && agents[i].LastPing.After(threshold) {
 			agents[i].Status = "online"
-			agents[i].ConnectedAt = conn.ConnectedAt
-			agents[i].LastPing = conn.LastPing
-		} else if conn, ok := h.remoteAgents[agents[i].ID]; ok {
-			// Check remote agents
-			agents[i].Status = "online"
-			agents[i].ConnectedAt = conn.ConnectedAt
-			agents[i].LastPing = conn.LastPing
 		} else {
 			agents[i].Status = "offline"
 		}
 	}
-	h.remoteAgentsMu.RUnlock()
-	h.agentsMu.RUnlock()
 
 	c.JSON(http.StatusOK, agents)
 }
@@ -421,12 +377,12 @@ func (h *AgentHandler) HandleAgentWebSocket(c *gin.Context) {
 
 	log.Printf("Agent connected: %s (%s)", agent.Name, agentID)
 
-	// Register agent location in Redis
+	// Update DB: Mark as connected with current instance ID
+	instanceID := ""
 	if h.pubsubHub != nil {
-		if err := h.pubsubHub.RegisterAgentLocation(agentID, userID, agent.Name, agent.OS, agent.Arch, agentConn.ConnectedAt); err != nil {
-			log.Printf("Failed to register agent location: %v", err)
-		}
+		instanceID = h.pubsubHub.InstanceID()
 	}
+	h.store.UpdateAgentHeartbeat(context.Background(), agentID, instanceID)
 
 	// Broadcast agent connected event via WebSocket
 	if h.eventsHub != nil {
@@ -441,10 +397,8 @@ func (h *AgentHandler) HandleAgentWebSocket(c *gin.Context) {
 		conn.Close()
 		log.Printf("Agent disconnected: %s (%s)", agent.Name, agentID)
 
-		// Unregister agent location
-		if h.pubsubHub != nil {
-			h.pubsubHub.UnregisterAgentLocation(agentID, userID)
-		}
+		// Update DB: Clear connected instance ID
+		h.store.DisconnectAgent(context.Background(), agentID)
 
 		// Broadcast agent disconnected event via WebSocket
 		if h.eventsHub != nil {
@@ -455,10 +409,8 @@ func (h *AgentHandler) HandleAgentWebSocket(c *gin.Context) {
 	// Set up ping/pong
 	conn.SetPongHandler(func(string) error {
 		agentConn.LastPing = time.Now()
-		if h.pubsubHub != nil {
-			// Refresh TTL
-			h.pubsubHub.RefreshAgentLocation(agentID)
-		}
+		// Update heartbeat in DB
+		h.store.UpdateAgentStatus(context.Background(), agentID)
 		return nil
 	})
 
@@ -587,11 +539,32 @@ func (h *AgentHandler) HandleUserWebSocket(c *gin.Context) {
 
 	var isRemote bool
 	if !isLocal {
-		// Check Redis for remote agent
-		if h.pubsubHub != nil {
-			if _, found := h.pubsubHub.GetAgentLocation(agentID); found {
-				isRemote = true
-			}
+		// Check DB for remote agent location
+		ctx := context.Background()
+		// We can reuse GetAgent since we need to check ownership anyway, 
+		// but we need the connected_instance_id which GetAgent might not return unless updated.
+		// Let's rely on a fresh DB query or update GetAgent to return it.
+		// Since we already called GetAgent above, let's update GetAgent to return connected_instance_id or use a specific query.
+		// Actually, GetAgent implementation in postgres_agent.go DOES NOT return connected_instance_id yet.
+		// I need to update GetAgent or add a new method.
+		// For now, let's use GetAgentsByUser loop or a direct query if I add one.
+		// Let's add GetAgentLocation to store.
+		
+		// Wait, I updated GetAgentsByUser but not GetAgent.
+		// Let's assume I'll add GetAgentLocation to store or query it here.
+		// Actually, let's just query the DB directly here for simplicity or assume GetAgent returns it if I update it.
+		// I will update GetAgent in next step.
+		
+		// For now, assume GetAgent was updated or use a workaround.
+		// But wait, I need to know the InstanceID to proxy to.
+		
+		// Let's implement GetAgentLocation in store first.
+		instanceID, err := h.store.GetAgentConnectedInstance(ctx, agentID)
+		if err == nil && instanceID != "" {
+			isRemote = true
+			// We need to know if the agent is actually online (heartbeat check)
+			// GetAgentConnectedInstance should probably check heartbeat too?
+			// Let's assume if it returns an ID, it's valid, or we check last_heartbeat.
 		}
 
 		if !isRemote {
@@ -837,51 +810,62 @@ func (h *AgentHandler) GetAgentStatus(c *gin.Context) {
 // GetOnlineAgentsForUser returns all online agents for a specific user
 // Used by ContainerHandler to include agents in the containers list
 func (h *AgentHandler) GetOnlineAgentsForUser(userID string) []gin.H {
-	// Create a slice of agents to sort
-	type sortableAgent struct {
-		Agent *AgentConnection
-		Data  gin.H
+	// Query DB for all agents for this user
+	ctx := context.Background()
+	allAgents, err := h.store.GetAgentsByUser(ctx, userID)
+	if err != nil {
+		log.Printf("Failed to fetch agents for user %s: %v", userID, err)
+		return []gin.H{}
 	}
-	var sortedAgents []sortableAgent
 
-	// 1. Get local agents
-	h.agentsMu.RLock()
-	for _, agent := range h.agents {
-		if agent.UserID == userID && agent.Status == "online" {
-			sortedAgents = append(sortedAgents, sortableAgent{
-				Agent: agent,
-				Data:  h.buildAgentData(agent),
-			})
+	var onlineAgents []gin.H
+	threshold := time.Now().Add(-2 * time.Minute) // Consider offline if no heartbeat for 2 mins
+
+	for _, agent := range allAgents {
+		// Check if agent is online based on LastPing (LastHeartbeat from DB)
+		isOnline := !agent.LastPing.IsZero() && agent.LastPing.After(threshold)
+		
+		if isOnline {
+			// Construct agent data
+			agentData := gin.H{
+				"id":           "agent:" + agent.ID,
+				"name":         agent.Name,
+				"image":        agent.OS + "/" + agent.Arch,
+				"status":       "running",
+				"session_type": "agent",
+				"created_at":   agent.CreatedAt, // Use DB creation time
+				"last_used_at": agent.LastPing,
+				"os":           agent.OS,
+				"arch":         agent.Arch,
+				"shell":        agent.Shell,
+			}
+
+			// If local connection exists, use its up-to-date stats/sysinfo
+			h.agentsMu.RLock()
+			localConn, isLocal := h.agents[agent.ID]
+			h.agentsMu.RUnlock()
+
+			if isLocal {
+				// Use local connection data for most accurate stats
+				agentData["resources"] = h.buildAgentData(localConn)["resources"]
+				if localConn.Stats != nil {
+					agentData["stats"] = localConn.Stats
+				}
+			} else {
+				// For remote agents, we don't have real-time stats in DB yet
+				// Could add stats column to DB if critical, but for now return basic resources
+				agentData["resources"] = gin.H{
+					"memory_mb":  0,
+					"cpu_shares": 1024,
+					"disk_mb":    0,
+				}
+			}
+			
+			onlineAgents = append(onlineAgents, agentData)
 		}
 	}
-	h.agentsMu.RUnlock()
 
-	// 2. Get remote agents
-	h.remoteAgentsMu.RLock()
-	for _, agent := range h.remoteAgents {
-		if agent.UserID == userID {
-			sortedAgents = append(sortedAgents, sortableAgent{
-				Agent: agent,
-				Data:  h.buildAgentData(agent),
-			})
-		}
-	}
-	h.remoteAgentsMu.RUnlock()
-
-	// Sort agents by ConnectedAt descending (newest first), then by Name
-	sort.Slice(sortedAgents, func(i, j int) bool {
-		if sortedAgents[i].Agent.ConnectedAt.Equal(sortedAgents[j].Agent.ConnectedAt) {
-			return sortedAgents[i].Agent.Name < sortedAgents[j].Agent.Name
-		}
-		return sortedAgents[i].Agent.ConnectedAt.After(sortedAgents[j].Agent.ConnectedAt)
-	})
-
-	agents := make([]gin.H, 0, len(sortedAgents))
-	for _, sa := range sortedAgents {
-		agents = append(agents, sa.Data)
-	}
-
-	return agents
+	return onlineAgents
 }
 
 // buildAgentData builds agent data in the same format as container data
