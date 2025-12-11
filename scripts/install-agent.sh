@@ -265,8 +265,14 @@ register_agent() {
                 -H "Content-Type: application/json" \
                 -d "{\"name\": \"${NAME}\", \"os\": \"$(uname -s | tr '[:upper:]' '[:lower:]')\", \"arch\": \"${ARCH}\", \"shell\": \"${SHELL:-/bin/bash}\", \"hostname\": \"$(hostname)\"}")
             
-            # Extract agent ID from response
-            AGENT_ID=$(echo "$REGISTER_RESPONSE" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+            # Extract agent ID from response - try jq first, fallback to grep
+            if command -v jq &> /dev/null; then
+                AGENT_ID=$(echo "$REGISTER_RESPONSE" | jq -r '.id // empty')
+                NEW_TOKEN=$(echo "$REGISTER_RESPONSE" | jq -r '.token // empty')
+            else
+                AGENT_ID=$(echo "$REGISTER_RESPONSE" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+                NEW_TOKEN=$(echo "$REGISTER_RESPONSE" | grep -o '"token":"rexec_[^"]*"' | head -1 | cut -d'"' -f4)
+            fi
             
             if [ -z "$AGENT_ID" ]; then
                 echo -e "${RED}Failed to register agent. Response: ${REGISTER_RESPONSE}${NC}"
@@ -274,8 +280,7 @@ register_agent() {
             fi
             
             # Check if a new token was returned (use it if so)
-            NEW_TOKEN=$(echo "$REGISTER_RESPONSE" | grep -o '"token":"[^"]*"' | head -1 | cut -d'"' -f4)
-            if [ -n "$NEW_TOKEN" ]; then
+            if [ -n "$NEW_TOKEN" ] && [[ "$NEW_TOKEN" == rexec_* ]]; then
                 TOKEN="$NEW_TOKEN"
                 echo -e "${GREEN}Received new API token for agent${NC}"
             fi
@@ -303,8 +308,27 @@ register_agent() {
         -H "Content-Type: application/json" \
         -d "{\"name\": \"${NAME}\", \"os\": \"$(uname -s | tr '[:upper:]' '[:lower:]')\", \"arch\": \"${ARCH}\", \"shell\": \"${SHELL:-/bin/bash}\", \"hostname\": \"$(hostname)\"}")
     
-    # Extract agent ID from response
-    AGENT_ID=$(echo "$REGISTER_RESPONSE" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+    # Debug: show response (mask token if present)
+    if [ -n "${DEBUG:-}" ]; then
+        echo "DEBUG: Registration response: $(echo "$REGISTER_RESPONSE" | sed 's/rexec_[a-f0-9]*/rexec_***MASKED***/g')"
+    fi
+    
+    # Check for error in response
+    if echo "$REGISTER_RESPONSE" | grep -q '"error"'; then
+        ERROR_MSG=$(echo "$REGISTER_RESPONSE" | grep -o '"error":"[^"]*"' | cut -d'"' -f4)
+        echo -e "${RED}Registration failed: ${ERROR_MSG}${NC}"
+        echo -e "${RED}Make sure your token is valid and not expired.${NC}"
+        exit 1
+    fi
+    
+    # Extract agent ID from response - try jq first, fallback to grep
+    if command -v jq &> /dev/null; then
+        AGENT_ID=$(echo "$REGISTER_RESPONSE" | jq -r '.id // empty')
+        NEW_TOKEN=$(echo "$REGISTER_RESPONSE" | jq -r '.token // empty')
+    else
+        AGENT_ID=$(echo "$REGISTER_RESPONSE" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+        NEW_TOKEN=$(echo "$REGISTER_RESPONSE" | grep -o '"token":"rexec_[^"]*"' | head -1 | cut -d'"' -f4)
+    fi
     
     if [ -z "$AGENT_ID" ]; then
         echo -e "${RED}Failed to register agent. Response: ${REGISTER_RESPONSE}${NC}"
@@ -312,14 +336,12 @@ register_agent() {
         exit 1
     fi
     
-    # Extract the new API token from registration response
-    NEW_TOKEN=$(echo "$REGISTER_RESPONSE" | grep -o '"token":"[^"]*"' | head -1 | cut -d'"' -f4)
-    
-    if [ -n "$NEW_TOKEN" ]; then
+    if [ -n "$NEW_TOKEN" ] && [[ "$NEW_TOKEN" == rexec_* ]]; then
         TOKEN="$NEW_TOKEN"
         echo -e "${GREEN}✓ Received permanent API token (never expires)${NC}"
     else
         echo -e "${YELLOW}Warning: No API token returned. Using original token (may expire).${NC}"
+        echo -e "${YELLOW}Generate an API token at: ${REXEC_API}/account/api${NC}"
     fi
     
     echo -e "${GREEN}✓ Agent registered: ${AGENT_ID}${NC}"

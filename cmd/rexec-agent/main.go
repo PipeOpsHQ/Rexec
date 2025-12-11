@@ -471,12 +471,21 @@ func handleStart(args []string) {
 		os.Exit(0)
 	}()
 
+	// Check token type and warn if using JWT
+	tokenType := "API token"
+	if !strings.HasPrefix(cfg.Token, "rexec_") {
+		tokenType = "JWT token (may expire)"
+		fmt.Printf("\n%sWarning: Using JWT token which expires after 24 hours.%s\n", Yellow, Reset)
+		fmt.Printf("%sRun 'rexec-agent refresh-token' to switch to a permanent API token.%s\n\n", Yellow, Reset)
+	}
+
 	fmt.Printf("\n%s%sRexec Agent%s\n", Bold, Cyan, Reset)
 	fmt.Printf("─────────────────────────────────────────\n")
 	fmt.Printf("  Name:   %s\n", cfg.Name)
 	fmt.Printf("  ID:     %s\n", cfg.ID)
 	fmt.Printf("  Host:   %s\n", cfg.Host)
 	fmt.Printf("  Shell:  %s\n", cfg.Shell)
+	fmt.Printf("  Token:  %s\n", tokenType)
 	fmt.Printf("\n%sConnecting to Rexec...%s\n", Dim, Reset)
 
 	// Start the agent
