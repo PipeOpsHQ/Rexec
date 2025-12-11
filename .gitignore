@@ -61,3 +61,4 @@ rexec
 rexec-cli
 rexec-agent
 AGENTS.md
+.gocache/
