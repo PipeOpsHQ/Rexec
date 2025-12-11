@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"archive/tar"
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -96,44 +95,36 @@ func (h *FileHandler) Upload(c *gin.Context) {
 	}
 
 	// Read file content
-	content, err := io.ReadAll(file)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to read file"})
-		return
-	}
+	// Stream tar archive to avoid buffering large files in memory.
+	pr, pw := io.Pipe()
+	tw := tar.NewWriter(pw)
+	go func() {
+		defer pw.Close()
+		defer tw.Close()
 
-	// Create tar archive with the file
-	var buf bytes.Buffer
-	tw := tar.NewWriter(&buf)
+		hdr := &tar.Header{
+			Name:    filename,
+			Mode:    0644,
+			Size:    header.Size,
+			ModTime: time.Now(),
+		}
 
-	hdr := &tar.Header{
-		Name:    filename,
-		Mode:    0644,
-		Size:    int64(len(content)),
-		ModTime: time.Now(),
-	}
-
-	if err := tw.WriteHeader(hdr); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create archive"})
-		return
-	}
-
-	if _, err := tw.Write(content); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to write to archive"})
-		return
-	}
-
-	if err := tw.Close(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to close archive"})
-		return
-	}
+		if err := tw.WriteHeader(hdr); err != nil {
+			_ = pw.CloseWithError(err)
+			return
+		}
+		if _, err := io.Copy(tw, io.LimitReader(file, header.Size)); err != nil {
+			_ = pw.CloseWithError(err)
+			return
+		}
+	}()
 
 	// Copy to container
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	client := h.containerManager.GetClient()
-	err = client.CopyToContainer(ctx, dockerID, destPath, &buf, container.CopyToContainerOptions{})
+	err = client.CopyToContainer(ctx, dockerID, destPath, pr, container.CopyToContainerOptions{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to copy to container: " + err.Error()})
 		return
@@ -211,13 +202,6 @@ func (h *FileHandler) Download(c *gin.Context) {
 		return
 	}
 
-	// Read file content
-	content, err := io.ReadAll(tr)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to read file content"})
-		return
-	}
-
 	// Touch container
 	h.containerManager.TouchContainer(dockerID)
 
@@ -225,11 +209,11 @@ func (h *FileHandler) Download(c *gin.Context) {
 	filename := filepath.Base(filePath)
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
 	c.Header("Content-Type", "application/octet-stream")
-	c.Header("Content-Length", fmt.Sprintf("%d", len(content)))
+	c.Header("Content-Length", fmt.Sprintf("%d", header.Size))
 	c.Header("X-File-Size", fmt.Sprintf("%d", stat.Size))
 	c.Header("X-File-Mode", stat.Mode.String())
-
-	c.Data(http.StatusOK, "application/octet-stream", content)
+	c.Status(http.StatusOK)
+	_, _ = io.Copy(c.Writer, tr)
 }
 
 // List lists files in a directory within a container

@@ -28,7 +28,13 @@ func (h *AdminHandler) ListUsers(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
 		return
 	}
-    
+
+	containerCounts, err := h.store.GetContainerCountsByUser(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch container counts"})
+		return
+	}
+	    
     // Define a response struct that includes container count
     type AdminUserResponse struct {
         models.User
@@ -37,14 +43,9 @@ func (h *AdminHandler) ListUsers(c *gin.Context) {
     
     response := make([]AdminUserResponse, len(users))
     for i, user := range users {
-        // Get container count for each user (can be optimized with a single query later)
-        containers, _ := h.store.GetContainersByUserID(c.Request.Context(), user.ID)
-        count := 0
-        if containers != nil {
-            count = len(containers)
-        }
+        count := containerCounts[user.ID]
         response[i] = AdminUserResponse{
-            User: *user, // Dereference the pointer
+            User:           *user, // Dereference the pointer
             ContainerCount: count,
         }
     }

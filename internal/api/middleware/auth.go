@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -21,6 +20,7 @@ import (
 // jwtSecret must be the server's signing key.
 func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, jwtSecret []byte) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		reqCtx := c.Request.Context()
 		// Get token from Authorization header or query params
 		authHeader := c.GetHeader("Authorization")
 		tokenString := ""
@@ -52,9 +52,9 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, j
 		// Check if this is an API token (starts with rexec_)
 		if strings.HasPrefix(tokenString, "rexec_") {
 			// Validate API token
-			apiToken, err := store.ValidateAPIToken(context.Background(), tokenString)
+			apiToken, err := store.ValidateAPIToken(reqCtx, tokenString)
 			if err != nil {
-				store.CreateAuditLog(context.Background(), &models.AuditLog{
+				store.CreateAuditLog(reqCtx, &models.AuditLog{
 					ID:        uuid.New().String(),
 					UserID:    "anonymous",
 					Action:    "api_token_auth_failed",
@@ -69,7 +69,7 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, j
 			}
 
 			// Get user info
-			user, err := store.GetUserByID(context.Background(), apiToken.UserID)
+			user, err := store.GetUserByID(reqCtx, apiToken.UserID)
 			if err != nil {
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
 				c.Abort()
@@ -99,7 +99,7 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, j
 		})
 
 		if err != nil || token == nil {
-			store.CreateAuditLog(context.Background(), &models.AuditLog{
+			store.CreateAuditLog(reqCtx, &models.AuditLog{
 				ID:        uuid.New().String(),
 				UserID:    "anonymous",
 				Action:    "authentication_failed",
@@ -116,7 +116,7 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, j
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok || !token.Valid {
 			// Log failed audit attempt
-			store.CreateAuditLog(context.Background(), &models.AuditLog{
+			store.CreateAuditLog(reqCtx, &models.AuditLog{
 				ID:        uuid.New().String(),
 				UserID:    "anonymous", // No user ID yet
 				Action:    "authentication_failed",
@@ -159,7 +159,7 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, j
 		subActive, subActive_ok := claims["subscription_active"].(bool)
 
 		if !userID_ok || !email_ok || !username_ok || !tier_ok || !guest_ok || !subActive_ok || !exp_ok {
-			store.CreateAuditLog(context.Background(), &models.AuditLog{
+			store.CreateAuditLog(reqCtx, &models.AuditLog{
 				ID:        uuid.New().String(),
 				UserID:    userID,
 				Action:    "authentication_failed",
@@ -182,9 +182,9 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, j
 		c.Set("tokenExp", int64(exp))
 
 		// Fetch user from DB to check MFA status
-		user, err := store.GetUserByID(context.Background(), userID)
+		user, err := store.GetUserByID(reqCtx, userID)
 		if err != nil || user == nil {
-			store.CreateAuditLog(context.Background(), &models.AuditLog{
+			store.CreateAuditLog(reqCtx, &models.AuditLog{
 				ID:        uuid.New().String(),
 				UserID:    userID,
 				Action:    "authentication_failed",
@@ -204,8 +204,8 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, j
 		// --- IP Whitelist Enforcement ---
 		if len(user.AllowedIPs) > 0 {
 			clientIP := c.ClientIP()
-			if !checkIPWhitelist(clientIP, user.AllowedIPs) {
-				store.CreateAuditLog(context.Background(), &models.AuditLog{
+				if !checkIPWhitelist(clientIP, user.AllowedIPs) {
+					store.CreateAuditLog(reqCtx, &models.AuditLog{
 					ID:        uuid.New().String(),
 					UserID:    userID,
 					Action:    "ip_blocked",
@@ -221,7 +221,7 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, j
 		}
 
 		// Log successful authentication
-		store.CreateAuditLog(context.Background(), &models.AuditLog{
+		store.CreateAuditLog(reqCtx, &models.AuditLog{
 			ID:        uuid.New().String(),
 			UserID:    userID,
 			Action:    "authentication_success",

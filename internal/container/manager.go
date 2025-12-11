@@ -1752,6 +1752,10 @@ func (m *Manager) LoadExistingContainers(ctx context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	// Rebuild indexes to avoid duplicate entries on repeated loads.
+	m.containers = make(map[string]*ContainerInfo)
+	m.userIndex = make(map[string][]string)
+
 	for _, c := range containers {
 		// Check if this is a rexec-managed container
 		if c.Labels["rexec.managed"] != "true" {

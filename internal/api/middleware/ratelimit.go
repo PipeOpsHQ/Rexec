@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -102,7 +103,7 @@ func (rl *RateLimiter) Middleware() gin.HandlerFunc {
 		ip := c.ClientIP()
 
 		if !rl.isAllowed(ip) {
-			c.Header("X-RateLimit-Limit", string(rune(rl.rate)))
+			c.Header("X-RateLimit-Limit", strconv.Itoa(rl.rate))
 			c.Header("X-RateLimit-Remaining", "0")
 			c.Header("Retry-After", rl.window.String())
 
@@ -116,8 +117,8 @@ func (rl *RateLimiter) Middleware() gin.HandlerFunc {
 
 		// Add rate limit headers
 		remaining := rl.getRemaining(ip)
-		c.Header("X-RateLimit-Limit", string(rune(rl.rate)))
-		c.Header("X-RateLimit-Remaining", string(rune(remaining)))
+		c.Header("X-RateLimit-Limit", strconv.Itoa(rl.rate))
+		c.Header("X-RateLimit-Remaining", strconv.Itoa(remaining))
 
 		c.Next()
 	}

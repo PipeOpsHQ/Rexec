@@ -237,7 +237,7 @@ func (h *AgentHandler) RegisterAgent(c *gin.Context) {
 	}
 
 	// Store in database
-	ctx := context.Background()
+	ctx := c.Request.Context()
 	if err := h.store.CreateAgent(ctx, agent.ID, agent.UserID, agent.Name, agent.Description, agent.OS, agent.Arch, agent.Shell, agent.Tags); err != nil {
 		log.Printf("Failed to create agent: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to register agent"})
@@ -280,7 +280,7 @@ func (h *AgentHandler) ListAgents(c *gin.Context) {
 		return
 	}
 
-	ctx := context.Background()
+	ctx := c.Request.Context()
 	agents, err := h.store.GetAgentsByUser(ctx, userID.(string))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch agents"})
@@ -316,7 +316,7 @@ func (h *AgentHandler) DeleteAgent(c *gin.Context) {
 
 	agentID := c.Param("id")
 
-	ctx := context.Background()
+	ctx := c.Request.Context()
 
 	// Verify ownership
 	agent, err := h.store.GetAgent(ctx, agentID)
@@ -369,7 +369,7 @@ func (h *AgentHandler) HandleAgentWebSocket(c *gin.Context) {
 	}
 
 	// Verify agent ownership
-	ctx := context.Background()
+	ctx := c.Request.Context()
 	agent, err := h.store.GetAgent(ctx, agentID)
 	if err != nil || agent == nil {
 		log.Printf("[Agent WS] Agent not found: %s, err=%v", agentID, err)
@@ -607,8 +607,8 @@ func (h *AgentHandler) HandleUserWebSocket(c *gin.Context) {
 
 	var isRemote bool
 	if !isLocal {
-		// Check DB for remote agent location
-		ctx := context.Background()
+			// Check DB for remote agent location
+			ctx := c.Request.Context()
 		// We can reuse GetAgent since we need to check ownership anyway, 
 		// but we need the connected_instance_id which GetAgent might not return unless updated.
 		// Let's rely on a fresh DB query or update GetAgent to return it.
@@ -870,7 +870,7 @@ func (h *AgentHandler) GetAgentStatus(c *gin.Context) {
 	}
 
 	// Not local, check DB
-	ctx := context.Background()
+	ctx := c.Request.Context()
 	dbAgent, err := h.store.GetAgent(ctx, agentID)
 	if err != nil || dbAgent == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "agent not found"})

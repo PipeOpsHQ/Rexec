@@ -43,6 +43,10 @@ var (
 	}
 )
 
+// createContainerSem bounds concurrent async container creates to avoid host overload.
+// Default of 4 is conservative for typical dev hosts.
+var createContainerSem = make(chan struct{}, 4)
+
 func init() {
 	rand.Seed(time.Now().UnixNano())
 }
@@ -100,7 +104,7 @@ func (h *ContainerHandler) List(c *gin.Context) {
 		return
 	}
 
-	ctx := context.Background()
+		ctx := c.Request.Context()
 
 	// Get containers from database
 	records, err := h.store.GetContainersByUserID(ctx, userID)
@@ -211,7 +215,7 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 		return
 	}
 
-	ctx := context.Background()
+		ctx := c.Request.Context()
 
 	// Handle custom image validation
 	if req.Image == "custom" {
@@ -425,8 +429,12 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 		})
 	}
 
-	// Start async container creation (pull image + create container)
-	go h.createContainerAsync(record.ID, cfg, req.Image, req.CustomImage, req.Role, shellCfg, isGuest || tier == "guest")
+	// Start async container creation (pull image + create container), with concurrency bound.
+	go func() {
+		createContainerSem <- struct{}{}
+		defer func() { <-createContainerSem }()
+		h.createContainerAsync(record.ID, cfg, req.Image, req.CustomImage, req.Role, shellCfg, isGuest || tier == "guest")
+	}()
 
 	// Return immediately with "creating" status
 	response := gin.H{

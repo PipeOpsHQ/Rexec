@@ -142,8 +142,9 @@ func (h *TerminalHandler) SetCollabHandler(ch *CollabHandler) {
 	h.collabHandler = ch
 }
 
-// HasCollabAccess checks if a user has collab access to a container
-func (h *TerminalHandler) HasCollabAccess(userID, containerID string) bool {
+// HasCollabAccess checks if a user has collab access to a container.
+// ctx should be request-scoped so DB lookups cancel on disconnect.
+func (h *TerminalHandler) HasCollabAccess(ctx context.Context, userID, containerID string) bool {
 	if h.collabHandler == nil {
 		log.Printf("[Terminal] HasCollabAccess: collabHandler is nil")
 		return false
@@ -172,8 +173,6 @@ func (h *TerminalHandler) HasCollabAccess(userID, containerID string) bool {
 	h.collabHandler.mu.RUnlock()
 
 	// Fallback: check database for active collab session
-	ctx := context.Background()
-	
 	// Try with full containerID first, then with prefix variations
 	containerIDs := []string{containerID}
 	if len(containerID) >= 64 {
@@ -262,13 +261,13 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
+	reqCtx := c.Request.Context()
 
 	// Verify user owns this container (lookup by Docker ID or terminal name)
 	containerInfo, ok := h.containerManager.GetContainer(containerIdOrName)
 	if !ok {
 		// Try to sync from Docker in case container exists but wasn't loaded
-		ctx := context.Background()
-		if err := h.containerManager.LoadExistingContainers(ctx); err != nil {
+		if err := h.containerManager.LoadExistingContainers(reqCtx); err != nil {
 			log.Printf("[Terminal] Failed to sync containers: %v", err)
 		}
 		// Try again after sync
@@ -283,10 +282,9 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 	
 	if !ok {
 		// Check if user has collab access to this container ID
-		if h.HasCollabAccess(userID.(string), containerIdOrName) {
+		if h.HasCollabAccess(reqCtx, userID.(string), containerIdOrName) {
 			// Verify container exists in Docker directly
-			ctx := context.Background()
-			dockerContainer, err := h.containerManager.GetClient().ContainerInspect(ctx, containerIdOrName)
+			dockerContainer, err := h.containerManager.GetClient().ContainerInspect(reqCtx, containerIdOrName)
 			if err != nil {
 				log.Printf("[Terminal] Collab container not found in Docker: %s (user: %s)", containerIdOrName, userID)
 				c.JSON(http.StatusNotFound, gin.H{
@@ -320,7 +318,7 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 		// Verify ownership or collab access
 		if !isOwner {
 			// Check if user has collab access
-			if !h.HasCollabAccess(userID.(string), dockerID) {
+			if !h.HasCollabAccess(reqCtx, userID.(string), dockerID) {
 				c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
 				return
 			}
@@ -329,8 +327,7 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 	}
 
 	// Check if container actually exists in Docker (may have been removed externally)
-	ctx := context.Background()
-	dockerContainer, err := h.containerManager.GetClient().ContainerInspect(ctx, dockerID)
+	dockerContainer, err := h.containerManager.GetClient().ContainerInspect(reqCtx, dockerID)
 	if err != nil {
 		if dockerclient.IsErrNotFound(err) {
 			c.JSON(http.StatusGone, gin.H{

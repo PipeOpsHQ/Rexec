@@ -47,6 +47,32 @@ func (s *PostgresStore) GetAllUsers(ctx context.Context) ([]*models.User, error)
 	return users, nil
 }
 
+// GetContainerCountsByUser returns a map of userID -> active container count.
+func (s *PostgresStore) GetContainerCountsByUser(ctx context.Context) (map[string]int, error) {
+	query := `
+		SELECT user_id, COUNT(*) 
+		FROM containers
+		WHERE deleted_at IS NULL
+		GROUP BY user_id
+	`
+	rows, err := s.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	counts := make(map[string]int)
+	for rows.Next() {
+		var userID string
+		var count int
+		if err := rows.Scan(&userID, &count); err != nil {
+			return nil, err
+		}
+		counts[userID] = count
+	}
+	return counts, nil
+}
+
 // GetAllContainersAdmin retrieves all containers for the admin dashboard
 // It performs a JOIN with users to get owner details
 func (s *PostgresStore) GetAllContainersAdmin(ctx context.Context) ([]*models.AdminContainer, error) {
