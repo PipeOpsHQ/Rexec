@@ -489,6 +489,11 @@ func handleStart(args []string) {
 		os.Exit(1)
 	}
 
+	if cfg.ID == "" {
+		fmt.Printf("%sNo agent_id found in config. Re-run 'rexec-agent register' or set agent_id in your config file.%s\n", Red, Reset)
+		os.Exit(1)
+	}
+
 	// Check for --daemon flag
 	daemon := false
 	for _, arg := range args {

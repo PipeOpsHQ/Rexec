@@ -866,11 +866,17 @@ func runServer() {
 			c.Status(404)
 		})
 
-		// Catch-all for SPA routing
-		router.NoRoute(func(c *gin.Context) {
-			c.File(indexFile)
-		})
-	}
+			// Catch-all for SPA routing
+			router.NoRoute(func(c *gin.Context) {
+				path := c.Request.URL.Path
+				// Don't mask API/WebSocket 404s with HTML; return JSON instead.
+				if strings.HasPrefix(path, "/api/") || strings.HasPrefix(path, "/ws/") {
+					c.JSON(404, gin.H{"error": "not found"})
+					return
+				}
+				c.File(indexFile)
+			})
+		}
 
 	// Get port from env or default to 8080
 	port := os.Getenv("PORT")
