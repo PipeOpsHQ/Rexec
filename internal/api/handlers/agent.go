@@ -149,8 +149,9 @@ func (h *AgentHandler) handleTerminalProxyMessage(msg pubsub.Message) {
 				agentConn.conn.WriteJSON(map[string]interface{}{
 					"type": "shell_resize",
 					"data": map[string]interface{}{
-						"cols": proxyMsg.Cols,
-						"rows": proxyMsg.Rows,
+						"session_id": proxyMsg.SessionID,
+						"cols":       proxyMsg.Cols,
+						"rows":       proxyMsg.Rows,
 					},
 				})
 			case "start_session":
@@ -697,9 +698,10 @@ func (h *AgentHandler) HandleUserWebSocket(c *gin.Context) {
 					if err := json.Unmarshal(message, &resizeMsg); err == nil && resizeMsg.Cols > 0 && resizeMsg.Rows > 0 {
 						agentConn.conn.WriteJSON(map[string]interface{}{
 							"type": "shell_resize",
-							"data": map[string]int{
-								"cols": resizeMsg.Cols,
-								"rows": resizeMsg.Rows,
+							"data": map[string]interface{}{
+								"session_id": sessionID,
+								"cols":       resizeMsg.Cols,
+								"rows":       resizeMsg.Rows,
 							},
 						})
 					}

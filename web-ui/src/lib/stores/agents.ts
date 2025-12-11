@@ -50,15 +50,6 @@ interface AgentsState {
 
 const API_BASE = '/api';
 
-// Helper to sort agents by created_at descending (newest first)
-function sortAgents(agents: Agent[]): Agent[] {
-  return [...agents].sort((a, b) => {
-    const timeA = new Date(a.created_at || 0).getTime();
-    const timeB = new Date(b.created_at || 0).getTime();
-    return timeB - timeA; // Sort descending
-  });
-}
-
 function createAgentsStore() {
   const { subscribe, set, update } = writable<AgentsState>({
     agents: [],
@@ -110,7 +101,8 @@ function createAgentsStore() {
           })
         );
         
-        update(s => ({ ...s, agents: sortAgents(enrichedAgents), loading: false }));
+        // API returns sorted list, so use it as is
+        update(s => ({ ...s, agents: enrichedAgents, loading: false }));
       } catch (err: any) {
         update(s => ({ ...s, error: err.message, loading: false }));
       }
@@ -129,9 +121,10 @@ function createAgentsStore() {
         });
         if (!res.ok) throw new Error('Failed to register agent');
         const agent = await res.json();
+        // Add new agent to the top of the list
         update(s => ({
           ...s,
-          agents: sortAgents([...s.agents, { ...agent, status: 'registered' }]),
+          agents: [{ ...agent, status: 'registered' }, ...s.agents],
           loading: false,
         }));
         return agent;
@@ -175,7 +168,7 @@ function createAgentsStore() {
     updateAgentStatus(agentId: string, status: 'online' | 'offline' | 'registered', agentData?: any) {
       update(s => ({
         ...s,
-        agents: sortAgents(s.agents.map(agent => {
+        agents: s.agents.map(agent => {
           if (agent.id === agentId) {
             return {
               ...agent,
@@ -190,7 +183,7 @@ function createAgentsStore() {
             };
           }
           return agent;
-        })),
+        }),
       }));
     },
 

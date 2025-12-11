@@ -926,16 +926,6 @@ function matchesContainer(container: Container, eventData: any): boolean {
   return false;
 }
 
-// Helper to sort containers by created_at descending (newest first)
-function sortContainers(containers: Container[]): Container[] {
-  return [...containers].sort((a, b) => {
-    const timeA = new Date(a.created_at || 0).getTime();
-    const timeB = new Date(b.created_at || 0).getTime();
-    // Sort descending (newest first)
-    return timeB - timeA;
-  });
-}
-
 // Handle incoming container events
 function handleContainerEvent(event: {
   type: string;
@@ -946,10 +936,10 @@ function handleContainerEvent(event: {
 
   switch (type) {
     case "list":
-      // Full container list received
+      // Full container list received - Backend already sorts this
       containers.update((state) => ({
         ...state,
-        containers: sortContainers(containerData.containers || []),
+        containers: containerData.containers || [],
         limit: containerData.limit || 2,
         isLoading: false,
       }));
@@ -1004,13 +994,13 @@ function handleContainerEvent(event: {
       break;
 
     case "created":
-      // New container created - also clear creating state
+      // New container created - prepend to list
       containers.update((state) => ({
         ...state,
-        containers: sortContainers([
+        containers: [
           containerData,
           ...state.containers.filter((c) => !matchesContainer(c, containerData)),
-        ]),
+        ],
         creating: null, // Clear creating state
       }));
       break;
@@ -1018,7 +1008,7 @@ function handleContainerEvent(event: {
     case "started":
     case "stopped":
     case "updated":
-      // Container status changed - merge all data including resources
+      // Container status changed - update in place
       containers.update((state) => {
         const newContainers = state.containers.map((c) => {
           if (matchesContainer(c, containerData)) {
@@ -1036,7 +1026,7 @@ function handleContainerEvent(event: {
         // Return new state object
         return {
           ...state,
-          containers: sortContainers(newContainers),
+          containers: newContainers,
         };
       });
       break;
@@ -1050,13 +1040,17 @@ function handleContainerEvent(event: {
       break;
 
     case "agent_connected":
-      // Agent connected - add to containers list
+      // Agent connected - prepend to list if not exists, or update in place? 
+      // Usually "connected" means it's available now.
+      // If it reconnects, it might already be in list if we persist agents.
+      // But the container list only shows ONLINE agents (merged from backend).
+      // So if it connects, it's "new" to this list.
       containers.update((state) => ({
         ...state,
-        containers: sortContainers([
+        containers: [
           containerData,
           ...state.containers.filter((c) => c.id !== containerData.id),
-        ]),
+        ],
       }));
       // Dispatch event for agents store
       if (typeof window !== 'undefined') {

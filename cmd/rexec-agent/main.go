@@ -824,6 +824,13 @@ func (a *Agent) startShellSession(sessionID string, newSession bool) {
 		return
 	}
 
+	// Set a reasonable default PTY size to avoid garbled output
+	// This will be updated when client sends resize
+	pty.Setsize(ptmx, &pty.Winsize{
+		Cols: 120,
+		Rows: 30,
+	})
+
 	session := &ShellSession{
 		ID:     sessionID,
 		Cmd:    cmd,
