@@ -6,7 +6,7 @@
     import StatusIcon from "./icons/StatusIcon.svelte";
 
     // Tabs
-    type Tab = "users" | "containers" | "terminals";
+    type Tab = "users" | "containers" | "terminals" | "agents";
     let activeTab: Tab = "users";
 
     function setTab(tab: Tab) {
@@ -17,7 +17,8 @@
         await Promise.all([
             admin.fetchUsers(),
             admin.fetchContainers(),
-            admin.fetchTerminals()
+            admin.fetchTerminals(),
+            admin.fetchAgents()
         ]);
     }
 
@@ -35,6 +36,7 @@
     $: users = $admin.users;
     $: containers = $admin.containers;
     $: terminals = $admin.terminals;
+    $: agents = $admin.agents;
     $: isLoading = $admin.isLoading;
     $: wsConnected = $admin.wsConnected;
     $: wsError = $admin.error;
@@ -122,6 +124,13 @@
             onclick={() => setTab("terminals")}
         >
             Active Terminals ({terminals.length})
+        </button>
+        <button
+            class="tab-btn"
+            class:active={activeTab === "agents"}
+            onclick={() => setTab("agents")}
+        >
+            Agents ({agents.length})
         </button>
     </div>
 
@@ -263,6 +272,60 @@
                                         </span>
                                     </td>
                                     <td>{formatRelativeTime(term.connected_at)}</td>
+                                </tr>
+                            {/each}
+                        </tbody>
+                    </table>
+                </div>
+            {:else if activeTab === "agents"}
+                <div class="data-table-container">
+                     <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>User</th>
+                                <th>Status</th>
+                                <th>Platform</th>
+                                <th>Specs</th>
+                                <th>Last Seen</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {#each agents as agent (agent.id)}
+                                <tr>
+                                    <td>
+                                        <div class="container-name-cell">
+                                            <PlatformIcon platform={agent.os} size={16} />
+                                            <span>{agent.name}</span>
+                                        </div>
+                                    </td>
+                                    <td>{agent.username || agent.user_id.slice(0, 8)}</td>
+                                    <td>
+                                        <span class="status-badge {agent.status}">
+                                            {agent.status}
+                                        </span>
+                                    </td>
+                                    <td class="mono">{agent.os}/{agent.arch}</td>
+                                    <td>
+                                        {#if agent.system_info && agent.system_info.memory && agent.system_info.num_cpu}
+                                            <div class="resources-cell">
+                                                <span>{formatMemory(Math.round((agent.system_info.memory.total || 0) / 1024 / 1024))}</span>
+                                                <span>/</span>
+                                                <span>{agent.system_info.num_cpu} CPU</span>
+                                            </div>
+                                        {:else}
+                                            -
+                                        {/if}
+                                    </td>
+                                    <td>{agent.last_ping ? formatRelativeTime(agent.last_ping) : '-'}</td>
+                                    <td>
+                                        <button class="btn-icon danger" onclick={() => handleDeleteUser(agent.id)} title="Delete Agent (TODO)">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                                            </svg>
+                                        </button>
+                                    </td>
                                 </tr>
                             {/each}
                         </tbody>

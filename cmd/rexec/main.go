@@ -630,6 +630,7 @@ func runServer() {
 			admin.DELETE("/containers/:id", adminHandler.DeleteContainer)
 
 			admin.GET("/terminals", adminHandler.ListTerminals)
+			admin.GET("/agents", adminHandler.ListAgents)
 		}
 	}
 

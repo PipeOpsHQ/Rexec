@@ -13,6 +13,7 @@ import (
 type Agent struct {
 	ID          string    `json:"id"`
 	UserID      string    `json:"user_id"`
+	Username    string    `json:"username,omitempty"`
 	Name        string    `json:"name"`
 	Description string    `json:"description,omitempty"`
 	OS          string    `json:"os"`
@@ -235,10 +236,11 @@ func (s *PostgresStore) GetAgentConnectedInstance(ctx context.Context, id string
 // GetAllAgents retrieves all agents (admin only)
 func (s *PostgresStore) GetAllAgents(ctx context.Context) ([]*Agent, error) {
 	query := `
-	SELECT id, user_id, name, COALESCE(description, ''), COALESCE(os, ''), COALESCE(arch, ''), 
-	       COALESCE(shell, ''), tags, created_at, updated_at
-	FROM agents
-	ORDER BY created_at DESC
+	SELECT a.id, a.user_id, COALESCE(u.username, 'Unknown'), a.name, COALESCE(a.description, ''), COALESCE(a.os, ''), COALESCE(a.arch, ''), 
+	       COALESCE(a.shell, ''), a.tags, a.created_at, a.updated_at, a.last_heartbeat, COALESCE(a.connected_instance_id, ''), a.system_info
+	FROM agents a
+	LEFT JOIN users u ON a.user_id = u.id
+	ORDER BY a.created_at DESC
 	`
 
 	rows, err := s.db.QueryContext(ctx, query)
@@ -251,14 +253,25 @@ func (s *PostgresStore) GetAllAgents(ctx context.Context) ([]*Agent, error) {
 	for rows.Next() {
 		var agent Agent
 		var tags pq.StringArray
+		var lastHeartbeat sql.NullTime
+		var connectedInstanceID string
+		var systemInfoJSON []byte
 
 		err := rows.Scan(
-			&agent.ID, &agent.UserID, &agent.Name, &agent.Description,
+			&agent.ID, &agent.UserID, &agent.Username, &agent.Name, &agent.Description,
 			&agent.OS, &agent.Arch, &agent.Shell, &tags,
-			&agent.CreatedAt, &agent.UpdatedAt,
+			&agent.CreatedAt, &agent.UpdatedAt, &lastHeartbeat, &connectedInstanceID, &systemInfoJSON,
 		)
 		if err != nil {
 			return nil, err
+		}
+
+		if lastHeartbeat.Valid {
+			agent.LastPing = lastHeartbeat.Time
+		}
+		
+		if len(systemInfoJSON) > 0 {
+			json.Unmarshal(systemInfoJSON, &agent.SystemInfo)
 		}
 
 		agent.Tags = tags

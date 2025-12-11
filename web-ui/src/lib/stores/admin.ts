@@ -25,6 +25,21 @@ export interface AdminTerminal {
   connected_at: string;
 }
 
+export interface AdminAgent {
+  id: string;
+  user_id: string;
+  username: string;
+  name: string;
+  description?: string;
+  os: string;
+  arch: string;
+  shell: string;
+  status: string;
+  created_at: string;
+  last_ping?: string;
+  system_info?: any;
+}
+
 // Backend AdminEvent interface
 export interface AdminEvent<T = any> {
   type:
@@ -45,6 +60,7 @@ export interface AdminState {
   users: AdminUser[];
   containers: AdminContainer[];
   terminals: AdminTerminal[];
+  agents: AdminAgent[];
   isLoading: boolean;
   error: string | null;
   ws: WebSocket | null;
@@ -58,6 +74,7 @@ const initialState: AdminState = {
   users: [],
   containers: [],
   terminals: [],
+  agents: [],
   isLoading: false,
   error: null,
   ws: null,
@@ -277,6 +294,23 @@ function createAdminStore() {
       update((state) => ({
         ...state,
         terminals: data || [],
+        isLoading: false,
+      }));
+    },
+
+    fetchAgents: async () => {
+      update((state) => ({ ...state, isLoading: true, error: null }));
+      const { data, error } = await api.get<AdminAgent[]>(
+        "/api/admin/agents"
+      );
+
+      if (error) {
+        update((state) => ({ ...state, isLoading: false, error }));
+        return;
+      }
+      update((state) => ({
+        ...state,
+        agents: data || [],
         isLoading: false,
       }));
     },
