@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"html"
 	"log"
 	"os"
 	"path/filepath"
@@ -48,16 +49,25 @@ var (
 )
 
 func applySEO(baseHTML string, seo seoConfig, canonical string) string {
-	out := reTitleTag.ReplaceAllString(baseHTML, fmt.Sprintf("<title>%s</title>", seo.Title))
-	out = reMetaContent("name", "title").ReplaceAllString(out, "$1"+seo.Title+"$3")
-	out = reMetaContent("name", "description").ReplaceAllString(out, "$1"+seo.Description+"$3")
-	out = reMetaContent("property", "og:title").ReplaceAllString(out, "$1"+seo.Title+"$3")
-	out = reMetaContent("property", "og:description").ReplaceAllString(out, "$1"+seo.Description+"$3")
-	out = reMetaContent("property", "og:url").ReplaceAllString(out, "$1"+canonical+"$3")
-	out = reMetaContent("name", "twitter:title").ReplaceAllString(out, "$1"+seo.Title+"$3")
-	out = reMetaContent("name", "twitter:description").ReplaceAllString(out, "$1"+seo.Description+"$3")
-	out = reMetaContent("name", "twitter:url").ReplaceAllString(out, "$1"+canonical+"$3")
-	out = reCanonicalHref.ReplaceAllString(out, "$1"+canonical+"$3")
+	safe := func(s string) string {
+		v := html.EscapeString(s)
+		return strings.ReplaceAll(v, "$", "$$")
+	}
+
+	title := safe(seo.Title)
+	desc := safe(seo.Description)
+	canon := safe(canonical)
+
+	out := reTitleTag.ReplaceAllString(baseHTML, fmt.Sprintf("<title>%s</title>", title))
+	out = reMetaContent("name", "title").ReplaceAllString(out, "$1"+title+"$3")
+	out = reMetaContent("name", "description").ReplaceAllString(out, "$1"+desc+"$3")
+	out = reMetaContent("property", "og:title").ReplaceAllString(out, "$1"+title+"$3")
+	out = reMetaContent("property", "og:description").ReplaceAllString(out, "$1"+desc+"$3")
+	out = reMetaContent("property", "og:url").ReplaceAllString(out, "$1"+canon+"$3")
+	out = reMetaContent("name", "twitter:title").ReplaceAllString(out, "$1"+title+"$3")
+	out = reMetaContent("name", "twitter:description").ReplaceAllString(out, "$1"+desc+"$3")
+	out = reMetaContent("name", "twitter:url").ReplaceAllString(out, "$1"+canon+"$3")
+	out = reCanonicalHref.ReplaceAllString(out, "$1"+canon+"$3")
 	return out
 }
 
@@ -770,6 +780,88 @@ func runServer() {
 			Title:       "CLI Documentation | Rexec",
 			Description: "Install and use the rexec CLI/TUI to manage terminals, snippets, and agents from your local shell.",
 		}
+		guidesSEO := seoConfig{
+			Title:       "Rexec Product Guide - Instant Terminal Architecture",
+			Description: "Learn how Rexec delivers instant access to Linux terminals while silently provisioning complex environments in the background.",
+		}
+		useCasesSEO := seoConfig{
+			Title:       "Rexec Use Cases - The Future of Development",
+			Description: "Discover how Rexec powers ephemeral development environments, AI agent execution, collaborative coding, and secure cloud access.",
+		}
+		pricingSEO := seoConfig{
+			Title:       "Pricing | Rexec - Terminal as a Service",
+			Description: "Simple, transparent pricing for instant cloud terminals, recordings, and BYOS agent connections.",
+		}
+		marketplaceSEO := seoConfig{
+			Title:       "Marketplace | Rexec",
+			Description: "Browse public snippets and automation templates for Rexec terminals.",
+		}
+		promoSEO := seoConfig{
+			Title:       "Promotions | Rexec",
+			Description: "Limited-time offers and promos for Rexec.",
+		}
+		snippetsSEO := seoConfig{
+			Title:       "Snippets | Rexec",
+			Description: "Create, share, and run reusable scripts and macros on Rexec terminals.",
+		}
+		useCaseDetailSEO := map[string]seoConfig{
+			"ephemeral-dev-environments": {
+				Title:       "Ephemeral Dev Environments | Rexec - Cloud Development Environment",
+				Description: "The future is disposable. Spin up a fresh, clean environment for every task, PR, or experiment. No drift, no cleanup.",
+			},
+			"collaborative-intelligence": {
+				Title:       "Collaborative Intelligence | Rexec - Cloud Development Environment",
+				Description: "A shared workspace for humans and AI agents. Let LLMs execute code in a real, safe environment while you supervise.",
+			},
+			"universal-jump-host": {
+				Title:       "Secure Jump Host & Gateway | Rexec - Cloud Development Environment",
+				Description: "Zero-trust access to your private infrastructure. Replace VPNs with a secure, audited browser-based gateway.",
+			},
+			"rexec-agent": {
+				Title:       "Hybrid Cloud & Remote Agents | Rexec - Cloud Development Environment",
+				Description: "Unify your infrastructure. Connect any Linux server, IoT device, or cloud instance to your Rexec dashboard.",
+			},
+			"instant-education-onboarding": {
+				Title:       "Instant Education & Onboarding | Rexec - Cloud Development Environment",
+				Description: "Onboard new engineers in seconds, not days. Provide pre-configured environments for workshops and tutorials.",
+			},
+			"technical-interviews": {
+				Title:       "Technical Interviews | Rexec - Cloud Development Environment",
+				Description: "Conduct real-time coding interviews in a real Linux environment, not a constrained web editor.",
+			},
+			"open-source-review": {
+				Title:       "Open Source Review | Rexec - Cloud Development Environment",
+				Description: "Review Pull Requests by instantly spinning up the branch in a clean container. Test without polluting your local machine.",
+			},
+			"gpu-terminals": {
+				Title:       "GPU Terminals for AI/ML (Coming Soon) | Rexec - Cloud Development Environment",
+				Description: "Instant-on GPU-enabled terminals for AI/ML development, training, and fine-tuning (coming soon).",
+			},
+			"edge-device-development": {
+				Title:       "Edge Device Development | Rexec - Cloud Development Environment",
+				Description: "Develop and test applications for IoT and edge devices in a simulated or emulated environment.",
+			},
+			"real-time-data-processing": {
+				Title:       "Real-time Data Processing | Rexec - Cloud Development Environment",
+				Description: "Build, test, and deploy streaming ETL pipelines and real-time analytics applications.",
+			},
+			"resumable-sessions": {
+				Title:       "Resumable Terminal Sessions | Rexec - Cloud Development Environment",
+				Description: "Start long-running tasks, close your browser, and come back later. Your terminal session keeps running in the background with full output history.",
+			},
+			"rexec-cli": {
+				Title:       "Rexec CLI & TUI | Rexec - Cloud Development Environment",
+				Description: "Manage your terminals from anywhere using our powerful command-line interface with an interactive TUI mode.",
+			},
+			"hybrid-infrastructure": {
+				Title:       "Hybrid Infrastructure Access | Rexec - Cloud Development Environment",
+				Description: "Mix cloud-managed terminals with your own infrastructure. Access everything through a single, unified interface.",
+			},
+			"remote-debugging": {
+				Title:       "Remote Debugging & Troubleshooting | Rexec - Cloud Development Environment",
+				Description: "Debug production issues directly from your browser. Connect to any server running the Rexec agent for instant access.",
+			},
+		}
 		serveSEO := func(c *gin.Context, seo seoConfig) {
 			if baseIndexHTML == "" {
 				c.File(indexFile)
@@ -850,16 +942,21 @@ func runServer() {
 
 		// SPA routes - serve index.html for client-side routing
 		router.GET("/guides", func(c *gin.Context) {
-			c.File(indexFile)
+			serveSEO(c, guidesSEO)
 		})
 		router.GET("/use-cases", func(c *gin.Context) {
-			c.File(indexFile)
+			serveSEO(c, useCasesSEO)
 		})
 		router.GET("/use-cases/:slug", func(c *gin.Context) {
-			c.File(indexFile)
+			slug := c.Param("slug")
+			if seo, ok := useCaseDetailSEO[slug]; ok {
+				serveSEO(c, seo)
+				return
+			}
+			serveSEO(c, useCasesSEO)
 		})
 		router.GET("/snippets", func(c *gin.Context) {
-			c.File(indexFile)
+			serveSEO(c, snippetsSEO)
 		})
 		// Legacy routes - redirect or serve index
 		router.GET("/ai-tools", func(c *gin.Context) {
@@ -881,11 +978,11 @@ func runServer() {
 
 		// Explicitly serve index.html for known SPA routes to avoid /:id catch-all 404
 		router.GET("/pricing", func(c *gin.Context) {
-			c.File(indexFile)
+			serveSEO(c, pricingSEO)
 		})
 
 		router.GET("/promo", func(c *gin.Context) {
-			c.File(indexFile)
+			serveSEO(c, promoSEO)
 		})
 
 		router.GET("/admin", func(c *gin.Context) {
@@ -893,7 +990,7 @@ func runServer() {
 		})
 
 		router.GET("/marketplace", func(c *gin.Context) {
-			c.File(indexFile)
+			serveSEO(c, marketplaceSEO)
 		})
 
 		router.GET("/billing", func(c *gin.Context) {
