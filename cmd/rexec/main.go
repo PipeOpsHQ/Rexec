@@ -59,15 +59,15 @@ func applySEO(baseHTML string, seo seoConfig, canonical string) string {
 	canon := safe(canonical)
 
 	out := reTitleTag.ReplaceAllString(baseHTML, fmt.Sprintf("<title>%s</title>", title))
-	out = reMetaContent("name", "title").ReplaceAllString(out, "$1"+title+"$3")
-	out = reMetaContent("name", "description").ReplaceAllString(out, "$1"+desc+"$3")
-	out = reMetaContent("property", "og:title").ReplaceAllString(out, "$1"+title+"$3")
-	out = reMetaContent("property", "og:description").ReplaceAllString(out, "$1"+desc+"$3")
-	out = reMetaContent("property", "og:url").ReplaceAllString(out, "$1"+canon+"$3")
-	out = reMetaContent("name", "twitter:title").ReplaceAllString(out, "$1"+title+"$3")
-	out = reMetaContent("name", "twitter:description").ReplaceAllString(out, "$1"+desc+"$3")
-	out = reMetaContent("name", "twitter:url").ReplaceAllString(out, "$1"+canon+"$3")
-	out = reCanonicalHref.ReplaceAllString(out, "$1"+canon+"$3")
+	out = reMetaContent("name", "title").ReplaceAllString(out, "${1}"+title+"${3}")
+	out = reMetaContent("name", "description").ReplaceAllString(out, "${1}"+desc+"${3}")
+	out = reMetaContent("property", "og:title").ReplaceAllString(out, "${1}"+title+"${3}")
+	out = reMetaContent("property", "og:description").ReplaceAllString(out, "${1}"+desc+"${3}")
+	out = reMetaContent("property", "og:url").ReplaceAllString(out, "${1}"+canon+"${3}")
+	out = reMetaContent("name", "twitter:title").ReplaceAllString(out, "${1}"+title+"${3}")
+	out = reMetaContent("name", "twitter:description").ReplaceAllString(out, "${1}"+desc+"${3}")
+	out = reMetaContent("name", "twitter:url").ReplaceAllString(out, "${1}"+canon+"${3}")
+	out = reCanonicalHref.ReplaceAllString(out, "${1}"+canon+"${3}")
 	return out
 }
 
