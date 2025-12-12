@@ -2087,7 +2087,8 @@
     .create-panel {
         position: absolute;
         inset: 0;
-        background: #0d0d0d;
+        background: var(--bg);
+        background-image: none;
         display: flex;
         flex-direction: column;
         padding: 16px;
@@ -2097,6 +2098,9 @@
     .create-panel :global(.inline-create) {
         flex: 1;
         overflow-y: auto;
+        max-width: 1200px;
+        width: 100%;
+        margin: 0 auto;
     }
 
     .create-panel-header {

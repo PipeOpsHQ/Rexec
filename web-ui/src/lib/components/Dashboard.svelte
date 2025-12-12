@@ -1138,12 +1138,15 @@
     /* Connect Own Tip in Empty State */
     .connect-own-tip {
         margin-top: 32px;
-        padding: 16px 20px;
-        background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
-        border: 1px solid #30363d;
-        border-radius: 8px;
-        max-width: 400px;
+        padding: 18px 20px;
+        background: var(--bg-card-secondary);
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--accent);
+        border-radius: 10px;
+        max-width: 520px;
+        width: 100%;
         text-align: left;
+        box-shadow: var(--shadow-soft);
     }
 
     .tip-header {
@@ -1159,7 +1162,7 @@
 
     .tip-header span {
         font-size: 13px;
-        font-weight: 500;
+        font-weight: 600;
         color: var(--text);
     }
 
@@ -1174,16 +1177,16 @@
         display: flex;
         align-items: center;
         gap: 10px;
-        background: var(--bg-secondary);
-        border: 1px solid var(--border);
-        border-radius: 4px;
-        padding: 8px 12px;
+        background: var(--code-bg);
+        border: 1px dashed var(--border);
+        border-radius: 6px;
+        padding: 10px 12px;
     }
 
     .tip-code {
         flex: 1;
         font-family: var(--font-mono);
-        font-size: 11px;
+        font-size: 12px;
         color: var(--accent);
         overflow-x: auto;
         white-space: nowrap;
@@ -1191,11 +1194,11 @@
 
     .copy-btn {
         flex-shrink: 0;
-        padding: 4px 8px;
-        background: transparent;
-        border: 1px solid #333;
-        border-radius: 4px;
-        color: var(--text-muted);
+        padding: 6px 10px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text-secondary);
         font-size: 10px;
         font-family: var(--font-mono);
         cursor: pointer;
@@ -1205,7 +1208,7 @@
     .copy-btn:hover {
         border-color: var(--accent);
         color: var(--accent);
-        background: rgba(0, 255, 65, 0.05);
+        background: var(--accent-dim);
     }
 
     /* Live indicator */

@@ -40,7 +40,8 @@
         height: 100%;
         display: flex;
         flex-direction: column;
-        background: #0a0a0a;
+        background: var(--bg);
+        background-image: none;
         overflow: auto;
         padding: 24px;
     }
@@ -74,6 +75,8 @@
     .create-page :global(.inline-create) {
         flex: 1;
         max-width: 1200px;
+        width: 100%;
+        margin: 0 auto;
         padding: 0;
         background: transparent;
     }
