@@ -415,7 +415,7 @@
         
         <!-- Open Graph -->
         <meta property="og:title" content="{useCase.title} - Rexec" />
-        <meta property="og:description" content={useCase.tagline + ". " + useCase.description} />
+        <meta property="og:description" content={useCase.tagline + " " + useCase.description} />
         <meta property="og:type" content="article" />
         <meta property="og:url" content="https://rexec.pipeops.io/use-cases/{slug}" />
         <meta property="og:image" content="https://rexec.pipeops.io/og-image.png" />

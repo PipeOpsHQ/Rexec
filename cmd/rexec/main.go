@@ -36,8 +36,13 @@ var (
 
 // SEO overrides for server-rendered routes so curl/bots get correct metadata.
 type seoConfig struct {
-	Title       string
-	Description string
+	Title              string
+	Description        string
+	OGTitle            string
+	OGDescription      string
+	OGType             string
+	TwitterTitle       string
+	TwitterDescription string
 }
 
 var (
@@ -54,20 +59,49 @@ func applySEO(baseHTML string, seo seoConfig, canonical string) string {
 		return strings.ReplaceAll(v, "$", "$$")
 	}
 
-	title := safe(seo.Title)
-	desc := safe(seo.Description)
+	pageTitle := seo.Title
+	pageDesc := seo.Description
+
+	ogTitle := seo.OGTitle
+	if ogTitle == "" {
+		ogTitle = pageTitle
+	}
+	ogDesc := seo.OGDescription
+	if ogDesc == "" {
+		ogDesc = pageDesc
+	}
+
+	twitterTitle := seo.TwitterTitle
+	if twitterTitle == "" {
+		twitterTitle = pageTitle
+	}
+	twitterDesc := seo.TwitterDescription
+	if twitterDesc == "" {
+		twitterDesc = pageDesc
+	}
+
+	title := safe(pageTitle)
+	desc := safe(pageDesc)
+	ogTitleSafe := safe(ogTitle)
+	ogDescSafe := safe(ogDesc)
+	twitterTitleSafe := safe(twitterTitle)
+	twitterDescSafe := safe(twitterDesc)
 	canon := safe(canonical)
 
 	out := reTitleTag.ReplaceAllString(baseHTML, fmt.Sprintf("<title>%s</title>", title))
 	out = reMetaContent("name", "title").ReplaceAllString(out, "${1}"+title+"${3}")
 	out = reMetaContent("name", "description").ReplaceAllString(out, "${1}"+desc+"${3}")
-	out = reMetaContent("property", "og:title").ReplaceAllString(out, "${1}"+title+"${3}")
-	out = reMetaContent("property", "og:description").ReplaceAllString(out, "${1}"+desc+"${3}")
+	out = reMetaContent("property", "og:title").ReplaceAllString(out, "${1}"+ogTitleSafe+"${3}")
+	out = reMetaContent("property", "og:description").ReplaceAllString(out, "${1}"+ogDescSafe+"${3}")
 	out = reMetaContent("property", "og:url").ReplaceAllString(out, "${1}"+canon+"${3}")
-	out = reMetaContent("name", "twitter:title").ReplaceAllString(out, "${1}"+title+"${3}")
-	out = reMetaContent("name", "twitter:description").ReplaceAllString(out, "${1}"+desc+"${3}")
+	out = reMetaContent("name", "twitter:title").ReplaceAllString(out, "${1}"+twitterTitleSafe+"${3}")
+	out = reMetaContent("name", "twitter:description").ReplaceAllString(out, "${1}"+twitterDescSafe+"${3}")
 	out = reMetaContent("name", "twitter:url").ReplaceAllString(out, "${1}"+canon+"${3}")
 	out = reCanonicalHref.ReplaceAllString(out, "${1}"+canon+"${3}")
+	if seo.OGType != "" {
+		ogTypeSafe := safe(seo.OGType)
+		out = reMetaContent("property", "og:type").ReplaceAllString(out, "${1}"+ogTypeSafe+"${3}")
+	}
 	return out
 }
 
@@ -781,12 +815,16 @@ func runServer() {
 			Description: "Install and use the rexec CLI/TUI to manage terminals, snippets, and agents from your local shell.",
 		}
 		guidesSEO := seoConfig{
-			Title:       "Rexec Product Guide - Instant Terminal Architecture",
-			Description: "Learn how Rexec delivers instant access to Linux terminals while silently provisioning complex environments in the background.",
+			Title:        "Rexec Product Guide - Instant Terminal Architecture",
+			Description:  "Learn how Rexec delivers instant access to Linux terminals while silently provisioning complex environments in the background.",
+			OGTitle:      "Rexec Product Guide",
+			TwitterTitle: "Rexec Product Guide",
 		}
 		useCasesSEO := seoConfig{
-			Title:       "Rexec Use Cases - The Future of Development",
-			Description: "Discover how Rexec powers ephemeral development environments, AI agent execution, collaborative coding, and secure cloud access.",
+			Title:        "Rexec Use Cases - The Future of Development",
+			Description:  "Discover how Rexec powers ephemeral development environments, AI agent execution, collaborative coding, and secure cloud access.",
+			OGTitle:      "Rexec Use Cases",
+			TwitterTitle: "Rexec Use Cases",
 		}
 		pricingSEO := seoConfig{
 			Title:       "Pricing | Rexec - Terminal as a Service",
@@ -805,61 +843,131 @@ func runServer() {
 			Description: "Create, share, and run reusable scripts and macros on Rexec terminals.",
 		}
 		useCaseDetailSEO := map[string]seoConfig{
-			"ephemeral-dev-environments": {
-				Title:       "Ephemeral Dev Environments | Rexec - Cloud Development Environment",
-				Description: "The future is disposable. Spin up a fresh, clean environment for every task, PR, or experiment. No drift, no cleanup.",
-			},
 			"collaborative-intelligence": {
-				Title:       "Collaborative Intelligence | Rexec - Cloud Development Environment",
-				Description: "A shared workspace for humans and AI agents. Let LLMs execute code in a real, safe environment while you supervise.",
-			},
-			"universal-jump-host": {
-				Title:       "Secure Jump Host & Gateway | Rexec - Cloud Development Environment",
-				Description: "Zero-trust access to your private infrastructure. Replace VPNs with a secure, audited browser-based gateway.",
-			},
-			"rexec-agent": {
-				Title:       "Hybrid Cloud & Remote Agents | Rexec - Cloud Development Environment",
-				Description: "Unify your infrastructure. Connect any Linux server, IoT device, or cloud instance to your Rexec dashboard.",
-			},
-			"instant-education-onboarding": {
-				Title:       "Instant Education & Onboarding | Rexec - Cloud Development Environment",
-				Description: "Onboard new engineers in seconds, not days. Provide pre-configured environments for workshops and tutorials.",
-			},
-			"technical-interviews": {
-				Title:       "Technical Interviews | Rexec - Cloud Development Environment",
-				Description: "Conduct real-time coding interviews in a real Linux environment, not a constrained web editor.",
-			},
-			"open-source-review": {
-				Title:       "Open Source Review | Rexec - Cloud Development Environment",
-				Description: "Review Pull Requests by instantly spinning up the branch in a clean container. Test without polluting your local machine.",
-			},
-			"gpu-terminals": {
-				Title:       "GPU Terminals for AI/ML (Coming Soon) | Rexec - Cloud Development Environment",
-				Description: "Instant-on GPU-enabled terminals for AI/ML development, training, and fine-tuning (coming soon).",
+				Title:              "Collaborative Intelligence | Rexec - Cloud Development Environment",
+				Description:        "Let LLMs and AI agents execute code in a real, safe environment while you supervise. Rexec provides the perfect sandbox for autonomous agents to work alongside humans, with full visibility and control over their actions.",
+				OGTitle:            "Collaborative Intelligence - Rexec",
+				OGDescription:      "A shared workspace for humans and AI agents. Let LLMs and AI agents execute code in a real, safe environment while you supervise. Rexec provides the perfect sandbox for autonomous agents to work alongside humans, with full visibility and control over their actions.",
+				OGType:             "article",
+				TwitterTitle:       "Collaborative Intelligence - Rexec",
+				TwitterDescription: "A shared workspace for humans and AI agents.",
 			},
 			"edge-device-development": {
-				Title:       "Edge Device Development | Rexec - Cloud Development Environment",
-				Description: "Develop and test applications for IoT and edge devices in a simulated or emulated environment.",
+				Title:              "Edge Device Development | Rexec - Cloud Development Environment",
+				Description:        "Develop and test applications for IoT and edge devices in a simulated or emulated environment. Cross-compile for ARM, RISC-V, and other architectures without physical hardware.",
+				OGTitle:            "Edge Device Development - Rexec",
+				OGDescription:      "Develop for IoT and edge in the cloud. Develop and test applications for IoT and edge devices in a simulated or emulated environment. Cross-compile for ARM, RISC-V, and other architectures without physical hardware.",
+				OGType:             "article",
+				TwitterTitle:       "Edge Device Development - Rexec",
+				TwitterDescription: "Develop for IoT and edge in the cloud.",
 			},
-			"real-time-data-processing": {
-				Title:       "Real-time Data Processing | Rexec - Cloud Development Environment",
-				Description: "Build, test, and deploy streaming ETL pipelines and real-time analytics applications.",
+			"ephemeral-dev-environments": {
+				Title:              "Ephemeral Dev Environments | Rexec - Cloud Development Environment",
+				Description:        "Spin up a fresh, clean environment for every task, PR, or experiment. Ephemeral environments eliminate configuration drift, dependency conflicts, and the dreaded 'works on my machine' syndrome. Each session starts from a known state, ensuring reproducible results every time.",
+				OGTitle:            "Ephemeral Dev Environments - Rexec",
+				OGDescription:      "The future is disposable. Zero drift, zero cleanup. Spin up a fresh, clean environment for every task, PR, or experiment. Ephemeral environments eliminate configuration drift, dependency conflicts, and the dreaded 'works on my machine' syndrome. Each session starts from a known state, ensuring reproducible results every time.",
+				OGType:             "article",
+				TwitterTitle:       "Ephemeral Dev Environments - Rexec",
+				TwitterDescription: "The future is disposable. Zero drift, zero cleanup.",
 			},
-			"resumable-sessions": {
-				Title:       "Resumable Terminal Sessions | Rexec - Cloud Development Environment",
-				Description: "Start long-running tasks, close your browser, and come back later. Your terminal session keeps running in the background with full output history.",
-			},
-			"rexec-cli": {
-				Title:       "Rexec CLI & TUI | Rexec - Cloud Development Environment",
-				Description: "Manage your terminals from anywhere using our powerful command-line interface with an interactive TUI mode.",
+			"gpu-terminals": {
+				Title:              "GPU Terminals for AI/ML | Rexec - Cloud Development Environment",
+				Description:        "Rexec will provide instant-on, powerful GPU-enabled terminals for your team's AI/ML model development, training, and fine-tuning. Manage and share these dedicated GPU resources securely, eliminating the complexities of direct infrastructure access.",
+				OGTitle:            "GPU Terminals for AI/ML - Rexec",
+				OGDescription:      "Instant-on GPU power for your AI/ML workflows. Rexec will provide instant-on, powerful GPU-enabled terminals for your team's AI/ML model development, training, and fine-tuning. Manage and share these dedicated GPU resources securely, eliminating the complexities of direct infrastructure access.",
+				OGType:             "article",
+				TwitterTitle:       "GPU Terminals for AI/ML - Rexec",
+				TwitterDescription: "Instant-on GPU power for your AI/ML workflows.",
 			},
 			"hybrid-infrastructure": {
-				Title:       "Hybrid Infrastructure Access | Rexec - Cloud Development Environment",
-				Description: "Mix cloud-managed terminals with your own infrastructure. Access everything through a single, unified interface.",
+				Title:              "Hybrid Infrastructure Access | Rexec - Cloud Development Environment",
+				Description:        "Access everything through a single, unified interface. Seamlessly switch between Rexec's cloud terminals and your on-premise servers without changing tools or context.",
+				OGTitle:            "Hybrid Infrastructure Access - Rexec",
+				OGDescription:      "Mix cloud-managed terminals with your own infrastructure. Access everything through a single, unified interface. Seamlessly switch between Rexec's cloud terminals and your on-premise servers without changing tools or context.",
+				OGType:             "article",
+				TwitterTitle:       "Hybrid Infrastructure Access - Rexec",
+				TwitterDescription: "Mix cloud-managed terminals with your own infrastructure.",
+			},
+			"instant-education-onboarding": {
+				Title:              "Instant Education & Onboarding | Rexec - Cloud Development Environment",
+				Description:        "Provide pre-configured environments for workshops, tutorials, and new hire onboarding. Zero friction means attendees focus on learning, not configuring their machines.",
+				OGTitle:            "Instant Education & Onboarding - Rexec",
+				OGDescription:      "Onboard new engineers in seconds, not days. Provide pre-configured environments for workshops, tutorials, and new hire onboarding. Zero friction means attendees focus on learning, not configuring their machines.",
+				OGType:             "article",
+				TwitterTitle:       "Instant Education & Onboarding - Rexec",
+				TwitterDescription: "Onboard new engineers in seconds, not days.",
+			},
+			"open-source-review": {
+				Title:              "Open Source Review | Rexec - Cloud Development Environment",
+				Description:        "Review Pull Requests by instantly spinning up the branch in a clean container. Test without polluting your local machine or risking your development environment.",
+				OGTitle:            "Open Source Review - Rexec",
+				OGDescription:      "Review PRs in isolated, disposable environments. Review Pull Requests by instantly spinning up the branch in a clean container. Test without polluting your local machine or risking your development environment.",
+				OGType:             "article",
+				TwitterTitle:       "Open Source Review - Rexec",
+				TwitterDescription: "Review PRs in isolated, disposable environments.",
+			},
+			"real-time-data-processing": {
+				Title:              "Real-time Data Processing | Rexec - Cloud Development Environment",
+				Description:        "Build, test, and deploy streaming ETL pipelines and real-time analytics applications. High-performance data ingress/egress with monitoring and debugging tools.",
+				OGTitle:            "Real-time Data Processing - Rexec",
+				OGDescription:      "Build streaming pipelines in isolated sandboxes. Build, test, and deploy streaming ETL pipelines and real-time analytics applications. High-performance data ingress/egress with monitoring and debugging tools.",
+				OGType:             "article",
+				TwitterTitle:       "Real-time Data Processing - Rexec",
+				TwitterDescription: "Build streaming pipelines in isolated sandboxes.",
+			},
+			"resumable-sessions": {
+				Title:              "Resumable Terminal Sessions | Rexec - Cloud Development Environment",
+				Description:        "Run long-running processes, close your browser, and reconnect anytime. Your terminal session continues in the background with full scrollback history. Never lose work to network drops or accidental tab closures again.",
+				OGTitle:            "Resumable Terminal Sessions - Rexec",
+				OGDescription:      "Start tasks, disconnect, and come back later. Run long-running processes, close your browser, and reconnect anytime. Your terminal session continues in the background with full scrollback history. Never lose work to network drops or accidental tab closures again.",
+				OGType:             "article",
+				TwitterTitle:       "Resumable Terminal Sessions - Rexec",
+				TwitterDescription: "Start tasks, disconnect, and come back later.",
+			},
+			"rexec-agent": {
+				Title:              "Hybrid Cloud & Remote Agents | Rexec - Cloud Development Environment",
+				Description:        "Turn any Linux server, IoT device, or cloud instance into a managed Rexec terminal. Install our lightweight binary to instantly connect remote resources to your Rexec dashboard with real-time resource monitoring.",
+				OGTitle:            "Hybrid Cloud & Remote Agents - Rexec",
+				OGDescription:      "Unify your infrastructure. One dashboard for everything. Turn any Linux server, IoT device, or cloud instance into a managed Rexec terminal. Install our lightweight binary to instantly connect remote resources to your Rexec dashboard with real-time resource monitoring.",
+				OGType:             "article",
+				TwitterTitle:       "Hybrid Cloud & Remote Agents - Rexec",
+				TwitterDescription: "Unify your infrastructure. One dashboard for everything.",
+			},
+			"rexec-cli": {
+				Title:              "Rexec CLI & TUI | Rexec - Cloud Development Environment",
+				Description:        "The Rexec CLI brings the power of the platform to your local terminal. Manage sessions, ssh into containers, and use the interactive TUI dashboard without leaving your keyboard.",
+				OGTitle:            "Rexec CLI & TUI - Rexec",
+				OGDescription:      "Manage your terminals from anywhere using our powerful command-line interface. The Rexec CLI brings the power of the platform to your local terminal. Manage sessions, ssh into containers, and use the interactive TUI dashboard without leaving your keyboard.",
+				OGType:             "article",
+				TwitterTitle:       "Rexec CLI & TUI - Rexec",
+				TwitterDescription: "Manage your terminals from anywhere using our powerful command-line interface.",
+			},
+			"technical-interviews": {
+				Title:              "Technical Interviews | Rexec - Cloud Development Environment",
+				Description:        "Conduct real-time coding interviews in a real Linux environment, not a constrained web editor. See how candidates actually work, not just whether they can pass synthetic tests.",
+				OGTitle:            "Technical Interviews - Rexec",
+				OGDescription:      "Real coding assessments in real environments. Conduct real-time coding interviews in a real Linux environment, not a constrained web editor. See how candidates actually work, not just whether they can pass synthetic tests.",
+				OGType:             "article",
+				TwitterTitle:       "Technical Interviews - Rexec",
+				TwitterDescription: "Real coding assessments in real environments.",
+			},
+			"universal-jump-host": {
+				Title:              "Secure Jump Host & Gateway | Rexec - Cloud Development Environment",
+				Description:        "Replace complex VPNs and bastion hosts. Rexec provides a secure, audited gateway to your private infrastructure. Enforce MFA, restrict IP access, and log every command for complete compliance and security.",
+				OGTitle:            "Secure Jump Host & Gateway - Rexec",
+				OGDescription:      "Zero-trust access to private infrastructure. Replace complex VPNs and bastion hosts. Rexec provides a secure, audited gateway to your private infrastructure. Enforce MFA, restrict IP access, and log every command for complete compliance and security.",
+				OGType:             "article",
+				TwitterTitle:       "Secure Jump Host & Gateway - Rexec",
+				TwitterDescription: "Zero-trust access to private infrastructure.",
 			},
 			"remote-debugging": {
-				Title:       "Remote Debugging & Troubleshooting | Rexec - Cloud Development Environment",
-				Description: "Debug production issues directly from your browser. Connect to any server running the Rexec agent for instant access.",
+				Title:              "Remote Debugging & Troubleshooting | Rexec - Cloud Development Environment",
+				Description:        "Connect to any server running the Rexec agent for instant access. Troubleshoot live systems with full terminal capabilities, share sessions with colleagues, and resolve incidents faster.",
+				OGTitle:            "Remote Debugging & Troubleshooting - Rexec",
+				OGDescription:      "Debug production issues directly from your browser. Connect to any server running the Rexec agent for instant access. Troubleshoot live systems with full terminal capabilities, share sessions with colleagues, and resolve incidents faster.",
+				OGType:             "article",
+				TwitterTitle:       "Remote Debugging & Troubleshooting - Rexec",
+				TwitterDescription: "Debug production issues directly from your browser.",
 			},
 		}
 		serveSEO := func(c *gin.Context, seo seoConfig) {
