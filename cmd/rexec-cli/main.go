@@ -424,6 +424,28 @@ func snippetCommand(sn Snippet) string {
 	return sn.Command
 }
 
+// buildTerminalWSURL returns the correct websocket URL for a container or agent session.
+// Agent sessions come from /api/containers as id="agent:<uuid>".
+func buildTerminalWSURL(cfg *Config, terminalID string) string {
+	wsHost := strings.Replace(cfg.Host, "https://", "wss://", 1)
+	wsHost = strings.Replace(wsHost, "http://", "ws://", 1)
+
+	if strings.HasPrefix(terminalID, "agent:") {
+		agentID := strings.TrimPrefix(terminalID, "agent:")
+		return fmt.Sprintf("%s/ws/agent/%s/terminal?token=%s",
+			wsHost,
+			agentID,
+			url.QueryEscape(cfg.Token),
+		)
+	}
+
+	return fmt.Sprintf("%s/ws/terminal/%s?token=%s",
+		wsHost,
+		terminalID,
+		url.QueryEscape(cfg.Token),
+	)
+}
+
 func parseMemoryMB(input string) (int64, error) {
 	s := strings.ToLower(strings.TrimSpace(input))
 	if s == "" {
@@ -887,12 +909,21 @@ func handleCreate(args []string) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 200 && resp.StatusCode != 201 {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusAccepted {
+		bodyBytes, _ := io.ReadAll(resp.Body)
 		var errResp struct {
-			Error string `json:"error"`
+			Error   string `json:"error"`
+			Message string `json:"message"`
 		}
-		json.NewDecoder(resp.Body).Decode(&errResp)
-		fmt.Printf("%sError: %s%s\n", Red, errResp.Error, Reset)
+		_ = json.Unmarshal(bodyBytes, &errResp)
+		msg := strings.TrimSpace(errResp.Error)
+		if msg == "" {
+			msg = strings.TrimSpace(errResp.Message)
+		}
+		if msg == "" {
+			msg = strings.TrimSpace(string(bodyBytes))
+		}
+		fmt.Printf("%sError: %s%s\n", Red, msg, Reset)
 		os.Exit(1)
 	}
 
@@ -900,10 +931,14 @@ func handleCreate(args []string) {
 	json.NewDecoder(resp.Body).Decode(&container)
 
 	fmt.Printf("\n%s✓ Terminal created%s\n", Green, Reset)
-	fmt.Printf("  ID:    %s\n", container.ID[:12])
+	idDisplay := container.ID
+	if len(idDisplay) > 12 {
+		idDisplay = idDisplay[:12]
+	}
+	fmt.Printf("  ID:    %s\n", idDisplay)
 	fmt.Printf("  Name:  %s\n", container.Name)
 	fmt.Printf("  Image: %s\n", container.Image)
-	fmt.Printf("\nConnect with: %srexec connect %s%s\n\n", Cyan, container.ID[:12], Reset)
+	fmt.Printf("\nConnect with: %srexec connect %s%s\n\n", Cyan, idDisplay, Reset)
 }
 
 func handleConnect(args []string) {
@@ -916,10 +951,7 @@ func handleConnect(args []string) {
 
 	terminalID := args[0]
 
-	// Build WebSocket URL
-	wsHost := strings.Replace(cfg.Host, "https://", "wss://", 1)
-	wsHost = strings.Replace(wsHost, "http://", "ws://", 1)
-	wsURL := fmt.Sprintf("%s/ws/terminal/%s?token=%s", wsHost, terminalID, url.QueryEscape(cfg.Token))
+	wsURL := buildTerminalWSURL(cfg, terminalID)
 
 	fmt.Printf("%sConnecting to terminal %s...%s\n", Dim, terminalID, Reset)
 
@@ -1234,9 +1266,7 @@ func handleRun(args []string) {
 	fmt.Printf("%s$ %s%s\n\n", Dim, cmdToRun, Reset)
 
 	// Connect and run command
-	wsHost := strings.Replace(cfg.Host, "https://", "wss://", 1)
-	wsHost = strings.Replace(wsHost, "http://", "ws://", 1)
-	wsURL := fmt.Sprintf("%s/ws/terminal/%s?token=%s", wsHost, terminalID, url.QueryEscape(cfg.Token))
+	wsURL := buildTerminalWSURL(cfg, terminalID)
 
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	if err != nil {
