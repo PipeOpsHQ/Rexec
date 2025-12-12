@@ -7,7 +7,6 @@
         isAdmin,
         sessionExpiresAt,
     } from "$stores/auth";
-    import { terminal, sessionCount } from "$stores/terminal";
     import { toast } from "$stores/toast";
     import { theme } from "$stores/theme";
     import StatusIcon from "./icons/StatusIcon.svelte";
@@ -35,6 +34,39 @@
     let timeRemaining = "";
     let countdownInterval: ReturnType<typeof setInterval> | null = null;
     let isOAuthLoading = false;
+    let sessionCountValue = 0;
+    let terminalModulePromise: Promise<typeof import("$stores/terminal")> | null =
+        null;
+    let terminalModule: typeof import("$stores/terminal") | null = null;
+    let unsubscribeSessionCount: (() => void) | null = null;
+
+    async function ensureTerminalModule() {
+        if (terminalModule) return terminalModule;
+        if (!terminalModulePromise) {
+            terminalModulePromise = import("$stores/terminal")
+                .then((mod) => {
+                    terminalModule = mod;
+                    return mod;
+                })
+                .catch((err) => {
+                    terminalModulePromise = null;
+                    throw err;
+                });
+        }
+        return terminalModulePromise;
+    }
+
+    async function ensureSessionCountSubscription() {
+        if (unsubscribeSessionCount) return;
+        try {
+            const mod = await ensureTerminalModule();
+            unsubscribeSessionCount = mod.sessionCount.subscribe((count) => {
+                sessionCountValue = count;
+            });
+        } catch (e) {
+            console.warn("[Header] Failed to load terminal store:", e);
+        }
+    }
 
     function toggleMobileMenu() {
         showMobileMenu = !showMobileMenu;
@@ -56,7 +88,11 @@
         if (remaining <= 0) {
             timeRemaining = "Expired";
             // Close all terminals when guest access expires
-            terminal.closeAllSessionsForce();
+            ensureTerminalModule()
+                .then(({ terminal }) => terminal.closeAllSessionsForce())
+                .catch(() => {
+                    // Ignore
+                });
             toast.error("Guest access expired. Please sign in again.");
             auth.logout();
             return;
@@ -86,6 +122,10 @@
         if (countdownInterval) {
             clearInterval(countdownInterval);
         }
+        if (unsubscribeSessionCount) {
+            unsubscribeSessionCount();
+            unsubscribeSessionCount = null;
+        }
     });
 
     // Reactively start/stop countdown when guest status changes
@@ -96,6 +136,15 @@
         clearInterval(countdownInterval);
         countdownInterval = null;
         timeRemaining = "";
+    }
+
+    // Subscribe to terminal sessionCount only when authenticated (keeps landing bundle smaller)
+    $: if ($isAuthenticated) {
+        ensureSessionCountSubscription();
+    } else if (unsubscribeSessionCount) {
+        unsubscribeSessionCount();
+        unsubscribeSessionCount = null;
+        sessionCountValue = 0;
     }
 
     function handleGuestClick() {
@@ -180,10 +229,10 @@
         </button>
         <InstallButton />
         {#if $isAuthenticated}
-            {#if $sessionCount > 0}
+            {#if sessionCountValue > 0}
                 <span class="terminal-status">
                     <span class="terminal-dot"></span>
-                    {$sessionCount} Terminal{$sessionCount > 1 ? 's' : ''}
+                    {sessionCountValue} Terminal{sessionCountValue > 1 ? 's' : ''}
                 </span>
             {/if}
 

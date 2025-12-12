@@ -11,11 +11,10 @@ Backend Go code lives in `cmd/` (binaries) and `internal/` (packages). Key entry
 - Docker stack: `make docker-run` and `make logs`.
 
 ## Coding Style & Naming
-Go follows standard `gofmt` output (tabs, 1TBS). Run `make fmt` and `make lint` (`golangci-lint`) before pushing. Tests and helpers should be table-driven where it helps readability. Svelte/TypeScript uses 2-space indentation; keep new components in `web-ui/src/lib/components` and stores in `web-ui/src/lib/stores`. Prefer descriptive names like `ContainerManager` over abbreviations.
+Go follows standard `gofmt` output (tabs, 1TBS). Run `make fmt` and `make lint` (`golangci-lint`) before pushing. Tests and helpers should be table-driven where it helps readability. For Svelte/TypeScript, follow the existing style in the file you’re editing (most components use 4-space indentation; some older ones use 2). Keep new components in `web-ui/src/lib/components` and stores in `web-ui/src/lib/stores`. Prefer descriptive names like `ContainerManager` over abbreviations.
 
 ## Testing Guidelines
 Backend tests use the Go `testing` package and live beside code as `*_test.go`. Run `make test` or `make test-coverage`; Docker-dependent tests require a running Docker daemon.
 
 ## Commits & Pull Requests
 Commit messages follow conventional commits: `feat:`, `fix:`, `refactor:`, `style:`, `docs:`, `chore(deps):` (e.g., `feat: add agent refresh-token`). PRs should explain the why + what, link issues, and include screenshots/gifs for UI changes. Ensure Go tests and, when UI is touched, `npm run check` pass.
-

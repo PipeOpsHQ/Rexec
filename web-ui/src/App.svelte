@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount } from "svelte";
+    import { onDestroy, onMount } from "svelte";
     import { get } from "svelte/store";
     import { auth, isAuthenticated, isAdmin, token } from "$stores/auth";
     import {
@@ -7,41 +7,190 @@
         startAutoRefresh,
         stopAutoRefresh,
     } from "$stores/containers";
-    import { terminal, hasSessions } from "$stores/terminal";
     import { toast } from "$stores/toast";
     import { collab } from "$stores/collab";
     import { theme } from "$stores/theme";
 
-    // Components
+    // Components (eager)
     import Header from "$components/Header.svelte";
     import Landing from "$components/Landing.svelte";
-    import Dashboard from "$components/Dashboard.svelte";
-    import AdminDashboard from "$components/AdminDashboard.svelte";
-    import CreateTerminal from "$components/CreateTerminal.svelte";
-    import Settings from "$components/Settings.svelte";
-    import SSHKeys from "$components/SSHKeys.svelte";
-    import TerminalView from "$components/terminal/TerminalView.svelte";
     import ToastContainer from "$components/ui/ToastContainer.svelte";
-    import JoinSession from "$components/JoinSession.svelte";
-    import Pricing from "$components/Pricing.svelte";
     import StatusIcon from "$components/icons/StatusIcon.svelte";
-    import Guides from "$components/Guides.svelte";
-    import UseCases from "$components/UseCases.svelte";
-    import UseCaseDetail from "$components/UseCaseDetail.svelte";
-    import SnippetsPage from "$components/SnippetsPage.svelte";
-    import RecordingsPage from "$components/RecordingsPage.svelte";
-    import MarketplacePage from "$components/MarketplacePage.svelte";
-    import NotFound from "$components/NotFound.svelte";
-    import Promo from "$components/Promo.svelte";
-    import Billing from "$components/Billing.svelte";
-    import ScreenLock from "$components/ScreenLock.svelte";
-    import AgentDocs from "$components/AgentDocs.svelte";
-    import CLIDocs from "$components/CLIDocs.svelte";
-    import CLILogin from "$components/CLILogin.svelte";
-    import Account from "$components/Account.svelte";
-    import AccountLayout from "$components/AccountLayout.svelte";
-    import APITokens from "$components/APITokens.svelte";
-    import Docs from "$components/Docs.svelte";
+
+    // Lazy terminal store (keeps marketing bundle small)
+    type TerminalStoreModule = typeof import("$stores/terminal");
+    type TerminalViewMode = "floating" | "docked" | "fullscreen";
+    let terminalStoreModule: TerminalStoreModule | null = null;
+    let terminalStorePromise: Promise<TerminalStoreModule> | null = null;
+    let hasTerminalSessions = false;
+    let unsubscribeHasSessions: (() => void) | null = null;
+
+    async function ensureTerminalStore() {
+        if (terminalStoreModule) return terminalStoreModule;
+        if (!terminalStorePromise) {
+            terminalStorePromise = import("$stores/terminal")
+                .then((mod) => {
+                    terminalStoreModule = mod;
+                    if (!unsubscribeHasSessions) {
+                        unsubscribeHasSessions = mod.hasSessions.subscribe(
+                            (value) => {
+                                hasTerminalSessions = value;
+                            },
+                        );
+                    }
+                    return mod;
+                })
+                .catch((err) => {
+                    terminalStorePromise = null;
+                    throw err;
+                });
+        }
+        return terminalStorePromise;
+    }
+
+    async function openTerminalForContainer(
+        containerId: string,
+        name: string,
+        viewMode?: TerminalViewMode,
+    ) {
+        try {
+            const { terminal } = await ensureTerminalStore();
+            if (viewMode) terminal.setViewMode(viewMode);
+            await terminal.createSession(containerId, name);
+        } catch (e) {
+            console.error("[App] Failed to open terminal:", e);
+            toast.error("Failed to open terminal. Please try again.");
+        }
+    }
+
+    async function openTerminalForAgent(
+        agentId: string,
+        name: string,
+        viewMode?: TerminalViewMode,
+    ) {
+        try {
+            const { terminal } = await ensureTerminalStore();
+            if (viewMode) terminal.setViewMode(viewMode);
+            await terminal.createAgentSession(agentId, name);
+        } catch (e) {
+            console.error("[App] Failed to open agent terminal:", e);
+            toast.error("Failed to connect to agent terminal.");
+        }
+    }
+
+    type CollabMode = "view" | "control";
+    type CollabRole = "owner" | "editor" | "viewer";
+
+    async function openTerminalForCollab(
+        containerId: string,
+        name: string,
+        mode: CollabMode,
+        role: CollabRole,
+    ) {
+        try {
+            const { terminal } = await ensureTerminalStore();
+            await terminal.createCollabSession(containerId, name, mode, role);
+        } catch (e) {
+            console.error("[App] Failed to join shared session:", e);
+            toast.error("Failed to join session. Please try again.");
+        }
+    }
+
+    // Lazy component loading (code-split views so marketing stays lightweight)
+    type LazyComponentKey =
+        | "dashboard"
+        | "adminDashboard"
+        | "createTerminal"
+        | "settings"
+        | "sshKeys"
+        | "snippetsPage"
+        | "marketplacePage"
+        | "agentDocs"
+        | "cliDocs"
+        | "docs"
+        | "cliLogin"
+        | "account"
+        | "accountLayout"
+        | "billing"
+        | "recordingsPage"
+        | "apiTokens"
+        | "joinSession"
+        | "guides"
+        | "useCases"
+        | "useCaseDetail"
+        | "pricing"
+        | "promo"
+        | "notFound"
+        | "terminalView"
+        | "screenLock";
+
+    type LazyComponentModule = { default: any };
+    type LazyLoader = () => Promise<LazyComponentModule>;
+
+    const componentLoaders: Record<LazyComponentKey, LazyLoader> = {
+        dashboard: () => import("$components/Dashboard.svelte"),
+        adminDashboard: () => import("$components/AdminDashboard.svelte"),
+        createTerminal: () => import("$components/CreateTerminal.svelte"),
+        settings: () => import("$components/Settings.svelte"),
+        sshKeys: () => import("$components/SSHKeys.svelte"),
+        snippetsPage: () => import("$components/SnippetsPage.svelte"),
+        marketplacePage: () => import("$components/MarketplacePage.svelte"),
+        agentDocs: () => import("$components/AgentDocs.svelte"),
+        cliDocs: () => import("$components/CLIDocs.svelte"),
+        docs: () => import("$components/Docs.svelte"),
+        cliLogin: () => import("$components/CLILogin.svelte"),
+        account: () => import("$components/Account.svelte"),
+        accountLayout: () => import("$components/AccountLayout.svelte"),
+        billing: () => import("$components/Billing.svelte"),
+        recordingsPage: () => import("$components/RecordingsPage.svelte"),
+        apiTokens: () => import("$components/APITokens.svelte"),
+        joinSession: () => import("$components/JoinSession.svelte"),
+        guides: () => import("$components/Guides.svelte"),
+        useCases: () => import("$components/UseCases.svelte"),
+        useCaseDetail: () => import("$components/UseCaseDetail.svelte"),
+        pricing: () => import("$components/Pricing.svelte"),
+        promo: () => import("$components/Promo.svelte"),
+        notFound: () => import("$components/NotFound.svelte"),
+        terminalView: () => import("$components/terminal/TerminalView.svelte"),
+        screenLock: () => import("$components/ScreenLock.svelte"),
+    };
+
+    let lazyComponents: Partial<Record<LazyComponentKey, any>> = {};
+    const componentPromises = new Map<LazyComponentKey, Promise<any>>();
+
+    async function ensureComponent(key: LazyComponentKey) {
+        if (lazyComponents[key]) return lazyComponents[key];
+        const existing = componentPromises.get(key);
+        if (existing) return existing;
+
+        const promise = componentLoaders[key]()
+            .then((mod) => {
+                const component = mod.default;
+                lazyComponents = { ...lazyComponents, [key]: component };
+                componentPromises.delete(key);
+                return component;
+            })
+            .catch((err) => {
+                componentPromises.delete(key);
+                throw err;
+            });
+
+        componentPromises.set(key, promise);
+        return promise;
+    }
+
+    function preloadComponent(key: LazyComponentKey) {
+        ensureComponent(key).catch((err) => {
+            console.error(`[App] Failed to load component '${key}':`, err);
+        });
+    }
+
+    onDestroy(() => {
+        if (unsubscribeHasSessions) {
+            unsubscribeHasSessions();
+            unsubscribeHasSessions = null;
+        }
+    });
 
     // App state
     let currentView:
@@ -429,8 +578,11 @@
             if (response.ok) {
                 const status = await response.json();
                 if (status.status === "online") {
-                    terminal.setViewMode("docked");
-                    terminal.createAgentSession(agentId, `Agent ${agentId.slice(0, 8)}`);
+                    void openTerminalForAgent(
+                        agentId,
+                        `Agent ${agentId.slice(0, 8)}`,
+                        "docked",
+                    );
                     currentView = "dashboard";
                 } else {
                     toast.error("Agent is offline");
@@ -716,8 +868,7 @@
             const containerName = nameParam || "Terminal";
 
             // Set to docked mode for full-screen terminal experience
-            terminal.setViewMode("docked");
-            terminal.createSession(containerId, containerName);
+            void openTerminalForContainer(containerId, containerName, "docked");
             currentView = "dashboard";
             return;
         }
@@ -749,8 +900,11 @@
             const result = await containers.getContainer(containerId);
             if (result.success && result.container) {
                 // Set terminal to docked mode for direct URL access (full screen)
-                terminal.setViewMode("docked");
-                terminal.createSession(containerId, result.container.name);
+                void openTerminalForContainer(
+                    containerId,
+                    result.container.name,
+                    "docked",
+                );
             } else {
                 // Container not found
                 currentView = "404";
@@ -812,17 +966,18 @@
 
         // Subscribe to theme changes and update terminal themes
         const unsubscribeTheme = theme.subscribe((currentTheme) => {
-            terminal.updateTheme(currentTheme === 'dark');
+            terminalStoreModule?.terminal.updateTheme(currentTheme === "dark");
         });
 
         // Subscribe to collab session events - close terminal when session ends
         const unsubscribeCollab = collab.onMessage((msg) => {
             if (msg.type === "ended" || msg.type === "expired") {
+                if (!terminalStoreModule) return;
                 // Find and close all collab terminal sessions
-                const state = terminal.getState();
+                const state = terminalStoreModule.terminal.getState();
                 state.sessions.forEach((session, sessionId) => {
                     if (session.isCollabSession) {
-                        terminal.closeSession(sessionId);
+                        terminalStoreModule?.terminal.closeSession(sessionId);
                         toast.info(
                             msg.type === "expired"
                                 ? "Shared session expired"
@@ -961,7 +1116,7 @@
     ) {
         currentView = "landing";
         containers.reset();
-        terminal.closeAllSessionsForce();
+        terminalStoreModule?.terminal.closeAllSessionsForce();
         stopAutoRefresh(); // Stop polling when logged out
     }
 
@@ -1035,7 +1190,7 @@
         currentView = "dashboard";
 
         // Create session - TerminalPanel will handle WebSocket connection
-        terminal.createSession(id, name);
+        void openTerminalForContainer(id, name);
     }
 
     // Handle browser navigation
@@ -1129,6 +1284,100 @@
             currentView = "marketplace";
         }
     }
+
+    // Preload view components when needed (keeps landing bundle small)
+    $: if (hasTerminalSessions) preloadComponent("terminalView");
+    $: if ($isAuthenticated) preloadComponent("screenLock");
+    $: if (showPricing || currentView === "pricing") preloadComponent("pricing");
+
+    $: {
+        switch (currentView) {
+            case "dashboard":
+                preloadComponent("dashboard");
+                break;
+            case "admin":
+                preloadComponent("adminDashboard");
+                break;
+            case "create":
+                preloadComponent("createTerminal");
+                break;
+            case "settings":
+                preloadComponent("settings");
+                break;
+            case "sshkeys":
+                preloadComponent("sshKeys");
+                break;
+            case "snippets":
+                preloadComponent("snippetsPage");
+                break;
+            case "marketplace":
+                preloadComponent("marketplacePage");
+                break;
+            case "agent-docs":
+                preloadComponent("agentDocs");
+                break;
+            case "cli-docs":
+                preloadComponent("cliDocs");
+                break;
+            case "docs":
+                preloadComponent("docs");
+                break;
+            case "cli-login":
+                preloadComponent("cliLogin");
+                break;
+            case "account":
+                preloadComponent("account");
+                break;
+            case "account-settings":
+                preloadComponent("accountLayout");
+                preloadComponent("settings");
+                break;
+            case "account-ssh":
+                preloadComponent("accountLayout");
+                preloadComponent("sshKeys");
+                break;
+            case "account-billing":
+                preloadComponent("accountLayout");
+                preloadComponent("billing");
+                break;
+            case "account-snippets":
+                preloadComponent("accountLayout");
+                preloadComponent("snippetsPage");
+                break;
+            case "account-recordings":
+                preloadComponent("accountLayout");
+                preloadComponent("recordingsPage");
+                break;
+            case "account-api":
+                preloadComponent("accountLayout");
+                preloadComponent("apiTokens");
+                break;
+            case "join":
+                preloadComponent("joinSession");
+                break;
+            case "guides":
+                preloadComponent("guides");
+                break;
+            case "use-cases":
+                preloadComponent("useCases");
+                break;
+            case "use-case-detail":
+                preloadComponent("useCaseDetail");
+                break;
+            case "pricing":
+                preloadComponent("pricing");
+                break;
+            case "promo":
+                preloadComponent("promo");
+                break;
+            case "billing":
+                preloadComponent("billing");
+                break;
+            case "404":
+                preloadComponent("notFound");
+                break;
+        }
+    }
 </script>
 
 <svelte:window onpopstate={handlePopState} />
@@ -1158,7 +1407,7 @@
             on:admin={goToAdmin}
         />
 
-        <main class="main" class:has-terminal={$hasSessions}>
+        <main class="main" class:has-terminal={hasTerminalSessions}>
             {#if currentView === "landing"}
                 <Landing
                     on:guest={openGuestModal}
@@ -1168,349 +1417,520 @@
                         window.history.pushState({}, "", "/" + e.detail.view);
                     }}
                 />
-                {:else if currentView === "dashboard"}                <Dashboard
-                    on:create={goToCreate}
-                    on:connect={(e) => {
-                        // Check if this is an agent connection (id starts with 'agent:')
-                        if (e.detail.id.startsWith('agent:')) {
-                            const agentId = e.detail.id.replace('agent:', '');
-                            terminal.createAgentSession(agentId, e.detail.name);
-                        } else {
-                            // Regular container connection
-                            terminal.createSession(e.detail.id, e.detail.name);
-                        }
-                    }}
-                    on:showAgentDocs={goToAgents}
-                />
+            {:else if currentView === "dashboard"}
+                {#if lazyComponents.dashboard}
+                    <svelte:component
+                        this={lazyComponents.dashboard}
+                        on:create={goToCreate}
+                        on:connect={(e) => {
+                            if (e.detail.id.startsWith("agent:")) {
+                                const agentId = e.detail.id.replace("agent:", "");
+                                void openTerminalForAgent(agentId, e.detail.name);
+                                return;
+                            }
+                            void openTerminalForContainer(e.detail.id, e.detail.name);
+                        }}
+                        on:showAgentDocs={goToAgents}
+                    />
+                {:else}
+                    <div class="view-loading">Loading...</div>
+                {/if}
             {:else if currentView === "admin"}
-                <AdminDashboard />
+                {#if lazyComponents.adminDashboard}
+                    <svelte:component this={lazyComponents.adminDashboard} />
+                {:else}
+                    <div class="view-loading">Loading...</div>
+                {/if}
             {:else if currentView === "create"}
-                <CreateTerminal
-                    on:cancel={goToDashboard}
-                    on:created={onContainerCreated}
-                    on:upgrade={() => {
-                        currentView = "pricing";
-                        window.history.pushState({}, "", "/pricing");
-                    }}
-                />
-            {:else if currentView === "settings"}
-                <Settings 
-                    on:back={goToDashboard} 
-                    on:connectAgent={(e) => {
-                        const { agentId, agentName } = e.detail;
-                        // Create a terminal session for the agent
-                        terminal.createAgentSession(agentId, agentName);
-                        currentView = "dashboard";
-                        window.history.pushState({}, "", "/");
-                        toast.success(`Connecting to ${agentName}...`);
-                    }}
-                />
-            {:else if currentView === "sshkeys"}
-                <SSHKeys
-                    on:back={goToDashboard}
-                    on:run={(e) => {
-                        const command = e.detail.command;
-                        const activeSessionId =
-                            terminal.getState().activeSessionId;
-
-                        if (activeSessionId) {
-                            currentView = "dashboard";
-                            // Small delay to ensure view switch
-                            setTimeout(() => {
-                                terminal.sendInput(
-                                    activeSessionId,
-                                    command + "\n",
-                                );
-                                toast.success("Running SSH command...");
-                            }, 50);
-                        } else {
-                            toast.error(
-                                "No active terminal. Please create one first.",
-                            );
-                            currentView = "dashboard";
-                        }
-                    }}
-                />
-            {:else if currentView === "snippets"}
-                <SnippetsPage on:back={goToDashboard} />
-            {:else if currentView === "marketplace"}
-                <MarketplacePage 
-                    on:back={goToDashboard} 
-                    on:use={(e) => {
-                        // Copy to clipboard handled in component
-                        goToDashboard();
-                    }}
-                />
-            {:else if currentView === "agent-docs"}
-                <AgentDocs 
-                    onback={() => {
-                        window.history.back();
-                    }}
-                />
-            {:else if currentView === "cli-docs"}
-                <CLIDocs 
-                    onback={() => {
-                        window.history.back();
-                    }}
-                />
-            {:else if currentView === "docs"}
-                <Docs 
-                    on:navigate={(e) => {
-                        const view = e.detail.view;
-                        if (view === 'docs/cli') {
-                            currentView = "cli-docs";
-                            window.history.pushState({}, "", "/docs/cli");
-                        } else if (view === 'docs/agent') {
-                            currentView = "agent-docs";
-                            window.history.pushState({}, "", "/docs/agent");
-                        }
-                    }}
-                />
-            {:else if currentView === "cli-login"}
-                <CLILogin />
-            {:else if currentView === "account"}
-                <Account
-                    on:navigate={(e) => {
-                        // Handle internal navigation from Account page
-                        const view = e.detail.view;
-                        if (view === 'dashboard') goToDashboard();
-                        else if (view === 'settings') {
-                            currentView = "account-settings";
-                            accountSection = "settings";
-                            window.history.pushState({}, "", "/account/settings");
-                        }
-                        else if (view === 'sshkeys') {
-                            currentView = "account-ssh";
-                            accountSection = "ssh";
-                            window.history.pushState({}, "", "/account/ssh");
-                        }
-                        else if (view === 'billing') {
-                            currentView = "account-billing";
-                            accountSection = "billing";
-                            window.history.pushState({}, "", "/account/billing");
-                        }
-                        else if (view === 'snippets') {
-                            currentView = "account-snippets";
-                            accountSection = "snippets";
-                            window.history.pushState({}, "", "/account/snippets");
-                        }
-                        else if (view === 'recordings') {
-                            currentView = "account-recordings";
-                            accountSection = "recordings";
-                            window.history.pushState({}, "", "/account/recordings");
-                        }
-                        else if (view === 'pricing') {
+                {#if lazyComponents.createTerminal}
+                    <svelte:component
+                        this={lazyComponents.createTerminal}
+                        on:cancel={goToDashboard}
+                        on:created={onContainerCreated}
+                        on:upgrade={() => {
                             currentView = "pricing";
                             window.history.pushState({}, "", "/pricing");
-                        }
-                        else if (view === 'admin') goToAdmin();
-                        else if (view === 'docs/cli') goToCLI();
-                        else if (view === 'docs/agent') goToAgents();
-                    }}
-                    on:logout={() => auth.logout()}
-                />
-            {:else if currentView === "account-settings"}
-                <AccountLayout section="settings" on:navigate={(e) => {
-                    const view = e.detail.view;
-                    if (view === 'dashboard') goToDashboard();
-                }}>
-                    <Settings
-                        on:back={() => {
-                            currentView = "account";
-                            accountSection = null;
-                            window.history.pushState({}, "", "/account");
                         }}
+                    />
+                {:else}
+                    <div class="view-loading">Loading...</div>
+                {/if}
+            {:else if currentView === "settings"}
+                {#if lazyComponents.settings}
+                    <svelte:component
+                        this={lazyComponents.settings}
+                        on:back={goToDashboard}
                         on:connectAgent={(e) => {
                             const { agentId, agentName } = e.detail;
-                            terminal.createAgentSession(agentId, agentName);
+                            void openTerminalForAgent(agentId, agentName);
                             currentView = "dashboard";
                             window.history.pushState({}, "", "/");
                             toast.success(`Connecting to ${agentName}...`);
                         }}
                     />
-                </AccountLayout>
-            {:else if currentView === "account-ssh"}
-                <AccountLayout section="ssh" on:navigate={(e) => {
-                    const view = e.detail.view;
-                    if (view === 'dashboard') goToDashboard();
-                }}>
-                    <SSHKeys
-                        on:back={() => {
-                            currentView = "account";
-                            accountSection = null;
-                            window.history.pushState({}, "", "/account");
-                        }}
+                {:else}
+                    <div class="view-loading">Loading...</div>
+                {/if}
+            {:else if currentView === "sshkeys"}
+                {#if lazyComponents.sshKeys}
+                    <svelte:component
+                        this={lazyComponents.sshKeys}
+                        on:back={goToDashboard}
                         on:run={(e) => {
                             const command = e.detail.command;
-                            const activeSessionId = terminal.getState().activeSessionId;
+                            const store = terminalStoreModule;
+                            const activeSessionId =
+                                store?.terminal.getState().activeSessionId;
 
-                            if (activeSessionId) {
+                            if (activeSessionId && store) {
                                 currentView = "dashboard";
-                                window.history.pushState({}, "", "/");
                                 setTimeout(() => {
-                                    terminal.sendInput(activeSessionId, command + "\n");
+                                    store.terminal.sendInput(
+                                        activeSessionId,
+                                        command + "\n",
+                                    );
                                     toast.success("Running SSH command...");
                                 }, 50);
                             } else {
-                                toast.error("No active terminal. Please create one first.");
+                                toast.error(
+                                    "No active terminal. Please create one first.",
+                                );
                                 currentView = "dashboard";
-                                window.history.pushState({}, "", "/");
                             }
                         }}
                     />
-                </AccountLayout>
-            {:else if currentView === "account-billing"}
-                <AccountLayout section="billing" on:navigate={(e) => {
-                    const view = e.detail.view;
-                    if (view === 'dashboard') goToDashboard();
-                }}>
-                    <Billing
-                        on:back={() => {
-                            currentView = "account";
-                            accountSection = null;
-                            window.history.pushState({}, "", "/account");
+                {:else}
+                    <div class="view-loading">Loading...</div>
+                {/if}
+            {:else if currentView === "snippets"}
+                {#if lazyComponents.snippetsPage}
+                    <svelte:component
+                        this={lazyComponents.snippetsPage}
+                        on:back={goToDashboard}
+                    />
+                {:else}
+                    <div class="view-loading">Loading...</div>
+                {/if}
+            {:else if currentView === "marketplace"}
+                {#if lazyComponents.marketplacePage}
+                    <svelte:component
+                        this={lazyComponents.marketplacePage}
+                        on:back={goToDashboard}
+                        on:use={() => {
+                            goToDashboard();
                         }}
+                    />
+                {:else}
+                    <div class="view-loading">Loading...</div>
+                {/if}
+            {:else if currentView === "agent-docs"}
+                {#if lazyComponents.agentDocs}
+                    <svelte:component
+                        this={lazyComponents.agentDocs}
+                        onback={() => {
+                            window.history.back();
+                        }}
+                    />
+                {:else}
+                    <div class="view-loading">Loading...</div>
+                {/if}
+            {:else if currentView === "cli-docs"}
+                {#if lazyComponents.cliDocs}
+                    <svelte:component
+                        this={lazyComponents.cliDocs}
+                        onback={() => {
+                            window.history.back();
+                        }}
+                    />
+                {:else}
+                    <div class="view-loading">Loading...</div>
+                {/if}
+            {:else if currentView === "docs"}
+                {#if lazyComponents.docs}
+                    <svelte:component
+                        this={lazyComponents.docs}
+                        on:navigate={(e) => {
+                            const view = e.detail.view;
+                            if (view === "docs/cli") {
+                                currentView = "cli-docs";
+                                window.history.pushState({}, "", "/docs/cli");
+                            } else if (view === "docs/agent") {
+                                currentView = "agent-docs";
+                                window.history.pushState({}, "", "/docs/agent");
+                            }
+                        }}
+                    />
+                {:else}
+                    <div class="view-loading">Loading...</div>
+                {/if}
+            {:else if currentView === "cli-login"}
+                {#if lazyComponents.cliLogin}
+                    <svelte:component this={lazyComponents.cliLogin} />
+                {:else}
+                    <div class="view-loading">Loading...</div>
+                {/if}
+            {:else if currentView === "account"}
+                {#if lazyComponents.account}
+                    <svelte:component
+                        this={lazyComponents.account}
+                        on:navigate={(e) => {
+                            const view = e.detail.view;
+                            if (view === "dashboard") goToDashboard();
+                            else if (view === "settings") {
+                                currentView = "account-settings";
+                                accountSection = "settings";
+                                window.history.pushState(
+                                    {},
+                                    "",
+                                    "/account/settings",
+                                );
+                            } else if (view === "sshkeys") {
+                                currentView = "account-ssh";
+                                accountSection = "ssh";
+                                window.history.pushState({}, "", "/account/ssh");
+                            } else if (view === "billing") {
+                                currentView = "account-billing";
+                                accountSection = "billing";
+                                window.history.pushState(
+                                    {},
+                                    "",
+                                    "/account/billing",
+                                );
+                            } else if (view === "snippets") {
+                                currentView = "account-snippets";
+                                accountSection = "snippets";
+                                window.history.pushState(
+                                    {},
+                                    "",
+                                    "/account/snippets",
+                                );
+                            } else if (view === "recordings") {
+                                currentView = "account-recordings";
+                                accountSection = "recordings";
+                                window.history.pushState(
+                                    {},
+                                    "",
+                                    "/account/recordings",
+                                );
+                            } else if (view === "pricing") {
+                                currentView = "pricing";
+                                window.history.pushState({}, "", "/pricing");
+                            } else if (view === "admin") goToAdmin();
+                            else if (view === "docs/cli") goToCLI();
+                            else if (view === "docs/agent") goToAgents();
+                        }}
+                        on:logout={() => auth.logout()}
+                    />
+                {:else}
+                    <div class="view-loading">Loading...</div>
+                {/if}
+            {:else if currentView === "account-settings"}
+                {#if lazyComponents.accountLayout && lazyComponents.settings}
+                    <svelte:component
+                        this={lazyComponents.accountLayout}
+                        section="settings"
+                        on:navigate={(e) => {
+                            const view = e.detail.view;
+                            if (view === "dashboard") goToDashboard();
+                        }}
+                    >
+                        <svelte:component
+                            this={lazyComponents.settings}
+                            on:back={() => {
+                                currentView = "account";
+                                accountSection = null;
+                                window.history.pushState({}, "", "/account");
+                            }}
+                            on:connectAgent={(e) => {
+                                const { agentId, agentName } = e.detail;
+                                void openTerminalForAgent(agentId, agentName);
+                                currentView = "dashboard";
+                                window.history.pushState({}, "", "/");
+                                toast.success(`Connecting to ${agentName}...`);
+                            }}
+                        />
+                    </svelte:component>
+                {:else}
+                    <div class="view-loading">Loading...</div>
+                {/if}
+            {:else if currentView === "account-ssh"}
+                {#if lazyComponents.accountLayout && lazyComponents.sshKeys}
+                    <svelte:component
+                        this={lazyComponents.accountLayout}
+                        section="ssh"
+                        on:navigate={(e) => {
+                            const view = e.detail.view;
+                            if (view === "dashboard") goToDashboard();
+                        }}
+                    >
+                        <svelte:component
+                            this={lazyComponents.sshKeys}
+                            on:back={() => {
+                                currentView = "account";
+                                accountSection = null;
+                                window.history.pushState({}, "", "/account");
+                            }}
+                            on:run={(e) => {
+                                const command = e.detail.command;
+                                const store = terminalStoreModule;
+                                const activeSessionId =
+                                    store?.terminal.getState().activeSessionId;
+
+                                if (activeSessionId && store) {
+                                    currentView = "dashboard";
+                                    window.history.pushState({}, "", "/");
+                                    setTimeout(() => {
+                                        store.terminal.sendInput(
+                                            activeSessionId,
+                                            command + "\n",
+                                        );
+                                        toast.success("Running SSH command...");
+                                    }, 50);
+                                } else {
+                                    toast.error(
+                                        "No active terminal. Please create one first.",
+                                    );
+                                    currentView = "dashboard";
+                                    window.history.pushState({}, "", "/");
+                                }
+                            }}
+                        />
+                    </svelte:component>
+                {:else}
+                    <div class="view-loading">Loading...</div>
+                {/if}
+            {:else if currentView === "account-billing"}
+                {#if lazyComponents.accountLayout && lazyComponents.billing}
+                    <svelte:component
+                        this={lazyComponents.accountLayout}
+                        section="billing"
+                        on:navigate={(e) => {
+                            const view = e.detail.view;
+                            if (view === "dashboard") goToDashboard();
+                        }}
+                    >
+                        <svelte:component
+                            this={lazyComponents.billing}
+                            on:back={() => {
+                                currentView = "account";
+                                accountSection = null;
+                                window.history.pushState({}, "", "/account");
+                            }}
+                            on:pricing={() => {
+                                currentView = "pricing";
+                                window.history.pushState({}, "", "/pricing");
+                            }}
+                        />
+                    </svelte:component>
+                {:else}
+                    <div class="view-loading">Loading...</div>
+                {/if}
+            {:else if currentView === "account-snippets"}
+                {#if lazyComponents.accountLayout && lazyComponents.snippetsPage}
+                    <svelte:component
+                        this={lazyComponents.accountLayout}
+                        section="snippets"
+                        on:navigate={(e) => {
+                            const view = e.detail.view;
+                            if (view === "dashboard") goToDashboard();
+                        }}
+                    >
+                        <svelte:component
+                            this={lazyComponents.snippetsPage}
+                            on:back={() => {
+                                currentView = "account";
+                                accountSection = null;
+                                window.history.pushState({}, "", "/account");
+                            }}
+                        />
+                    </svelte:component>
+                {:else}
+                    <div class="view-loading">Loading...</div>
+                {/if}
+            {:else if currentView === "account-recordings"}
+                {#if lazyComponents.accountLayout && lazyComponents.recordingsPage}
+                    <svelte:component
+                        this={lazyComponents.accountLayout}
+                        section="recordings"
+                        on:navigate={(e) => {
+                            const view = e.detail.view;
+                            if (view === "dashboard") goToDashboard();
+                        }}
+                    >
+                        <svelte:component this={lazyComponents.recordingsPage} />
+                    </svelte:component>
+                {:else}
+                    <div class="view-loading">Loading...</div>
+                {/if}
+            {:else if currentView === "account-api"}
+                {#if lazyComponents.accountLayout && lazyComponents.apiTokens}
+                    <svelte:component
+                        this={lazyComponents.accountLayout}
+                        section="api"
+                        on:navigate={(e) => {
+                            const view = e.detail.view;
+                            if (view === "dashboard") goToDashboard();
+                        }}
+                    >
+                        <svelte:component this={lazyComponents.apiTokens} />
+                    </svelte:component>
+                {:else}
+                    <div class="view-loading">Loading...</div>
+                {/if}
+            {:else if currentView === "join"}
+                {#if lazyComponents.joinSession}
+                    <svelte:component
+                        this={lazyComponents.joinSession}
+                        code={joinCode}
+                        on:joined={(e) => {
+                            void openTerminalForCollab(
+                                e.detail.containerId,
+                                e.detail.containerName,
+                                e.detail.mode || "control",
+                                e.detail.role || "viewer",
+                            );
+                            currentView = "dashboard";
+                        }}
+                        on:cancel={goToDashboard}
+                    />
+                {:else}
+                    <div class="view-loading">Loading...</div>
+                {/if}
+            {:else if currentView === "guides"}
+                {#if lazyComponents.guides}
+                    <svelte:component
+                        this={lazyComponents.guides}
+                        on:tryNow={openGuestModal}
+                        on:navigate={(e) => {
+                            const view = e.detail.view;
+                            if (view === "agentic") {
+                                currentView = "use-cases";
+                                window.history.pushState({}, "", "/use-cases");
+                            } else if (view === "docs/cli") {
+                                goToCLI();
+                            } else if (view === "docs/agent") {
+                                goToAgents();
+                            }
+                        }}
+                    />
+                {:else}
+                    <div class="view-loading">Loading...</div>
+                {/if}
+            {:else if currentView === "use-cases"}
+                {#if lazyComponents.useCases}
+                    <svelte:component
+                        this={lazyComponents.useCases}
+                        on:tryNow={openGuestModal}
+                        on:navigate={(e) => {
+                            useCaseSlug = e.detail.slug;
+                            currentView = "use-case-detail";
+                            window.history.pushState(
+                                {},
+                                "",
+                                `/use-cases/${e.detail.slug}`,
+                            );
+                        }}
+                    />
+                {:else}
+                    <div class="view-loading">Loading...</div>
+                {/if}
+            {:else if currentView === "use-case-detail"}
+                {#if lazyComponents.useCaseDetail}
+                    <svelte:component
+                        this={lazyComponents.useCaseDetail}
+                        slug={useCaseSlug}
+                        on:back={() => {
+                            currentView = "use-cases";
+                            window.history.pushState({}, "", "/use-cases");
+                        }}
+                        on:tryNow={openGuestModal}
+                        on:navigate={(e) => {
+                            useCaseSlug = e.detail.slug;
+                            window.history.pushState(
+                                {},
+                                "",
+                                `/use-cases/${e.detail.slug}`,
+                            );
+                        }}
+                    />
+                {:else}
+                    <div class="view-loading">Loading...</div>
+                {/if}
+            {:else if currentView === "pricing"}
+                {#if lazyComponents.pricing}
+                    <svelte:component this={lazyComponents.pricing} mode="page" />
+                {:else}
+                    <div class="view-loading">Loading...</div>
+                {/if}
+            {:else if currentView === "billing"}
+                {#if lazyComponents.billing}
+                    <svelte:component
+                        this={lazyComponents.billing}
+                        on:back={goToDashboard}
                         on:pricing={() => {
                             currentView = "pricing";
                             window.history.pushState({}, "", "/pricing");
                         }}
                     />
-                </AccountLayout>
-            {:else if currentView === "account-snippets"}
-                <AccountLayout section="snippets" on:navigate={(e) => {
-                    const view = e.detail.view;
-                    if (view === 'dashboard') goToDashboard();
-                }}>
-                    <SnippetsPage
-                        on:back={() => {
-                            currentView = "account";
-                            accountSection = null;
-                            window.history.pushState({}, "", "/account");
+                {:else}
+                    <div class="view-loading">Loading...</div>
+                {/if}
+            {:else if currentView === "promo"}
+                {#if lazyComponents.promo}
+                    <svelte:component
+                        this={lazyComponents.promo}
+                        on:guest={openGuestModal}
+                        on:navigate={(e) => {
+                            if (e.detail.view === "use-cases") {
+                                window.history.pushState({}, "", "/use-cases");
+                                currentView = "use-cases";
+                            } else if (e.detail.view === "guides") {
+                                window.history.pushState({}, "", "/guides");
+                                currentView = "guides";
+                            } else if (e.detail.view === "pricing") {
+                                window.history.pushState({}, "", "/pricing");
+                                currentView = "pricing";
+                            }
                         }}
                     />
-                </AccountLayout>
-            {:else if currentView === "account-recordings"}
-                <AccountLayout section="recordings" on:navigate={(e) => {
-                    const view = e.detail.view;
-                    if (view === 'dashboard') goToDashboard();
-                }}>
-                    <RecordingsPage />
-                </AccountLayout>
-            {:else if currentView === "account-api"}
-                <AccountLayout section="api" on:navigate={(e) => {
-                    const view = e.detail.view;
-                    if (view === 'dashboard') goToDashboard();
-                }}>
-                    <APITokens />
-                </AccountLayout>
-            {:else if currentView === "join"}
-                <JoinSession
-                    code={joinCode}
-                    on:joined={(e) => {
-                        // Use createCollabSession for shared terminals to track mode/role
-                        terminal.createCollabSession(
-                            e.detail.containerId,
-                            e.detail.containerName,
-                            e.detail.mode || "control",
-                            e.detail.role || "viewer",
-                        );
-                        currentView = "dashboard";
-                    }}
-                    on:cancel={goToDashboard}
-                />
-            {:else if currentView === "guides"}
-                <Guides
-                    on:tryNow={openGuestModal}
-                    on:navigate={(e) => {
-                        const view = e.detail.view;
-                        if (view === "agentic") {
-                            // Legacy handling
-                            currentView = "use-cases";
-                            window.history.pushState({}, "", "/use-cases");
-                        } else if (view === "docs/cli") {
-                            goToCLI();
-                        } else if (view === "docs/agent") {
-                            goToAgents();
-                        }
-                    }}
-                />
-            {:else if currentView === "use-cases"}
-                <UseCases
-                    on:tryNow={openGuestModal}
-                    on:navigate={(e) => {
-                        useCaseSlug = e.detail.slug;
-                        currentView = "use-case-detail";
-                        window.history.pushState(
-                            {},
-                            "",
-                            `/use-cases/${e.detail.slug}`,
-                        );
-                    }}
-                />
-            {:else if currentView === "use-case-detail"}
-                <UseCaseDetail
-                    slug={useCaseSlug}
-                    on:back={() => {
-                        currentView = "use-cases";
-                        window.history.pushState({}, "", "/use-cases");
-                    }}
-                    on:tryNow={openGuestModal}
-                    on:navigate={(e) => {
-                        useCaseSlug = e.detail.slug;
-                        window.history.pushState(
-                            {},
-                            "",
-                            `/use-cases/${e.detail.slug}`,
-                        );
-                    }}
-                />
-            {:else if currentView === "pricing"}
-                <Pricing mode="page" />
-            {:else if currentView === "billing"}
-                <Billing 
-                    on:back={goToDashboard}
-                    on:pricing={() => {
-                        currentView = "pricing";
-                        window.history.pushState({}, "", "/pricing");
-                    }}
-                />
-            {:else if currentView === "promo"}
-                <Promo 
-                    on:guest={openGuestModal}
-                    on:navigate={(e) => {
-                        if (e.detail.view === "use-cases") {
-                            window.history.pushState({}, "", "/use-cases");
-                            currentView = "use-cases";
-                        } else if (e.detail.view === "guides") {
-                            window.history.pushState({}, "", "/guides");
-                            currentView = "guides";
-                        } else if (e.detail.view === "pricing") {
-                            window.history.pushState({}, "", "/pricing");
-                            currentView = "pricing";
-                        }
-                    }}
-                />
+                {:else}
+                    <div class="view-loading">Loading...</div>
+                {/if}
             {:else if currentView === "404"}
-                <NotFound on:home={goToDashboard} />
+                {#if lazyComponents.notFound}
+                    <svelte:component
+                        this={lazyComponents.notFound}
+                        on:home={goToDashboard}
+                    />
+                {:else}
+                    <div class="view-loading">Loading...</div>
+                {/if}
             {/if}
         </main>
 
         <!-- Terminal overlay (floating or docked) -->
-        {#if $hasSessions}
-            <TerminalView />
+        {#if hasTerminalSessions}
+            {#if lazyComponents.terminalView}
+                <svelte:component this={lazyComponents.terminalView} />
+            {/if}
         {/if}
 
         <!-- Screen Lock Security -->
-        <ScreenLock />
+        {#if $isAuthenticated && lazyComponents.screenLock}
+            <svelte:component this={lazyComponents.screenLock} />
+        {/if}
 
         <!-- Toast notifications -->
         <ToastContainer />
 
         <!-- Pricing Modal -->
-        <Pricing
-            bind:isOpen={showPricing}
-            on:close={() => (showPricing = false)}
-        />
+        {#if showPricing && lazyComponents.pricing}
+            <svelte:component
+                this={lazyComponents.pricing}
+                bind:isOpen={showPricing}
+                on:close={() => (showPricing = false)}
+            />
+        {/if}
 
         <!-- Guest Email Modal -->
         {#if showGuestModal}
@@ -1602,6 +2022,13 @@
 
     .main.has-terminal {
         padding-bottom: calc(45vh + 20px);
+    }
+
+    .view-loading {
+        padding: 24px 0;
+        text-align: center;
+        color: var(--text-muted);
+        font-size: 14px;
     }
 
     @media (max-width: 768px) {
