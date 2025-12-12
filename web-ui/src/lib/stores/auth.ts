@@ -352,11 +352,11 @@ function createAuthStore() {
       return false;
     },
 
-    // Validate token
-    async validateToken(): Promise<boolean> {
-      try {
-        const token = localStorage.getItem("rexec_token");
-        if (!token) return false;
+	    // Validate token
+	    async validateToken(): Promise<boolean> {
+	      try {
+	        const token = localStorage.getItem("rexec_token");
+	        if (!token) return false;
 
         // For guest tokens, also check if expired locally first
         const userJson = localStorage.getItem("rexec_user");
@@ -375,13 +375,14 @@ function createAuthStore() {
           }
         }
 
-        // Validate with server
-        const response = await fetch("/api/profile", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        return response.ok;
-      } catch (e) {
+	        // Validate with server
+	        const response = await fetch("/api/profile", {
+	          headers: { Authorization: `Bearer ${token}` },
+	        });
+	        // If the session is locked (423), the token is still valid.
+	        if (response.status === 423) return true;
+	        return response.ok;
+	      } catch (e) {
         // Network error - if we have a valid local token, consider it valid
         // This allows offline-first behavior
         const token = localStorage.getItem("rexec_token");

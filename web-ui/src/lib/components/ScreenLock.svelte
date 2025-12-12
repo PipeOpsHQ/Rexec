@@ -186,22 +186,28 @@
         error = "";
     }
 
-    function handleKeydown(event: KeyboardEvent) {
-        if (event.key === "Enter") {
-            if ($isLocked) {
-                handleUnlock();
-            } else if (isSettingUp) {
-                handleSetupPasscode();
-            }
-        } else if (event.key === "Escape") {
-            if (isSettingUp) {
-                cancelSetup();
-            } else if (showSetupPrompt) {
-                dismissSetupPrompt();
-            }
-        }
-    }
-</script>
+	    function handleKeydown(event: KeyboardEvent) {
+	        if (event.key === "Enter") {
+	            if ($isLocked) {
+	                handleUnlock();
+	            } else if (isSettingUp) {
+	                handleSetupPasscode();
+	            }
+	        } else if (event.key === "Escape") {
+	            if (isSettingUp) {
+	                cancelSetup();
+	            } else if (showSetupPrompt) {
+	                dismissSetupPrompt();
+	            }
+	        }
+	    }
+
+	    // Clear sensitive inputs whenever the UI locks.
+	    $: if ($isLocked) {
+	        passcodeInput = "";
+	        error = "";
+	    }
+	</script>
 
 <svelte:window onkeydown={handleKeydown} />
 
@@ -219,19 +225,20 @@
             <h2 class="lock-title">Session Locked</h2>
             <p class="lock-subtitle">Enter your passcode to resume</p>
 
-            <div class="passcode-form">
-                <input
-                    type="password"
-                    class="passcode-input"
-                    bind:value={passcodeInput}
-                    placeholder="Enter passcode"
-                    disabled={isVerifying}
-                    autofocus
-                    autocomplete="off"
-                    autocorrect="off"
-                    autocapitalize="off"
-                    spellcheck="false"
-                />
+	            <div class="passcode-form">
+	                <input
+	                    type="password"
+	                    class="passcode-input"
+	                    bind:value={passcodeInput}
+	                    placeholder="Enter passcode"
+	                    disabled={isVerifying}
+	                    autofocus
+	                    name="screen-lock-passcode"
+	                    autocomplete="new-password"
+	                    autocorrect="off"
+	                    autocapitalize="off"
+	                    spellcheck="false"
+	                />
                 
                 {#if error}
                     <p class="error-message">{error}</p>
