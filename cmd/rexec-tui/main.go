@@ -104,16 +104,20 @@ type Container struct {
 }
 
 type Snippet struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Command     string `json:"command"`
-	Desc        string `json:"description"`
-	Category    string `json:"category"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Content  string `json:"content,omitempty"`
+	Command  string `json:"command,omitempty"` // legacy
+	Desc     string `json:"description"`
+	Language string `json:"language,omitempty"`
+	Category string `json:"category,omitempty"`
 }
 
 // List item implementations
-func (c Container) Title() string       { return c.Name }
-func (c Container) Description() string { return fmt.Sprintf("%s • %s • %s", c.Image, c.Status, c.Role) }
+func (c Container) Title() string { return c.Name }
+func (c Container) Description() string {
+	return fmt.Sprintf("%s • %s • %s", c.Image, c.Status, c.Role)
+}
 func (c Container) FilterValue() string { return c.Name }
 
 func (s Snippet) Title() string       { return s.Name }
@@ -140,25 +144,25 @@ type tickMsg time.Time
 
 // Model
 type model struct {
-	config     *Config
-	view       View
-	width      int
-	height     int
-	
+	config *Config
+	view   View
+	width  int
+	height int
+
 	// Lists
 	terminalList list.Model
 	snippetList  list.Model
-	
+
 	// Data
 	containers []Container
 	snippets   []Snippet
-	
+
 	// UI State
-	selectedIdx  int
-	loading      bool
-	spinner      spinner.Model
-	err          error
-	
+	selectedIdx int
+	loading     bool
+	spinner     spinner.Model
+	err         error
+
 	// Terminal
 	terminalConn   *websocket.Conn
 	terminalOutput string
@@ -167,29 +171,29 @@ type model struct {
 
 func initialModel() model {
 	cfg := loadConfig()
-	
+
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(primaryColor)
-	
+
 	// Terminal list
 	terminalDelegate := list.NewDefaultDelegate()
 	terminalDelegate.Styles.SelectedTitle = terminalDelegate.Styles.SelectedTitle.Foreground(primaryColor)
 	terminalDelegate.Styles.SelectedDesc = terminalDelegate.Styles.SelectedDesc.Foreground(dimColor)
-	
+
 	terminalList := list.New([]list.Item{}, terminalDelegate, 0, 0)
 	terminalList.Title = "Terminals"
 	terminalList.SetShowHelp(false)
 	terminalList.SetFilteringEnabled(true)
 	terminalList.Styles.Title = titleStyle
-	
+
 	// Snippet list
 	snippetDelegate := list.NewDefaultDelegate()
 	snippetList := list.New([]list.Item{}, snippetDelegate, 0, 0)
 	snippetList.Title = "Snippets"
 	snippetList.SetShowHelp(false)
 	snippetList.Styles.Title = titleStyle
-	
+
 	return model{
 		config:       cfg,
 		view:         ViewDashboard,
@@ -210,7 +214,7 @@ func (m model) Init() tea.Cmd {
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
-	
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -253,13 +257,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, connectToTerminal(m.config, m.containers[idx].ID)
 			}
 		}
-	
+
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
 		m.terminalList.SetSize(msg.Width-4, msg.Height-10)
 		m.snippetList.SetSize(msg.Width-4, msg.Height-10)
-		
+
 	case containersMsg:
 		m.loading = false
 		m.containers = msg
@@ -268,7 +272,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			items[i] = c
 		}
 		m.terminalList.SetItems(items)
-		
+
 	case snippetsMsg:
 		m.snippets = msg
 		items := make([]list.Item, len(msg))
@@ -276,17 +280,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			items[i] = s
 		}
 		m.snippetList.SetItems(items)
-		
+
 	case errorMsg:
 		m.loading = false
 		m.err = msg
-		
+
 	case spinner.TickMsg:
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)
 		cmds = append(cmds, cmd)
 	}
-	
+
 	// Update sub-models
 	switch m.view {
 	case ViewTerminals:
@@ -298,7 +302,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.snippetList, cmd = m.snippetList.Update(msg)
 		cmds = append(cmds, cmd)
 	}
-	
+
 	return m, tea.Batch(cmds...)
 }
 
@@ -306,14 +310,14 @@ func (m model) View() string {
 	if m.width == 0 {
 		return "Loading..."
 	}
-	
+
 	var s strings.Builder
-	
+
 	// Header
 	header := m.renderHeader()
 	s.WriteString(header)
 	s.WriteString("\n")
-	
+
 	// Content based on view
 	switch m.view {
 	case ViewDashboard:
@@ -323,11 +327,11 @@ func (m model) View() string {
 	case ViewSnippets:
 		s.WriteString(m.snippetList.View())
 	}
-	
+
 	// Footer/Help
 	s.WriteString("\n")
 	s.WriteString(m.renderHelp())
-	
+
 	return s.String()
 }
 
@@ -339,21 +343,21 @@ func (m model) renderHeader() string {
   ██╔══██╗██╔══╝   ██╔██╗ ██╔══╝  ██║     
   ██║  ██║███████╗██╔╝ ██╗███████╗╚██████╗
   ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚══════╝ ╚═════╝`
-	
+
 	logoStyle := lipgloss.NewStyle().
 		Foreground(primaryColor).
 		Bold(true)
-	
+
 	userInfo := dimStyle.Render(fmt.Sprintf("  %s • %s", m.config.Username, m.config.Tier))
-	
+
 	return logoStyle.Render(logo) + "\n" + userInfo
 }
 
 func (m model) renderDashboard() string {
 	var s strings.Builder
-	
+
 	s.WriteString("\n")
-	
+
 	// Stats row
 	runningCount := 0
 	for _, c := range m.containers {
@@ -361,11 +365,11 @@ func (m model) renderDashboard() string {
 			runningCount++
 		}
 	}
-	
+
 	statsStyle := lipgloss.NewStyle().
 		Padding(1, 2).
 		Margin(0, 1)
-	
+
 	statBox := func(label, value string, color lipgloss.Color) string {
 		return statsStyle.Render(
 			lipgloss.JoinVertical(
@@ -375,7 +379,7 @@ func (m model) renderDashboard() string {
 			),
 		)
 	}
-	
+
 	stats := lipgloss.JoinHorizontal(
 		lipgloss.Top,
 		statBox("Total", fmt.Sprintf("%d", len(m.containers)), primaryColor),
@@ -383,14 +387,14 @@ func (m model) renderDashboard() string {
 		statBox("Stopped", fmt.Sprintf("%d", len(m.containers)-runningCount), warningColor),
 		statBox("Snippets", fmt.Sprintf("%d", len(m.snippets)), secondaryColor),
 	)
-	
+
 	s.WriteString(stats)
 	s.WriteString("\n\n")
-	
+
 	// Recent terminals
 	s.WriteString(titleStyle.Render("  Recent Terminals"))
 	s.WriteString("\n\n")
-	
+
 	if m.loading {
 		s.WriteString(fmt.Sprintf("  %s Loading...\n", m.spinner.View()))
 	} else if len(m.containers) == 0 {
@@ -400,22 +404,22 @@ func (m model) renderDashboard() string {
 		if len(m.containers) < maxShow {
 			maxShow = len(m.containers)
 		}
-		
+
 		for i := 0; i < maxShow; i++ {
 			c := m.containers[i]
-			
+
 			statusIcon := "○"
 			statusStyle := statusStoppedStyle
 			if c.Status == "running" {
 				statusIcon = "●"
 				statusStyle = statusRunningStyle
 			}
-			
+
 			shortID := c.ID
 			if len(shortID) > 8 {
 				shortID = shortID[:8]
 			}
-			
+
 			line := fmt.Sprintf("  %s %d. %-25s %s %s\n",
 				statusStyle.Render(statusIcon),
 				i+1,
@@ -425,18 +429,18 @@ func (m model) renderDashboard() string {
 			)
 			s.WriteString(line)
 		}
-		
+
 		if len(m.containers) > 5 {
 			s.WriteString(dimStyle.Render(fmt.Sprintf("\n  ... and %d more (press 't' to see all)\n", len(m.containers)-5)))
 		}
 	}
-	
+
 	return s.String()
 }
 
 func (m model) renderHelp() string {
 	var keys []string
-	
+
 	switch m.view {
 	case ViewDashboard:
 		keys = []string{
@@ -456,7 +460,7 @@ func (m model) renderHelp() string {
 			"q quit",
 		}
 	}
-	
+
 	helpItems := make([]string, len(keys))
 	for i, k := range keys {
 		parts := strings.SplitN(k, " ", 2)
@@ -466,7 +470,7 @@ func (m model) renderHelp() string {
 			helpItems[i] = dimStyle.Render(k)
 		}
 	}
-	
+
 	return helpStyle.Render(strings.Join(helpItems, "  •  "))
 }
 
@@ -496,15 +500,15 @@ func createTerminal(cfg *Config) tea.Cmd {
 		// For now, just create with defaults
 		body := map[string]interface{}{
 			"name":  fmt.Sprintf("terminal-%d", time.Now().Unix()),
-			"image": "ubuntu:22.04",
+			"image": "ubuntu",
 			"role":  "default",
 		}
-		
+
 		_, err := apiRequest(cfg, "POST", "/api/containers", body)
 		if err != nil {
 			return errorMsg(err)
 		}
-		
+
 		// Refresh list
 		containers, err := apiGetContainers(cfg)
 		if err != nil {
@@ -530,29 +534,29 @@ func connectToTerminal(cfg *Config, containerID string) tea.Cmd {
 // API helpers
 func loadConfig() *Config {
 	cfg := &Config{Host: DefaultHost}
-	
+
 	if host := os.Getenv("REXEC_HOST"); host != "" {
 		cfg.Host = host
 	}
 	if token := os.Getenv("REXEC_TOKEN"); token != "" {
 		cfg.Token = token
 	}
-	
+
 	home, _ := os.UserHomeDir()
 	configPath := filepath.Join(home, ConfigDir, ConfigFile)
-	
+
 	data, err := os.ReadFile(configPath)
 	if err == nil {
 		json.Unmarshal(data, cfg)
 	}
-	
+
 	if host := os.Getenv("REXEC_HOST"); host != "" {
 		cfg.Host = host
 	}
 	if token := os.Getenv("REXEC_TOKEN"); token != "" {
 		cfg.Token = token
 	}
-	
+
 	return cfg
 }
 
@@ -562,25 +566,25 @@ func apiRequest(cfg *Config, method, endpoint string, body interface{}) ([]byte,
 		data, _ := json.Marshal(body)
 		reqBody = bytes.NewReader(data)
 	}
-	
+
 	reqURL := cfg.Host + endpoint
 	req, err := http.NewRequest(method, reqURL, reqBody)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	req.Header.Set("Content-Type", "application/json")
 	if cfg.Token != "" {
 		req.Header.Set("Authorization", "Bearer "+cfg.Token)
 	}
-	
+
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	
+
 	return io.ReadAll(resp.Body)
 }
 
@@ -589,7 +593,14 @@ func apiGetContainers(cfg *Config) ([]Container, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
+	var wrapped struct {
+		Containers []Container `json:"containers"`
+	}
+	if err := json.Unmarshal(data, &wrapped); err == nil && wrapped.Containers != nil {
+		return wrapped.Containers, nil
+	}
+
 	var containers []Container
 	err = json.Unmarshal(data, &containers)
 	return containers, err
@@ -600,7 +611,14 @@ func apiGetSnippets(cfg *Config) ([]Snippet, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
+	var wrapped struct {
+		Snippets []Snippet `json:"snippets"`
+	}
+	if err := json.Unmarshal(data, &wrapped); err == nil && wrapped.Snippets != nil {
+		return wrapped.Snippets, nil
+	}
+
 	var snippets []Snippet
 	err = json.Unmarshal(data, &snippets)
 	return snippets, err
@@ -608,12 +626,12 @@ func apiGetSnippets(cfg *Config) ([]Snippet, error) {
 
 // Keymap
 type keyMap struct {
-	Up     key.Binding
-	Down   key.Binding
-	Enter  key.Binding
-	Back   key.Binding
-	Quit   key.Binding
-	Create key.Binding
+	Up      key.Binding
+	Down    key.Binding
+	Enter   key.Binding
+	Back    key.Binding
+	Quit    key.Binding
+	Create  key.Binding
 	Refresh key.Binding
 }
 
@@ -650,18 +668,18 @@ var keys = keyMap{
 
 func main() {
 	cfg := loadConfig()
-	
+
 	if cfg.Token == "" {
 		fmt.Println("Not logged in. Run 'rexec login' first.")
 		os.Exit(1)
 	}
-	
+
 	p := tea.NewProgram(
 		initialModel(),
 		tea.WithAltScreen(),
 		tea.WithMouseCellMotion(),
 	)
-	
+
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
