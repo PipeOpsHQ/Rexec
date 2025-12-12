@@ -612,6 +612,7 @@
                         <button
                             class="fullscreen-tab"
                             class:active={id === activeId && !showCreatePanel}
+                            class:agent-tab={session.isAgentSession}
                             onclick={() => {
                                 showCreatePanel = false;
                                 setActive(id);
@@ -754,6 +755,7 @@
                                 class="floating-tab"
                                 class:active={id === activeId &&
                                     !showCreatePanel}
+                                class:agent-tab={session.isAgentSession}
                                 class:dragging={draggingTabId === id &&
                                     isDraggingTab}
                                 onclick={() => {
@@ -961,6 +963,7 @@
                                 class="docked-tab"
                                 class:active={id === activeId &&
                                     !showCreatePanel}
+                                class:agent-tab={session.isAgentSession}
                                 class:dragging={draggingTabId === id &&
                                     isDraggingTab}
                                 onclick={() => {
@@ -1482,6 +1485,26 @@
         color: var(--text);
     }
 
+    /* Agent tabs use purple accent for quick differentiation */
+    .fullscreen-tab.agent-tab {
+        border-color: rgba(168, 85, 247, 0.5);
+        background: rgba(168, 85, 247, 0.08);
+        color: #a855f7;
+    }
+
+    .fullscreen-tab.agent-tab:hover {
+        background: rgba(168, 85, 247, 0.12);
+        color: #a855f7;
+    }
+
+    .fullscreen-tab.agent-tab.active {
+        background: var(--bg);
+        border-color: #a855f7;
+        border-bottom-color: var(--bg);
+        color: #a855f7;
+        box-shadow: 0 0 8px rgba(168, 85, 247, 0.35);
+    }
+
     .fullscreen-tab.new-tab-btn {
         background: transparent;
         border: 1px dashed var(--border);
@@ -1604,6 +1627,21 @@
         background: rgba(0, 255, 65, 0.1);
         border-color: var(--accent);
         color: var(--accent);
+    }
+
+    .floating-tab.agent-tab {
+        color: #a855f7;
+    }
+
+    .floating-tab.agent-tab:hover {
+        background: rgba(168, 85, 247, 0.08);
+        color: #a855f7;
+    }
+
+    .floating-tab.agent-tab.active {
+        background: rgba(168, 85, 247, 0.12);
+        border-color: #a855f7;
+        color: #a855f7;
     }
 
     .floating-tab.dragging,
@@ -1831,6 +1869,25 @@
         border-color: var(--accent);
         border-bottom-color: var(--bg);
         color: var(--text);
+    }
+
+    .docked-tab.agent-tab {
+        border-color: rgba(168, 85, 247, 0.5);
+        background: rgba(168, 85, 247, 0.08);
+        color: #a855f7;
+    }
+
+    .docked-tab.agent-tab:hover {
+        background: rgba(168, 85, 247, 0.12);
+        color: #a855f7;
+    }
+
+    .docked-tab.agent-tab.active {
+        background: var(--bg);
+        border-color: #a855f7;
+        border-bottom-color: var(--bg);
+        color: #a855f7;
+        box-shadow: 0 0 8px rgba(168, 85, 247, 0.35);
     }
 
     .docked-tabs .new-tab-btn {

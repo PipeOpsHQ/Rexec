@@ -993,6 +993,7 @@ func handleConnect(args []string) {
 	wsURL := buildTerminalWSURL(cfg, terminalID)
 
 	fmt.Printf("%sConnecting to terminal %s...%s\n", Dim, terminalID, Reset)
+	fmt.Printf("%sTip: press Ctrl+] or double Ctrl+C to disconnect.%s\n", Dim, Reset)
 
 	// Connect to WebSocket
 	dialer := websocket.DefaultDialer
@@ -1096,6 +1097,7 @@ func handleConnect(args []string) {
 
 	// Read from stdin and write to WebSocket
 	buf := make([]byte, 1024)
+	var lastCtrlC time.Time
 	for {
 		n, err := os.Stdin.Read(buf)
 		if err != nil {
@@ -1107,6 +1109,19 @@ func handleConnect(args []string) {
 			term.Restore(int(os.Stdin.Fd()), oldState)
 			fmt.Println("\n\rDisconnected.")
 			return
+		}
+
+		// Double Ctrl+C within 1s disconnects locally; single Ctrl+C is forwarded to remote.
+		if n == 1 && buf[0] == 0x03 {
+			now := time.Now()
+			if !lastCtrlC.IsZero() && now.Sub(lastCtrlC) < time.Second {
+				term.Restore(int(os.Stdin.Fd()), oldState)
+				fmt.Println("\n\rDisconnected.")
+				return
+			}
+			lastCtrlC = now
+		} else {
+			lastCtrlC = time.Time{}
 		}
 
 		conn.WriteMessage(websocket.BinaryMessage, buf[:n])
