@@ -473,6 +473,9 @@ func downloadToTemp(downloadURL, dir string) (string, error) {
 		return "", fmt.Errorf("downloaded file too small")
 	}
 
+	// Make it executable so we can verify its version before swapping.
+	_ = os.Chmod(tmpPath, 0755)
+
 	return tmpPath, nil
 }
 
