@@ -77,7 +77,7 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, j
 			if err != nil {
 				store.CreateAuditLog(reqCtx, &models.AuditLog{
 					ID:        uuid.New().String(),
-					UserID:    "anonymous",
+					UserID:    nil,
 					Action:    "api_token_auth_failed",
 					IPAddress: c.ClientIP(),
 					UserAgent: c.Request.UserAgent(),
@@ -122,7 +122,7 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, j
 		if err != nil || token == nil {
 			store.CreateAuditLog(reqCtx, &models.AuditLog{
 				ID:        uuid.New().String(),
-				UserID:    "anonymous",
+				UserID:    nil,
 				Action:    "authentication_failed",
 				IPAddress: c.ClientIP(),
 				UserAgent: c.Request.UserAgent(),
@@ -139,7 +139,7 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, j
 			// Log failed audit attempt
 			store.CreateAuditLog(reqCtx, &models.AuditLog{
 				ID:        uuid.New().String(),
-				UserID:    "anonymous", // No user ID yet
+				UserID:    nil, // No user ID yet
 				Action:    "authentication_failed",
 				IPAddress: c.ClientIP(),
 				UserAgent: c.Request.UserAgent(),
@@ -184,7 +184,7 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, j
 		if !userID_ok || !email_ok || !username_ok || !tier_ok || !guest_ok || !subActive_ok || !exp_ok {
 			store.CreateAuditLog(reqCtx, &models.AuditLog{
 				ID:        uuid.New().String(),
-				UserID:    userID,
+				UserID:    &userID,
 				Action:    "authentication_failed",
 				IPAddress: c.ClientIP(),
 				UserAgent: c.Request.UserAgent(),
@@ -209,7 +209,7 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, j
 		if err != nil || user == nil {
 			store.CreateAuditLog(reqCtx, &models.AuditLog{
 				ID:        uuid.New().String(),
-				UserID:    userID,
+				UserID:    &userID,
 				Action:    "authentication_failed",
 				IPAddress: c.ClientIP(),
 				UserAgent: c.Request.UserAgent(),
@@ -257,7 +257,7 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, j
 			if !checkIPWhitelist(clientIP, user.AllowedIPs) {
 				store.CreateAuditLog(reqCtx, &models.AuditLog{
 					ID:        uuid.New().String(),
-					UserID:    userID,
+					UserID:    &userID,
 					Action:    "ip_blocked",
 					IPAddress: clientIP,
 					UserAgent: c.Request.UserAgent(),
@@ -273,7 +273,7 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, j
 		// Log successful authentication
 		store.CreateAuditLog(reqCtx, &models.AuditLog{
 			ID:        uuid.New().String(),
-			UserID:    userID,
+			UserID:    &userID,
 			Action:    "authentication_success",
 			IPAddress: c.ClientIP(),
 			UserAgent: c.Request.UserAgent(),

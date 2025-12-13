@@ -1574,7 +1574,7 @@ func (h *AuthHandler) VerifyMFA(c *gin.Context) {
 	// Log audit event
 	h.store.CreateAuditLog(ctx, &models.AuditLog{
 		ID:        uuid.New().String(),
-		UserID:    userID,
+		UserID:    &userID,
 		Action:    "mfa_enabled",
 		IPAddress: c.ClientIP(),
 		UserAgent: c.Request.UserAgent(),
@@ -1630,7 +1630,7 @@ func (h *AuthHandler) DisableMFA(c *gin.Context) {
 	// Log audit event
 	h.store.CreateAuditLog(ctx, &models.AuditLog{
 		ID:        uuid.New().String(),
-		UserID:    userID,
+		UserID:    &userID,
 		Action:    "mfa_disabled",
 		IPAddress: c.ClientIP(),
 		UserAgent: c.Request.UserAgent(),

@@ -47,7 +47,7 @@ type UserSession struct {
 // AuditLog represents a system audit log entry
 type AuditLog struct {
 	ID        string    `json:"id"`
-	UserID    string    `json:"user_id"`
+	UserID    *string   `json:"user_id"` // Nullable for anonymous actions
 	Action    string    `json:"action"` // e.g., "login", "container_create"
 	IPAddress string    `json:"ip_address"`
 	UserAgent string    `json:"user_agent"`

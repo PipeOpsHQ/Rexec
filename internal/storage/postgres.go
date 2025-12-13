@@ -284,6 +284,10 @@ func (s *PostgresStore) migrate() error {
 				ALTER TABLE users ADD COLUMN subscription_active BOOLEAN DEFAULT false;
 			END IF;
 		END $$`,
+		`DO $$ BEGIN
+			ALTER TABLE audit_logs ALTER COLUMN user_id DROP NOT NULL;
+		EXCEPTION WHEN OTHERS THEN NULL;
+		END $$`,
 	}
 
 	for _, query := range addColumns {

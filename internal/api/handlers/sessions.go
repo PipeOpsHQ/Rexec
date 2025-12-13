@@ -95,7 +95,7 @@ func (h *SessionsHandler) Revoke(c *gin.Context) {
 	// Audit
 	_ = h.store.CreateAuditLog(c.Request.Context(), &models.AuditLog{
 		ID:        uuid.New().String(),
-		UserID:    userID,
+		UserID:    &userID,
 		Action:    "session_revoked",
 		IPAddress: c.ClientIP(),
 		UserAgent: c.Request.UserAgent(),
@@ -137,7 +137,7 @@ func (h *SessionsHandler) RevokeOthers(c *gin.Context) {
 
 	_ = h.store.CreateAuditLog(c.Request.Context(), &models.AuditLog{
 		ID:        uuid.New().String(),
-		UserID:    userID,
+		UserID:    &userID,
 		Action:    "sessions_revoked_others",
 		IPAddress: c.ClientIP(),
 		UserAgent: c.Request.UserAgent(),
