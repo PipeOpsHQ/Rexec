@@ -15,6 +15,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/rexec/rexec/internal/models"
 	"github.com/rexec/rexec/internal/pubsub"
 	"github.com/rexec/rexec/internal/storage"
 )
@@ -1334,26 +1335,13 @@ func (h *AgentHandler) buildAgentData(agent *AgentConnection) gin.H {
 }
 
 func maxRegisteredAgentsForTier(tier string, subscriptionActive bool) int {
-	// Active subscription gets "pro" behavior regardless of tier label.
-	if subscriptionActive {
-		return 10
-	}
-	switch tier {
-	case "enterprise":
-		return 50
-	case "pro":
-		return 10
-	case "free":
-		return 3
-	case "guest":
-		return 0
-	default:
-		return 3
-	}
+	// Use centralized limits from models
+	limits := models.GetUserResourceLimits(tier, subscriptionActive)
+	return int(limits.MaxAgents)
 }
 
 func maxConcurrentAgentTerminalsForTier(tier string, subscriptionActive bool) int {
-	// Keep this aligned with registered limits for now.
+	// Keep this aligned with registered limits
 	return maxRegisteredAgentsForTier(tier, subscriptionActive)
 }
 

@@ -149,6 +149,7 @@ type ResourceLimits struct {
 	NetworkMB       int64         `json:"network_mb"`       // Network bandwidth limit in MB/s
 	SessionDuration time.Duration `json:"session_duration"` // 0 = unlimited
 	MaxContainers   int64         `json:"max_containers"`   // Maximum number of containers allowed
+	MaxAgents       int64         `json:"max_agents"`       // Maximum number of BYOS agents allowed
 }
 
 // GuestResourceLimits defines the very restricted limits for anonymous guest users
@@ -159,6 +160,7 @@ var GuestResourceLimits = ResourceLimits{
 	NetworkMB:       5,
 	SessionDuration: 1 * time.Hour,
 	MaxContainers:   1,
+	MaxAgents:       0,
 }
 
 // Session represents an active terminal session
@@ -192,6 +194,7 @@ func GetUserResourceLimits(tier string, subscriptionActive bool) ResourceLimits 
 			NetworkMB:       100,
 			SessionDuration: 0, // Unlimited
 			MaxContainers:   10,
+			MaxAgents:       10,
 		}
 	}
 
@@ -199,7 +202,7 @@ func GetUserResourceLimits(tier string, subscriptionActive bool) ResourceLimits 
 	case "guest":
 		return GuestResourceLimits
 	case "free":
-		// Authenticated but no subscription: Half resources, 50h limit
+		// Authenticated but no subscription: "Community" limits
 		return ResourceLimits{
 			CPUShares:       2000,  // 2 CPUs
 			MemoryMB:        2048,  // 2GB RAM
@@ -207,6 +210,7 @@ func GetUserResourceLimits(tier string, subscriptionActive bool) ResourceLimits 
 			NetworkMB:       10,
 			SessionDuration: AuthenticatedSessionDuration,
 			MaxContainers:   5,
+			MaxAgents:       5,
 		}
 	case "pro":
 		// Legacy pro tier (if not covered by subscriptionActive check)
@@ -217,6 +221,7 @@ func GetUserResourceLimits(tier string, subscriptionActive bool) ResourceLimits 
 			NetworkMB:       100,
 			SessionDuration: 0,
 			MaxContainers:   10,
+			MaxAgents:       10,
 		}
 	case "enterprise":
 		return ResourceLimits{
@@ -226,6 +231,7 @@ func GetUserResourceLimits(tier string, subscriptionActive bool) ResourceLimits 
 			NetworkMB:       500,
 			SessionDuration: 0,
 			MaxContainers:   25,
+			MaxAgents:       25,
 		}
 	default: // Default to free limits
 		return ResourceLimits{
@@ -235,6 +241,7 @@ func GetUserResourceLimits(tier string, subscriptionActive bool) ResourceLimits 
 			NetworkMB:       10,
 			SessionDuration: AuthenticatedSessionDuration,
 			MaxContainers:   3,
+			MaxAgents:       0,
 		}
 	}
 }
