@@ -43,12 +43,12 @@
       period: 'forever',
       description: 'For trying out Rexec with PipeOps',
       features: [
-        '5 terminals',
-        '2GB memory',
-        '2 vCPU',
-        '10GB storage',
-        '50 hour session limit',
-        'Community support'
+        '5 Cloud Terminals',
+        '2GB Memory / 2 vCPU',
+        '10GB Storage',
+        '5 Agent Terminals',
+        '50-hour session limit',
+        'Community Support'
       ],
       cta: 'Upgrade to Free',
       current: false,
