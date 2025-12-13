@@ -600,6 +600,7 @@ func (h *AuthHandler) GetProfile(c *gin.Context) {
 		},
 		"limits": gin.H{
 			"containers": models.GetUserResourceLimits(user.Tier, user.SubscriptionActive).MaxContainers,
+			"max_agents": models.GetUserResourceLimits(user.Tier, user.SubscriptionActive).MaxAgents,
 			"memory_mb":  models.GetUserResourceLimits(user.Tier, user.SubscriptionActive).MemoryMB,
 			"cpu_shares": models.GetUserResourceLimits(user.Tier, user.SubscriptionActive).CPUShares,
 			"disk_mb":    models.GetUserResourceLimits(user.Tier, user.SubscriptionActive).DiskMB,
