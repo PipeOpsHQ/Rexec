@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"html"
 	"log"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -505,6 +507,20 @@ func runServer() {
 	// Setup Gin router
 	router := gin.Default()
 
+	// Optional: start pprof on a separate, opt-in listener (recommended: localhost + SSH tunnel).
+	if os.Getenv("REXEC_PPROF") == "1" || strings.EqualFold(os.Getenv("REXEC_PPROF"), "true") {
+		addr := os.Getenv("REXEC_PPROF_ADDR")
+		if addr == "" {
+			addr = "127.0.0.1:6060"
+		}
+		go func() {
+			log.Printf("[pprof] Listening on %s", addr)
+			if err := http.ListenAndServe(addr, nil); err != nil {
+				log.Printf("[pprof] Stopped: %v", err)
+			}
+		}()
+	}
+
 	// Gzip compression for faster transfers (skip WebSocket)
 	router.Use(gzip.Gzip(gzip.DefaultCompression, gzip.WithExcludedPaths([]string{"/ws/", "/ws/admin/events"})))
 
@@ -746,6 +762,9 @@ func runServer() {
 
 			admin.GET("/terminals", adminHandler.ListTerminals)
 			admin.GET("/agents", adminHandler.ListAgents)
+
+			// Debug/runtime info (admin-only)
+			admin.GET("/runtime", handlers.GetRuntimeStats)
 		}
 	}
 

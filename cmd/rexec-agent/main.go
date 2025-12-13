@@ -1041,7 +1041,68 @@ func detectRegion() string {
 		return region
 	}
 
+	// Best-effort fallback for on-prem/local machines: infer approximate region via IP geolocation.
+	// This is optional and can be disabled with REXEC_DISABLE_GEOIP=true.
+	if region := detectRegionFromIPGeo(); region != "" {
+		return region
+	}
+
 	return ""
+}
+
+func detectRegionFromIPGeo() string {
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("REXEC_DISABLE_GEOIP")), "true") || os.Getenv("REXEC_DISABLE_GEOIP") == "1" {
+		return ""
+	}
+
+	geoURL := strings.TrimSpace(os.Getenv("REXEC_GEOIP_URL"))
+	if geoURL == "" {
+		geoURL = "https://ipinfo.io/json"
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 900*time.Millisecond)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, geoURL, nil)
+	if err != nil {
+		return ""
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "rexec-agent/"+Version)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return ""
+	}
+
+	var payload struct {
+		City    string `json:"city"`
+		Region  string `json:"region"`
+		Country string `json:"country"`
+	}
+
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 16<<10)).Decode(&payload); err != nil {
+		return ""
+	}
+
+	primary := strings.TrimSpace(payload.Region)
+	if primary == "" {
+		primary = strings.TrimSpace(payload.City)
+	}
+	country := strings.TrimSpace(payload.Country)
+
+	if primary != "" && country != "" {
+		return primary + ", " + country
+	}
+	if primary != "" {
+		return primary
+	}
+	return country
 }
 
 func detectAWSRegion(client *http.Client) string {

@@ -98,6 +98,8 @@ type SharedTerminalSession struct {
 type TerminalSession struct {
 	UserID          string
 	ContainerID     string
+	DBSessionID     string
+	CreatedAt       time.Time
 	ExecID          string
 	Conn            *websocket.Conn
 	Cols            uint
@@ -382,8 +384,8 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 	}
 
 	// Configure WebSocket for large data handling
-	// Allow up to 32MB messages for "vibe coding" (large AI-generated pastes)
-	conn.SetReadLimit(32 * 1024 * 1024) 
+	// Allow up to 4MB messages (sufficient for most pastes)
+	conn.SetReadLimit(4 * 1024 * 1024) 
 	conn.SetPongHandler(func(string) error {
 		conn.SetReadDeadline(time.Now().Add(120 * time.Second)) // Longer timeout for stability
 		return nil
@@ -484,9 +486,13 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 	// newSession=true means create a fresh tmux session instead of resuming main
 	forceNewSession := c.Query("newSession") == "true"
 
+	now := time.Now()
+	dbSessionID := uuid.New().String()
 	session := &TerminalSession{
 		UserID:        userID.(string),
 		ContainerID:   dockerID,
+		DBSessionID:   dbSessionID,
+		CreatedAt:     now,
 		Conn:          conn,
 		Cols:          80,
 		Rows:          24,
@@ -506,24 +512,24 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 	h.mu.Unlock()
 
 	// Persist session to database for admin visibility
-	go func() {
-		// Generate a proper UUID for the session ID to fit VARCHAR(36)
-		sessionID := uuid.New().String()
+	go func(sessionID string, createdAt time.Time) {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
 		dbSession := &storage.SessionRecord{
 			ID:          sessionID,
 			UserID:      userID.(string),
 			ContainerID: dockerID,
-			CreatedAt:   time.Now(),
-			LastPingAt:  time.Now(),
+			CreatedAt:   createdAt,
+			LastPingAt:  createdAt,
 		}
-		if err := h.store.CreateSession(context.Background(), dbSession); err != nil {
+		if err := h.store.CreateSession(ctx, dbSession); err != nil {
 			log.Printf("Failed to create db session: %v", err)
 		}
 		// Broadcast session created event to admin hub
 		if h.adminEventsHub != nil {
 			h.adminEventsHub.Broadcast("session_created", dbSession)
 		}
-	}()
+	}(dbSessionID, now)
 
 	// Cleanup on exit
 	defer func() {
@@ -535,16 +541,20 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 		h.mu.Unlock()
 		
 		// Broadcast session deleted event to admin hub
-		if h.adminEventsHub != nil {
-			h.adminEventsHub.Broadcast("session_deleted", gin.H{"id": sessionKey, "user_id": userID.(string), "container_id": dockerID})
+		if h.adminEventsHub != nil && session.DBSessionID != "" {
+			h.adminEventsHub.Broadcast("session_deleted", gin.H{"id": session.DBSessionID})
 		}
 
 		// Remove from database
-		go func() {
-			if err := h.store.DeleteSession(context.Background(), sessionKey); err != nil {
+		if session.DBSessionID != "" {
+			go func(sessionID string) {
+				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+				defer cancel()
+				if err := h.store.DeleteSession(ctx, sessionID); err != nil {
 				log.Printf("Failed to delete db session: %v", err)
 			}
-		}()
+			}(session.DBSessionID)
+		}
 
 		session.Close()
 
@@ -1663,41 +1673,72 @@ func (h *TerminalHandler) keepAliveLoop() {
 	ticker := time.NewTicker(15 * time.Second) // More frequent pings for connection stability
 	defer ticker.Stop()
 
+	// Semaphore to limit concurrent DB updates
+	// Allows up to 5 concurrent DB updates to prevent overwhelming the DB
+	sem := make(chan struct{}, 5)
+
 	for range ticker.C {
 		h.mu.RLock()
-		// Ping regular sessions
-		for key, session := range h.sessions {
-			session.SendMessage(TerminalMessage{Type: "ping"})
-			
-			// Update database timestamp for admin visibility
-			// Capture variables for goroutine
-			sessionID := key
-			go func() {
-				if err := h.store.UpdateSessionLastPing(context.Background(), sessionID); err != nil {
-					// Log verbose only on error to avoid spam
-					// log.Printf("Failed to update session ping: %v", err)
-				}
-				// Broadcast session_updated event to admin hub
-				if h.adminEventsHub != nil {
-					// Fetch the updated session record to send full payload
-					updatedSession, err := h.store.GetSessionByID(context.Background(), sessionID)
-					if err == nil && updatedSession != nil {
-						h.adminEventsHub.Broadcast("session_updated", updatedSession)
-					} else {
-						log.Printf("Warning: Failed to fetch updated session record for admin broadcast: %v", err)
-					}
-				}
-			}()
+		
+		// 1. Copy sessions to slice to release lock quickly
+		type sessionUpdate struct {
+			DBSessionID string
+			Session     *TerminalSession
 		}
-		// Ping shared session connections
+		var sessionsToUpdate []sessionUpdate
+		
+		for _, session := range h.sessions {
+			if session.DBSessionID != "" {
+				sessionsToUpdate = append(sessionsToUpdate, sessionUpdate{
+					DBSessionID: session.DBSessionID,
+					Session:     session,
+				})
+			}
+		}
+
+		// 2. Ping shared sessions (holding lock is fine as it's fast memory op)
 		for _, sharedSession := range h.sharedSessions {
 			sharedSession.mu.RLock()
 			for _, conn := range sharedSession.Connections {
+				// Note: technically unsafe if broadcast is writing simultaneously, 
+				// but low probability collision on ping. Ideally shared conn should be wrapped.
 				conn.WriteJSON(TerminalMessage{Type: "ping"})
 			}
 			sharedSession.mu.RUnlock()
 		}
 		h.mu.RUnlock()
+
+		// 3. Process session updates without holding the main lock
+		for _, item := range sessionsToUpdate {
+			// Send ping to client
+			item.Session.SendMessage(TerminalMessage{Type: "ping"})
+
+			// Update database timestamp
+			select {
+			case sem <- struct{}{}: // Acquire token (non-blocking if full)
+				go func(dbID string) {
+					defer func() { <-sem }() // Release token
+					
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					defer cancel()
+
+					if err := h.store.UpdateSessionLastPing(ctx, dbID); err != nil {
+						// Log verbose only on error
+					}
+					
+					// Broadcast session_updated event
+					if h.adminEventsHub != nil {
+						updatedSession, err := h.store.GetSessionByID(ctx, dbID)
+						if err == nil && updatedSession != nil {
+							h.adminEventsHub.Broadcast("session_updated", updatedSession)
+						}
+					}
+				}(item.DBSessionID)
+			default:
+				// Semaphore full, skip DB update for this tick
+				// This acts as a natural rate limiter/load shedder
+			}
+		}
 	}
 }
 

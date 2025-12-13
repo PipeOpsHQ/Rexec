@@ -2027,10 +2027,10 @@ func (m *Manager) StreamContainerStats(ctx context.Context, containerID string, 
 			}
 			
 			ticks++
-			// Update disk usage every 10 seconds (approx)
-			if ticks%10 == 0 || ticks == 1 {
+			// Update disk usage every 60 seconds (approx) to reduce load
+			if ticks%60 == 0 {
 				// Use a short timeout context for disk check to avoid blocking main stats loop too long
-				diskCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+				diskCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 				usage := m.getContainerDiskUsage(diskCtx, containerID)
 				cancel()
 				if usage > 0 {
