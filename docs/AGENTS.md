@@ -175,23 +175,29 @@ sudo journalctl -u rexec-agent -f
 |----------|-------------|
 | `REXEC_TOKEN` | Authentication token (overrides config) |
 | `REXEC_HOST` | API host URL (overrides config) |
+| `REXEC_API` | API host URL (alias of `REXEC_HOST`) |
+| `REXEC_CONFIG` | Config file path (overrides default search) |
 
 ## Configuration Files
 
-The agent stores configuration in `~/.rexec/agent.json`:
+The agent loads configuration from:
+- `/etc/rexec/agent.yaml` (system-wide installs), or
+- `~/.rexec/agent.json` (user installs)
 
-```json
-{
-  "id": "abc123-def456-...",
-  "name": "prod-server-1",
-  "description": "Production API server",
-  "host": "https://rexec.pipeops.io",
-  "token": "your-token",
-  "shell": "/bin/bash",
-  "tags": ["production", "aws"],
-  "registered": true,
-  "auto_start": true
-}
+Override the path with `--config` or `REXEC_CONFIG`.
+
+Example (`/etc/rexec/agent.yaml`):
+
+```yaml
+api_url: https://rexec.pipeops.io
+token: rexec_...
+agent_id: abc123-def456-...
+name: prod-server-1
+labels:
+  - production
+  - aws
+shell: /bin/bash
+working_dir: /root
 ```
 
 ## How It Works
@@ -227,6 +233,15 @@ rexec-agent start
 
 # Verify token is valid
 curl -H "Authorization: Bearer $REXEC_TOKEN" https://rexec.pipeops.io/api/profile
+```
+
+### Rotate an API token
+
+If you see repeated `401` reconnect errors, update the agent to use a long-lived API token:
+
+```bash
+rexec-agent refresh-token
+sudo systemctl restart rexec-agent
 ```
 
 ### Connection keeps dropping

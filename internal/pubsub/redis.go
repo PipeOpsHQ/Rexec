@@ -44,6 +44,7 @@ type TerminalProxyMessage struct {
 	Data       []byte `json:"data"`
 	Cols       int    `json:"cols,omitempty"`
 	Rows       int    `json:"rows,omitempty"`
+	NewSession bool   `json:"new_session,omitempty"`
 }
 
 // Hub manages Redis pub/sub connections and message routing
@@ -377,7 +378,7 @@ func (h *Hub) IsAgentLocal(agentID string) bool {
 }
 
 // ProxyTerminalData sends terminal data to the instance hosting an agent
-func (h *Hub) ProxyTerminalData(agentID, sessionID, msgType string, data []byte, cols, rows int) error {
+func (h *Hub) ProxyTerminalData(agentID, sessionID, msgType string, data []byte, cols, rows int, newSession bool) error {
 	msg := TerminalProxyMessage{
 		SessionID: sessionID,
 		AgentID:   agentID,
@@ -385,6 +386,7 @@ func (h *Hub) ProxyTerminalData(agentID, sessionID, msgType string, data []byte,
 		Data:      data,
 		Cols:      cols,
 		Rows:      rows,
+		NewSession: newSession,
 	}
 	return h.Publish(ChannelTerminalProxy, "terminal_proxy", msg)
 }

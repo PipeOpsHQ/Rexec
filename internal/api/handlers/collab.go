@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
@@ -519,6 +520,13 @@ func (h *CollabHandler) EndSession(c *gin.Context) {
 				return
 			}
 
+			participantIDs := make([]string, 0, len(session.Participants))
+			session.mu.RLock()
+			for pid := range session.Participants {
+				participantIDs = append(participantIDs, pid)
+			}
+			session.mu.RUnlock()
+
 			// Close all participant connections
 			session.mu.Lock()
 			for _, p := range session.Participants {
@@ -548,6 +556,11 @@ func (h *CollabHandler) EndSession(c *gin.Context) {
 
 			delete(h.sessions, code)
 
+			// For control mode, terminate collaborator terminal sessions (docker containers only).
+			if session.Mode == "control" && h.terminalHandler != nil && !strings.HasPrefix(session.ContainerID, "agent:") {
+				h.terminalHandler.CleanupControlCollab(session.ContainerID, session.OwnerID, participantIDs)
+			}
+
 			c.JSON(http.StatusOK, gin.H{"message": "session ended"})
 			return
 		}
@@ -571,6 +584,20 @@ func (h *CollabHandler) EndSession(c *gin.Context) {
 		if err := h.store.EndCollabSession(c.Request.Context(), sessionID); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to end session"})
 			return
+		}
+
+		// For control mode, terminate collaborator terminal sessions (docker containers only).
+		if dbSession.Mode == "control" && h.terminalHandler != nil && !strings.HasPrefix(dbSession.ContainerID, "agent:") {
+			participants, err := h.store.GetCollabParticipants(c.Request.Context(), sessionID)
+			if err == nil {
+				participantIDs := make([]string, 0, len(participants))
+				for _, p := range participants {
+					if p != nil && p.UserID != "" {
+						participantIDs = append(participantIDs, p.UserID)
+					}
+				}
+				h.terminalHandler.CleanupControlCollab(dbSession.ContainerID, dbSession.OwnerID, participantIDs)
+			}
 		}
 		
 		c.JSON(http.StatusOK, gin.H{"message": "session ended"})
@@ -668,6 +695,13 @@ func (h *CollabHandler) cleanupLoop() {
 		h.mu.Lock()
 		for code, session := range h.sessions {
 			if time.Now().After(session.ExpiresAt) {
+				participantIDs := make([]string, 0, len(session.Participants))
+				session.mu.RLock()
+				for pid := range session.Participants {
+					participantIDs = append(participantIDs, pid)
+				}
+				session.mu.RUnlock()
+
 				// Close all connections
 				session.mu.Lock()
 				for _, p := range session.Participants {
@@ -680,6 +714,14 @@ func (h *CollabHandler) cleanupLoop() {
 					}
 				}
 				session.mu.Unlock()
+
+				// Mark as inactive in database (best-effort)
+				_ = h.store.EndCollabSession(context.Background(), session.ID)
+
+				// For control mode, terminate collaborator terminal sessions (docker containers only).
+				if session.Mode == "control" && h.terminalHandler != nil && !strings.HasPrefix(session.ContainerID, "agent:") {
+					h.terminalHandler.CleanupControlCollab(session.ContainerID, session.OwnerID, participantIDs)
+				}
 
 				delete(h.sessions, code)
 			}

@@ -106,6 +106,8 @@ type TerminalSession struct {
 	mu              sync.Mutex
 	closed          bool
 	ForceNewSession bool // If true, create new tmux session instead of resuming main
+	IsOwner         bool // Container owner (vs collab participant)
+	TmuxSessionName string // Set when tmux is used ("main", "user-...", "split-...")
 }
 
 // TerminalMessage represents messages between client and server
@@ -417,13 +419,9 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 			} else {
 				// No shared session exists. Check if owner is connected in a private session.
 				ownerID := containerInfo.UserID
-				ownerSessionKey := dockerID + ":" + ownerID
+				ownerSession, ownerConnected := h.GetActiveSession(dockerID, ownerID)
 
-				h.mu.Lock()
-				ownerSession, ownerConnected := h.sessions[ownerSessionKey]
-				h.mu.Unlock()
-
-				if ownerConnected {
+				if ownerConnected && ownerSession != nil {
 					log.Printf("[Terminal] Upgrading owner %s to shared session for container %s", ownerID, dockerID)
 
 					// 1. Force owner to reconnect (which will join the shared session we are about to create)
@@ -494,6 +492,7 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 		Rows:          24,
 		Done:          make(chan struct{}),
 		ForceNewSession: forceNewSession,
+		IsOwner:       isOwner,
 	}
 
 	// Register session with unique key to allow multiplexing
@@ -548,6 +547,12 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 		}()
 
 		session.Close()
+
+		// Split panes create new tmux sessions; clean them up on disconnect to avoid
+		// leaking background shells.
+		if session.ForceNewSession && strings.HasPrefix(session.TmuxSessionName, "split-") {
+			go h.killTmuxSession(session.ContainerID, session.TmuxSessionName)
+		}
 	}()
 
 	// Send connected message
@@ -730,16 +735,12 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 			// Split pane - create a completely new tmux session with unique name
 			tmuxSessionName = fmt.Sprintf("split-%d", time.Now().UnixNano())
 			log.Printf("[Terminal] Split pane: creating new tmux session '%s'", tmuxSessionName)
-		} else if collabMode == "control" && session.UserID != "" {
-			// Use shortened user ID for unique session name
-			// This gives each control-mode collab user their own tmux session
-			userHash := session.UserID
-			if len(userHash) > 8 {
-				userHash = userHash[:8]
-			}
-			tmuxSessionName = "user-" + userHash
+		} else if collabMode == "control" && session.UserID != "" && !session.IsOwner {
+			// Each control-mode collab user gets an independent tmux session.
+			tmuxSessionName = tmuxSessionNameForControlUser(session.UserID)
 			log.Printf("[Terminal] Control mode: using unique tmux session '%s' for user %s", tmuxSessionName, session.UserID)
 		}
+		session.TmuxSessionName = tmuxSessionName
 		
 		// Check if tmux is available for session persistence
 		// Fall back to direct shell if tmux is not installed
@@ -1179,6 +1180,33 @@ func (h *TerminalHandler) commandExists(ctx context.Context, containerID, cmd st
 	return false
 }
 
+func (h *TerminalHandler) killTmuxSession(containerID, tmuxSessionName string) {
+	if containerID == "" || tmuxSessionName == "" {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	client := h.containerManager.GetClient()
+	execConfig := container.ExecOptions{
+		// Best-effort cleanup; ignore errors if tmux/session doesn't exist.
+		Cmd:          []string{"/bin/sh", "-c", fmt.Sprintf("tmux kill-session -t %s 2>/dev/null || true", tmuxSessionName)},
+		AttachStdout: true,
+		AttachStderr: true,
+	}
+
+	execResp, err := client.ContainerExecCreate(ctx, containerID, execConfig)
+	if err != nil {
+		return
+	}
+
+	attachResp, err := client.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{})
+	if err == nil {
+		attachResp.Close()
+	}
+}
+
 // SendMessage sends a message to the WebSocket client
 func (s *TerminalSession) SendMessage(msg TerminalMessage) error {
 	s.mu.Lock()
@@ -1235,37 +1263,99 @@ func (s *TerminalSession) CloseWithCode(code int, reason string) {
 func (h *TerminalHandler) GetActiveSession(containerID, userID string) (*TerminalSession, bool) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	sessionKey := containerID + ":" + userID
-	session, ok := h.sessions[sessionKey]
-	return session, ok
+	for _, session := range h.sessions {
+		if session != nil && session.ContainerID == containerID && session.UserID == userID {
+			return session, true
+		}
+	}
+	return nil, false
 }
 
 // CloseSession closes a terminal session
 func (h *TerminalHandler) CloseSession(containerID, userID string) {
+	var toClose []*TerminalSession
 	h.mu.Lock()
-	sessionKey := containerID + ":" + userID
-	session, ok := h.sessions[sessionKey]
-	if ok {
-		delete(h.sessions, sessionKey)
+	for key, session := range h.sessions {
+		if session != nil && session.ContainerID == containerID && session.UserID == userID {
+			toClose = append(toClose, session)
+			delete(h.sessions, key)
+		}
 	}
 	h.mu.Unlock()
 
-	if ok && session != nil {
+	for _, session := range toClose {
 		session.Close()
 	}
 }
 
 // CloseAllContainerSessions closes all sessions for a container
 func (h *TerminalHandler) CloseAllContainerSessions(containerID string) {
+	var toClose []*TerminalSession
 	h.mu.Lock()
-	defer h.mu.Unlock()
-
 	for key, session := range h.sessions {
-		if session.ContainerID == containerID {
-			session.Close()
+		if session != nil && session.ContainerID == containerID {
+			toClose = append(toClose, session)
 			delete(h.sessions, key)
 		}
 	}
+	h.mu.Unlock()
+
+	for _, session := range toClose {
+		session.Close()
+	}
+}
+
+// CleanupControlCollab closes terminal WebSockets and tmux sessions for control-mode collaborators.
+// The container owner is left untouched.
+func (h *TerminalHandler) CleanupControlCollab(containerID, ownerID string, participantUserIDs []string) {
+	if containerID == "" || ownerID == "" || strings.HasPrefix(containerID, "agent:") {
+		return
+	}
+
+	participants := make(map[string]struct{}, len(participantUserIDs))
+	for _, id := range participantUserIDs {
+		if id != "" {
+			participants[id] = struct{}{}
+		}
+	}
+
+	// Close active WebSocket sessions for participants (excluding owner).
+	var toClose []*TerminalSession
+	h.mu.Lock()
+	for key, session := range h.sessions {
+		if session == nil || session.ContainerID != containerID {
+			continue
+		}
+		if session.UserID == ownerID {
+			continue
+		}
+		if _, ok := participants[session.UserID]; !ok {
+			continue
+		}
+		toClose = append(toClose, session)
+		delete(h.sessions, key)
+	}
+	h.mu.Unlock()
+
+	for _, session := range toClose {
+		session.CloseWithCode(4003, "collaboration ended")
+	}
+
+	// Kill per-user tmux sessions created for control-mode collaborators.
+	for userID := range participants {
+		if userID == ownerID {
+			continue
+		}
+		go h.killTmuxSession(containerID, tmuxSessionNameForControlUser(userID))
+	}
+}
+
+func tmuxSessionNameForControlUser(userID string) string {
+	userHash := userID
+	if len(userHash) > 8 {
+		userHash = userHash[:8]
+	}
+	return "user-" + userHash
 }
 
 // cleanupOrphanedPackageProcesses kills any orphaned apt/dpkg/yum processes

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1270" height="760" viewBox="0 0 1270 760" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1270" height="760" fill="#0A0A0A"/>
+
+  <defs>
+    <pattern id="grid" width="44" height="44" patternUnits="userSpaceOnUse">
+      <path d="M 44 0 L 0 0 0 44" fill="none" stroke="#1A1A1A" stroke-width="1"/>
+    </pattern>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(635 360) rotate(90) scale(560)">
+      <stop stop-color="#00FF41" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#00FF41" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1270" y2="760" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7C3AED" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#00FF41" stop-opacity="0.10"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1270" height="760" fill="url(#grid)"/>
+  <rect width="1270" height="760" fill="url(#glow)"/>
+  <rect width="1270" height="760" fill="url(#accent)"/>
+
+  <!-- Logo -->
+  <g transform="translate(190, 210)">
+    <path d="M0 -86 L75 -43 L75 43 L0 86 L-75 43 L-75 -43 Z" fill="#0A0A0A" stroke="#00FF41" stroke-width="4"/>
+    <g transform="translate(-34, -34) scale(1.9)">
+      <path d="M5 10L15 20L5 30" stroke="#00FF41" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+      <line x1="18" y1="30" x2="30" y2="30" stroke="#00FF41" stroke-width="4" stroke-linecap="round"/>
+    </g>
+  </g>
+
+  <!-- Text -->
+  <text x="330" y="235" font-family="JetBrains Mono, monospace" font-weight="800" font-size="64" fill="#FFFFFF" letter-spacing="2">REXEC</text>
+  <text x="330" y="286" font-family="Inter, sans-serif" font-weight="500" font-size="28" fill="#A3A3A3">Terminal as a Service</text>
+
+  <text x="145" y="360" font-family="Inter, sans-serif" font-weight="700" font-size="44" fill="#FFFFFF">Cloud terminals + your own machines</text>
+  <text x="145" y="408" font-family="Inter, sans-serif" font-weight="500" font-size="26" fill="#D4D4D4">Instant, network-isolated sandboxes &#8212; and a secure agent to connect servers without opening SSH.</text>
+
+  <!-- Bullets -->
+  <g font-family="Inter, sans-serif" font-size="26" fill="#E5E5E5">
+    <text x="170" y="485">&#8226; Create disposable dev environments in seconds</text>
+    <text x="170" y="535">&#8226; Reconnect without losing context</text>
+    <text x="170" y="585">&#8226; Agent mode: bring your own server/VM/local machine</text>
+    <text x="170" y="635">&#8226; Collaboration: share terminals (view/control)</text>
+  </g>
+
+  <!-- Corner marks -->
+  <rect x="56" y="56" width="22" height="22" stroke="#333" stroke-width="2"/>
+  <rect x="1192" y="56" width="22" height="22" stroke="#333" stroke-width="2"/>
+  <rect x="56" y="682" width="22" height="22" stroke="#333" stroke-width="2"/>
+  <rect x="1192" y="682" width="22" height="22" stroke="#333" stroke-width="2"/>
+</svg>

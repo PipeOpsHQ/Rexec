@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="240" height="240" viewBox="0 0 240 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="240" height="240" fill="#0A0A0A"/>
+  <defs>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(120 120) rotate(90) scale(150)">
+      <stop stop-color="#00FF41" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#00FF41" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="240" height="240" fill="url(#glow)"/>
+  <g transform="translate(120, 118)">
+    <path d="M0 -70 L61 -35 L61 35 L0 70 L-61 35 L-61 -35 Z" fill="#0A0A0A" stroke="#00FF41" stroke-width="4"/>
+    <g transform="translate(-28, -28) scale(1.55)">
+      <path d="M5 10L15 20L5 30" stroke="#00FF41" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+      <line x1="18" y1="30" x2="30" y2="30" stroke="#00FF41" stroke-width="4" stroke-linecap="round"/>
+    </g>
+  </g>
+  <text x="120" y="220" font-family="JetBrains Mono, monospace" font-weight="800" font-size="22" fill="#FFFFFF" text-anchor="middle" letter-spacing="2">REXEC</text>
+</svg>

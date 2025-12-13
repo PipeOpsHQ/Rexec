@@ -6,7 +6,7 @@
     import StatusIcon from "./icons/StatusIcon.svelte";
 
     // Tabs
-    type Tab = "users" | "containers" | "terminals" | "agents";
+    type Tab = "users" | "subscribers" | "containers" | "terminals" | "agents";
     let activeTab: Tab = "users";
 
     function setTab(tab: Tab) {
@@ -34,6 +34,7 @@
     });
 
     $: users = $admin.users;
+    $: subscribers = users.filter((u) => u.subscriptionActive === true);
     $: containers = $admin.containers;
     $: terminals = $admin.terminals;
     $: agents = $admin.agents;
@@ -113,6 +114,13 @@
         </button>
         <button
             class="tab-btn"
+            class:active={activeTab === "subscribers"}
+            onclick={() => setTab("subscribers")}
+        >
+            Subscribers ({subscribers.length})
+        </button>
+        <button
+            class="tab-btn"
             class:active={activeTab === "containers"}
             onclick={() => setTab("containers")}
         >
@@ -179,6 +187,50 @@
                                     <td>{user.updated_at ? formatRelativeTime(user.updated_at) : '-'}</td>
                                     <td>
                                         <button class="btn-icon danger" onclick={() => handleDeleteUser(user.id)} title="Delete User">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                                            </svg>
+                                        </button>
+                                    </td>
+                                </tr>
+                            {/each}
+                        </tbody>
+                    </table>
+                </div>
+            {:else if activeTab === "subscribers"}
+                <div class="data-table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Email</th>
+                                <th>Tier</th>
+                                <th>Containers</th>
+                                <th>Created</th>
+                                <th>Last Login</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {#each subscribers as user (user.id)}
+                                <tr>
+                                    <td>
+                                        <div class="user-info">
+                                            <div class="avatar">{user.username.charAt(0).toUpperCase()}</div>
+                                            <span>{user.username}</span>
+                                        </div>
+                                    </td>
+                                    <td>{user.email}</td>
+                                    <td><span class="badge tier-{user.tier}">{user.tier}</span></td>
+                                    <td>{user.containerCount}</td>
+                                    <td>{new Date(user.created_at).toLocaleDateString()}</td>
+                                    <td>{user.updated_at ? formatRelativeTime(user.updated_at) : "-"}</td>
+                                    <td>
+                                        <button
+                                            class="btn-icon danger"
+                                            onclick={() => handleDeleteUser(user.id)}
+                                            title="Delete User"
+                                        >
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                 <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2" />
                                             </svg>

@@ -1404,6 +1404,14 @@ func (a *Agent) handleConnection() {
 		case "shell_stop":
 			a.stopShell()
 
+		case "shell_stop_session":
+			var stopData struct {
+				SessionID string `json:"session_id"`
+			}
+			if err := json.Unmarshal(msg.Data, &stopData); err == nil && stopData.SessionID != "" {
+				a.cleanupSession(stopData.SessionID)
+			}
+
 		case "ping":
 			a.sendMessage("pong", nil)
 
@@ -1424,6 +1432,11 @@ func (a *Agent) startShellSession(sessionID string, newSession bool) {
 	a.mu.Lock()
 	if a.sessions == nil {
 		a.sessions = make(map[string]*ShellSession)
+	}
+	// The main session is always keyed as "main" on the agent, regardless of the
+	// client connection ID. This keeps routing stable across reconnects/tabs.
+	if !newSession {
+		sessionID = "main"
 	}
 
 	// Check if session already exists

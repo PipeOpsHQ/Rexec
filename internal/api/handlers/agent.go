@@ -42,21 +42,35 @@ type AgentConnection struct {
 	Tags        []string        `json:"tags,omitempty"`
 	UserID      string          `json:"user_id"`
 	Status      string          `json:"status"`
+	CreatedAt   time.Time       `json:"created_at"`
 	ConnectedAt time.Time       `json:"connected_at"`
 	LastPing    time.Time       `json:"last_ping"`
 	conn        *websocket.Conn
 	sessions    map[string]*AgentSession
 	sessionsMu  sync.RWMutex
+	// remoteSessionRefs tracks which server instances currently have at least one
+	// user WebSocket subscribed to a given agent shell session (e.g. "main", "split-...").
+	remoteSessionRefs map[string]map[string]struct{} // agentSessionID -> instanceID set
 	// System info from agent
 	SystemInfo map[string]interface{} `json:"system_info,omitempty"`
 	Stats      map[string]interface{} `json:"stats,omitempty"`
 }
 
 type AgentSession struct {
-	ID        string
-	AgentID   string // Added for remote session tracking
-	UserConn  *websocket.Conn
-	CreatedAt time.Time
+	// ID is the client-provided connection ID (WebSocket `id` query param).
+	// It is stable across reconnects and unique per UI tab/pane.
+	ID string
+
+	UserID string
+
+	AgentID string
+	// AgentSessionID is the shell session identifier on the agent process.
+	// "main" is the shared session; split panes use "split-<id>".
+	AgentSessionID string
+
+	NewSession bool
+	UserConn    *websocket.Conn
+	CreatedAt   time.Time
 }
 
 // NewAgentHandler creates a new agent handler.
@@ -152,14 +166,73 @@ func (h *AgentHandler) handleTerminalProxyMessage(msg pubsub.Message) {
 					},
 				})
 			case "start_session":
+				// Track that this server instance has an active subscriber for this session.
+				sourceInstanceID := msg.InstanceID
+				if sourceInstanceID != "" {
+					agentConn.sessionsMu.Lock()
+					if agentConn.remoteSessionRefs == nil {
+						agentConn.remoteSessionRefs = make(map[string]map[string]struct{})
+					}
+					if _, exists := agentConn.remoteSessionRefs[proxyMsg.SessionID]; !exists {
+						agentConn.remoteSessionRefs[proxyMsg.SessionID] = make(map[string]struct{})
+					}
+					agentConn.remoteSessionRefs[proxyMsg.SessionID][sourceInstanceID] = struct{}{}
+					agentConn.sessionsMu.Unlock()
+				}
+
 				agentConn.conn.WriteJSON(map[string]interface{}{
 					"type": "shell_start",
-					"data": map[string]string{
-						"session_id": proxyMsg.SessionID,
+					"data": map[string]interface{}{
+						"session_id":  proxyMsg.SessionID,
+						"new_session": proxyMsg.NewSession,
 					},
 				})
 			case "stop_session":
-				// Handle stop?
+				sourceInstanceID := msg.InstanceID
+				if sourceInstanceID != "" {
+					agentConn.sessionsMu.Lock()
+					if refs, exists := agentConn.remoteSessionRefs[proxyMsg.SessionID]; exists {
+						delete(refs, sourceInstanceID)
+						if len(refs) == 0 {
+							delete(agentConn.remoteSessionRefs, proxyMsg.SessionID)
+						} else {
+							agentConn.remoteSessionRefs[proxyMsg.SessionID] = refs
+						}
+					}
+
+					// Determine whether there are still any subscribers (local or remote) for this session.
+					hasRemote := false
+					if refs, ok := agentConn.remoteSessionRefs[proxyMsg.SessionID]; ok && len(refs) > 0 {
+						hasRemote = true
+					}
+					hasLocal := false
+					for _, s := range agentConn.sessions {
+						if s != nil && s.AgentSessionID == proxyMsg.SessionID {
+							hasLocal = true
+							break
+						}
+					}
+					noLocalSessions := len(agentConn.sessions) == 0
+					noRemoteSessions := len(agentConn.remoteSessionRefs) == 0
+					agentConn.sessionsMu.Unlock()
+
+					// If nobody is subscribed anymore, stop the specific shell session.
+					if !hasRemote && !hasLocal {
+						agentConn.conn.WriteJSON(map[string]interface{}{
+							"type": "shell_stop_session",
+							"data": map[string]interface{}{
+								"session_id": proxyMsg.SessionID,
+							},
+						})
+					}
+
+					// If absolutely no sessions remain, stop everything (cleans up any stragglers).
+					if noLocalSessions && noRemoteSessions {
+						agentConn.conn.WriteJSON(map[string]interface{}{
+							"type": "shell_stop",
+						})
+					}
+				}
 			}
 		}
 		return
@@ -167,36 +240,34 @@ func (h *AgentHandler) handleTerminalProxyMessage(msg pubsub.Message) {
 
 	// 2. If this message is output intended for a REMOTE SESSION (user connected to this instance)
 	if proxyMsg.Type == "output" || proxyMsg.Type == "status" {
-		// If SessionID is "broadcast", send to all sessions for this AgentID
-		if proxyMsg.SessionID == "broadcast" {
-			h.remoteSessionsMu.RLock()
-			for _, session := range h.remoteSessions {
-				if session.AgentID == proxyMsg.AgentID && session.UserConn != nil {
-					// Forward to this session
-					if proxyMsg.Type == "output" {
-						session.UserConn.WriteJSON(map[string]interface{}{
-							"type": "output",
-							"data": string(proxyMsg.Data),
-						})
-					}
+		h.remoteSessionsMu.RLock()
+		for _, session := range h.remoteSessions {
+			if session == nil || session.UserConn == nil || session.AgentID != proxyMsg.AgentID {
+				continue
+			}
+
+			// Backwards compatibility: "broadcast" sends to all sessions for this agent.
+			if proxyMsg.SessionID == "broadcast" || proxyMsg.SessionID == "" {
+				if proxyMsg.Type == "output" {
+					session.UserConn.WriteJSON(map[string]interface{}{
+						"type": "output",
+						"data": string(proxyMsg.Data),
+					})
+				}
+				continue
+			}
+
+			// Otherwise route by agent shell session ID ("main", "split-...").
+			if session.AgentSessionID == proxyMsg.SessionID {
+				if proxyMsg.Type == "output" {
+					session.UserConn.WriteJSON(map[string]interface{}{
+						"type": "output",
+						"data": string(proxyMsg.Data),
+					})
 				}
 			}
-			h.remoteSessionsMu.RUnlock()
-			return
 		}
-
-		h.remoteSessionsMu.RLock()
-		session, ok := h.remoteSessions[proxyMsg.SessionID]
 		h.remoteSessionsMu.RUnlock()
-
-		if ok && session.UserConn != nil {
-			if proxyMsg.Type == "output" {
-				session.UserConn.WriteJSON(map[string]interface{}{
-					"type": "output",
-					"data": string(proxyMsg.Data),
-				})
-			}
-		}
 	}
 }
 
@@ -222,6 +293,29 @@ func (h *AgentHandler) RegisterAgent(c *gin.Context) {
 		return
 	}
 
+	ctx := c.Request.Context()
+	// Enforce plan-based agent limits (admins are exempt).
+	if user, err := h.store.GetUserByID(ctx, userID.(string)); err == nil && user != nil && !user.IsAdmin {
+		limit := maxRegisteredAgentsForTier(user.Tier, user.SubscriptionActive)
+		if limit <= 0 {
+			c.JSON(http.StatusForbidden, gin.H{
+				"error": "agent registration not available for your plan",
+				"code":  "agent_limit_reached",
+			})
+			return
+		}
+
+		existing, err := h.store.GetAgentsByUser(ctx, user.ID)
+		if err == nil && len(existing) >= limit {
+			c.JSON(http.StatusForbidden, gin.H{
+				"error": "agent limit reached for your plan",
+				"code":  "agent_limit_reached",
+				"limit": limit,
+			})
+			return
+		}
+	}
+
 	// Create agent record
 	agent := &AgentConnection{
 		ID:          uuid.New().String(),
@@ -237,7 +331,6 @@ func (h *AgentHandler) RegisterAgent(c *gin.Context) {
 	}
 
 	// Store in database
-	ctx := c.Request.Context()
 	if err := h.store.CreateAgent(ctx, agent.ID, agent.UserID, agent.Name, agent.Description, agent.OS, agent.Arch, agent.Shell, agent.Tags); err != nil {
 		log.Printf("Failed to create agent: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to register agent"})
@@ -431,10 +524,12 @@ func (h *AgentHandler) HandleAgentWebSocket(c *gin.Context) {
 		Shell:       c.GetHeader("X-Agent-Shell"),
 		UserID:      userID,
 		Status:      "online",
+		CreatedAt:   agent.CreatedAt,
 		ConnectedAt: time.Now(),
 		LastPing:    time.Now(),
 		conn:        conn,
 		sessions:    make(map[string]*AgentSession),
+		remoteSessionRefs: make(map[string]map[string]struct{}),
 	}
 
 	// Store connection
@@ -537,29 +632,52 @@ func (h *AgentHandler) HandleAgentWebSocket(c *gin.Context) {
 
 		switch msg.Type {
 		case "shell_output":
-			// Forward to all connected user sessions in the format the frontend expects
-			// Agent sends: {"type": "shell_output", "data": {"data": <base64-encoded-bytes>}}
 			var outputData struct {
-				Data []byte `json:"data"`
+				SessionID string `json:"session_id"`
+				Data      []byte `json:"data"`
 			}
 			if err := json.Unmarshal(msg.Data, &outputData); err == nil {
-				// outputData.Data is now the decoded bytes
 				outputMsg := map[string]interface{}{
 					"type": "output",
 					"data": string(outputData.Data),
 				}
 
-				// 1. Write to local sessions
+				// 1. Route output to local sessions subscribed to this agent shell session.
 				agentConn.sessionsMu.RLock()
-				for _, session := range agentConn.sessions {
-					session.UserConn.WriteJSON(outputMsg)
+				matched := false
+				if outputData.SessionID == "" || outputData.SessionID == "broadcast" {
+					for _, session := range agentConn.sessions {
+						if session != nil && session.UserConn != nil {
+							session.UserConn.WriteJSON(outputMsg)
+						}
+					}
+					matched = true
+				} else {
+					for _, session := range agentConn.sessions {
+						if session != nil && session.UserConn != nil && session.AgentSessionID == outputData.SessionID {
+							session.UserConn.WriteJSON(outputMsg)
+							matched = true
+						}
+					}
+				}
+				// Backwards compatibility: if an older agent sends a non-split session ID
+				// and we don't have an exact match, treat it as "main".
+				if !matched && outputData.SessionID != "" && !strings.HasPrefix(outputData.SessionID, "split-") {
+					for _, session := range agentConn.sessions {
+						if session != nil && session.UserConn != nil && session.AgentSessionID == "main" {
+							session.UserConn.WriteJSON(outputMsg)
+						}
+					}
 				}
 				agentConn.sessionsMu.RUnlock()
 
-				// 2. Publish to Redis for remote sessions (if any)
+				// 2. Publish to Redis for remote sessions (if any), routed by agent session ID.
 				if h.pubsubHub != nil {
-					// Use "broadcast" session ID to reach all sessions for this agent
-					h.pubsubHub.ProxyTerminalData(agentID, "broadcast", "output", outputData.Data, 0, 0)
+					targetSessionID := outputData.SessionID
+					if targetSessionID == "" {
+						targetSessionID = "broadcast"
+					}
+					h.pubsubHub.ProxyTerminalData(agentID, targetSessionID, "output", outputData.Data, 0, 0, false)
 				}
 			} else {
 				log.Printf("Failed to unmarshal shell_output: %v", err)
@@ -628,49 +746,69 @@ func (h *AgentHandler) HandleUserWebSocket(c *gin.Context) {
 		return
 	}
 
+	// Verify agent exists and ownership (required for both local and remote agents).
+	ctx := c.Request.Context()
+	agentRecord, err := h.store.GetAgent(ctx, agentID)
+	if err != nil || agentRecord == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "agent not found"})
+		return
+	}
+	if agentRecord.UserID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "not authorized"})
+		return
+	}
+
+	// Enforce concurrent agent terminal limits (admins are exempt).
+	if user, err := h.store.GetUserByID(ctx, userID); err == nil && user != nil && !user.IsAdmin {
+		limit := maxConcurrentAgentTerminalsForTier(user.Tier, user.SubscriptionActive)
+		if limit <= 0 {
+			c.JSON(http.StatusForbidden, gin.H{
+				"error": "agent terminals not available for your plan",
+				"code":  "agent_terminal_limit_reached",
+			})
+			return
+		}
+
+		// Only enforce when connecting to an additional agent (multiple tabs to the same agent are allowed).
+		if !h.userHasAnyAgentSession(userID, agentID) {
+			current := h.countDistinctAgentTerminalsForUser(userID)
+			if current >= limit {
+				c.JSON(http.StatusForbidden, gin.H{
+					"error": "agent terminal limit reached for your plan",
+					"code":  "agent_terminal_limit_reached",
+					"limit": limit,
+				})
+				return
+			}
+		}
+	}
+
+	// Connection/session identifiers:
+	// - `id` is a client-provided stable ID (tab/pane). We use it as the server session key.
+	// - `newSession=true` means "split pane": create an independent shell session on the agent.
+	connectionID := c.Query("id")
+	if connectionID == "" {
+		connectionID = uuid.New().String()
+	}
+	newSession := c.Query("newSession") == "true"
+	agentSessionID := "main"
+	if newSession {
+		agentSessionID = "split-" + connectionID
+	}
+
 	// Check if agent is online locally
 	h.agentsMu.RLock()
 	agentConn, isLocal := h.agents[agentID]
 	h.agentsMu.RUnlock()
 
-	var isRemote bool
+	isRemote := false
 	if !isLocal {
-			// Check DB for remote agent location
-			ctx := c.Request.Context()
-		// We can reuse GetAgent since we need to check ownership anyway, 
-		// but we need the connected_instance_id which GetAgent might not return unless updated.
-		// Let's rely on a fresh DB query or update GetAgent to return it.
-		// Since we already called GetAgent above, let's update GetAgent to return connected_instance_id or use a specific query.
-		// Actually, GetAgent implementation in postgres_agent.go DOES NOT return connected_instance_id yet.
-		// I need to update GetAgent or add a new method.
-		// For now, let's use GetAgentsByUser loop or a direct query if I add one.
-		// Let's add GetAgentLocation to store.
-		
-		// Wait, I updated GetAgentsByUser but not GetAgent.
-		// Let's assume I'll add GetAgentLocation to store or query it here.
-		// Actually, let's just query the DB directly here for simplicity or assume GetAgent returns it if I update it.
-		// I will update GetAgent in next step.
-		
-		// For now, assume GetAgent was updated or use a workaround.
-		// But wait, I need to know the InstanceID to proxy to.
-		
-		// Let's implement GetAgentLocation in store first.
 		instanceID, err := h.store.GetAgentConnectedInstance(ctx, agentID)
 		if err == nil && instanceID != "" {
 			isRemote = true
-			// We need to know if the agent is actually online (heartbeat check)
-			// GetAgentConnectedInstance should probably check heartbeat too?
-			// Let's assume if it returns an ID, it's valid, or we check last_heartbeat.
 		}
-
 		if !isRemote {
 			c.JSON(http.StatusNotFound, gin.H{"error": "agent not online"})
-			return
-		}
-	} else {
-		// Local agent - verify ownership
-		if agentConn.UserID != userID {
-			c.JSON(http.StatusForbidden, gin.H{"error": "not authorized"})
 			return
 		}
 	}
@@ -682,20 +820,27 @@ func (h *AgentHandler) HandleUserWebSocket(c *gin.Context) {
 		return
 	}
 
-	sessionID := uuid.New().String()
 	session := &AgentSession{
-		ID:        sessionID,
-		AgentID:   agentID,
-		UserConn:  conn,
-		CreatedAt: time.Now(),
+		ID:            connectionID,
+		UserID:        userID,
+		AgentID:        agentID,
+		AgentSessionID: agentSessionID,
+		NewSession:     newSession,
+		UserConn:       conn,
+		CreatedAt:      time.Now(),
 	}
 
 	// === LOCAL AGENT HANDLING ===
 	if isLocal {
-		// Add session
+		// Add session (replace on reconnect)
+		var previous *AgentSession
 		agentConn.sessionsMu.Lock()
-		agentConn.sessions[sessionID] = session
+		previous = agentConn.sessions[connectionID]
+		agentConn.sessions[connectionID] = session
 		agentConn.sessionsMu.Unlock()
+		if previous != nil && previous.UserConn != nil {
+			previous.UserConn.Close()
+		}
 
 		// Send initial stats if available
 		if agentConn.Stats != nil {
@@ -705,32 +850,54 @@ func (h *AgentHandler) HandleUserWebSocket(c *gin.Context) {
 			})
 		}
 
-		// Check if this is a new session request (for split panes)
-		newSession := c.Query("newSession") == "true"
-
 		// Tell agent to start shell
 		agentConn.conn.WriteJSON(map[string]interface{}{
 			"type": "shell_start",
 			"data": map[string]interface{}{
-				"session_id":  sessionID,
+				"session_id":  agentSessionID,
 				"new_session": newSession,
 			},
 		})
 
 		defer func() {
 			agentConn.sessionsMu.Lock()
-			delete(agentConn.sessions, sessionID)
+			if current, ok := agentConn.sessions[connectionID]; ok && current == session {
+				delete(agentConn.sessions, connectionID)
+			}
+
+			// Determine whether we should stop the underlying agent session.
+			hasLocal := false
+			for _, s := range agentConn.sessions {
+				if s != nil && s.AgentSessionID == agentSessionID {
+					hasLocal = true
+					break
+				}
+			}
+			hasRemote := false
+			if refs, ok := agentConn.remoteSessionRefs[agentSessionID]; ok && len(refs) > 0 {
+				hasRemote = true
+			}
+			noLocalSessions := len(agentConn.sessions) == 0
+			noRemoteSessions := len(agentConn.remoteSessionRefs) == 0
 			agentConn.sessionsMu.Unlock()
 			conn.Close()
 
-			// Tell agent to stop shell if no more sessions
-			agentConn.sessionsMu.RLock()
-			if len(agentConn.sessions) == 0 {
+			// For split panes, stop the specific session when nobody is subscribed anymore.
+			if newSession && !hasLocal && !hasRemote {
+				agentConn.conn.WriteJSON(map[string]interface{}{
+					"type": "shell_stop_session",
+					"data": map[string]interface{}{
+						"session_id": agentSessionID,
+					},
+				})
+			}
+
+			// If no sessions remain anywhere (local or remote), stop everything.
+			if noLocalSessions && noRemoteSessions {
 				agentConn.conn.WriteJSON(map[string]interface{}{
 					"type": "shell_stop",
 				})
 			}
-			agentConn.sessionsMu.RUnlock()
 		}()
 
 		// Read messages from user and forward to agent
@@ -745,7 +912,7 @@ func (h *AgentHandler) HandleUserWebSocket(c *gin.Context) {
 				agentConn.conn.WriteJSON(map[string]interface{}{
 					"type": "shell_input",
 					"data": map[string]interface{}{
-						"session_id": sessionID,
+						"session_id": agentSessionID,
 						"data":       message,
 					},
 				})
@@ -769,7 +936,7 @@ func (h *AgentHandler) HandleUserWebSocket(c *gin.Context) {
 					agentConn.conn.WriteJSON(map[string]interface{}{
 						"type": "shell_input",
 						"data": map[string]interface{}{
-							"session_id": sessionID,
+							"session_id": agentSessionID,
 							"data":       []byte(inputStr),
 						},
 					})
@@ -783,7 +950,7 @@ func (h *AgentHandler) HandleUserWebSocket(c *gin.Context) {
 						agentConn.conn.WriteJSON(map[string]interface{}{
 							"type": "shell_resize",
 							"data": map[string]interface{}{
-								"session_id": sessionID,
+								"session_id": agentSessionID,
 								"cols":       resizeMsg.Cols,
 								"rows":       resizeMsg.Rows,
 							},
@@ -803,24 +970,54 @@ func (h *AgentHandler) HandleUserWebSocket(c *gin.Context) {
 
 	// === REMOTE AGENT HANDLING ===
 	if isRemote {
-		// Register remote session
-		h.remoteSessionsMu.Lock()
-		h.remoteSessions[sessionID] = session
-		h.remoteSessionsMu.Unlock()
+		if h.pubsubHub == nil {
+			conn.Close()
+			return
+		}
 
-		// Notify remote agent to start shell via Redis
-		if h.pubsubHub != nil {
-			h.pubsubHub.ProxyTerminalData(agentID, sessionID, "start_session", nil, 0, 0)
+		// Register remote session and only start the agent session once per instance+session.
+		shouldStart := false
+		var previous *AgentSession
+		h.remoteSessionsMu.Lock()
+		// Replace on reconnect
+		previous = h.remoteSessions[connectionID]
+		for _, s := range h.remoteSessions {
+			if s != nil && s.AgentID == agentID && s.AgentSessionID == agentSessionID {
+				shouldStart = false
+				goto registered
+			}
+		}
+		shouldStart = true
+	registered:
+		h.remoteSessions[connectionID] = session
+		h.remoteSessionsMu.Unlock()
+		if previous != nil && previous.UserConn != nil {
+			previous.UserConn.Close()
+		}
+
+		if shouldStart {
+			h.pubsubHub.ProxyTerminalData(agentID, agentSessionID, "start_session", nil, 0, 0, newSession)
 		}
 
 		defer func() {
+			shouldStop := false
 			h.remoteSessionsMu.Lock()
-			delete(h.remoteSessions, sessionID)
+			if current, ok := h.remoteSessions[connectionID]; ok && current == session {
+				delete(h.remoteSessions, connectionID)
+			}
+			hasAny := false
+			for _, s := range h.remoteSessions {
+				if s != nil && s.AgentID == agentID && s.AgentSessionID == agentSessionID {
+					hasAny = true
+					break
+				}
+			}
+			shouldStop = !hasAny
 			h.remoteSessionsMu.Unlock()
 			conn.Close()
 
-			if h.pubsubHub != nil {
-				h.pubsubHub.ProxyTerminalData(agentID, sessionID, "stop_session", nil, 0, 0)
+			if shouldStop {
+				h.pubsubHub.ProxyTerminalData(agentID, agentSessionID, "stop_session", nil, 0, 0, newSession)
 			}
 		}()
 
@@ -831,12 +1028,8 @@ func (h *AgentHandler) HandleUserWebSocket(c *gin.Context) {
 				break
 			}
 
-			if h.pubsubHub == nil {
-				break
-			}
-
 			if messageType == websocket.BinaryMessage {
-				h.pubsubHub.ProxyTerminalData(agentID, sessionID, "input", message, 0, 0)
+				h.pubsubHub.ProxyTerminalData(agentID, agentSessionID, "input", message, 0, 0, false)
 			} else {
 				var msg struct {
 					Type string          `json:"type"`
@@ -850,7 +1043,7 @@ func (h *AgentHandler) HandleUserWebSocket(c *gin.Context) {
 				case "input":
 					var inputStr string
 					if err := json.Unmarshal(msg.Data, &inputStr); err == nil {
-						h.pubsubHub.ProxyTerminalData(agentID, sessionID, "input", []byte(inputStr), 0, 0)
+						h.pubsubHub.ProxyTerminalData(agentID, agentSessionID, "input", []byte(inputStr), 0, 0, false)
 					}
 				case "resize":
 					var resizeMsg struct {
@@ -859,7 +1052,7 @@ func (h *AgentHandler) HandleUserWebSocket(c *gin.Context) {
 					}
 					// Parse the top-level message again to get cols/rows
 					if err := json.Unmarshal(message, &resizeMsg); err == nil {
-						h.pubsubHub.ProxyTerminalData(agentID, sessionID, "resize", nil, resizeMsg.Cols, resizeMsg.Rows)
+						h.pubsubHub.ProxyTerminalData(agentID, agentSessionID, "resize", nil, resizeMsg.Cols, resizeMsg.Rows, false)
 					}
 				}
 			}
@@ -1035,7 +1228,7 @@ func (h *AgentHandler) buildAgentData(agent *AgentConnection) gin.H {
 		"image":        agent.OS + "/" + agent.Arch,
 		"status":       "running",
 		"session_type": "agent",
-		"created_at":   agent.ConnectedAt,
+		"created_at":   agent.CreatedAt,
 		"last_used_at": agent.LastPing,
 		"os":           agent.OS,
 		"arch":         agent.Arch,
@@ -1091,6 +1284,93 @@ func (h *AgentHandler) buildAgentData(agent *AgentConnection) gin.H {
 
 	agentData["resources"] = resources
 	return agentData
+}
+
+func maxRegisteredAgentsForTier(tier string, subscriptionActive bool) int {
+	// Active subscription gets "pro" behavior regardless of tier label.
+	if subscriptionActive {
+		return 10
+	}
+	switch tier {
+	case "enterprise":
+		return 50
+	case "pro":
+		return 10
+	case "free":
+		return 3
+	case "guest":
+		return 0
+	default:
+		return 3
+	}
+}
+
+func maxConcurrentAgentTerminalsForTier(tier string, subscriptionActive bool) int {
+	// Keep this aligned with registered limits for now.
+	return maxRegisteredAgentsForTier(tier, subscriptionActive)
+}
+
+func (h *AgentHandler) userHasAnyAgentSession(userID, agentID string) bool {
+	// Local sessions (agent is connected to this instance)
+	h.agentsMu.RLock()
+	agentConn := h.agents[agentID]
+	h.agentsMu.RUnlock()
+	if agentConn != nil {
+		agentConn.sessionsMu.RLock()
+		for _, s := range agentConn.sessions {
+			if s != nil && s.UserID == userID && s.UserConn != nil {
+				agentConn.sessionsMu.RUnlock()
+				return true
+			}
+		}
+		agentConn.sessionsMu.RUnlock()
+	}
+
+	// Remote sessions (agent is connected to another instance)
+	h.remoteSessionsMu.RLock()
+	defer h.remoteSessionsMu.RUnlock()
+	for _, s := range h.remoteSessions {
+		if s != nil && s.UserID == userID && s.AgentID == agentID && s.UserConn != nil {
+			return true
+		}
+	}
+	return false
+}
+
+func (h *AgentHandler) countDistinctAgentTerminalsForUser(userID string) int {
+	agentIDs := make(map[string]struct{})
+
+	// Local agent sessions on this instance
+	h.agentsMu.RLock()
+	for id, agentConn := range h.agents {
+		if agentConn == nil || agentConn.UserID != userID {
+			continue
+		}
+		agentConn.sessionsMu.RLock()
+		hasAny := false
+		for _, s := range agentConn.sessions {
+			if s != nil && s.UserID == userID && s.UserConn != nil {
+				hasAny = true
+				break
+			}
+		}
+		agentConn.sessionsMu.RUnlock()
+		if hasAny {
+			agentIDs[id] = struct{}{}
+		}
+	}
+	h.agentsMu.RUnlock()
+
+	// Remote agent sessions on this instance
+	h.remoteSessionsMu.RLock()
+	for _, s := range h.remoteSessions {
+		if s != nil && s.UserID == userID && s.UserConn != nil {
+			agentIDs[s.AgentID] = struct{}{}
+		}
+	}
+	h.remoteSessionsMu.RUnlock()
+
+	return len(agentIDs)
 }
 
 // verifyToken parses and validates a JWT token or API token, returning the user ID
