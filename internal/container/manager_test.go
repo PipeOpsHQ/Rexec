@@ -110,3 +110,121 @@ func TestSanitizeErrorString(t *testing.T) {
 		})
 	}
 }
+
+func TestFormatBytes(t *testing.T) {
+	tests := []struct {
+		name  string
+		bytes int64
+		want  string
+	}{
+		{"Zero", 0, "2G"},
+		{"Small", 100, "0M"},
+		{"Megabytes", 500 * 1024 * 1024, "500M"},
+		{"Gigabytes", 2 * 1024 * 1024 * 1024, "2G"},
+		{"Exact GB", 1024 * 1024 * 1024, "1G"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := formatBytes(tt.bytes); got != tt.want {
+				t.Errorf("formatBytes(%d) = %s, want %s", tt.bytes, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetImageMetadata(t *testing.T) {
+	metadata := GetImageMetadata()
+	if len(metadata) == 0 {
+		t.Error("GetImageMetadata() returned empty list")
+	}
+
+	// Verify some known images exist
+	foundUbuntu := false
+	foundDebian := false
+	for _, img := range metadata {
+		if img.Name == "ubuntu" {
+			foundUbuntu = true
+		}
+		if img.Name == "debian" {
+			foundDebian = true
+		}
+	}
+
+	if !foundUbuntu {
+		t.Error("GetImageMetadata() missing ubuntu")
+	}
+	if !foundDebian {
+		t.Error("GetImageMetadata() missing debian")
+	}
+}
+
+func TestGetPopularImages(t *testing.T) {
+	popular := GetPopularImages()
+	if len(popular) == 0 {
+		t.Error("GetPopularImages() returned empty list")
+	}
+
+	for _, img := range popular {
+		if !img.Popular {
+			t.Errorf("Image %s in popular list but Popular flag is false", img.Name)
+		}
+	}
+}
+
+func TestGetImagesByCategory(t *testing.T) {
+	categories := GetImagesByCategory()
+	if len(categories) == 0 {
+		t.Error("GetImagesByCategory() returned empty map")
+	}
+
+	if _, ok := categories["debian"]; !ok {
+		t.Error("GetImagesByCategory() missing 'debian' category")
+	}
+}
+
+func TestIsCustomImageSupported(t *testing.T) {
+	// Temporarily mock CustomImages if needed, but for now we test with default values
+	// Assuming "ubuntu" is in CustomImages map in manager.go
+	if !IsCustomImageSupported("ubuntu") {
+		t.Error("IsCustomImageSupported('ubuntu') should be true")
+	}
+	if IsCustomImageSupported("nonexistent-image") {
+		t.Error("IsCustomImageSupported('nonexistent-image') should be false")
+	}
+}
+
+func TestGetImageName(t *testing.T) {
+	// Test standard image
+	name := GetImageName("ubuntu")
+	if name == "" {
+		t.Error("GetImageName('ubuntu') returned empty string")
+	}
+
+	// Test non-existent image
+	name = GetImageName("nonexistent-image-type")
+	if name != "" {
+		t.Errorf("GetImageName('nonexistent-image-type') = %s, want empty string", name)
+	}
+}
+
+func TestMergeLabels(t *testing.T) {
+	base := map[string]string{"a": "1", "b": "2"}
+	custom := map[string]string{"b": "3", "c": "4"}
+	
+	merged := mergeLabels(base, custom)
+	
+	if len(merged) != 3 {
+		t.Errorf("mergeLabels returned map of size %d, want 3", len(merged))
+	}
+	
+	if merged["a"] != "1" {
+		t.Errorf("merged['a'] = %s, want 1", merged["a"])
+	}
+	if merged["b"] != "3" { // custom should overwrite base
+		t.Errorf("merged['b'] = %s, want 3", merged["b"])
+	}
+	if merged["c"] != "4" {
+		t.Errorf("merged['c'] = %s, want 4", merged["c"])
+	}
+}
