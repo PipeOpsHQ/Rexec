@@ -93,6 +93,26 @@
 </script>
 
 <div class="launch-page">
+    <!-- Standalone Header -->
+    <header class="launch-header">
+        <a href="/" class="logo">
+            <span class="logo-icon">R</span>
+            <span class="logo-text">Rexec</span>
+        </a>
+        <nav class="launch-nav">
+            <a href="/docs">Docs</a>
+            <a href="/pricing">Pricing</a>
+            <a href="/use-cases">Use Cases</a>
+            <button class="btn btn-primary btn-sm" onclick={handleOAuthLogin} disabled={isOAuthLoading}>
+                {#if isOAuthLoading}
+                    <span class="spinner-sm"></span>
+                {:else}
+                    Sign In
+                {/if}
+            </button>
+        </nav>
+    </header>
+
     <!-- Hero Section -->
     <section class="hero">
         <div class="hero-badge">
@@ -309,18 +329,37 @@
     <!-- Pricing Teaser -->
     <section class="pricing-section">
         <h2>Start Free, Scale When Ready</h2>
+        <p class="section-subtitle">Sign in with PipeOps to unlock persistent terminals, SSH keys, snippets, and more</p>
         <div class="pricing-cards">
+            <div class="pricing-card">
+                <h3>Guest</h3>
+                <div class="price">$0<span>/forever</span></div>
+                <ul>
+                    <li><StatusIcon status="check" size={14} /> 1 terminal (ephemeral)</li>
+                    <li><StatusIcon status="check" size={14} /> All distros available</li>
+                    <li><StatusIcon status="check" size={14} /> Try before signing up</li>
+                    <li class="muted"><StatusIcon status="close" size={14} /> No persistence</li>
+                </ul>
+                <button class="btn btn-secondary" onclick={handleGuestClick}>
+                    Try Now
+                </button>
+            </div>
             <div class="pricing-card">
                 <h3>Free</h3>
                 <div class="price">$0<span>/month</span></div>
                 <ul>
                     <li><StatusIcon status="check" size={14} /> 3 concurrent terminals</li>
                     <li><StatusIcon status="check" size={14} /> 1 agent connection</li>
-                    <li><StatusIcon status="check" size={14} /> All pre-configured roles</li>
-                    <li><StatusIcon status="check" size={14} /> Community support</li>
+                    <li><StatusIcon status="check" size={14} /> SSH key management</li>
+                    <li><StatusIcon status="check" size={14} /> Snippets library</li>
+                    <li><StatusIcon status="check" size={14} /> Session recordings</li>
                 </ul>
-                <button class="btn btn-secondary" onclick={handleGuestClick}>
-                    Get Started
+                <button class="btn btn-primary" onclick={handleOAuthLogin} disabled={isOAuthLoading}>
+                    {#if isOAuthLoading}
+                        <span class="spinner"></span>
+                    {:else}
+                        Sign in with PipeOps
+                    {/if}
                 </button>
             </div>
             <div class="pricing-card featured">
@@ -350,6 +389,27 @@
             Launch Your First Terminal
         </button>
     </section>
+
+    <!-- Footer -->
+    <footer class="launch-footer">
+        <div class="footer-content">
+            <div class="footer-brand">
+                <span class="logo-icon">R</span>
+                <span>Rexec</span>
+                <span class="footer-tagline">Terminal as a Service</span>
+            </div>
+            <div class="footer-links">
+                <a href="/docs">Documentation</a>
+                <a href="/docs#faq">FAQ</a>
+                <a href="/pricing">Pricing</a>
+                <a href="/use-cases">Use Cases</a>
+                <a href="/guides">Guides</a>
+            </div>
+            <div class="footer-copy">
+                © 2025 Rexec by PipeOps. All rights reserved.
+            </div>
+        </div>
+    </footer>
 </div>
 
 <style>
@@ -357,6 +417,74 @@
         max-width: 1200px;
         margin: 0 auto;
         padding: 0 20px;
+    }
+
+    /* Launch Header */
+    .launch-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 0;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 20px;
+    }
+
+    .logo {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        color: var(--text);
+    }
+
+    .logo-icon {
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--accent);
+        color: white;
+        font-weight: 700;
+        font-size: 16px;
+        border-radius: 8px;
+    }
+
+    .logo-text {
+        font-size: 20px;
+        font-weight: 700;
+    }
+
+    .launch-nav {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+    }
+
+    .launch-nav a {
+        color: var(--text-muted);
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 500;
+        transition: color 0.2s;
+    }
+
+    .launch-nav a:hover {
+        color: var(--text);
+    }
+
+    .btn-sm {
+        padding: 8px 16px;
+        font-size: 13px;
+    }
+
+    .spinner-sm {
+        width: 14px;
+        height: 14px;
+        border: 2px solid transparent;
+        border-top-color: currentColor;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
     }
 
     /* Hero */
@@ -917,6 +1045,11 @@
         color: var(--text-muted);
     }
 
+    .pricing-card li.muted {
+        opacity: 0.5;
+        text-decoration: line-through;
+    }
+
     .pricing-card .btn {
         width: 100%;
         justify-content: center;
@@ -934,6 +1067,64 @@
         margin-bottom: 32px;
     }
 
+    /* Footer */
+    .launch-footer {
+        border-top: 1px solid var(--border);
+        padding: 40px 0;
+        margin-top: 40px;
+    }
+
+    .footer-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 24px;
+        text-align: center;
+    }
+
+    .footer-brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 600;
+        color: var(--text);
+    }
+
+    .footer-brand .logo-icon {
+        width: 24px;
+        height: 24px;
+        font-size: 12px;
+    }
+
+    .footer-tagline {
+        color: var(--text-muted);
+        font-weight: 400;
+        margin-left: 8px;
+    }
+
+    .footer-links {
+        display: flex;
+        gap: 24px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .footer-links a {
+        color: var(--text-muted);
+        text-decoration: none;
+        font-size: 13px;
+        transition: color 0.2s;
+    }
+
+    .footer-links a:hover {
+        color: var(--text);
+    }
+
+    .footer-copy {
+        font-size: 12px;
+        color: var(--text-muted);
+    }
+
     /* Responsive */
     @media (max-width: 1024px) {
         .roles-grid {
@@ -946,6 +1137,15 @@
     }
 
     @media (max-width: 768px) {
+        .launch-header {
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .launch-nav {
+            gap: 16px;
+        }
+
         .hero h1 {
             font-size: 32px;
         }
@@ -1008,6 +1208,10 @@
 
         .stat-value {
             font-size: 24px;
+        }
+
+        .footer-links {
+            gap: 16px;
         }
     }
 </style>

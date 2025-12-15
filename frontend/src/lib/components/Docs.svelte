@@ -369,10 +369,18 @@
                     <span>What does it cost?</span>
                 </summary>
                 <div class="faq-answer">
-                    <p>Rexec offers a generous free tier for personal use. For teams and businesses, we offer Pro and Enterprise plans with additional features like:</p>
+                    <p>Rexec offers a generous free tier for personal use. <strong>Sign in with PipeOps</strong> to unlock:</p>
                     <ul>
-                        <li><strong>More concurrent terminals</strong></li>
-                        <li><strong>Longer session times</strong></li>
+                        <li><strong>Persistent terminals</strong> — Your terminals survive browser restarts</li>
+                        <li><strong>SSH key management</strong> — Store and inject keys into terminals</li>
+                        <li><strong>Snippets library</strong> — Save and reuse commands</li>
+                        <li><strong>Agent connections</strong> — Connect your own servers</li>
+                        <li><strong>Session history</strong> — Access your terminal recordings</li>
+                    </ul>
+                    <p>For teams and power users, <strong>Pro</strong> and <strong>Enterprise</strong> plans add:</p>
+                    <ul>
+                        <li><strong>More concurrent terminals</strong> (10+ vs 3)</li>
+                        <li><strong>Unlimited agents</strong></li>
                         <li><strong>Priority support</strong></li>
                         <li><strong>Custom images</strong></li>
                         <li><strong>SSO/SAML integration</strong></li>
