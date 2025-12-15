@@ -857,6 +857,10 @@ func runServer() {
 			Title:       "Promotions | Rexec",
 			Description: "Limited-time offers and promos for Rexec.",
 		}
+		launchSEO := seoConfig{
+			Title:       "Rexec Launch - Terminal as a Service | Cloud Terminals & Secure Agent",
+			Description: "Instant cloud terminals for developers. Safely run AI-generated code, access servers without SSH exposure, and spin up dev environments in seconds. Try free today.",
+		}
 		snippetsSEO := seoConfig{
 			Title:       "Snippets | Rexec",
 			Description: "Create, share, and run reusable scripts and macros on Rexec terminals.",
@@ -1112,6 +1116,10 @@ func runServer() {
 
 		router.GET("/promo", func(c *gin.Context) {
 			serveSEO(c, promoSEO)
+		})
+
+		router.GET("/launch", func(c *gin.Context) {
+			serveSEO(c, launchSEO)
 		})
 
 		router.GET("/admin", func(c *gin.Context) {

@@ -46,18 +46,18 @@ type TokenResponse struct {
 
 // UserInfo represents user information from PipeOps
 type UserInfo struct {
-	ID                 int       `json:"id"`       // Server returns number
-	UUID               string    `json:"uuid"`     // Server returns UUID
-	Username           string    `json:"username,omitempty"` // May not be in response
-	Email              string    `json:"email"`
-	Name               string    `json:"name,omitempty"`                // May not be in response
-	FirstName          string    `json:"first_name,omitempty"`          // Server field
-	LastName           string    `json:"last_name,omitempty"`           // Server field
-	Avatar             string    `json:"avatar,omitempty"`              // Server field
-	Verified           bool      `json:"email_verified"`      // Server field (email_verified)
-	SubscriptionActive bool      `json:"subscription_active"` // Server field
-	Roles              []string  `json:"roles,omitempty"`               // May not be in response
-	Permissions        []string  `json:"permissions,omitempty"`         // May not be in response
+	ID                 int      `json:"id"`                 // Server returns number
+	UUID               string   `json:"uuid"`               // Server returns UUID
+	Username           string   `json:"username,omitempty"` // May not be in response
+	Email              string   `json:"email"`
+	Name               string   `json:"name,omitempty"`        // May not be in response
+	FirstName          string   `json:"first_name,omitempty"`  // Server field
+	LastName           string   `json:"last_name,omitempty"`   // Server field
+	Avatar             string   `json:"avatar,omitempty"`      // Server field
+	Verified           bool     `json:"email_verified"`        // Server field (email_verified)
+	SubscriptionActive bool     `json:"subscription_active"`   // Server field
+	Roles              []string `json:"roles,omitempty"`       // May not be in response
+	Permissions        []string `json:"permissions,omitempty"` // May not be in response
 }
 
 // PKCEOAuthService handles OAuth2 authentication with PKCE
@@ -143,10 +143,15 @@ func GenerateRandomState() (string, error) {
 
 // GetAuthorizationURL returns the authorization URL for OAuth flow
 func (s *PKCEOAuthService) GetAuthorizationURL(state, codeChallenge string) string {
+	return s.GetAuthorizationURLWithRedirect(state, codeChallenge, s.config.RedirectURI)
+}
+
+// GetAuthorizationURLWithRedirect returns the authorization URL with a custom redirect URI
+func (s *PKCEOAuthService) GetAuthorizationURLWithRedirect(state, codeChallenge, redirectURI string) string {
 	params := url.Values{
 		"response_type":         {"code"},
 		"client_id":             {s.config.ClientID},
-		"redirect_uri":          {s.config.RedirectURI},
+		"redirect_uri":          {redirectURI},
 		"scope":                 {strings.Join(s.config.Scopes, " ")},
 		"state":                 {state},
 		"code_challenge":        {codeChallenge},
@@ -159,11 +164,16 @@ func (s *PKCEOAuthService) GetAuthorizationURL(state, codeChallenge string) stri
 
 // ExchangeCodeForToken exchanges an authorization code for tokens
 func (s *PKCEOAuthService) ExchangeCodeForToken(code, codeVerifier string) (*TokenResponse, error) {
+	return s.ExchangeCodeForTokenWithRedirect(code, codeVerifier, s.config.RedirectURI)
+}
+
+// ExchangeCodeForTokenWithRedirect exchanges an authorization code for tokens with a custom redirect URI
+func (s *PKCEOAuthService) ExchangeCodeForTokenWithRedirect(code, codeVerifier, redirectURI string) (*TokenResponse, error) {
 	// Use JSON data for token exchange (PipeOps specific)
 	tokenReq := map[string]string{
 		"grant_type":    "authorization_code",
 		"code":          code,
-		"redirect_uri":  s.config.RedirectURI,
+		"redirect_uri":  redirectURI,
 		"client_id":     s.config.ClientID,
 		"code_verifier": codeVerifier,
 		"token_format":  "jwt",
