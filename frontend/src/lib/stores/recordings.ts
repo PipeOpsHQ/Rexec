@@ -5,6 +5,7 @@ import { auth } from './auth';
 export interface Recording {
   id: string;
   title: string;
+  containerName?: string;
   durationMs: number;
   duration: string;
   sizeBytes: number;

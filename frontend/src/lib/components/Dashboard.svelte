@@ -339,7 +339,7 @@
     $: effectiveCount = containerList.length + (currentlyCreating ? 1 : 0);
     
     // Check subscription status
-    $: isPaidUser = $auth.user?.tier === 'pro' || $auth.user?.tier === 'enterprise' || $auth.user?.subscription_active;
+    $: isPaidUser = $auth.user?.tier === 'pro' || $auth.user?.tier === 'enterprise' || $auth.user?.subscriptionActive;
 </script>
 
 <ConfirmModal

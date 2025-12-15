@@ -221,7 +221,6 @@
         | "account-api"
         | "docs"
         | "404" = "landing";
-    let accountSection: string | null = null; // Track which account sub-section we're in
     let isLoading = true;
     let isInitialized = false; // Prevents reactive statements from firing before token validation
     let joinCode = ""; // For /join/:code route
@@ -735,7 +734,6 @@
             }
             window.history.replaceState({}, "", "/account/settings");
             currentView = "account-settings";
-            accountSection = "settings";
             return;
         }
 
@@ -747,7 +745,6 @@
             }
             window.history.replaceState({}, "", "/account/ssh");
             currentView = "account-ssh";
-            accountSection = "ssh";
             return;
         }
 
@@ -759,7 +756,6 @@
             }
             window.history.replaceState({}, "", "/account/snippets");
             currentView = "account-snippets";
-            accountSection = "snippets";
             return;
         }
 
@@ -792,25 +788,18 @@
             // Handle account sub-routes
             if (path === "/account/settings") {
                 currentView = "account-settings";
-                accountSection = "settings";
             } else if (path === "/account/ssh" || path === "/account/sshkeys") {
                 currentView = "account-ssh";
-                accountSection = "ssh";
             } else if (path === "/account/billing") {
                 currentView = "account-billing";
-                accountSection = "billing";
             } else if (path === "/account/snippets") {
                 currentView = "account-snippets";
-                accountSection = "snippets";
             } else if (path === "/account/recordings") {
                 currentView = "account-recordings";
-                accountSection = "recordings";
             } else if (path === "/account/api" || path === "/account/tokens") {
                 currentView = "account-api";
-                accountSection = "api";
             } else if (path === "/account" || path === "/profile") {
                 currentView = "account";
-                accountSection = null;
             } else {
                 // Unknown account sub-route
                 currentView = "404";
@@ -1139,19 +1128,16 @@
 
     function goToSettings() {
         currentView = "account-settings";
-        accountSection = "settings";
         window.history.pushState({}, "", "/account/settings");
     }
 
     function goToSSHKeys() {
         currentView = "account-ssh";
-        accountSection = "ssh";
         window.history.pushState({}, "", "/account/ssh");
     }
 
     function goToSnippets() {
         currentView = "account-snippets";
-        accountSection = "snippets";
         window.history.pushState({}, "", "/account/snippets");
     }
 
@@ -1232,7 +1218,6 @@
             if ($isAuthenticated) {
                 window.history.replaceState({}, "", "/account/snippets");
                 currentView = "account-snippets";
-                accountSection = "snippets";
             } else {
                 currentView = "landing";
             }
@@ -1240,7 +1225,6 @@
             if ($isAuthenticated) {
                 window.history.replaceState({}, "", "/account/settings");
                 currentView = "account-settings";
-                accountSection = "settings";
             } else {
                 currentView = "landing";
             }
@@ -1248,7 +1232,6 @@
             if ($isAuthenticated) {
                 window.history.replaceState({}, "", "/account/ssh");
                 currentView = "account-ssh";
-                accountSection = "ssh";
             } else {
                 currentView = "landing";
             }
@@ -1262,25 +1245,18 @@
             if ($isAuthenticated) {
                 if (path === "/account/settings") {
                     currentView = "account-settings";
-                    accountSection = "settings";
                 } else if (path === "/account/ssh" || path === "/account/sshkeys") {
                     currentView = "account-ssh";
-                    accountSection = "ssh";
                 } else if (path === "/account/billing") {
                     currentView = "account-billing";
-                    accountSection = "billing";
                 } else if (path === "/account/snippets") {
                     currentView = "account-snippets";
-                    accountSection = "snippets";
                 } else if (path === "/account/recordings") {
                     currentView = "account-recordings";
-                    accountSection = "recordings";
                 } else if (path === "/account/api" || path === "/account/tokens") {
                     currentView = "account-api";
-                    accountSection = "api";
                 } else {
                     currentView = "account";
-                    accountSection = null;
                 }
             } else {
                 currentView = "landing";
@@ -1585,7 +1561,6 @@
                             if (view === "dashboard") goToDashboard();
                             else if (view === "settings") {
                                 currentView = "account-settings";
-                                accountSection = "settings";
                                 window.history.pushState(
                                     {},
                                     "",
@@ -1593,11 +1568,9 @@
                                 );
                             } else if (view === "sshkeys") {
                                 currentView = "account-ssh";
-                                accountSection = "ssh";
                                 window.history.pushState({}, "", "/account/ssh");
                             } else if (view === "billing") {
                                 currentView = "account-billing";
-                                accountSection = "billing";
                                 window.history.pushState(
                                     {},
                                     "",
@@ -1605,7 +1578,6 @@
                                 );
                             } else if (view === "snippets") {
                                 currentView = "account-snippets";
-                                accountSection = "snippets";
                                 window.history.pushState(
                                     {},
                                     "",
@@ -1613,7 +1585,6 @@
                                 );
                             } else if (view === "recordings") {
                                 currentView = "account-recordings";
-                                accountSection = "recordings";
                                 window.history.pushState(
                                     {},
                                     "",
@@ -1645,7 +1616,6 @@
                             this={lazyComponents.settings}
                             on:back={() => {
                                 currentView = "account";
-                                accountSection = null;
                                 window.history.pushState({}, "", "/account");
                             }}
                             on:connectAgent={(e) => {
@@ -1674,7 +1644,6 @@
                             this={lazyComponents.sshKeys}
                             on:back={() => {
                                 currentView = "account";
-                                accountSection = null;
                                 window.history.pushState({}, "", "/account");
                             }}
                             on:run={(e) => {
@@ -1720,7 +1689,6 @@
                             this={lazyComponents.billing}
                             on:back={() => {
                                 currentView = "account";
-                                accountSection = null;
                                 window.history.pushState({}, "", "/account");
                             }}
                             on:pricing={() => {
@@ -1746,7 +1714,6 @@
                             this={lazyComponents.snippetsPage}
                             on:back={() => {
                                 currentView = "account";
-                                accountSection = null;
                                 window.history.pushState({}, "", "/account");
                             }}
                         />

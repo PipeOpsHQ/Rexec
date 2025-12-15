@@ -246,12 +246,14 @@
         }
     }
 
-    function copyShareLink(recording: Recording) {
+    function copyShareLink(recording: Recording | null) {
+        if (!recording) return;
         const url = `${window.location.origin}${recording.shareUrl}`;
         navigator.clipboard.writeText(url);
     }
 
-    async function downloadRecording(recording: Recording) {
+    async function downloadRecording(recording: Recording | null) {
+        if (!recording) return;
         try {
             const authToken = get(token);
             const response = await fetch(`/api/recordings/${recording.id}/stream`, {
@@ -284,10 +286,6 @@
             hour: '2-digit',
             minute: '2-digit'
         });
-    }
-
-    function formatDuration(duration: string): string {
-        return duration || '0:00';
     }
 </script>
 

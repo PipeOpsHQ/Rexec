@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { canInstall, promptInstall, deferredPrompt } from '$stores/pwa';
+  import { canInstall, promptInstall } from '$stores/pwa';
   import { onMount } from 'svelte';
 
   let installing = false;

@@ -21,8 +21,7 @@
 
   $: session = $collab.activeSession;
   $: participants = $collab.participants;
-  $: isConnected = $collab.isConnected;
-  
+
   // Get terminal info for display
   $: terminal = $containers.containers.find(c => c.id === containerId);
   $: terminalName = terminal?.name || containerId.slice(0, 12);

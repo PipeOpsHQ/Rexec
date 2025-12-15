@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { createEventDispatcher, onMount } from "svelte";
+    import { createEventDispatcher } from "svelte";
     import { fade, scale } from "svelte/transition";
     import { api, formatMemory, formatStorage, formatCPU } from "$utils/api";
     import { toast } from "$stores/toast";

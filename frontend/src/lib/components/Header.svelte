@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { createEventDispatcher, onMount, onDestroy } from "svelte";
+    import { createEventDispatcher, onMount } from "svelte";
     import {
         auth,
         isAuthenticated,

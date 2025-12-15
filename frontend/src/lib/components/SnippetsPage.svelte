@@ -1,3 +1,7 @@
+<script context="module">
+    declare const ace: any; // Declare ace to avoid TypeScript errors
+</script>
+
 <script lang="ts">
     import { createEventDispatcher, onMount, onDestroy } from "svelte";
     import { toast } from "$stores/toast";
@@ -5,7 +9,6 @@
     import StatusIcon from "./icons/StatusIcon.svelte";
     import ConfirmModal from "./ConfirmModal.svelte";
 
-    declare const ace: any; // Declare ace to avoid TypeScript errors
     const ACE_VERSION = "1.33.0";
     const ACE_BASE = `https://cdnjs.cloudflare.com/ajax/libs/ace/${ACE_VERSION}/`;
     let aceLoadPromise: Promise<void> | null = null;

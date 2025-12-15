@@ -112,7 +112,7 @@
     
     // Get terminals from API that are not currently connected
     $: availableTerminals = $containers.containers.filter(
-        c => c.status === "running" && !connectedContainerIds.has(c.id) && !connectedContainerIds.has(c.db_id)
+        c => c.status === "running" && !connectedContainerIds.has(c.id) && (!c.db_id || !connectedContainerIds.has(c.db_id))
     );
 
     // Inline create terminal state
@@ -265,7 +265,7 @@
     function toggleView() {
         // Don't allow floating on mobile
         if (isMobile && !$isFloating) {
-            toast.add("Floating mode not available on mobile", "info");
+            toast.info("Floating mode not available on mobile");
             return;
         }
         terminal.toggleFloating();
@@ -499,7 +499,8 @@
             }
 
             // Cmd/Ctrl+Arrows: Navigate Panes
-            if (activeId && $terminal.sessions.get(activeId)?.splitPanes?.size > 0 && !isShift) {
+            const session = activeId ? $terminal.sessions.get(activeId) : undefined;
+            if (session && session.splitPanes && session.splitPanes.size > 0 && !isShift) {
                 let direction: 'left' | 'right' | 'up' | 'down' | null = null;
                 switch (event.key) {
                     case 'ArrowLeft':
@@ -572,7 +573,7 @@
             // If switched to mobile while floating, go to docked
             if (isMobile && !wasMobile && $isFloating) {
                 terminal.toggleFloating();
-                toast.add("Switched to docked mode for mobile", "info");
+                toast.info("Switched to docked mode for mobile");
             }
         };
         window.addEventListener('resize', handleResize);

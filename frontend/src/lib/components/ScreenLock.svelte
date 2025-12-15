@@ -3,7 +3,6 @@
     import { security, hasPasscode, isLocked } from "$stores/security";
     import { isAuthenticated } from "$stores/auth";
     import { toast } from "$stores/toast";
-    import { get } from "svelte/store";
 
     let passcodeInput = "";
     let newPasscode = "";

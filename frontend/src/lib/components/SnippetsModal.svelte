@@ -1,9 +1,8 @@
 <script lang="ts">
-    import { createEventDispatcher, onMount } from "svelte";
+    import { createEventDispatcher } from "svelte";
     import { fade, scale } from "svelte/transition";
     import { api } from "$utils/api";
     import { toast } from "$stores/toast";
-    import { terminal } from "$stores/terminal";
     import ConfirmModal from "./ConfirmModal.svelte";
     import StatusIcon from "./icons/StatusIcon.svelte";
 
@@ -12,6 +11,7 @@
 
     const dispatch = createEventDispatcher<{
         close: void;
+        run: { snippet: Snippet };
     }>();
 
     interface Snippet {
@@ -163,8 +163,7 @@
         
         // Wait, terminal store has sessions map.
         // We need to find the session for this container.
-        let sessionId: string | undefined;
-        
+
         // This is a bit of a hack if we don't have direct access to session ID
         // But typically the caller passes the container ID associated with the active view
         // The store doesn't expose a direct lookup by container ID publicly easily?

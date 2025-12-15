@@ -26,14 +26,14 @@
         isLoggingIn = true;
         error = "";
         try {
-            auth.oauthLogin();
-            // After successful login, check if we need to redirect
-            if (callback && $token) {
-                redirectWithToken($token);
+            const url = await auth.getOAuthUrl();
+            if (url) {
+                window.location.href = url;
+            } else {
+                throw new Error("Failed to get login URL");
             }
         } catch (e: any) {
             error = e.message || "Login failed";
-        } finally {
             isLoggingIn = false;
         }
     }

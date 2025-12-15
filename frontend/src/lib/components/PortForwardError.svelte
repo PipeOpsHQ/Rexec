@@ -4,8 +4,6 @@
     export let port: number = 0;
     export let errorCode: number = 503;
     
-    const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/';
-    
     function goToDashboard() {
         window.location.href = '/';
     }

@@ -78,7 +78,8 @@
     navigator.clipboard.writeText(url);
   }
 
-  async function downloadRecording(recording: Recording) {
+  async function downloadRecording(recording: Recording | null) {
+    if (!recording) return;
     try {
       const authToken = get(token);
       if (!authToken) {
@@ -298,15 +299,6 @@
     isOpen = false;
     selectedRecording = null;
     dispatch('close');
-  }
-
-  function formatDate(dateStr: string): string {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
   }
 </script>
 

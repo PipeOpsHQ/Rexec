@@ -153,7 +153,7 @@
         const { id, type } = itemToDelete;
         itemToDelete = null;
 
-        let error: string | null = null;
+        let error: string | null | undefined = null;
         if (type === "key") {
             const res = await api.delete(`/api/ssh/keys/${id}`);
             error = res.error;

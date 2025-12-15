@@ -4,7 +4,7 @@
     import { containers, type ProgressEvent } from "$stores/containers";
     import { roles } from "$stores/roles";
     import { userTier, subscriptionActive } from "$stores/auth";
-    import { api, formatMemory, formatStorage, formatCPU } from "$utils/api";
+    import { formatMemory, formatStorage, formatCPU } from "$utils/api";
     import PlatformIcon from "./icons/PlatformIcon.svelte";
     import StatusIcon from "./icons/StatusIcon.svelte";
 
@@ -422,19 +422,6 @@
         }
     }
 
-    // Helper to get role display info
-    function getRoleIcon(roleId: string): string {
-        const icons: Record<string, string> = {
-            standard: "terminal",
-            node: "nodejs",
-            python: "python",
-            go: "golang",
-            neovim: "edit",
-            devops: "devops",
-            overemployed: "ai",
-        };
-        return icons[roleId] || "terminal";
-    }
 
     function getRoleRecommendedOS(roleId: string): string {
         const osMap: Record<string, string> = {

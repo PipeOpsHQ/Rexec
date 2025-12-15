@@ -81,15 +81,6 @@
             toast.error(result.error || "Failed to open billing portal");
         }
     }
-
-    async function handleUpgrade(tier: "pro" | "enterprise") {
-        const result = await billing.createCheckout(tier);
-        if (result.success && result.checkoutUrl) {
-            window.location.href = result.checkoutUrl;
-        } else {
-            toast.error(result.error || "Failed to start checkout");
-        }
-    }
 </script>
 
 <div class="billing-page">

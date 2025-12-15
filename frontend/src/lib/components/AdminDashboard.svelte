@@ -1,9 +1,8 @@
 <script lang="ts">
     import { onMount, onDestroy } from "svelte";
     import { admin } from "$stores/admin";
-    import { formatRelativeTime, formatMemory, formatStorage, formatCPU } from "$utils/api";
+    import { formatRelativeTime, formatMemory, formatCPU } from "$utils/api";
     import PlatformIcon from "./icons/PlatformIcon.svelte";
-    import StatusIcon from "./icons/StatusIcon.svelte";
 
     // Tabs
     type Tab = "users" | "subscribers" | "containers" | "terminals" | "agents";

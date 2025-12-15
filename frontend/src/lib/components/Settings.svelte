@@ -13,6 +13,7 @@
   }>();
 
   // Settings state
+  let theme: 'dark' | 'light' = 'dark';
   let fontSize = 14;
   let cursorBlink = true;
   let cursorStyle: 'bar' | 'block' | 'underline' = 'bar';

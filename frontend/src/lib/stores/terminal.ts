@@ -1,8 +1,6 @@
 import { writable, derived, get } from "svelte/store";
 import type { Terminal } from "@xterm/xterm";
 import type { FitAddon } from "@xterm/addon-fit";
-import type { Unicode11Addon } from "@xterm/addon-unicode11";
-import type { WebLinksAddon } from "@xterm/addon-web-links";
 import type { WebglAddon } from "@xterm/addon-webgl";
 import { token } from "./auth";
 import { toast } from "./toast";
@@ -104,12 +102,9 @@ const WS_PING_INTERVAL = 20000; // 20s ping to keep connection alive
 const WS_SILENT_RECONNECT_THRESHOLD = 3; // Show message after 3 silent attempts
 
 // Input/Output optimization constants
-const INPUT_THROTTLE_MS = 0; // No throttle - send immediately for responsiveness
 const OUTPUT_FLUSH_INTERVAL = 8; // ~120fps for smooth output
 const OUTPUT_IMMEDIATE_THRESHOLD = 256; // Immediately write small outputs
 const OUTPUT_MAX_BUFFER = 32 * 1024; // 32KB max buffer before force flush
-const CHUNK_SIZE = 32768; // 32KB chunks for large pastes (vibe coding support)
-const CHUNK_DELAY = 5; // 5ms between chunks - faster paste
 
 const REXEC_BANNER =
   "\x1b[38;5;46m\r\n" +

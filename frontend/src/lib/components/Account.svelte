@@ -1,6 +1,6 @@
 <script lang="ts">
     import { createEventDispatcher } from "svelte";
-    import { auth, isAuthenticated, isGuest, isAdmin } from "$stores/auth";
+    import { auth, isGuest, isAdmin } from "$stores/auth";
     import StatusIcon from "./icons/StatusIcon.svelte";
     
     const dispatch = createEventDispatcher<{

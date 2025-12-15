@@ -24,6 +24,7 @@
     "workbox-strategies": "^7.4.0"
   },
   "devDependencies": {
+    "@rollup/rollup-darwin-x64": "^4.53.3",
     "@sveltejs/vite-plugin-svelte": "^5.0.3",
     "@tsconfig/svelte": "^5.0.4",
     "svelte": "^5.16.0",
@@ -34,9 +35,13 @@
     "vite-plugin-pwa": "^0.21.1"
   },
   "optionalDependencies": {
-    "@rollup/rollup-darwin-arm64": "^4.53.3",
-    "@rollup/rollup-darwin-x64": "^4.53.3",
-    "@rollup/rollup-linux-arm64-musl": "^4.53.3",
-    "@rollup/rollup-linux-x64-musl": "^4.53.3"
+    "@rollup/rollup-darwin-arm64": "^4.28.0",
+    "@rollup/rollup-darwin-x64": "^4.28.0",
+    "@rollup/rollup-linux-arm64-gnu": "^4.28.0",
+    "@rollup/rollup-linux-arm64-musl": "^4.28.0",
+    "@rollup/rollup-linux-x64-gnu": "^4.28.0",
+    "@rollup/rollup-linux-x64-musl": "^4.28.0",
+    "@rollup/rollup-win32-arm64-msvc": "^4.28.0",
+    "@rollup/rollup-win32-x64-msvc": "^4.28.0"
   }
 }

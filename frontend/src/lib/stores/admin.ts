@@ -1,5 +1,5 @@
-import { writable, derived, get } from "svelte/store";
-import { api, type ApiResponse, getWebSocketUrl } from "../utils/api";
+import { writable } from "svelte/store";
+import { api, getWebSocketUrl } from "../utils/api";
 import { createRexecWebSocket } from "../utils/ws";
 import type { User } from "./auth";
 import type { Container } from "./containers";
@@ -86,7 +86,7 @@ const initialState: AdminState = {
 };
 
 function createAdminStore() {
-  const { subscribe, set, update } = writable<AdminState>(initialState);
+  const { subscribe, update } = writable<AdminState>(initialState);
 
   let ws: WebSocket | null = null;
   let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;

@@ -1,4 +1,4 @@
-import { writable, derived, get } from 'svelte/store';
+import { writable, get } from 'svelte/store';
 import { auth } from './auth';
 
 export interface AgentSystemInfo {
@@ -210,7 +210,10 @@ function createAgentsStore() {
     },
 
     reset() {
-      set({ agents: [], loading: false, error: null });
+      set({
+        agents: [], loading: false, error: null,
+        agentTokens: {},
+      });
     },
   };
 }

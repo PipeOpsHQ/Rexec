@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { tokens, type APIToken } from '$stores/tokens';
+  import { tokens } from '$stores/tokens';
   import { toast } from '$stores/toast';
 
   let newTokenName = '';

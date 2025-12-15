@@ -1,4 +1,4 @@
-import { writable, derived } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -46,12 +46,7 @@ export function initInstallPrompt() {
 
 // Trigger the install prompt
 export async function promptInstall(): Promise<boolean> {
-  let prompt: BeforeInstallPromptEvent | null = null;
-  
-  const unsubscribe = deferredPrompt.subscribe((value) => {
-    prompt = value;
-  });
-  unsubscribe();
+  const prompt = get(deferredPrompt);
 
   if (!prompt) {
     return false;

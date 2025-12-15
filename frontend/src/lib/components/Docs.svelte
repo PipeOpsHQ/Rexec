@@ -1,14 +1,11 @@
 <script lang="ts">
-    import { createEventDispatcher, onMount } from "svelte";
+    import { createEventDispatcher } from "svelte";
     import StatusIcon from "./icons/StatusIcon.svelte";
 
     const dispatch = createEventDispatcher<{
         navigate: { view: string };
     }>();
 
-    function navigate(view: string) {
-        dispatch("navigate", { view });
-    }
 
     // SEO metadata for docs page
     onMount(() => {

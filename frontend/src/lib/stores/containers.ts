@@ -442,7 +442,6 @@ function createContainersStore() {
         const maxAttempts = 120; // 2 minutes max
         const pollInterval = 1000; // 1 second
         let attempts = 0;
-        let lastWsProgress = 15; // Track last WebSocket-provided progress
 
         // Stage definitions (used for fallback when WebSocket isn't working)
         const stageConfig: Record<string, { progress: number; message: string }> = {
