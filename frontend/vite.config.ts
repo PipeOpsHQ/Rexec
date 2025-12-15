@@ -3,7 +3,19 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { VitePWA } from 'vite-plugin-pwa';
 import { resolve } from 'path';
 
+const resolvedSiteUrl = process.env.VITE_SITE_URL || process.env.SITE_URL || 'https://rexec.pipeops.io';
+const resolvedAllowedOrigins = process.env.VITE_ALLOWED_ORIGINS || process.env.ALLOWED_ORIGINS || '';
+process.env.VITE_SITE_URL = resolvedSiteUrl;
+process.env.VITE_ALLOWED_ORIGINS = resolvedAllowedOrigins;
+
+const siteUrl = process.env.VITE_SITE_URL;
+const allowedOrigins = process.env.VITE_ALLOWED_ORIGINS || '';
+
 export default defineConfig({
+  define: {
+    'import.meta.env.VITE_SITE_URL': JSON.stringify(siteUrl),
+    'import.meta.env.VITE_ALLOWED_ORIGINS': JSON.stringify(allowedOrigins),
+  },
   plugins: [
     svelte(),
     VitePWA({

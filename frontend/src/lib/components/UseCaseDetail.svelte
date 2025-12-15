@@ -1,9 +1,10 @@
 <script lang="ts">
     import { createEventDispatcher, onMount } from "svelte";
     import StatusIcon from "./icons/StatusIcon.svelte";
-    
+    import { buildCanonicalUrl, getAssetUrl } from "$utils/seo";
+
     export let slug: string = "";
-    
+
     const dispatch = createEventDispatcher<{
         back: void;
         tryNow: void;
@@ -11,9 +12,8 @@
     }>();
 
     // Get current host for install commands
-    const currentHost = typeof window !== 'undefined' ? window.location.host : 'rexec.pipeops.io';
-    const protocol = typeof window !== 'undefined' ? window.location.protocol : 'https:';
-    const installUrl = `${protocol}//${currentHost}`;
+    const canonicalBase = buildCanonicalUrl();
+    const installUrl = canonicalBase;
 
     // Extended use case data with detailed content
     const useCasesData: Record<string, {
@@ -422,26 +422,26 @@
         <meta property="og:title" content="{useCase.title} - Rexec" />
         <meta property="og:description" content={useCase.tagline + " " + useCase.description} />
         <meta property="og:type" content="article" />
-        <meta property="og:url" content="https://rexec.pipeops.io/use-cases/{slug}" />
-        <meta property="og:image" content="https://rexec.pipeops.io/og-image.png" />
+        <meta property="og:url" content={buildCanonicalUrl(`/use-cases/${slug}`)} />
+        <meta property="og:image" content={getAssetUrl("/og-image.png")} />
         <meta property="og:site_name" content="Rexec" />
-        
+
         <!-- Twitter Card -->
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="{useCase.title} - Rexec" />
         <meta name="twitter:description" content={useCase.tagline} />
-        <meta name="twitter:image" content="https://rexec.pipeops.io/og-image.png" />
-        
+        <meta name="twitter:image" content={getAssetUrl("/og-image.png")} />
+
         <!-- Canonical -->
-        <link rel="canonical" href="https://rexec.pipeops.io/use-cases/{slug}" />
-        
+        <link rel="canonical" href={buildCanonicalUrl(`/use-cases/${slug}`)} />
+
         <!-- JSON-LD Structured Data -->
         {@html `<script type="application/ld+json">${JSON.stringify({
             "@context": "https://schema.org",
             "@type": "Article",
             "headline": useCase.title,
             "description": useCase.description,
-            "image": "https://rexec.pipeops.io/og-image.png",
+            "image": getAssetUrl("/og-image.png"),
             "author": {
                 "@type": "Organization",
                 "name": "Rexec"
@@ -451,12 +451,12 @@
                 "name": "Rexec",
                 "logo": {
                     "@type": "ImageObject",
-                    "url": "https://rexec.pipeops.io/favicon.svg"
+                    "url": getAssetUrl("/favicon.svg")
                 }
             },
             "mainEntityOfPage": {
                 "@type": "WebPage",
-                "@id": `https://rexec.pipeops.io/use-cases/${slug}`
+                "@id": buildCanonicalUrl(`/use-cases/${slug}`)
             }
         })}</script>`}
     {/if}

@@ -10,6 +10,7 @@
     import { toast } from "$stores/toast";
     import { collab } from "$stores/collab";
     import { theme } from "$stores/theme";
+    import { syncCanonicalTags, syncSocialImageTags } from "$utils/seo";
 
     // Components (eager)
     import Header from "$components/Header.svelte";
@@ -427,20 +428,18 @@
             updateMeta("keywords", seo.keywords);
         }
         
-        // Update Open Graph tags
+        // Update Open Graph tags (content-specific fields)
         updateOGMeta("og:title", seo.ogTitle || seo.title);
         updateOGMeta("og:description", seo.description);
-        updateOGMeta("og:url", `https://rexec.pipeops.io${window.location.pathname}`);
-        
-        // Update Twitter tags
+
+        // Update Twitter tags (content-specific fields)
         updateMeta("twitter:title", seo.ogTitle || seo.title);
         updateMeta("twitter:description", seo.description);
         
-        // Update canonical URL
-        let canonical = document.querySelector('link[rel="canonical"]');
-        if (canonical) {
-            canonical.setAttribute("href", `https://rexec.pipeops.io${window.location.pathname}`);
-        }
+        const pathname =
+            typeof window !== "undefined" ? window.location.pathname : "/";
+        syncCanonicalTags(pathname);
+        syncSocialImageTags();
     }
 
     // Reactive SEO update when currentView changes
