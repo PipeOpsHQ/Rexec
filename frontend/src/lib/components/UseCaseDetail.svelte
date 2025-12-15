@@ -328,7 +328,7 @@
                 { step: 4, title: "Monitor & Control", description: "View live stats and open terminal sessions immediately." }
             ],
             examples: [
-                { title: "Home Lab Gateway", description: "Access your home server from anywhere without exposing it to the internet.", code: `curl -sSL ${installUrl}/install-agent.sh | bash` },
+                { title: "Home Lab Gateway", description: "Access your home server from anywhere without exposing it to the internet.", code: `curl -sSL ${installUrl}/install-agent.sh | sudo bash` },
                 { title: "Multi-Cloud Ops", description: "Manage instances across AWS, GCP, and Azure without switching consoles." },
                 { title: "Edge Fleet", description: "Monitor and control a fleet of remote IoT devices." }
             ],

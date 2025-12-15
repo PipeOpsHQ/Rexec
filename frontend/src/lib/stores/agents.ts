@@ -177,7 +177,7 @@ function createAgentsStore() {
       const baseUrl = window.location.origin;
       
       // If using agent token, include it with a note that it's permanent
-      return `curl -sSL ${baseUrl}/install-agent.sh | bash -s -- --agent-id ${agentId} --token ${token}`;
+      return `curl -sSL ${baseUrl}/install-agent.sh | sudo bash -s -- --agent-id ${agentId} --token ${token}`;
     },
     
     // Get the API token for a specific agent (if available)

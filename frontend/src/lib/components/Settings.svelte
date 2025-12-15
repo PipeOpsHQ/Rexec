@@ -959,12 +959,12 @@
         <div class="agents-footer">
           <div class="install-inline">
             <span>Install on another machine:</span>
-            <code>curl -sSL {installUrl}/install-agent.sh | bash</code>
+            <code>curl -sSL {installUrl}/install-agent.sh | sudo bash</code>
             <button
               class="btn btn-sm btn-icon copy-btn"
               title="Copy"
               onclick={() => {
-                navigator.clipboard.writeText(`curl -sSL ${installUrl}/install-agent.sh | bash`);
+                navigator.clipboard.writeText(`curl -sSL ${installUrl}/install-agent.sh | sudo bash`);
                 toast.success('Copied!');
               }}
             >

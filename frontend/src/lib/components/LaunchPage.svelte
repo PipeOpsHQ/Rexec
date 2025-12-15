@@ -286,7 +286,7 @@
                 No inbound ports, no VPN, no SSH exposure.
             </p>
             <div class="agent-code">
-                <code>curl -fsSL {installUrl}/install-agent.sh | bash</code>
+                <code>curl -fsSL {installUrl}/install-agent.sh | sudo bash</code>
             </div>
             <ul class="agent-benefits">
                 <li><StatusIcon status="check" size={14} /> Outbound-only connection</li>

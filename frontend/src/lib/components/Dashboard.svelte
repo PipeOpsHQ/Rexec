@@ -511,10 +511,10 @@
                     Use the rexec agent to connect your own server, VM, or local machine.
                 </p>
                 <div class="tip-code-block">
-                    <code class="tip-code">curl -fsSL {installUrl}/install-agent.sh | bash</code>
+                    <code class="tip-code">curl -fsSL {installUrl}/install-agent.sh | sudo bash</code>
                     <button
                         class="copy-btn"
-                        onclick={() => copyToClipboard(`curl -fsSL ${installUrl}/install-agent.sh | bash`, 'agent-install')}
+                        onclick={() => copyToClipboard(`curl -fsSL ${installUrl}/install-agent.sh | sudo bash`, 'agent-install')}
                     >
                         {copiedCommand === 'agent-install' ? 'Copied!' : 'Copy'}
                     </button>

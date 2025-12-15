@@ -864,11 +864,11 @@
                                 <span class="method-title">Quick Install (One-liner)</span>
                             </div>
                             <div class="code-block">
-                                <code>curl -fsSL {installUrl}/install-agent.sh | bash</code>
+                                <code>curl -fsSL {installUrl}/install-agent.sh | sudo bash</code>
                                 <button
                                     class="copy-btn"
                                     onclick={() => {
-                                        navigator.clipboard.writeText(`curl -fsSL ${installUrl}/install-agent.sh | bash`);
+                                        navigator.clipboard.writeText(`curl -fsSL ${installUrl}/install-agent.sh | sudo bash`);
                                         const btn = document.activeElement;
                                         if (btn) btn.textContent = 'Copied!';
                                         setTimeout(() => { if (btn) btn.textContent = 'Copy'; }, 2000);
