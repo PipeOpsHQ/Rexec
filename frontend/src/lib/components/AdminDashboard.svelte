@@ -347,7 +347,7 @@
                                 <tr>
                                     <td>
                                         <div class="container-name-cell">
-                                            <PlatformIcon platform={agent.os} size={16} />
+                                            <PlatformIcon platform={agent.distro || agent.os} size={16} />
                                             <span>{agent.name}</span>
                                         </div>
                                     </td>
@@ -357,7 +357,7 @@
                                             {agent.status}
                                         </span>
                                     </td>
-                                    <td class="mono">{agent.os}/{agent.arch}</td>
+                                    <td class="mono">{agent.distro || agent.os}/{agent.arch}</td>
                                     <td>
                                         {#if agent.system_info && agent.system_info.memory && agent.system_info.num_cpu}
                                             <div class="resources-cell">

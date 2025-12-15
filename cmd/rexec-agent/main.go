@@ -896,10 +896,11 @@ func (a *Agent) connect() error {
 	dialer.HandshakeTimeout = 30 * time.Second
 
 	conn, resp, err := dialer.Dial(wsURL, http.Header{
-		"X-Agent-Name":  []string{a.config.Name},
-		"X-Agent-OS":    []string{runtime.GOOS},
-		"X-Agent-Arch":  []string{runtime.GOARCH},
-		"X-Agent-Shell": []string{a.config.Shell},
+		"X-Agent-Name":   []string{a.config.Name},
+		"X-Agent-OS":     []string{runtime.GOOS},
+		"X-Agent-Arch":   []string{runtime.GOARCH},
+		"X-Agent-Shell":  []string{a.config.Shell},
+		"X-Agent-Distro": []string{detectDistro()},
 	})
 	if err != nil {
 		if resp != nil {
@@ -937,6 +938,74 @@ func (a *Agent) connect() error {
 	return nil
 }
 
+// detectDistro reads /etc/os-release (or /etc/lsb-release as fallback) to determine the Linux distribution.
+// Returns empty string for non-Linux or if detection fails.
+func detectDistro() string {
+	if runtime.GOOS != "linux" {
+		return ""
+	}
+
+	// Try /etc/os-release first (standard on most modern distros)
+	if data, err := os.ReadFile("/etc/os-release"); err == nil {
+		return parseOSRelease(string(data))
+	}
+
+	// Fallback to /etc/lsb-release (older Ubuntu/Debian)
+	if data, err := os.ReadFile("/etc/lsb-release"); err == nil {
+		return parseLSBRelease(string(data))
+	}
+
+	// Check for specific distro files as last resort
+	if _, err := os.Stat("/etc/alpine-release"); err == nil {
+		return "alpine"
+	}
+	if _, err := os.Stat("/etc/arch-release"); err == nil {
+		return "arch"
+	}
+	if _, err := os.Stat("/etc/gentoo-release"); err == nil {
+		return "gentoo"
+	}
+	if _, err := os.Stat("/etc/fedora-release"); err == nil {
+		return "fedora"
+	}
+	if _, err := os.Stat("/etc/redhat-release"); err == nil {
+		return "rhel"
+	}
+	if _, err := os.Stat("/etc/debian_version"); err == nil {
+		return "debian"
+	}
+
+	return ""
+}
+
+// parseOSRelease parses /etc/os-release format to extract the distribution ID
+func parseOSRelease(data string) string {
+	lines := strings.Split(data, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "ID=") {
+			id := strings.TrimPrefix(line, "ID=")
+			id = strings.Trim(id, `"'`)
+			return strings.ToLower(id)
+		}
+	}
+	return ""
+}
+
+// parseLSBRelease parses /etc/lsb-release format
+func parseLSBRelease(data string) string {
+	lines := strings.Split(data, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "DISTRIB_ID=") {
+			id := strings.TrimPrefix(line, "DISTRIB_ID=")
+			id = strings.Trim(id, `"'`)
+			return strings.ToLower(id)
+		}
+	}
+	return ""
+}
+
 // getSystemInfo collects machine information
 func (a *Agent) getSystemInfo() map[string]interface{} {
 	info := map[string]interface{}{
@@ -946,6 +1015,11 @@ func (a *Agent) getSystemInfo() map[string]interface{} {
 		"hostname": "",
 		"memory":   map[string]uint64{},
 		"disk":     map[string]uint64{},
+	}
+
+	// Add distro for Linux systems
+	if distro := detectDistro(); distro != "" {
+		info["distro"] = distro
 	}
 
 	// Get hostname

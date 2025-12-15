@@ -11,15 +11,16 @@ import (
 
 // Agent represents a registered external agent
 type Agent struct {
-	ID          string    `json:"id"`
-	UserID      string    `json:"user_id"`
-	Username    string    `json:"username,omitempty"`
-	Name        string    `json:"name"`
-	Description string    `json:"description,omitempty"`
-	OS          string    `json:"os"`
-	Arch        string    `json:"arch"`
-	Shell       string    `json:"shell"`
-	Tags        []string  `json:"tags,omitempty"`
+	ID          string                 `json:"id"`
+	UserID      string                 `json:"user_id"`
+	Username    string                 `json:"username,omitempty"`
+	Name        string                 `json:"name"`
+	Description string                 `json:"description,omitempty"`
+	OS          string                 `json:"os"`
+	Arch        string                 `json:"arch"`
+	Shell       string                 `json:"shell"`
+	Distro      string                 `json:"distro,omitempty"`
+	Tags        []string               `json:"tags,omitempty"`
 	Status      string                 `json:"status"`
 	ConnectedAt time.Time              `json:"connected_at,omitempty"`
 	LastPing    time.Time              `json:"last_ping,omitempty"`
@@ -39,12 +40,21 @@ func (s *PostgresStore) CreateAgentsTable(ctx context.Context) error {
 		os VARCHAR(50),
 		arch VARCHAR(50),
 		shell VARCHAR(255),
+		distro VARCHAR(100),
 		tags TEXT[],
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 	);
 	
 	CREATE INDEX IF NOT EXISTS idx_agents_user_id ON agents(user_id);
+	
+	-- Add distro column if it doesn't exist (migration)
+	DO $$ 
+	BEGIN
+		IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'agents' AND column_name = 'distro') THEN
+			ALTER TABLE agents ADD COLUMN distro VARCHAR(100);
+		END IF;
+	END $$;
 	`
 
 	_, err := s.db.ExecContext(ctx, query)
@@ -66,7 +76,7 @@ func (s *PostgresStore) CreateAgent(ctx context.Context, id, userID, name, descr
 func (s *PostgresStore) GetAgent(ctx context.Context, id string) (*Agent, error) {
 	query := `
 	SELECT id, user_id, name, COALESCE(description, ''), COALESCE(os, ''), COALESCE(arch, ''), 
-	       COALESCE(shell, ''), tags, created_at, updated_at, system_info
+	       COALESCE(shell, ''), COALESCE(distro, ''), tags, created_at, updated_at, system_info
 	FROM agents
 	WHERE id = $1
 	`
@@ -77,7 +87,7 @@ func (s *PostgresStore) GetAgent(ctx context.Context, id string) (*Agent, error)
 
 	err := s.db.QueryRowContext(ctx, query, id).Scan(
 		&agent.ID, &agent.UserID, &agent.Name, &agent.Description,
-		&agent.OS, &agent.Arch, &agent.Shell, &tags,
+		&agent.OS, &agent.Arch, &agent.Shell, &agent.Distro, &tags,
 		&agent.CreatedAt, &agent.UpdatedAt, &systemInfoJSON,
 	)
 
@@ -100,7 +110,7 @@ func (s *PostgresStore) GetAgent(ctx context.Context, id string) (*Agent, error)
 func (s *PostgresStore) GetAgentsByUser(ctx context.Context, userID string) ([]*Agent, error) {
 	query := `
 	SELECT id, user_id, name, COALESCE(description, ''), COALESCE(os, ''), COALESCE(arch, ''), 
-	       COALESCE(shell, ''), tags, created_at, updated_at, last_heartbeat, COALESCE(connected_instance_id, ''), system_info
+	       COALESCE(shell, ''), COALESCE(distro, ''), tags, created_at, updated_at, last_heartbeat, COALESCE(connected_instance_id, ''), system_info
 	FROM agents
 	WHERE user_id = $1
 	ORDER BY created_at DESC
@@ -122,7 +132,7 @@ func (s *PostgresStore) GetAgentsByUser(ctx context.Context, userID string) ([]*
 
 		err := rows.Scan(
 			&agent.ID, &agent.UserID, &agent.Name, &agent.Description,
-			&agent.OS, &agent.Arch, &agent.Shell, &tags,
+			&agent.OS, &agent.Arch, &agent.Shell, &agent.Distro, &tags,
 			&agent.CreatedAt, &agent.UpdatedAt, &lastHeartbeat, &connectedInstanceID, &systemInfoJSON,
 		)
 		if err != nil {
@@ -132,11 +142,11 @@ func (s *PostgresStore) GetAgentsByUser(ctx context.Context, userID string) ([]*
 		if lastHeartbeat.Valid {
 			agent.LastPing = lastHeartbeat.Time
 		}
-		
+
 		if len(systemInfoJSON) > 0 {
 			json.Unmarshal(systemInfoJSON, &agent.SystemInfo)
 		}
-		
+
 		agent.Tags = tags
 		agents = append(agents, &agent)
 	}
@@ -190,14 +200,14 @@ func (s *PostgresStore) UpdateAgentSystemInfo(ctx context.Context, id string, sy
 	return err
 }
 
-// UpdateAgentMetadata updates the agent's metadata (OS, Arch, Shell)
-func (s *PostgresStore) UpdateAgentMetadata(ctx context.Context, id, os, arch, shell string) error {
+// UpdateAgentMetadata updates the agent's metadata (OS, Arch, Shell, Distro)
+func (s *PostgresStore) UpdateAgentMetadata(ctx context.Context, id, os, arch, shell, distro string) error {
 	query := `
 	UPDATE agents
-	SET os = $2, arch = $3, shell = $4, updated_at = NOW()
+	SET os = $2, arch = $3, shell = $4, distro = $5, updated_at = NOW()
 	WHERE id = $1
 	`
-	_, err := s.db.ExecContext(ctx, query, id, os, arch, shell)
+	_, err := s.db.ExecContext(ctx, query, id, os, arch, shell, distro)
 	return err
 }
 
@@ -237,7 +247,7 @@ func (s *PostgresStore) GetAgentConnectedInstance(ctx context.Context, id string
 func (s *PostgresStore) GetAllAgents(ctx context.Context) ([]*Agent, error) {
 	query := `
 	SELECT a.id, a.user_id, COALESCE(u.username, 'Unknown'), a.name, COALESCE(a.description, ''), COALESCE(a.os, ''), COALESCE(a.arch, ''), 
-	       COALESCE(a.shell, ''), a.tags, a.created_at, a.updated_at, a.last_heartbeat, COALESCE(a.connected_instance_id, ''), a.system_info
+	       COALESCE(a.shell, ''), COALESCE(a.distro, ''), a.tags, a.created_at, a.updated_at, a.last_heartbeat, COALESCE(a.connected_instance_id, ''), a.system_info
 	FROM agents a
 	LEFT JOIN users u ON a.user_id = u.id
 	ORDER BY a.created_at DESC
@@ -259,7 +269,7 @@ func (s *PostgresStore) GetAllAgents(ctx context.Context) ([]*Agent, error) {
 
 		err := rows.Scan(
 			&agent.ID, &agent.UserID, &agent.Username, &agent.Name, &agent.Description,
-			&agent.OS, &agent.Arch, &agent.Shell, &tags,
+			&agent.OS, &agent.Arch, &agent.Shell, &agent.Distro, &tags,
 			&agent.CreatedAt, &agent.UpdatedAt, &lastHeartbeat, &connectedInstanceID, &systemInfoJSON,
 		)
 		if err != nil {
@@ -269,7 +279,7 @@ func (s *PostgresStore) GetAllAgents(ctx context.Context) ([]*Agent, error) {
 		if lastHeartbeat.Valid {
 			agent.LastPing = lastHeartbeat.Time
 		}
-		
+
 		if len(systemInfoJSON) > 0 {
 			json.Unmarshal(systemInfoJSON, &agent.SystemInfo)
 		}

@@ -939,7 +939,7 @@
               <div class="agent-details">
                 <div class="agent-detail-item">
                   <span class="detail-label">Platform</span>
-                  <span class="detail-value">{agent.os || 'Unknown'}/{agent.arch || 'Unknown'}</span>
+                  <span class="detail-value">{agent.distro || agent.os || 'Unknown'}/{agent.arch || 'Unknown'}</span>
                 </div>
                 <div class="agent-detail-item">
                   <span class="detail-label">Shell</span>

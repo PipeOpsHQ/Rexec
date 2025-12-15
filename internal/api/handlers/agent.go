@@ -79,6 +79,7 @@ type AgentConnection struct {
 	OS          string    `json:"os"`
 	Arch        string    `json:"arch"`
 	Shell       string    `json:"shell"`
+	Distro      string    `json:"distro,omitempty"`
 	Tags        []string  `json:"tags,omitempty"`
 	UserID      string    `json:"user_id"`
 	Status      string    `json:"status"`
@@ -590,6 +591,7 @@ func (h *AgentHandler) HandleAgentWebSocket(c *gin.Context) {
 		OS:                c.GetHeader("X-Agent-OS"),
 		Arch:              c.GetHeader("X-Agent-Arch"),
 		Shell:             c.GetHeader("X-Agent-Shell"),
+		Distro:            c.GetHeader("X-Agent-Distro"),
 		UserID:            userID,
 		Status:            "online",
 		CreatedAt:         agent.CreatedAt,
@@ -617,7 +619,7 @@ func (h *AgentHandler) HandleAgentWebSocket(c *gin.Context) {
 		}
 	}
 	h.store.UpdateAgentHeartbeat(context.Background(), agentID, instanceID)
-	h.store.UpdateAgentMetadata(context.Background(), agentID, agentConn.OS, agentConn.Arch, agentConn.Shell)
+	h.store.UpdateAgentMetadata(context.Background(), agentID, agentConn.OS, agentConn.Arch, agentConn.Shell, agentConn.Distro)
 
 	// Broadcast agent connected event via WebSocket
 	if h.eventsHub != nil {

@@ -597,7 +597,7 @@
                     <div class="container-header">
                         <span class="container-icon">
                             {#if isAgent}
-                                <PlatformIcon platform={container.os === 'darwin' ? 'macos' : container.os === 'windows' ? 'windows' : 'linux'} size={32} />
+                                <PlatformIcon platform={container.distro || (container.os === 'darwin' ? 'macos' : container.os === 'windows' ? 'windows' : 'linux')} size={32} />
                             {:else}
                                 <PlatformIcon platform={getDistro(container.image)} size={32} />
                             {/if}
