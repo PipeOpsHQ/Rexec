@@ -16,6 +16,11 @@
         upgrade: void;
     }>();
 
+    // Get current host for install commands
+    const currentHost = typeof window !== 'undefined' ? window.location.host : 'rexec.pipeops.io';
+    const protocol = typeof window !== 'undefined' ? window.location.protocol : 'https:';
+    const installUrl = `${protocol}//${currentHost}`;
+
     let selectedImage = "";
     let isCreating = false;
     let selectedRole = "standard";
@@ -859,11 +864,11 @@
                                 <span class="method-title">Quick Install (One-liner)</span>
                             </div>
                             <div class="code-block">
-                                <code>curl -fsSL https://rexec.pipeops.io/install-agent.sh | bash</code>
-                                <button 
-                                    class="copy-btn" 
+                                <code>curl -fsSL {installUrl}/install-agent.sh | bash</code>
+                                <button
+                                    class="copy-btn"
                                     onclick={() => {
-                                        navigator.clipboard.writeText('curl -fsSL https://rexec.pipeops.io/install-agent.sh | bash');
+                                        navigator.clipboard.writeText(`curl -fsSL ${installUrl}/install-agent.sh | bash`);
                                         const btn = document.activeElement;
                                         if (btn) btn.textContent = 'Copied!';
                                         setTimeout(() => { if (btn) btn.textContent = 'Copy'; }, 2000);

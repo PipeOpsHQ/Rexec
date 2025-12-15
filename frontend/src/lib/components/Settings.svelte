@@ -13,6 +13,11 @@
     connectAgent: { agentId: string; agentName: string };
   }>();
 
+  // Get current host for install commands
+  const currentHost = typeof window !== 'undefined' ? window.location.host : 'rexec.pipeops.io';
+  const protocol = typeof window !== 'undefined' ? window.location.protocol : 'https:';
+  const installUrl = `${protocol}//${currentHost}`;
+
   // Settings state
   let theme: 'dark' | 'light' = 'dark';
   let fontSize = 14;
@@ -954,12 +959,12 @@
         <div class="agents-footer">
           <div class="install-inline">
             <span>Install on another machine:</span>
-            <code>curl -sSL https://rexec.pipeops.io/install-agent.sh | bash</code>
-            <button 
-              class="btn btn-sm btn-icon copy-btn" 
+            <code>curl -sSL {installUrl}/install-agent.sh | bash</code>
+            <button
+              class="btn btn-sm btn-icon copy-btn"
               title="Copy"
               onclick={() => {
-                navigator.clipboard.writeText('curl -sSL https://rexec.pipeops.io/install-agent.sh | bash');
+                navigator.clipboard.writeText(`curl -sSL ${installUrl}/install-agent.sh | bash`);
                 toast.success('Copied!');
               }}
             >

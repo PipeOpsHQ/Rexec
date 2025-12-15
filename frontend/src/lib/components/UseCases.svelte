@@ -7,6 +7,11 @@
         navigate: { slug: string };
     }>();
 
+    // Get current host for install commands
+    const currentHost = typeof window !== 'undefined' ? window.location.host : 'rexec.pipeops.io';
+    const protocol = typeof window !== 'undefined' ? window.location.protocol : 'https:';
+    const installUrl = `${protocol}//${currentHost}`;
+
     function handleTryNow() {
         dispatch("tryNow");
     }
@@ -161,7 +166,7 @@
                 "Interactive TUI dashboard (rexec -i)",
                 "Create, connect, and manage terminals",
                 "Run snippets and macros directly",
-                "Install via: curl -fsSL rexec.pipeops.io/install.sh | bash"
+                `Install via: curl -fsSL ${installUrl}/install.sh | bash`
             ]
         },
         {

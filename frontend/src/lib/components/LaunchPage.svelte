@@ -11,6 +11,11 @@
 
     let isOAuthLoading = false;
 
+    // Get current host for install commands
+    const currentHost = typeof window !== 'undefined' ? window.location.host : 'rexec.pipeops.io';
+    const protocol = typeof window !== 'undefined' ? window.location.protocol : 'https:';
+    const installUrl = `${protocol}//${currentHost}`;
+
     function handleGuestClick() {
         dispatch("guest");
     }
@@ -301,7 +306,7 @@
                 No inbound ports, no VPN, no SSH exposure.
             </p>
             <div class="agent-code">
-                <code>curl -fsSL https://rexec.pipeops.io/install-agent.sh | bash</code>
+                <code>curl -fsSL {installUrl}/install-agent.sh | bash</code>
             </div>
             <ul class="agent-benefits">
                 <li><StatusIcon status="check" size={14} /> Outbound-only connection</li>

@@ -10,6 +10,11 @@
         navigate: { slug: string };
     }>();
 
+    // Get current host for install commands
+    const currentHost = typeof window !== 'undefined' ? window.location.host : 'rexec.pipeops.io';
+    const protocol = typeof window !== 'undefined' ? window.location.protocol : 'https:';
+    const installUrl = `${protocol}//${currentHost}`;
+
     // Extended use case data with detailed content
     const useCasesData: Record<string, {
         title: string;
@@ -323,7 +328,7 @@
                 { step: 4, title: "Monitor & Control", description: "View live stats and open terminal sessions immediately." }
             ],
             examples: [
-                { title: "Home Lab Gateway", description: "Access your home server from anywhere without exposing it to the internet.", code: "curl -sSL rexec.pipeops.io/install-agent.sh | bash" },
+                { title: "Home Lab Gateway", description: "Access your home server from anywhere without exposing it to the internet.", code: `curl -sSL ${installUrl}/install-agent.sh | bash` },
                 { title: "Multi-Cloud Ops", description: "Manage instances across AWS, GCP, and Azure without switching consoles." },
                 { title: "Edge Fleet", description: "Monitor and control a fleet of remote IoT devices." }
             ],

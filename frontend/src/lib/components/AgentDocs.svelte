@@ -15,6 +15,11 @@
     function handleBack() {
         if (onback) onback();
     }
+
+    // Get current host for install commands
+    const currentHost = typeof window !== 'undefined' ? window.location.host : 'rexec.pipeops.io';
+    const protocol = typeof window !== 'undefined' ? window.location.protocol : 'https:';
+    const installUrl = `${protocol}//${currentHost}`;
 </script>
 
 <div class="docs-page">
@@ -67,10 +72,10 @@
             <h2>Quick Install</h2>
             <p>Run this one-liner on your machine to install and start the agent:</p>
             <div class="code-block large">
-                <code>curl -fsSL https://rexec.pipeops.io/install-agent.sh | bash</code>
-                <button 
-                    class="copy-btn" 
-                    onclick={() => copyToClipboard('curl -fsSL https://rexec.pipeops.io/install-agent.sh | bash', 'quick')}
+                <code>curl -fsSL {installUrl}/install-agent.sh | bash</code>
+                <button
+                    class="copy-btn"
+                    onclick={() => copyToClipboard(`curl -fsSL ${installUrl}/install-agent.sh | bash`, 'quick')}
                 >
                     {copiedCommand === 'quick' ? 'Copied!' : 'Copy'}
                 </button>
@@ -87,10 +92,10 @@
                     Debian / Ubuntu
                 </h3>
                 <div class="code-block">
-                    <code>sudo apt update && sudo apt install -y curl<br/>curl -fsSL https://rexec.pipeops.io/install-agent.sh | bash</code>
-                    <button 
-                        class="copy-btn" 
-                        onclick={() => copyToClipboard('sudo apt update && sudo apt install -y curl && curl -fsSL https://rexec.pipeops.io/install-agent.sh | bash', 'debian')}
+                    <code>sudo apt update && sudo apt install -y curl<br/>curl -fsSL {installUrl}/install-agent.sh | bash</code>
+                    <button
+                        class="copy-btn"
+                        onclick={() => copyToClipboard(`sudo apt update && sudo apt install -y curl && curl -fsSL ${installUrl}/install-agent.sh | bash`, 'debian')}
                     >
                         {copiedCommand === 'debian' ? 'Copied!' : 'Copy'}
                     </button>
@@ -103,10 +108,10 @@
                     Fedora / RHEL / CentOS
                 </h3>
                 <div class="code-block">
-                    <code>sudo dnf install -y curl<br/>curl -fsSL https://rexec.pipeops.io/install-agent.sh | bash</code>
-                    <button 
-                        class="copy-btn" 
-                        onclick={() => copyToClipboard('sudo dnf install -y curl && curl -fsSL https://rexec.pipeops.io/install-agent.sh | bash', 'rhel')}
+                    <code>sudo dnf install -y curl<br/>curl -fsSL {installUrl}/install-agent.sh | bash</code>
+                    <button
+                        class="copy-btn"
+                        onclick={() => copyToClipboard(`sudo dnf install -y curl && curl -fsSL ${installUrl}/install-agent.sh | bash`, 'rhel')}
                     >
                         {copiedCommand === 'rhel' ? 'Copied!' : 'Copy'}
                     </button>
@@ -119,10 +124,10 @@
                     Arch Linux
                 </h3>
                 <div class="code-block">
-                    <code>sudo pacman -S curl<br/>curl -fsSL https://rexec.pipeops.io/install-agent.sh | bash</code>
-                    <button 
-                        class="copy-btn" 
-                        onclick={() => copyToClipboard('sudo pacman -S curl && curl -fsSL https://rexec.pipeops.io/install-agent.sh | bash', 'arch')}
+                    <code>sudo pacman -S curl<br/>curl -fsSL {installUrl}/install-agent.sh | bash</code>
+                    <button
+                        class="copy-btn"
+                        onclick={() => copyToClipboard(`sudo pacman -S curl && curl -fsSL ${installUrl}/install-agent.sh | bash`, 'arch')}
                     >
                         {copiedCommand === 'arch' ? 'Copied!' : 'Copy'}
                     </button>
@@ -135,10 +140,10 @@
                     Alpine Linux
                 </h3>
                 <div class="code-block">
-                    <code>apk add curl bash<br/>curl -fsSL https://rexec.pipeops.io/install-agent.sh | bash</code>
-                    <button 
-                        class="copy-btn" 
-                        onclick={() => copyToClipboard('apk add curl bash && curl -fsSL https://rexec.pipeops.io/install-agent.sh | bash', 'alpine')}
+                    <code>apk add curl bash<br/>curl -fsSL {installUrl}/install-agent.sh | bash</code>
+                    <button
+                        class="copy-btn"
+                        onclick={() => copyToClipboard(`apk add curl bash && curl -fsSL ${installUrl}/install-agent.sh | bash`, 'alpine')}
                     >
                         {copiedCommand === 'alpine' ? 'Copied!' : 'Copy'}
                     </button>
@@ -151,10 +156,10 @@
                     macOS
                 </h3>
                 <div class="code-block">
-                    <code>curl -fsSL https://rexec.pipeops.io/install-agent.sh | bash</code>
-                    <button 
-                        class="copy-btn" 
-                        onclick={() => copyToClipboard('curl -fsSL https://rexec.pipeops.io/install-agent.sh | bash', 'macos')}
+                    <code>curl -fsSL {installUrl}/install-agent.sh | bash</code>
+                    <button
+                        class="copy-btn"
+                        onclick={() => copyToClipboard(`curl -fsSL ${installUrl}/install-agent.sh | bash`, 'macos')}
                     >
                         {copiedCommand === 'macos' ? 'Copied!' : 'Copy'}
                     </button>
@@ -188,10 +193,10 @@
                     Direct Download (All Platforms)
                 </h3>
                 <div class="code-block">
-                    <code>curl -fsSL https://rexec.pipeops.io/install-cli.sh | bash</code>
-                    <button 
-                        class="copy-btn" 
-                        onclick={() => copyToClipboard('curl -fsSL https://rexec.pipeops.io/install-cli.sh | bash', 'cli-direct')}
+                    <code>curl -fsSL {installUrl}/install-cli.sh | bash</code>
+                    <button
+                        class="copy-btn"
+                        onclick={() => copyToClipboard(`curl -fsSL ${installUrl}/install-cli.sh | bash`, 'cli-direct')}
                     >
                         {copiedCommand === 'cli-direct' ? 'Copied!' : 'Copy'}
                     </button>

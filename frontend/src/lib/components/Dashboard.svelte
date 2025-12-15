@@ -20,6 +20,11 @@
 
     let copiedCommand = ""; // To show 'Copied!' feedback
 
+    // Get current host for install commands
+    const currentHost = typeof window !== 'undefined' ? window.location.host : 'rexec.pipeops.io';
+    const protocol = typeof window !== 'undefined' ? window.location.protocol : 'https:';
+    const installUrl = `${protocol}//${currentHost}`;
+
     function copyToClipboard(text: string, id: string) {
         navigator.clipboard.writeText(text);
         copiedCommand = id;
@@ -506,10 +511,10 @@
                     Use the rexec agent to connect your own server, VM, or local machine.
                 </p>
                 <div class="tip-code-block">
-                    <code class="tip-code">curl -fsSL https://rexec.pipeops.io/install-agent.sh | bash</code>
-                    <button 
+                    <code class="tip-code">curl -fsSL {installUrl}/install-agent.sh | bash</code>
+                    <button
                         class="copy-btn"
-                        onclick={() => copyToClipboard('curl -fsSL https://rexec.pipeops.io/install-agent.sh | bash', 'agent-install')}
+                        onclick={() => copyToClipboard(`curl -fsSL ${installUrl}/install-agent.sh | bash`, 'agent-install')}
                     >
                         {copiedCommand === 'agent-install' ? 'Copied!' : 'Copy'}
                     </button>
