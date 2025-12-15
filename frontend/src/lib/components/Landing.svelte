@@ -131,6 +131,70 @@
             </div>
         </div>
 
+        <div class="faq-section">
+            <h2 class="faq-title">Frequently Asked Questions</h2>
+
+            <div class="faq-grid">
+                <details class="faq-item">
+                    <summary class="faq-question">
+                        <span class="faq-icon">?</span>
+                        Is this related to the old rexec protocol?
+                    </summary>
+                    <div class="faq-answer">
+                        <p><strong>No, not at all!</strong> We understand the concern — the legacy <code>rexec</code> (Remote Execution) protocol from the 1980s is indeed deprecated and insecure. Our Rexec is a completely different, modern product.</p>
+                        <p>We chose the name "Rexec" as shorthand for <strong>"Remote Execution"</strong> — which perfectly describes what we do: execute commands on remote cloud terminals. Think of it as reclaiming a cool name for a secure, modern use case.</p>
+                        <p>Our platform uses <strong>TLS encryption</strong>, <strong>JWT authentication</strong>, <strong>container isolation</strong>, and follows modern security best practices. It's as secure as any enterprise cloud platform.</p>
+                    </div>
+                </details>
+
+                <details class="faq-item">
+                    <summary class="faq-question">
+                        <span class="faq-icon">🔒</span>
+                        How is Rexec secure?
+                    </summary>
+                    <div class="faq-answer">
+                        <p>Security is built into every layer:</p>
+                        <ul>
+                            <li><strong>TLS/HTTPS</strong> — All connections are encrypted end-to-end</li>
+                            <li><strong>Container Isolation</strong> — Each terminal runs in its own isolated container</li>
+                            <li><strong>OAuth + MFA</strong> — Secure authentication with multi-factor support</li>
+                            <li><strong>No Shared State</strong> — Your terminal is yours alone</li>
+                            <li><strong>Automatic Cleanup</strong> — Sessions are destroyed when you're done</li>
+                        </ul>
+                    </div>
+                </details>
+
+                <details class="faq-item">
+                    <summary class="faq-question">
+                        <span class="faq-icon">⚡</span>
+                        What can I use Rexec for?
+                    </summary>
+                    <div class="faq-answer">
+                        <p>Rexec is perfect for:</p>
+                        <ul>
+                            <li><strong>Learning Linux</strong> — Safe environment to experiment</li>
+                            <li><strong>Development</strong> — Instant dev environments with pre-installed tools</li>
+                            <li><strong>DevOps</strong> — Test scripts, debug issues, run CI/CD tasks</li>
+                            <li><strong>Teaching</strong> — Provide students with instant terminals</li>
+                            <li><strong>AI/ML Workloads</strong> — Access GPU-enabled environments</li>
+                            <li><strong>Remote Access</strong> — Connect to your servers from anywhere</li>
+                        </ul>
+                    </div>
+                </details>
+
+                <details class="faq-item">
+                    <summary class="faq-question">
+                        <span class="faq-icon">💾</span>
+                        Is my data persistent?
+                    </summary>
+                    <div class="faq-answer">
+                        <p>By default, terminals are ephemeral — they're destroyed when your session ends. This is great for security and quick experimentation.</p>
+                        <p>For persistent storage, you can attach volumes to your containers or connect to your own infrastructure using Rexec Agents.</p>
+                    </div>
+                </details>
+            </div>
+        </div>
+
 
     </div>
 </div>
@@ -399,6 +463,117 @@
         line-height: 1.5;
     }
 
+    /* FAQ Section */
+    .faq-section {
+        margin-top: 60px;
+        width: 100%;
+        text-align: left;
+    }
+
+    .faq-title {
+        font-size: 20px;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        text-align: center;
+        margin-bottom: 32px;
+        color: var(--text);
+    }
+
+    .faq-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+    }
+
+    .faq-item {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        transition: border-color 0.2s;
+    }
+
+    .faq-item[open] {
+        border-color: var(--accent);
+    }
+
+    .faq-question {
+        padding: 16px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        list-style: none;
+        user-select: none;
+    }
+
+    .faq-question::-webkit-details-marker {
+        display: none;
+    }
+
+    .faq-question::after {
+        content: "+";
+        margin-left: auto;
+        font-size: 16px;
+        color: var(--text-muted);
+        transition: transform 0.2s;
+    }
+
+    .faq-item[open] .faq-question::after {
+        content: "−";
+        color: var(--accent);
+    }
+
+    .faq-icon {
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+        font-size: 12px;
+        flex-shrink: 0;
+    }
+
+    .faq-answer {
+        padding: 0 16px 16px 52px;
+        font-size: 12px;
+        color: var(--text-secondary);
+        line-height: 1.7;
+    }
+
+    .faq-answer p {
+        margin-bottom: 12px;
+    }
+
+    .faq-answer p:last-child {
+        margin-bottom: 0;
+    }
+
+    .faq-answer code {
+        background: var(--bg-elevated);
+        padding: 2px 6px;
+        border: 1px solid var(--border);
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--accent);
+    }
+
+    .faq-answer ul {
+        margin: 8px 0;
+        padding-left: 20px;
+    }
+
+    .faq-answer li {
+        margin-bottom: 6px;
+    }
+
+    .faq-answer strong {
+        color: var(--text);
+    }
+
     @keyframes blink {
         0%,
         100% {
@@ -420,6 +595,14 @@
 
         .features {
             grid-template-columns: 1fr;
+        }
+
+        .faq-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .faq-answer {
+            padding-left: 16px;
         }
     }
 </style>

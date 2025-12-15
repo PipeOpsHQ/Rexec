@@ -35,7 +35,7 @@ WORKDIR /app/web-ui
 COPY frontend/package.json ./
 
 # Install dependencies (generates fresh lock file for Linux platform)
-RUN npm install --omit=optional
+RUN npm ci
 
 # Copy source files
 COPY frontend/ ./
