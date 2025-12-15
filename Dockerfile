@@ -35,7 +35,7 @@ WORKDIR /app/web-ui
 COPY frontend/package.json ./
 
 # Install dependencies (generates fresh lock file for Linux platform)
-RUN npm ci
+RUN npm install --package-lock-only --platform=linux
 
 # Copy source files
 COPY frontend/ ./
