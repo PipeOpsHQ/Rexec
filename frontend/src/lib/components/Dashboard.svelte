@@ -1286,45 +1286,45 @@
         box-shadow: 0 0 8px rgba(0, 217, 255, 0.3);
     }
 
-    /* Agent card styles - Hacker green theme */
+    /* Agent card styles - Subtle teal-green theme */
     .container-card.agent-card {
-        border-color: #00ff41;
+        border-color: rgba(34, 197, 94, 0.6);
         background: var(--bg-secondary);
-        box-shadow: 0 0 10px rgba(0, 255, 65, 0.1);
+        box-shadow: 0 0 8px rgba(34, 197, 94, 0.08);
         font-family: 'JetBrainsMono Nerd Font', 'FiraCode Nerd Font', 'Hack Nerd Font', monospace;
     }
 
     .container-card.agent-card:hover {
-        border-color: #00ff41;
-        box-shadow: 0 0 20px rgba(0, 255, 65, 0.3), 0 0 30px rgba(0, 255, 65, 0.1);
+        border-color: rgba(34, 197, 94, 0.8);
+        box-shadow: 0 0 12px rgba(34, 197, 94, 0.15), 0 0 20px rgba(34, 197, 94, 0.08);
         transform: translateY(-2px);
     }
 
     .agent-env {
-        background: rgba(0, 255, 65, 0.15);
-        border-color: rgba(0, 255, 65, 0.3);
-        color: #00ff41;
-        text-shadow: 0 0 8px rgba(0, 255, 65, 0.3);
+        background: rgba(34, 197, 94, 0.12);
+        border-color: rgba(34, 197, 94, 0.25);
+        color: #4ade80;
+        text-shadow: none;
     }
 
-    /* Agent connect button uses hacker green accent */
+    /* Agent connect button uses subtle green accent */
     .agent-connect-btn {
-        background: rgba(0, 255, 65, 0.15);
-        border-color: #00ff41;
-        color: #00ff41;
+        background: rgba(34, 197, 94, 0.1);
+        border-color: rgba(34, 197, 94, 0.5);
+        color: #4ade80;
     }
 
     .agent-connect-btn:hover:not(:disabled) {
-        background: #00ff41;
-        border-color: #00ff41;
+        background: rgba(34, 197, 94, 0.9);
+        border-color: #22c55e;
         color: #0a1929;
-        box-shadow: 0 0 15px rgba(0, 255, 65, 0.5);
+        box-shadow: 0 0 10px rgba(34, 197, 94, 0.3);
     }
 
     .container-card.agent-card .connecting-btn,
     .container-card.agent-card .connected-btn {
-        border-color: rgba(0, 255, 65, 0.4);
-        color: #00ff41;
+        border-color: rgba(34, 197, 94, 0.35);
+        color: #4ade80;
     }
 
     .badge-icon {

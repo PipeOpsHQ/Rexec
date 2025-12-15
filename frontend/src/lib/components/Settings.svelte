@@ -1892,27 +1892,27 @@
     gap: 12px;
     padding: 16px;
     background: var(--bg-secondary);
-    border: 1px solid #00ff41;
+    border: 1px solid rgba(34, 197, 94, 0.5);
     border-radius: 8px;
     transition: all 0.3s;
-    box-shadow: 0 0 10px rgba(0, 255, 65, 0.1);
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.06);
     font-family: 'JetBrainsMono Nerd Font', 'FiraCode Nerd Font', 'Hack Nerd Font', monospace;
   }
 
   .agent-card:hover {
-    border-color: #00ff41;
-    box-shadow: 0 0 20px rgba(0, 255, 65, 0.3), 0 0 30px rgba(0, 255, 65, 0.1);
+    border-color: rgba(34, 197, 94, 0.7);
+    box-shadow: 0 0 12px rgba(34, 197, 94, 0.12), 0 0 20px rgba(34, 197, 94, 0.06);
     transform: translateY(-2px);
   }
 
   .agent-card.agent-online {
-    border-color: #00ff41;
-    box-shadow: 0 0 15px rgba(0, 255, 65, 0.3), 0 0 25px rgba(0, 255, 65, 0.15);
+    border-color: rgba(34, 197, 94, 0.7);
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.15), 0 0 18px rgba(34, 197, 94, 0.08);
   }
 
   .agent-card.agent-online:hover {
-    border-color: #00ff41;
-    box-shadow: 0 0 25px rgba(0, 255, 65, 0.4), 0 0 40px rgba(0, 255, 65, 0.2);
+    border-color: rgba(34, 197, 94, 0.85);
+    box-shadow: 0 0 15px rgba(34, 197, 94, 0.2), 0 0 25px rgba(34, 197, 94, 0.1);
   }
 
   .agent-header {
@@ -1953,7 +1953,7 @@
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: #00ff41;
+    color: #4ade80;
     font-weight: 600;
   }
 
@@ -1966,8 +1966,8 @@
   .agent-name {
     font-size: 14px;
     font-weight: 600;
-    color: #00ff41;
-    text-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+    color: #4ade80;
+    text-shadow: none;
   }
 
   .agent-desc {
@@ -1980,7 +1980,7 @@
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: 8px;
     padding-top: 12px;
-    border-top: 1px solid rgba(0, 255, 65, 0.2);
+    border-top: 1px solid rgba(34, 197, 94, 0.15);
   }
 
   .agent-detail-item {
@@ -1993,12 +1993,12 @@
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: rgba(0, 255, 65, 0.7);
+    color: rgba(74, 222, 128, 0.7);
   }
 
   .detail-value {
     font-size: 12px;
-    color: #00ff41;
+    color: #4ade80;
     font-family: 'JetBrainsMono Nerd Font', 'FiraCode Nerd Font', 'Hack Nerd Font', monospace;
   }
 
