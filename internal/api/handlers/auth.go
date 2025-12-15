@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"strconv"
@@ -194,6 +195,67 @@ func (h *AuthHandler) generateGuestToken(user *models.User) (string, error) {
 	return token.SignedString(h.jwtSecret)
 }
 
+// allowedRedirectHosts contains the allowed domains for OAuth redirects
+var allowedRedirectHosts = map[string]bool{
+	"rexec.pipeops.app": true,
+	"rexec.pipeops.io":  true,
+	"rexec.pipeops.sh":  true,
+	"rexec.io":          true,
+	"rexec.sh":          true,
+	"localhost:8080":    true,
+	"localhost:5173":    true,
+	"127.0.0.1:8080":    true,
+	"127.0.0.1:5173":    true,
+}
+
+// getRedirectURI determines the OAuth redirect URI based on the request
+func (h *AuthHandler) getRedirectURI(c *gin.Context) string {
+	// Check Origin header first
+	origin := c.Request.Header.Get("Origin")
+	if origin != "" {
+		if parsed, err := url.Parse(origin); err == nil {
+			if allowedRedirectHosts[parsed.Host] || os.Getenv("GIN_MODE") != "release" {
+				return origin + "/api/auth/callback"
+			}
+		}
+	}
+
+	// Fall back to Referer header
+	referer := c.Request.Header.Get("Referer")
+	if referer != "" {
+		if parsed, err := url.Parse(referer); err == nil {
+			if allowedRedirectHosts[parsed.Host] || os.Getenv("GIN_MODE") != "release" {
+				scheme := parsed.Scheme
+				if scheme == "" {
+					scheme = "https"
+				}
+				return fmt.Sprintf("%s://%s/api/auth/callback", scheme, parsed.Host)
+			}
+		}
+	}
+
+	// Fall back to X-Forwarded-Host or Host header
+	host := c.Request.Header.Get("X-Forwarded-Host")
+	if host == "" {
+		host = c.Request.Host
+	}
+
+	// Validate host
+	if !allowedRedirectHosts[host] && os.Getenv("GIN_MODE") == "release" {
+		// Default to primary domain in release mode
+		host = "rexec.pipeops.io"
+	}
+
+	scheme := "https"
+	if c.Request.Header.Get("X-Forwarded-Proto") == "http" || c.Request.TLS == nil {
+		if os.Getenv("GIN_MODE") != "release" {
+			scheme = "http"
+		}
+	}
+
+	return fmt.Sprintf("%s://%s/api/auth/callback", scheme, host)
+}
+
 // GetOAuthURL returns the PipeOps OAuth authorization URL
 func (h *AuthHandler) GetOAuthURL(c *gin.Context) {
 	// Generate PKCE challenge
@@ -216,11 +278,15 @@ func (h *AuthHandler) GetOAuthURL(c *gin.Context) {
 		return
 	}
 
-	// Create a state token (JWT) to store state and code verifier statelessly in a cookie
+	// Determine the redirect URI based on the request origin
+	redirectURI := h.getRedirectURI(c)
+
+	// Create a state token (JWT) to store state, code verifier, and redirect URI statelessly in a cookie
 	// This prevents issues with server restarts or multiple instances
 	stateToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"state":         state,
 		"code_verifier": pkceChallenge.CodeVerifier,
+		"redirect_uri":  redirectURI,
 		"exp":           time.Now().Add(15 * time.Minute).Unix(),
 	})
 
@@ -245,8 +311,8 @@ func (h *AuthHandler) GetOAuthURL(c *gin.Context) {
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie("oauth_state", stateString, 900, "/api/auth", "", isSecure, true)
 
-	// Get authorization URL
-	authURL := h.oauthService.GetAuthorizationURL(state, pkceChallenge.CodeChallenge)
+	// Get authorization URL with dynamic redirect URI
+	authURL := h.oauthService.GetAuthorizationURLWithRedirect(state, pkceChallenge.CodeChallenge, redirectURI)
 
 	c.JSON(http.StatusOK, gin.H{
 		"auth_url": authURL,
@@ -309,11 +375,18 @@ func (h *AuthHandler) OAuthCallback(c *gin.Context) {
 		return
 	}
 
+	// Get redirect URI from state token (for multi-domain support)
+	redirectURI, _ := claims["redirect_uri"].(string)
+	if redirectURI == "" {
+		// Fall back to determining from request
+		redirectURI = h.getRedirectURI(c)
+	}
+
 	// Clear the state cookie
 	c.SetCookie("oauth_state", "", -1, "/api/auth", "", false, true)
 
-	// Exchange code for token
-	tokenResp, err := h.oauthService.ExchangeCodeForToken(code, codeVerifier)
+	// Exchange code for token using the same redirect URI that was used in authorization
+	tokenResp, err := h.oauthService.ExchangeCodeForTokenWithRedirect(code, codeVerifier, redirectURI)
 	if err != nil {
 		// Log the full error for debugging (visible in server logs)
 		log.Printf("OAuth Token Exchange Error: %v", err)
