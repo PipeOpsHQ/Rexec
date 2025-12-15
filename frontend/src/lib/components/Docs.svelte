@@ -10,31 +10,43 @@
     // SEO metadata for docs page
     onMount(() => {
         document.title = "Documentation | Rexec - Terminal as a Service";
-        
+
         // Update meta tags
         const metaDescription = document.querySelector('meta[name="description"]');
         if (metaDescription) {
             metaDescription.setAttribute("content", "Complete documentation for Rexec - learn about instant cloud terminals, BYOS agents, CLI tools, security features, and API integration.");
         }
-        
+
         const ogTitle = document.querySelector('meta[property="og:title"]');
         if (ogTitle) {
             ogTitle.setAttribute("content", "Documentation | Rexec - Terminal as a Service");
         }
-        
+
         const ogDescription = document.querySelector('meta[property="og:description"]');
         if (ogDescription) {
             ogDescription.setAttribute("content", "Complete documentation for Rexec - learn about instant cloud terminals, BYOS agents, CLI tools, security features, and API integration.");
         }
-        
+
         const twitterTitle = document.querySelector('meta[name="twitter:title"]');
         if (twitterTitle) {
             twitterTitle.setAttribute("content", "Documentation | Rexec - Terminal as a Service");
         }
-        
+
         const twitterDescription = document.querySelector('meta[name="twitter:description"]');
         if (twitterDescription) {
             twitterDescription.setAttribute("content", "Complete documentation for Rexec - learn about instant cloud terminals, BYOS agents, CLI tools, security features, and API integration.");
+        }
+
+        // Handle hash fragments for anchor links (e.g., #faq)
+        if (window.location.hash) {
+            // Use setTimeout to ensure the DOM is fully rendered
+            setTimeout(() => {
+                const targetId = window.location.hash.substring(1);
+                const targetElement = document.getElementById(targetId);
+                if (targetElement) {
+                    targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }, 100);
         }
     });
 
@@ -205,7 +217,7 @@
     </section>
 
     <!-- API Reference -->
-    <section class="section">
+    <section class="section" id="api">
         <h2><StatusIcon status="code" size={20} /> API Reference</h2>
         <div class="api-section">
             <p>
@@ -457,6 +469,7 @@
 
     .section {
         margin-bottom: 48px;
+        scroll-margin-top: 20px;
     }
 
     .section h2 {

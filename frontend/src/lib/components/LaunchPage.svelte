@@ -98,44 +98,24 @@
 </script>
 
 <div class="launch-page">
-    <!-- Standalone Header -->
-    <header class="launch-header">
-        <a href="/" class="logo">
-            <span class="logo-icon">R</span>
-            <span class="logo-text">Rexec</span>
-        </a>
-        <nav class="launch-nav">
-            <a href="/docs">Docs</a>
-            <a href="/pricing">Pricing</a>
-            <a href="/use-cases">Use Cases</a>
-            <button class="btn btn-primary btn-sm" onclick={handleOAuthLogin} disabled={isOAuthLoading}>
-                {#if isOAuthLoading}
-                    <span class="spinner-sm"></span>
-                {:else}
-                    Sign In
-                {/if}
-            </button>
-        </nav>
-    </header>
-
     <!-- Hero Section -->
-    <section class="hero">
-        <div class="hero-badge">
+    <section class="hero fade-in">
+        <div class="hero-badge slide-in-down">
             <StatusIcon status="sparkles" size={14} />
             <span>Now in Public Beta</span>
         </div>
 
-        <h1>
+        <h1 class="slide-in-up">
             Instant Cloud Terminals
             <span class="gradient-text">For Modern Developers</span>
         </h1>
 
-        <p class="hero-description">
+        <p class="hero-description slide-in-up delay-1">
             Disposable dev environments in seconds. Secure access to your own servers.
             A safe place to run AI-generated code. All in one dashboard.
         </p>
 
-        <div class="hero-actions">
+        <div class="hero-actions slide-in-up delay-2">
             <button class="btn btn-primary btn-xl" onclick={handleGuestClick}>
                 <StatusIcon status="bolt" size={18} />
                 Try Free — No Sign Up
@@ -162,31 +142,31 @@
 
     <!-- Product Screenshot -->
     <section class="screenshot-section">
-        <div class="screenshot-wrapper">
+        <div class="screenshot-wrapper slide-in-up">
             <img
                 src="/screenshot-desktop.png"
                 alt="Rexec Dashboard showing terminal management"
                 class="screenshot"
             />
-            <div class="screenshot-glow"></div>
+            <div class="screenshot-glow float"></div>
         </div>
     </section>
 
     <!-- Social Proof -->
     <section class="social-proof">
-        <p class="proof-text">
+        <p class="proof-text fade-in">
             Trusted by developers at startups and enterprises building with AI
         </p>
         <div class="proof-stats">
-            <div class="stat">
+            <div class="stat slide-in-up delay-1">
                 <span class="stat-value">10K+</span>
                 <span class="stat-label">Terminals Created</span>
             </div>
-            <div class="stat">
+            <div class="stat slide-in-up delay-2">
                 <span class="stat-value">&lt;2s</span>
                 <span class="stat-label">Average Spin-up</span>
             </div>
-            <div class="stat">
+            <div class="stat slide-in-up delay-3">
                 <span class="stat-value">99.9%</span>
                 <span class="stat-label">Uptime</span>
             </div>
@@ -199,8 +179,8 @@
         <p class="section-subtitle">See how teams are using Rexec today</p>
 
         <div class="use-cases-grid">
-            {#each useCases as useCase}
-                <div class="use-case-card">
+            {#each useCases as useCase, i}
+                <div class="use-case-card slide-in-up" style="animation-delay: {i * 0.1}s;">
                     <div class="use-case-icon">
                         <StatusIcon status={useCase.icon} size={28} />
                     </div>
@@ -249,18 +229,18 @@
         </div>
         <div class="ai-visual">
             <div class="code-flow">
-                <div class="flow-step">
-                    <div class="flow-icon">🤖</div>
+                <div class="flow-step slide-in-right delay-1">
+                    <div class="flow-icon"><StatusIcon status="robot" size={24} /></div>
                     <span>AI generates code</span>
                 </div>
-                <div class="flow-arrow">→</div>
-                <div class="flow-step active">
+                <div class="flow-arrow pulse">→</div>
+                <div class="flow-step active slide-in-right delay-2 glow">
                     <div class="flow-icon"><StatusIcon status="terminal" size={20} /></div>
                     <span>Test in Rexec</span>
                 </div>
-                <div class="flow-arrow">→</div>
-                <div class="flow-step">
-                    <div class="flow-icon">✓</div>
+                <div class="flow-arrow pulse delay-1">→</div>
+                <div class="flow-step slide-in-right delay-3">
+                    <div class="flow-icon"><StatusIcon status="check" size={24} /></div>
                     <span>Deploy safely</span>
                 </div>
             </div>
@@ -273,8 +253,8 @@
         <p class="section-subtitle">Choose a role and get a fully-equipped terminal instantly</p>
 
         <div class="roles-grid">
-            {#each roles as role}
-                <div class="role-card">
+            {#each roles as role, i}
+                <div class="role-card slide-in-up" style="animation-delay: {i * 0.1}s;">
                     <StatusIcon status={role.icon} size={32} />
                     <h4>{role.name}</h4>
                     <p>{role.tools}</p>
@@ -287,8 +267,8 @@
     <section class="features-section">
         <h2>Everything You Need</h2>
         <div class="features-grid">
-            {#each features as feature}
-                <div class="feature-card">
+            {#each features as feature, i}
+                <div class="feature-card slide-in-up" style="animation-delay: {i * 0.1}s;">
                     <StatusIcon status={feature.icon} size={24} />
                     <h4>{feature.title}</h4>
                     <p>{feature.description}</p>
@@ -336,7 +316,7 @@
         <h2>Start Free, Scale When Ready</h2>
         <p class="section-subtitle">Sign in with PipeOps to unlock persistent terminals, SSH keys, snippets, and more</p>
         <div class="pricing-cards">
-            <div class="pricing-card">
+            <div class="pricing-card slide-in-up delay-1">
                 <h3>Guest</h3>
                 <div class="price">$0<span>/forever</span></div>
                 <ul>
@@ -349,7 +329,7 @@
                     Try Now
                 </button>
             </div>
-            <div class="pricing-card">
+            <div class="pricing-card slide-in-up delay-2">
                 <h3>Free</h3>
                 <div class="price">$0<span>/month</span></div>
                 <ul>
@@ -367,7 +347,7 @@
                     {/if}
                 </button>
             </div>
-            <div class="pricing-card featured">
+            <div class="pricing-card featured slide-in-up delay-3 glow">
                 <div class="featured-badge">Most Popular</div>
                 <h3>Pro</h3>
                 <div class="price">$19<span>/month</span></div>
@@ -424,72 +404,122 @@
         padding: 0 20px;
     }
 
-    /* Launch Header */
-    .launch-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 16px 0;
-        border-bottom: 1px solid var(--border);
-        margin-bottom: 20px;
+    /* Animations */
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
     }
 
-    .logo {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        text-decoration: none;
-        color: var(--text);
+    @keyframes slideInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
-    .logo-icon {
-        width: 32px;
-        height: 32px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: var(--accent);
-        color: white;
-        font-weight: 700;
-        font-size: 16px;
-        border-radius: 8px;
+    @keyframes slideInDown {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
-    .logo-text {
-        font-size: 20px;
-        font-weight: 700;
+    @keyframes slideInRight {
+        from {
+            opacity: 0;
+            transform: translateX(-30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
     }
 
-    .launch-nav {
-        display: flex;
-        align-items: center;
-        gap: 24px;
+    @keyframes pulse {
+        0%, 100% {
+            opacity: 0.6;
+            transform: scale(1);
+        }
+        50% {
+            opacity: 1;
+            transform: scale(1.1);
+        }
     }
 
-    .launch-nav a {
-        color: var(--text-muted);
-        text-decoration: none;
-        font-size: 14px;
-        font-weight: 500;
-        transition: color 0.2s;
+    @keyframes glow {
+        0%, 100% {
+            box-shadow: 0 0 10px var(--accent-muted, rgba(59, 130, 246, 0.3));
+        }
+        50% {
+            box-shadow: 0 0 20px var(--accent), 0 0 30px var(--accent-muted, rgba(59, 130, 246, 0.5));
+        }
     }
 
-    .launch-nav a:hover {
-        color: var(--text);
+    @keyframes float {
+        0%, 100% {
+            transform: translateY(0px);
+        }
+        50% {
+            transform: translateY(-10px);
+        }
     }
 
-    .btn-sm {
-        padding: 8px 16px;
-        font-size: 13px;
+    .fade-in {
+        animation: fadeIn 0.8s ease-out;
     }
 
-    .spinner-sm {
-        width: 14px;
-        height: 14px;
-        border: 2px solid transparent;
-        border-top-color: currentColor;
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
+    .slide-in-up {
+        animation: slideInUp 0.6s ease-out;
+    }
+
+    .slide-in-down {
+        animation: slideInDown 0.6s ease-out;
+    }
+
+    .slide-in-right {
+        animation: slideInRight 0.6s ease-out;
+    }
+
+    .pulse {
+        animation: pulse 2s ease-in-out infinite;
+    }
+
+    .glow {
+        animation: glow 2s ease-in-out infinite;
+    }
+
+    .float {
+        animation: float 3s ease-in-out infinite;
+    }
+
+    .delay-1 {
+        animation-delay: 0.2s;
+        opacity: 0;
+        animation-fill-mode: forwards;
+    }
+
+    .delay-2 {
+        animation-delay: 0.4s;
+        opacity: 0;
+        animation-fill-mode: forwards;
+    }
+
+    .delay-3 {
+        animation-delay: 0.6s;
+        opacity: 0;
+        animation-fill-mode: forwards;
     }
 
     /* Hero */
@@ -510,6 +540,12 @@
         font-weight: 500;
         color: var(--accent);
         margin-bottom: 24px;
+        box-shadow: 0 0 20px var(--accent-muted, rgba(59, 130, 246, 0.3));
+    }
+
+    .hero-badge:hover {
+        transform: scale(1.05);
+        box-shadow: 0 0 30px var(--accent-muted, rgba(59, 130, 246, 0.5));
     }
 
     .hero h1 {
@@ -671,11 +707,14 @@
         border-radius: 12px;
         padding: 28px;
         transition: all 0.2s;
+        opacity: 0;
+        animation-fill-mode: forwards;
     }
 
     .use-case-card:hover {
         border-color: var(--accent);
         transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
 
     .use-case-icon {
@@ -829,10 +868,14 @@
         border: 1px solid var(--border);
         border-radius: 12px;
         transition: all 0.2s;
+        opacity: 0;
+        animation-fill-mode: forwards;
     }
 
     .role-card:hover {
         border-color: var(--accent);
+        transform: translateY(-4px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
 
     .role-card h4 {
@@ -865,6 +908,15 @@
         background: var(--bg-secondary);
         border: 1px solid var(--border);
         border-radius: 12px;
+        opacity: 0;
+        animation-fill-mode: forwards;
+        transition: all 0.2s;
+    }
+
+    .feature-card:hover {
+        transform: translateY(-4px);
+        border-color: var(--accent);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
 
     .feature-card h4 {
@@ -993,11 +1045,22 @@
         border: 1px solid var(--border);
         border-radius: 16px;
         text-align: left;
+        transition: all 0.3s;
+    }
+
+    .pricing-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
     }
 
     .pricing-card.featured {
         border-color: var(--accent);
         background: var(--bg-tertiary);
+        transform: scale(1.05);
+    }
+
+    .pricing-card.featured:hover {
+        transform: scale(1.05) translateY(-8px);
     }
 
     .featured-badge {

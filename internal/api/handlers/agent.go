@@ -132,18 +132,42 @@ func NewAgentHandler(store *storage.PostgresStore, jwtSecret []byte) *AgentHandl
 					return os.Getenv("BLOCK_EMPTY_ORIGIN") != "true"
 				}
 
-				allowedOriginsStr := os.Getenv("ALLOWED_ORIGINS")
-				if allowedOriginsStr == "" {
-					// Default to allowing all origins if not configured (e.g., in development)
-					return true
+				// Default allowed origins for Rexec
+				defaultAllowedOrigins := []string{
+					"https://rexec.pipeops.app",
+					"https://rexec.pipeops.io",
+					"https://rexec.pipeops.sh",
+					"https://rexec.io",
+					"https://rexec.sh",
+					"http://localhost:8080",
+					"http://localhost:5173",
+					"http://127.0.0.1:8080",
+					"http://127.0.0.1:5173",
 				}
 
-				allowedOrigins := strings.Split(allowedOriginsStr, ",")
-				for _, ao := range allowedOrigins {
-					if strings.TrimSpace(ao) == origin {
+				// Check against default origins first
+				for _, ao := range defaultAllowedOrigins {
+					if ao == origin {
 						return true
 					}
 				}
+
+				// Then check additional origins from environment variable
+				allowedOriginsStr := os.Getenv("ALLOWED_ORIGINS")
+				if allowedOriginsStr != "" {
+					allowedOrigins := strings.Split(allowedOriginsStr, ",")
+					for _, ao := range allowedOrigins {
+						if strings.TrimSpace(ao) == origin {
+							return true
+						}
+					}
+				}
+
+				// If ALLOWED_ORIGINS is not set and origin not in defaults, allow in development
+				if allowedOriginsStr == "" {
+					return true
+				}
+
 				log.Printf("WebSocket connection from disallowed origin: %s", origin)
 				return false
 			},
