@@ -1012,6 +1012,8 @@ func runServer() {
 		router.StaticFile("/pwa-512x512.png", filepath.Join(webDir, "pwa-512x512.png"))
 		router.StaticFile("/robots.txt", filepath.Join(webDir, "robots.txt"))
 		router.StaticFile("/sitemap.xml", filepath.Join(webDir, "sitemap.xml"))
+		router.StaticFile("/ai.txt", filepath.Join(webDir, "ai.txt"))
+		router.StaticFile("/.well-known/ai-plugin.json", filepath.Join(webDir, ".well-known/ai-plugin.json"))
 		router.StaticFile("/og-image.svg", filepath.Join(webDir, "og-image.svg"))
 		router.StaticFile("/og-image.png", filepath.Join(webDir, "og-image.png"))
 		router.StaticFile("/screenshot-desktop.png", filepath.Join(webDir, "screenshot-desktop.png"))
