@@ -20,6 +20,11 @@
 
     // Get current user's token for CLI login
     $: currentToken = $auth.token || "";
+
+    // Get current host for install commands
+    const currentHost = typeof window !== 'undefined' ? window.location.host : 'rexec.pipeops.io';
+    const protocol = typeof window !== 'undefined' ? window.location.protocol : 'https:';
+    const installUrl = `${protocol}//${currentHost}`;
 </script>
 
 <div class="docs-page">
@@ -76,10 +81,10 @@
                     Direct Download (Linux/macOS)
                 </h3>
                 <div class="code-block">
-                    <code>curl -fsSL https://rexec.pipeops.io/install-cli.sh | bash</code>
-                    <button 
+                    <code>curl -fsSL {installUrl}/install-cli.sh | bash</code>
+                    <button
                         class="copy-btn" 
-                        onclick={() => copyToClipboard('curl -fsSL https://rexec.pipeops.io/install-cli.sh | bash', 'cli-direct')}
+                        onclick={() => copyToClipboard(`curl -fsSL ${installUrl}/install-cli.sh | bash`, 'cli-direct')}
                     >
                         {copiedCommand === 'cli-direct' ? 'Copied!' : 'Copy'}
                     </button>

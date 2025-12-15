@@ -1017,17 +1017,13 @@ func renderOAuthSuccessPage(token string, user *models.User) string {
             window.opener.postMessage({ type: 'oauth_success', data: authData }, window.location.origin);
             setTimeout(() => window.close(), 2000);
         } else {
-            // Store in localStorage and redirect to app URL
+            // Store in localStorage and redirect to current origin
             localStorage.setItem('rexec_token', authData.token);
             localStorage.setItem('rexec_user', JSON.stringify(authData.user));
 
-            // Redirect to configured app URL after animation
+            // Redirect to current origin for multi-domain support
             setTimeout(() => {
-                if (appURL.startsWith('http')) {
-                    window.location.href = appURL;
-                } else {
-                    window.location.href = window.location.origin + appURL;
-                }
+                window.location.href = window.location.origin + '/';
             }, 2000);
         }
     </script>
@@ -1295,11 +1291,8 @@ func renderMFAPage(mfaToken string, user *models.User) string {
                 } else {
                     localStorage.setItem('rexec_token', authData.token);
                     localStorage.setItem('rexec_user', JSON.stringify(authData.user));
-                    if (appURL.startsWith('http')) {
-                        window.location.href = appURL;
-                    } else {
-                        window.location.href = window.location.origin + appURL;
-                    }
+                    // Always redirect to current origin for multi-domain support
+                    window.location.href = window.location.origin + '/';
                 }
             } catch (err) {
                 showError(err.message);
