@@ -31,6 +31,7 @@ function loadPersistedSecurity(): SecurityState {
         lockAfterMinutes: parsed.lockAfterMinutes || 5,
         lastActivity: parsed.lastActivity || Date.now(),
         passcodeSetupPromptDismissed: parsed.passcodeSetupPromptDismissed || false,
+        singleSessionMode: parsed.singleSessionMode || false,
       };
     }
   } catch (e) {
@@ -52,6 +53,7 @@ function createSecurityStore() {
         lockAfterMinutes: state.lockAfterMinutes,
         lastActivity: state.lastActivity,
         passcodeSetupPromptDismissed: state.passcodeSetupPromptDismissed,
+        singleSessionMode: state.singleSessionMode,
       })
     );
   }
