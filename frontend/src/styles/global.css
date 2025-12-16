@@ -111,6 +111,58 @@ body::after {
     opacity: 0.15;
 }
 
+/* Custom Rexec Cursors */
+html, body {
+    cursor: url('/cursors/default.svg') 4 2, auto;
+}
+
+a, button, [role="button"],
+input[type="submit"], input[type="button"], input[type="reset"],
+.btn, .clickable, [onclick], summary {
+    cursor: url('/cursors/pointer.svg') 7 2, pointer;
+}
+
+input[type="text"], input[type="password"], input[type="email"],
+input[type="number"], input[type="search"], input[type="tel"],
+input[type="url"], textarea, [contenteditable="true"] {
+    cursor: url('/cursors/text.svg') 12 12, text;
+}
+
+/* Light mode cursors */
+[data-theme="light"] html, [data-theme="light"] body,
+[data-theme="light"] {
+    cursor: url('/cursors/default-light.svg') 4 2, auto;
+}
+
+[data-theme="light"] a, [data-theme="light"] button,
+[data-theme="light"] [role="button"],
+[data-theme="light"] input[type="submit"],
+[data-theme="light"] input[type="button"],
+[data-theme="light"] input[type="reset"],
+[data-theme="light"] .btn, [data-theme="light"] .clickable,
+[data-theme="light"] [onclick], [data-theme="light"] summary {
+    cursor: url('/cursors/pointer-light.svg') 7 2, pointer;
+}
+
+[data-theme="light"] input[type="text"],
+[data-theme="light"] input[type="password"],
+[data-theme="light"] input[type="email"],
+[data-theme="light"] input[type="number"],
+[data-theme="light"] input[type="search"],
+[data-theme="light"] input[type="tel"],
+[data-theme="light"] input[type="url"],
+[data-theme="light"] textarea,
+[data-theme="light"] [contenteditable="true"] {
+    cursor: url('/cursors/text-light.svg') 12 12, text;
+}
+
+
+/* Ensure disabled elements don't use custom pointer */
+button:disabled, .btn:disabled, input:disabled,
+[aria-disabled="true"] {
+    cursor: not-allowed;
+}
+
 /* Scrollbar - Firefox */
 html {
     scrollbar-width: none;
