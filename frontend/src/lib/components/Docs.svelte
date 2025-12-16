@@ -332,14 +332,14 @@
                 <div class="faq-answer">
                     <p>Security is built into every layer of Rexec. We follow industry best practices and enterprise-grade security standards:</p>
 
-                    <p><strong>🔐 Encryption & Transport Security</strong></p>
+                    <p><strong>Encryption & Transport Security</strong></p>
                     <ul>
                         <li><strong>TLS 1.3 everywhere</strong> — All connections use modern TLS encryption. No plaintext, ever.</li>
                         <li><strong>WebSocket over HTTPS</strong> — Terminal sessions use encrypted WebSocket connections</li>
                         <li><strong>Certificate pinning</strong> — Agent connections verify server certificates</li>
                     </ul>
 
-                    <p><strong>🛡️ Authentication & Access Control</strong></p>
+                    <p><strong>Authentication & Access Control</strong></p>
                     <ul>
                         <li><strong>OAuth 2.0 + PKCE</strong> — Secure authentication flow preventing token interception</li>
                         <li><strong>Multi-Factor Authentication (MFA)</strong> — Optional TOTP-based 2FA for your account</li>
@@ -347,7 +347,7 @@
                         <li><strong>API tokens with scopes</strong> — Fine-grained permissions for programmatic access</li>
                     </ul>
 
-                    <p><strong>📦 Container Isolation</strong></p>
+                    <p><strong>Container Isolation</strong></p>
                     <ul>
                         <li><strong>Kernel namespaces</strong> — Each terminal runs in isolated PID, network, and mount namespaces</li>
                         <li><strong>Resource limits (cgroups)</strong> — CPU, memory, and I/O are strictly limited per container</li>
@@ -356,7 +356,7 @@
                         <li><strong>Seccomp profiles</strong> — Dangerous syscalls are blocked at the kernel level</li>
                     </ul>
 
-                    <p><strong>🔒 Data Protection</strong></p>
+                    <p><strong>Data Protection</strong></p>
                     <ul>
                         <li><strong>No shared state</strong> — Your terminal is completely isolated from other users</li>
                         <li><strong>Encrypted at rest</strong> — Persistent data is encrypted on disk</li>
@@ -364,7 +364,7 @@
                         <li><strong>No telemetry or logging of commands</strong> — We don't log what you type</li>
                     </ul>
 
-                    <p><strong>🏢 Infrastructure Security</strong></p>
+                    <p><strong>Infrastructure Security</strong></p>
                     <ul>
                         <li><strong>SOC 2 compliant hosting</strong> — Deployed on enterprise-grade cloud infrastructure</li>
                         <li><strong>Regular security audits</strong> — Penetration testing and vulnerability assessments</li>
@@ -384,7 +384,7 @@
                 <div class="faq-answer">
                     <p>Rexec gives you instant access to Linux environments from anywhere. Here's what developers and teams are using it for:</p>
 
-                    <p><strong>👨‍💻 Software Development</strong></p>
+                    <p><strong>Software Development</strong></p>
                     <ul>
                         <li><strong>Instant dev environments</strong> — Spin up a full Linux environment in seconds with your preferred distro</li>
                         <li><strong>Cross-platform testing</strong> — Test your code on Ubuntu, Debian, Fedora, Alpine, and more</li>
@@ -392,7 +392,7 @@
                         <li><strong>Pair programming</strong> — Share your terminal session with teammates in real-time</li>
                     </ul>
 
-                    <p><strong>🔧 DevOps & SRE</strong></p>
+                    <p><strong>DevOps & SRE</strong></p>
                     <ul>
                         <li><strong>Debug production issues</strong> — Access a clean environment to test and reproduce bugs</li>
                         <li><strong>Script testing</strong> — Safely test deployment scripts before running on production</li>
@@ -400,7 +400,7 @@
                         <li><strong>Infrastructure management</strong> — Connect to your servers via Rexec Agents for secure remote access</li>
                     </ul>
 
-                    <p><strong>🎓 Learning & Teaching</strong></p>
+                    <p><strong>Learning & Teaching</strong></p>
                     <ul>
                         <li><strong>Learn Linux safely</strong> — Experiment without fear of breaking your machine</li>
                         <li><strong>Coding bootcamps</strong> — Provide students with identical, pre-configured environments</li>
@@ -408,14 +408,14 @@
                         <li><strong>Certifications prep</strong> — Practice for Linux certifications (RHCSA, LFCS, etc.)</li>
                     </ul>
 
-                    <p><strong>🤖 AI & Machine Learning</strong></p>
+                    <p><strong>AI & Machine Learning</strong></p>
                     <ul>
                         <li><strong>GPU-enabled environments</strong> — Access CUDA-ready containers for ML workloads</li>
                         <li><strong>Model training</strong> — Run long-running training jobs in persistent terminals</li>
                         <li><strong>Jupyter alternative</strong> — Full terminal access for complex workflows</li>
                     </ul>
 
-                    <p><strong>🏠 Remote Access & BYOS</strong></p>
+                    <p><strong>Remote Access & BYOS</strong></p>
                     <ul>
                         <li><strong>Access your homelab</strong> — Connect to home servers from anywhere via Agent</li>
                         <li><strong>On-premises servers</strong> — Securely access internal infrastructure through the browser</li>
@@ -423,7 +423,7 @@
                         <li><strong>Mobile access</strong> — SSH into your servers from your phone or tablet</li>
                     </ul>
 
-                    <p><strong>🔐 Security & Pentesting</strong></p>
+                    <p><strong>Security & Pentesting</strong></p>
                     <ul>
                         <li><strong>Isolated testing</strong> — Run security tools in a sandboxed environment</li>
                         <li><strong>CTF competitions</strong> — Spin up Kali or ParrotOS for capture-the-flag challenges</li>
