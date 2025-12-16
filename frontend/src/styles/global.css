@@ -111,49 +111,34 @@ body::after {
     opacity: 0.15;
 }
 
-/* Custom Rexec Cursors */
-html, body {
-    cursor: url('/cursors/default.svg') 4 2, auto;
+/* Custom Rexec Cursors - Using data URLs for better browser compatibility */
+:root {
+    --cursor-default: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M5 3L5 21L10 16L14 24L18 22L14 14L21 14L5 3Z' fill='%2300ff41' stroke='%23000' stroke-width='1.5'/%3E%3C/svg%3E");
+    --cursor-pointer: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M8 3L8 13L11 13L11 21L17 12L13 12L17 4L8 3Z' fill='%2300ff41' stroke='%23000' stroke-width='1.5'/%3E%3C/svg%3E");
+    --cursor-text: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M9 4L15 4M12 4L12 20M9 20L15 20' fill='none' stroke='%2300ff41' stroke-width='2.5' stroke-linecap='round'/%3E%3Cpath d='M9 4L15 4M12 4L12 20M9 20L15 20' fill='none' stroke='%23000' stroke-width='4' stroke-linecap='round' style='opacity:0.3'/%3E%3Cpath d='M9 4L15 4M12 4L12 20M9 20L15 20' fill='none' stroke='%2300ff41' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+/* Light mode cursor variables */
+[data-theme="light"] {
+    --cursor-default: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M5 3L5 21L10 16L14 24L18 22L14 14L21 14L5 3Z' fill='%2300a830' stroke='%23fff' stroke-width='1.5'/%3E%3C/svg%3E");
+    --cursor-pointer: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M8 3L8 13L11 13L11 21L17 12L13 12L17 4L8 3Z' fill='%2300a830' stroke='%23fff' stroke-width='1.5'/%3E%3C/svg%3E");
+    --cursor-text: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M9 4L15 4M12 4L12 20M9 20L15 20' fill='none' stroke='%23fff' stroke-width='4' stroke-linecap='round' style='opacity:0.5'/%3E%3Cpath d='M9 4L15 4M12 4L12 20M9 20L15 20' fill='none' stroke='%2300a830' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+html, body, * {
+    cursor: var(--cursor-default) 5 3, auto;
 }
 
 a, button, [role="button"],
 input[type="submit"], input[type="button"], input[type="reset"],
-.btn, .clickable, [onclick], summary {
-    cursor: url('/cursors/pointer.svg') 7 2, pointer;
+.btn, .clickable, [onclick], summary, label, select, option {
+    cursor: var(--cursor-pointer) 8 3, pointer !important;
 }
 
 input[type="text"], input[type="password"], input[type="email"],
 input[type="number"], input[type="search"], input[type="tel"],
 input[type="url"], textarea, [contenteditable="true"] {
-    cursor: url('/cursors/text.svg') 12 12, text;
-}
-
-/* Light mode cursors */
-[data-theme="light"] html, [data-theme="light"] body,
-[data-theme="light"] {
-    cursor: url('/cursors/default-light.svg') 4 2, auto;
-}
-
-[data-theme="light"] a, [data-theme="light"] button,
-[data-theme="light"] [role="button"],
-[data-theme="light"] input[type="submit"],
-[data-theme="light"] input[type="button"],
-[data-theme="light"] input[type="reset"],
-[data-theme="light"] .btn, [data-theme="light"] .clickable,
-[data-theme="light"] [onclick], [data-theme="light"] summary {
-    cursor: url('/cursors/pointer-light.svg') 7 2, pointer;
-}
-
-[data-theme="light"] input[type="text"],
-[data-theme="light"] input[type="password"],
-[data-theme="light"] input[type="email"],
-[data-theme="light"] input[type="number"],
-[data-theme="light"] input[type="search"],
-[data-theme="light"] input[type="tel"],
-[data-theme="light"] input[type="url"],
-[data-theme="light"] textarea,
-[data-theme="light"] [contenteditable="true"] {
-    cursor: url('/cursors/text-light.svg') 12 12, text;
+    cursor: var(--cursor-text) 12 12, text !important;
 }
 
 
