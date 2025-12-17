@@ -626,6 +626,52 @@ func (h *ContainerHandler) createContainerAsync(recordID string, cfg container.C
 	// Mark container as ready immediately - setup will continue in background
 	sendProgress("configuring", "Container started - setting up shell...", 90)
 
+	// Notify via WebSocket that container is created (will be in 'configuring' state)
+	// Sending this BEFORE background setup ensures frontend adds the card immediately
+	if h.eventsHub != nil {
+		h.eventsHub.NotifyContainerCreated(userID, gin.H{
+			"id":         info.ID,
+			"db_id":      recordID,
+			"user_id":    info.UserID,
+			"name":       cfg.ContainerName,
+			"image":      imageName,
+			"role":       role,
+			"status":     info.Status,
+			"created_at": info.CreatedAt,
+			"ip_address": info.IPAddress,
+			"resources": gin.H{
+				"memory_mb":  record.MemoryMB,
+				"cpu_shares": record.CPUShares,
+				"disk_mb":    record.DiskMB,
+			},
+		})
+
+		// Send ready progress to close creation modal
+		h.eventsHub.NotifyContainerProgress(userID, gin.H{
+			"id":           recordID,
+			"stage":        "ready",
+			"message":      "Terminal ready!",
+			"progress":     100,
+			"complete":     true,
+			"container_id": info.ID,
+			"container": gin.H{
+				"id":         info.ID,
+				"db_id":      recordID,
+				"user_id":    userID,
+				"name":       cfg.ContainerName,
+				"image":      imageName,
+				"status":     info.Status,
+				"created_at": info.CreatedAt,
+				"ip_address": info.IPAddress,
+				"resources": gin.H{
+					"memory_mb":  memoryMB,
+					"cpu_shares": cpuShares,
+					"disk_mb":    diskMB,
+				},
+			},
+		})
+	}
+
 	// Run shell setup, role setup, and metadata caching asynchronously
 	// This dramatically improves perceived startup latency
 	go func(containerID, dbID, userID string, shellCfg container.ShellSetupConfig, role, imageType string) {
@@ -717,52 +763,6 @@ func (h *ContainerHandler) createContainerAsync(recordID string, cfg container.C
 		}
 	}
 
-	// Mark container as ready AFTER setup is complete
-	sendProgress("ready", "Terminal ready!", 100)
-
-	// Notify via WebSocket that container is ready
-	if h.eventsHub != nil {
-		h.eventsHub.NotifyContainerProgress(userID, gin.H{
-			"id":           recordID,
-			"stage":        "ready",
-			"message":      "Terminal ready!",
-			"progress":     100,
-			"complete":     true,
-			"container_id": info.ID,
-			"container": gin.H{
-				"id":         info.ID,
-				"db_id":      recordID,
-				"user_id":    userID,
-				"name":       cfg.ContainerName,
-				"image":      imageName,
-				"status":     info.Status,
-				"created_at": info.CreatedAt,
-				"ip_address": info.IPAddress,
-				"resources": gin.H{
-					"memory_mb":  memoryMB,
-					"cpu_shares": cpuShares,
-					"disk_mb":    diskMB,
-				},
-			},
-		})
-
-		h.eventsHub.NotifyContainerCreated(userID, gin.H{
-			"id":         info.ID,
-			"db_id":      recordID,
-			"user_id":    info.UserID,
-			"name":       cfg.ContainerName,
-			"image":      imageName,
-			"role":       role,
-			"status":     info.Status,
-			"created_at": info.CreatedAt,
-			"ip_address": info.IPAddress,
-			"resources": gin.H{
-				"memory_mb":  record.MemoryMB,
-				"cpu_shares": record.CPUShares,
-				"disk_mb":    record.DiskMB,
-			},
-		})
-	}
 }
 
 // Get returns a specific container
