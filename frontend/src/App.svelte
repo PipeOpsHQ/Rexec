@@ -897,6 +897,10 @@
         );
 
         if (match && get(isAuthenticated)) {
+            // Preload terminal assets for instant load
+            preloadComponent("terminalView");
+            import("$utils/xterm").then(mod => mod.loadXtermCore());
+
             const containerId = match[1];
             // Fetch container info and create session - TerminalPanel handles WebSocket
             const result = await containers.getContainer(containerId);
@@ -1294,12 +1298,18 @@
         switch (currentView) {
             case "dashboard":
                 preloadComponent("dashboard");
+                // Preload terminal assets for instant open
+                preloadComponent("terminalView");
+                import("$utils/xterm").then(mod => mod.loadXtermCore());
                 break;
             case "admin":
                 preloadComponent("adminDashboard");
                 break;
             case "create":
                 preloadComponent("createTerminal");
+                // Preload terminal assets
+                preloadComponent("terminalView");
+                import("$utils/xterm").then(mod => mod.loadXtermCore());
                 break;
             case "settings":
                 preloadComponent("settings");
