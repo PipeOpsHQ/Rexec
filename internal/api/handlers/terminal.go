@@ -589,8 +589,15 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 		return
 	}
 
-	// Upgrade to WebSocket
-	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	// Upgrade to WebSocket with subprotocol support
+	// Client sends: Sec-WebSocket-Protocol: rexec.v1, rexec.token.<token>
+	// Server should respond with the accepted protocol version
+	responseHeader := http.Header{}
+	requestedProtocols := c.GetHeader("Sec-WebSocket-Protocol")
+	if strings.Contains(requestedProtocols, "rexec.v1") {
+		responseHeader.Set("Sec-WebSocket-Protocol", "rexec.v1")
+	}
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, responseHeader)
 	if err != nil {
 		log.Printf("[Terminal] WebSocket upgrade failed for %s (user %s): %v", containerIdOrName, userID, err)
 		return

@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -131,8 +132,13 @@ func (h *ContainerEventsHub) HandleWebSocket(c *gin.Context) {
 
 	tier := c.GetString("tier")
 
-	// Upgrade to WebSocket
-	conn, err := h.upgrader.Upgrade(c.Writer, c.Request, nil)
+	// Upgrade to WebSocket with subprotocol support
+	responseHeader := http.Header{}
+	requestedProtocols := c.GetHeader("Sec-WebSocket-Protocol")
+	if strings.Contains(requestedProtocols, "rexec.v1") {
+		responseHeader.Set("Sec-WebSocket-Protocol", "rexec.v1")
+	}
+	conn, err := h.upgrader.Upgrade(c.Writer, c.Request, responseHeader)
 	if err != nil {
 		log.Printf("WebSocket upgrade failed: %v", err)
 		return

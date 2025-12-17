@@ -675,8 +675,13 @@ func (h *AgentHandler) HandleAgentWebSocket(c *gin.Context) {
 		return
 	}
 
-	// Upgrade to WebSocket
-	conn, err := h.upgrader.Upgrade(c.Writer, c.Request, nil)
+	// Upgrade to WebSocket with subprotocol support
+	responseHeader := http.Header{}
+	requestedProtocols := c.GetHeader("Sec-WebSocket-Protocol")
+	if strings.Contains(requestedProtocols, "rexec.v1") {
+		responseHeader.Set("Sec-WebSocket-Protocol", "rexec.v1")
+	}
+	conn, err := h.upgrader.Upgrade(c.Writer, c.Request, responseHeader)
 	if err != nil {
 		log.Printf("[Agent WS] Failed to upgrade connection for agent %s: %v", agentID, err)
 		return
@@ -1014,8 +1019,13 @@ func (h *AgentHandler) HandleUserWebSocket(c *gin.Context) {
 		}
 	}
 
-	// Upgrade to WebSocket
-	conn, err := h.upgrader.Upgrade(c.Writer, c.Request, nil)
+	// Upgrade to WebSocket with subprotocol support
+	responseHeader := http.Header{}
+	requestedProtocols := c.GetHeader("Sec-WebSocket-Protocol")
+	if strings.Contains(requestedProtocols, "rexec.v1") {
+		responseHeader.Set("Sec-WebSocket-Protocol", "rexec.v1")
+	}
+	conn, err := h.upgrader.Upgrade(c.Writer, c.Request, responseHeader)
 	if err != nil {
 		log.Printf("Failed to upgrade user connection: %v", err)
 		return
