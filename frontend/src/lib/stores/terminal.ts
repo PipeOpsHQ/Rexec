@@ -658,7 +658,7 @@ function createTerminalStore() {
 
     // Update browser URL for terminal routing
     updateUrl(containerId: string) {
-      const newUrl = `/${containerId}`;
+      const newUrl = `/terminal/${containerId}`;
       if (window.location.pathname !== newUrl) {
         window.history.pushState({ containerId }, "", newUrl);
       }

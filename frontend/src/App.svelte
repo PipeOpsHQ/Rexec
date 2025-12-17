@@ -907,6 +907,7 @@
                     result.container.name,
                     "docked",
                 );
+                currentView = "dashboard";
             } else {
                 // Container not found
                 currentView = "404";
@@ -1277,6 +1278,8 @@
             }
         } else if (path === "/profile") {
             currentView = $isAuthenticated ? "account" : "landing";
+        } else if (path.match(/^\/(?:terminal\/)?([a-f0-9]{64}|[a-f0-9-]{36})$/i)) {
+            currentView = $isAuthenticated ? "dashboard" : "landing";
         } else if (path === "/marketplace") {
             currentView = "marketplace";
         }
