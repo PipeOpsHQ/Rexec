@@ -11,6 +11,17 @@ const app = mount(App, {
 // Initialize PWA install prompt handling
 initInstallPrompt();
 
+// Listen for service worker update messages (important for Safari)
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (event.data?.type === 'SW_UPDATED') {
+      console.log('[App] Service worker updated to:', event.data.version);
+      // Auto-reload to get fresh content (silent for Safari)
+      window.location.reload();
+    }
+  });
+}
+
 // Register service worker with auto-update
 const updateSW = registerSW({
   onNeedRefresh() {

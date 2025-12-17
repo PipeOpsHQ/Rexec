@@ -10,29 +10,41 @@ declare let self: ServiceWorkerGlobalScope;
 // ===========================================
 // CACHE VERSION - INCREMENT TO FORCE REFRESH
 // ===========================================
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 
 // Clean up old caches
 cleanupOutdatedCaches();
 
 // Force clear ALL caches when version changes
+// This also calls skipWaiting to ensure Safari picks up changes immediately
+self.addEventListener('install', (event) => {
+  console.log('[SW] Installing version:', CACHE_VERSION);
+  // Force the new service worker to activate immediately (important for Safari)
+  event.waitUntil(self.skipWaiting());
+});
+
 self.addEventListener('activate', (event) => {
+  console.log('[SW] Activating version:', CACHE_VERSION);
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          // Delete all caches that don't match current version prefix
-          // This forces a complete refresh for all users
-          if (!cacheName.startsWith(CACHE_VERSION)) {
-            console.log('[SW] Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-          return Promise.resolve();
+          // Delete ALL caches on version change to ensure fresh start
+          // This is aggressive but ensures Safari and all browsers get fresh content
+          console.log('[SW] Deleting cache:', cacheName);
+          return caches.delete(cacheName);
         })
       );
     }).then(() => {
-      console.log('[SW] Cache version:', CACHE_VERSION, '- claiming clients');
+      console.log('[SW] All caches cleared, claiming clients');
       return self.clients.claim();
+    }).then(() => {
+      // Notify all clients to reload (important for Safari)
+      return self.clients.matchAll({ type: 'window' }).then((clients) => {
+        clients.forEach((client) => {
+          client.postMessage({ type: 'SW_UPDATED', version: CACHE_VERSION });
+        });
+      });
     })
   );
 });
