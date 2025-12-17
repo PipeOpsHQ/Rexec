@@ -691,6 +691,16 @@ func (h *ContainerHandler) createContainerAsync(recordID string, cfg container.C
 		updateCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		h.store.UpdateContainerStatus(updateCtx, dbID, "running")
+
+		// Notify frontend that container status changed to running
+		if h.eventsHub != nil {
+			h.eventsHub.NotifyContainerUpdated(userID, gin.H{
+				"id":     containerID,
+				"db_id":  dbID,
+				"status": "running",
+				"role":   role,
+			})
+		}
 	}(info.ID, recordID, userID, shellCfg, role, imageType)
 
 	// Status update moved to goroutine to allow "configuring" state to persist during setup
