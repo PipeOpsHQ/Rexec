@@ -644,7 +644,6 @@ func (h *AgentHandler) HandleAgentWebSocket(c *gin.Context) {
 	// Verify agent ownership
 	ctx := c.Request.Context()
 	var agent *storage.Agent
-	var err error
 
 	// Try cache
 	cacheKey := "rexec:cache:agent:" + agentID
@@ -933,7 +932,6 @@ func (h *AgentHandler) HandleUserWebSocket(c *gin.Context) {
 	// Verify agent exists and ownership (required for both local and remote agents).
 	ctx := c.Request.Context()
 	var agentRecord *storage.Agent
-	var err error
 
 	// Try cache
 	cacheKey := "rexec:cache:agent:" + agentID
