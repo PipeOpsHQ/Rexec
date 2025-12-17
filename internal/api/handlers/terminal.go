@@ -18,9 +18,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	admin_events "github.com/rexec/rexec/internal/api/handlers/admin_events"
 	mgr "github.com/rexec/rexec/internal/container"
 	"github.com/rexec/rexec/internal/storage"
-	admin_events "github.com/rexec/rexec/internal/api/handlers/admin_events"
 )
 
 var upgrader = websocket.Upgrader{
@@ -101,10 +101,10 @@ type TerminalHandler struct {
 	recordingHandler *RecordingHandler
 	collabHandler    *CollabHandler
 	adminEventsHub   *admin_events.AdminEventsHub
-	
+
 	// Caches to speed up reconnection
-	shellCache       map[string]string // containerID -> shell path
-	tmuxCache        map[string]bool   // containerID -> hasTmux
+	shellCache map[string]string // containerID -> shell path
+	tmuxCache  map[string]bool   // containerID -> hasTmux
 }
 
 // SharedTerminalSession represents a terminal session shared by multiple users (for collaboration)
@@ -135,8 +135,8 @@ type TerminalSession struct {
 	Done            chan struct{}
 	mu              sync.Mutex
 	closed          bool
-	ForceNewSession bool // If true, create new tmux session instead of resuming main
-	IsOwner         bool // Container owner (vs collab participant)
+	ForceNewSession bool   // If true, create new tmux session instead of resuming main
+	IsOwner         bool   // Container owner (vs collab participant)
 	TmuxSessionName string // Set when tmux is used ("main", "user-...", "split-...")
 }
 
@@ -213,7 +213,7 @@ func (h *TerminalHandler) HasCollabAccess(ctx context.Context, userID, container
 		// Also try short ID
 		containerIDs = append(containerIDs, containerID[:12])
 	}
-	
+
 	for _, cid := range containerIDs {
 		session, err := h.collabHandler.store.GetCollabSessionByContainerID(ctx, cid)
 		if err != nil {
@@ -223,14 +223,14 @@ func (h *TerminalHandler) HasCollabAccess(ctx context.Context, userID, container
 		if session == nil {
 			continue
 		}
-		
+
 		// Check if user is a participant in this session
 		participants, err := h.collabHandler.store.GetCollabParticipants(ctx, session.ID)
 		if err != nil {
 			log.Printf("[Terminal] HasCollabAccess: DB error checking participants: %v", err)
 			continue
 		}
-		
+
 		for _, p := range participants {
 			if p.UserID == userID {
 				log.Printf("[Terminal] HasCollabAccess: user %s has DB access to container %s (session %s)", userID, cid, session.ID)
@@ -240,7 +240,7 @@ func (h *TerminalHandler) HasCollabAccess(ctx context.Context, userID, container
 			}
 		}
 	}
-	
+
 	log.Printf("[Terminal] HasCollabAccess: user %s has NO access to container %s", userID, containerID[:min(12, len(containerID))])
 	return false
 }
@@ -250,15 +250,15 @@ func (h *TerminalHandler) restoreCollabSession(record *storage.CollabSessionReco
 	if h.collabHandler == nil {
 		return
 	}
-	
+
 	h.collabHandler.mu.Lock()
 	defer h.collabHandler.mu.Unlock()
-	
+
 	// Check if already exists
 	if _, exists := h.collabHandler.sessions[record.ShareCode]; exists {
 		return
 	}
-	
+
 	// Create in-memory session
 	session := &CollabSession{
 		ID:           record.ID,
@@ -271,7 +271,7 @@ func (h *TerminalHandler) restoreCollabSession(record *storage.CollabSessionReco
 		Participants: make(map[string]*CollabParticipant),
 		broadcast:    make(chan CollabMessage, 1024),
 	}
-	
+
 	// Add the user as a participant
 	session.Participants[userID] = &CollabParticipant{
 		ID:       userID,
@@ -280,10 +280,10 @@ func (h *TerminalHandler) restoreCollabSession(record *storage.CollabSessionReco
 		Role:     "viewer",
 		Color:    "#3b82f6",
 	}
-	
+
 	h.collabHandler.sessions[record.ShareCode] = session
 	go session.broadcastLoop()
-	
+
 	log.Printf("[Terminal] Restored collab session %s from DB", record.ShareCode)
 }
 
@@ -307,13 +307,13 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 		// Try again after sync
 		containerInfo, ok = h.containerManager.GetContainer(containerIdOrName)
 	}
-	
+
 	// If still not found, check if this is a collab user trying to access a container
 	// In that case, try to verify via Docker directly
 	isCollabUser := false
 	isOwner := false
 	var dockerID string
-	
+
 	if !ok {
 		// Check if user has collab access to this container ID
 		if h.HasCollabAccess(reqCtx, userID.(string), containerIdOrName) {
@@ -348,7 +348,7 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 		// Container found in manager
 		dockerID = containerInfo.ID
 		isOwner = containerInfo.UserID == userID.(string)
-		
+
 		// Verify ownership or collab access
 		if !isOwner {
 			// Check if user has collab access
@@ -393,7 +393,7 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 			containerStatus = "stopped"
 		}
 	}
-	
+
 	// We allow connections during configuring state so users can connect during long role setups
 	if containerStatus != "running" && containerStatus != "configuring" {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -415,7 +415,7 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 
 	// Configure WebSocket for large data handling
 	// Allow up to 100MB messages for "vibe coding" (extreme AI contexts/pastes)
-	conn.SetReadLimit(100 * 1024 * 1024) 
+	conn.SetReadLimit(100 * 1024 * 1024)
 	conn.SetPongHandler(func(string) error {
 		conn.SetReadDeadline(time.Now().Add(120 * time.Second)) // Longer timeout for stability
 		return nil
@@ -511,7 +511,7 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 		// Fallback for old clients or single sessions
 		connectionID = "default"
 	}
-	
+
 	// Check if this is a new session request (for split panes)
 	// newSession=true means create a fresh tmux session instead of resuming main
 	forceNewSession := c.Query("newSession") == "true"
@@ -519,16 +519,16 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 	now := time.Now()
 	dbSessionID := uuid.New().String()
 	session := &TerminalSession{
-		UserID:        userID.(string),
-		ContainerID:   dockerID,
-		DBSessionID:   dbSessionID,
-		CreatedAt:     now,
-		Conn:          conn,
-		Cols:          80,
-		Rows:          24,
-		Done:          make(chan struct{}),
+		UserID:          userID.(string),
+		ContainerID:     dockerID,
+		DBSessionID:     dbSessionID,
+		CreatedAt:       now,
+		Conn:            conn,
+		Cols:            80,
+		Rows:            24,
+		Done:            make(chan struct{}),
 		ForceNewSession: forceNewSession,
-		IsOwner:       isOwner,
+		IsOwner:         isOwner,
 	}
 
 	// Register session with unique key to allow multiplexing
@@ -569,7 +569,7 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 			delete(h.sessions, sessionKey)
 		}
 		h.mu.Unlock()
-		
+
 		// Broadcast session deleted event to admin hub
 		if h.adminEventsHub != nil && session.DBSessionID != "" {
 			h.adminEventsHub.Broadcast("session_deleted", gin.H{"id": session.DBSessionID})
@@ -581,8 +581,8 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 				defer cancel()
 				if err := h.store.DeleteSession(ctx, sessionID); err != nil {
-				log.Printf("Failed to delete db session: %v", err)
-			}
+					log.Printf("Failed to delete db session: %v", err)
+				}
 			}(session.DBSessionID)
 		}
 
@@ -761,16 +761,49 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 			},
 		}
 	} else {
-		// Detect shell first
-		shell := h.detectShell(ctx, session.ContainerID, imageType)
-		
+		// Try to get cached shell metadata from database first (much faster)
+		var shell string
+		var hasTmux bool
+		var shellCached bool
+
+		if h.store != nil {
+			dbCtx, dbCancel := context.WithTimeout(ctx, 2*time.Second)
+			cachedShell, cachedTmux, setupDone, err := h.store.GetContainerShellMetadata(dbCtx, session.ContainerID)
+			dbCancel()
+			if err == nil && setupDone && cachedShell != "" {
+				shell = cachedShell
+				hasTmux = cachedTmux
+				shellCached = true
+				log.Printf("[Terminal] Using cached shell metadata for %s: shell=%s, tmux=%v", session.ContainerID[:12], shell, hasTmux)
+			}
+		}
+
+		// Fall back to detection if not cached
+		if !shellCached {
+			shell = h.detectShell(ctx, session.ContainerID, imageType)
+
+			// Check tmux cache or detect
+			h.mu.RLock()
+			tmuxCached, tmuxInCache := h.tmuxCache[session.ContainerID]
+			h.mu.RUnlock()
+
+			if tmuxInCache {
+				hasTmux = tmuxCached
+			} else {
+				hasTmux = h.commandExists(ctx, session.ContainerID, "tmux")
+				h.mu.Lock()
+				h.tmuxCache[session.ContainerID] = hasTmux
+				h.mu.Unlock()
+			}
+		}
+
 		// Determine tmux session name
 		// - For owner/single user: use "main" (allows reconnecting to same session)
 		// - For control-mode collab users: use unique session per user (independent sessions)
 		// - For split panes (ForceNewSession): generate unique session name
 		tmuxSessionName := "main"
 		collabMode := h.getCollabMode(session.ContainerID)
-		
+
 		if session.ForceNewSession {
 			// Split pane - create a completely new tmux session with unique name
 			tmuxSessionName = fmt.Sprintf("split-%d", time.Now().UnixNano())
@@ -781,19 +814,6 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 			log.Printf("[Terminal] Control mode: using unique tmux session '%s' for user %s", tmuxSessionName, session.UserID)
 		}
 		session.TmuxSessionName = tmuxSessionName
-		
-		// Check if tmux is available for session persistence
-		// Fall back to direct shell if tmux is not installed
-		h.mu.RLock()
-		hasTmux, cached := h.tmuxCache[session.ContainerID]
-		h.mu.RUnlock()
-
-		if !cached {
-			hasTmux = h.commandExists(ctx, session.ContainerID, "tmux")
-			h.mu.Lock()
-			h.tmuxCache[session.ContainerID] = hasTmux
-			h.mu.Unlock()
-		}
 
 		if hasTmux {
 			// For split panes (ForceNewSession), always create new session (no -A flag)
@@ -806,9 +826,9 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 				// Attach if session exists, create if not
 				tmuxCmd = []string{"tmux", "new-session", "-A", "-s", tmuxSessionName, shell}
 			}
-			
-			log.Printf("[Terminal] Using tmux session '%s' for %s in %s", tmuxSessionName, 
-				map[bool]string{true: "split pane", false: "main terminal"}[session.ForceNewSession], 
+
+			log.Printf("[Terminal] Using tmux session '%s' for %s in %s", tmuxSessionName,
+				map[bool]string{true: "split pane", false: "main terminal"}[session.ForceNewSession],
 				session.ContainerID[:12])
 			execConfig = container.ExecOptions{
 				AttachStdin:  true,
@@ -1146,7 +1166,7 @@ func (h *TerminalHandler) isZshSetup(ctx context.Context, containerID string) bo
 
 	// Check both /root and /home/user (standard rexec user home)
 	cmd := "test -f /root/.zshrc || test -f /home/user/.zshrc"
-	
+
 	execConfig := container.ExecOptions{
 		Cmd:          []string{"/bin/sh", "-c", cmd},
 		AttachStdout: true,
@@ -1741,14 +1761,14 @@ func (h *TerminalHandler) keepAliveLoop() {
 
 	for range ticker.C {
 		h.mu.RLock()
-		
+
 		// 1. Copy sessions to slice to release lock quickly
 		type sessionUpdate struct {
 			DBSessionID string
 			Session     *TerminalSession
 		}
 		var sessionsToUpdate []sessionUpdate
-		
+
 		for _, session := range h.sessions {
 			if session.DBSessionID != "" {
 				sessionsToUpdate = append(sessionsToUpdate, sessionUpdate{
@@ -1762,7 +1782,7 @@ func (h *TerminalHandler) keepAliveLoop() {
 		for _, sharedSession := range h.sharedSessions {
 			sharedSession.mu.RLock()
 			for _, conn := range sharedSession.Connections {
-				// Note: technically unsafe if broadcast is writing simultaneously, 
+				// Note: technically unsafe if broadcast is writing simultaneously,
 				// but low probability collision on ping. Ideally shared conn should be wrapped.
 				conn.WriteJSON(TerminalMessage{Type: "ping"})
 			}
@@ -1780,14 +1800,14 @@ func (h *TerminalHandler) keepAliveLoop() {
 			case sem <- struct{}{}: // Acquire token (non-blocking if full)
 				go func(dbID string) {
 					defer func() { <-sem }() // Release token
-					
+
 					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 					defer cancel()
 
 					if err := h.store.UpdateSessionLastPing(ctx, dbID); err != nil {
 						// Log verbose only on error
 					}
-					
+
 					// Broadcast session_updated event
 					if h.adminEventsHub != nil {
 						updatedSession, err := h.store.GetSessionByID(ctx, dbID)

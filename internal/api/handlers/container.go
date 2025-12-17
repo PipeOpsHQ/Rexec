@@ -14,10 +14,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	admin_events "github.com/rexec/rexec/internal/api/handlers/admin_events"
 	"github.com/rexec/rexec/internal/container"
 	"github.com/rexec/rexec/internal/models"
 	"github.com/rexec/rexec/internal/storage"
-	admin_events "github.com/rexec/rexec/internal/api/handlers/admin_events"
 )
 
 const (
@@ -104,7 +104,7 @@ func (h *ContainerHandler) List(c *gin.Context) {
 		return
 	}
 
-		ctx := c.Request.Context()
+	ctx := c.Request.Context()
 
 	// Get containers from database
 	records, err := h.store.GetContainersByUserID(ctx, userID)
@@ -178,11 +178,15 @@ func (h *ContainerHandler) List(c *gin.Context) {
 	sort.Slice(containers, func(i, j int) bool {
 		t1, ok1 := containers[i]["created_at"].(time.Time)
 		t2, ok2 := containers[j]["created_at"].(time.Time)
-		
+
 		// Handle potential missing timestamps gracefully
-		if !ok1 { return false }
-		if !ok2 { return true }
-		
+		if !ok1 {
+			return false
+		}
+		if !ok2 {
+			return true
+		}
+
 		return t1.After(t2)
 	})
 
@@ -215,7 +219,7 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 		return
 	}
 
-		ctx := c.Request.Context()
+	ctx := c.Request.Context()
 
 	// Handle custom image validation
 	if req.Image == "custom" {
@@ -232,35 +236,35 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 			})
 			return
 		}
-		} else {
-			// Validate standard image type
-			if _, ok := container.SupportedImages[req.Image]; !ok {
-				c.JSON(http.StatusBadRequest, gin.H{
-					"error":            "unsupported image type",
-					"supported_images": getImageNames(),
-				})
-				return
-			}
+	} else {
+		// Validate standard image type
+		if _, ok := container.SupportedImages[req.Image]; !ok {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":            "unsupported image type",
+				"supported_images": getImageNames(),
+			})
+			return
 		}
+	}
 
-		// Gate privileged macOS VM containers to enterprise/admin users only.
-		if req.Image == "macos" || req.Image == "macos-legacy" {
-			user, err := h.store.GetUserByID(ctx, userID)
-			if err != nil || user == nil {
-				c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
-				return
-			}
-			if tier != "enterprise" && !user.IsAdmin {
-				c.JSON(http.StatusForbidden, gin.H{
-					"error":   "macOS containers are restricted",
-					"message": "macOS images require enterprise tier or admin access",
-				})
-				return
-			}
+	// Gate privileged macOS VM containers to enterprise/admin users only.
+	if req.Image == "macos" || req.Image == "macos-legacy" {
+		user, err := h.store.GetUserByID(ctx, userID)
+		if err != nil || user == nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
+			return
 		}
+		if tier != "enterprise" && !user.IsAdmin {
+			c.JSON(http.StatusForbidden, gin.H{
+				"error":   "macOS containers are restricted",
+				"message": "macOS images require enterprise tier or admin access",
+			})
+			return
+		}
+	}
 
-		// Auto-generate name if not provided
-		containerName := strings.TrimSpace(req.Name)
+	// Auto-generate name if not provided
+	containerName := strings.TrimSpace(req.Name)
 	if containerName == "" {
 		containerName = generateContainerName()
 	}
@@ -318,7 +322,7 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 	// We might need to handle this discrepancy.
 	// However, let's assume ValidateTrialResources works based on the tier string passed.
 	limits := models.ValidateTrialResources(&req, tier)
-	
+
 	// Override limits if we have specific subscription logic not covered by tier string
 	userLimits := models.GetUserResourceLimits(tier, subscriptionActive)
 	// Apply these limits if they are stricter or different from defaults
@@ -327,7 +331,7 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 	// If not, they get Free limits (2GB/2CPU).
 	// ValidateTrialResources clamps based on GetTrialResourceLimits (4GB/4CPU/16GB).
 	// This might be too generous for non-subscribers who should be capped at 2GB.
-	
+
 	if !subscriptionActive && (tier == "free" || tier == "trial") {
 		// Enforce stricter limits for non-subscribers
 		if limits.MemoryMB > userLimits.MemoryMB {
@@ -602,49 +606,68 @@ func (h *ContainerHandler) createContainerAsync(recordID string, cfg container.C
 		diskMB = record.DiskMB
 	}
 
-	// Run shell setup synchronously before marking ready
-	// This ensures environment is fully configured before user connects
-	// Skip enhanced shell for macOS as it's an appliance VM that manages its own environment
-	if shellCfg.Enhanced && imageType != "macos" {
-		sendProgress("configuring", "Setting up enhanced shell...", 90)
-		log.Printf("[Container] Starting shell setup for %s", info.ID[:12])
+	// Mark container as ready immediately - setup will continue in background
+	sendProgress("configuring", "Container started - setting up shell...", 90)
 
-		// Use a separate context with shorter timeout for shell setup
-		shellCtx, shellCancel := context.WithTimeout(ctx, 2*time.Minute)
-		shellResult, shellErr := container.SetupShellWithConfig(shellCtx, h.manager.GetClient(), info.ID, shellCfg)
-		shellCancel()
+	// Run shell setup, role setup, and metadata caching asynchronously
+	// This dramatically improves perceived startup latency
+	go func(containerID, dbID, userID string, shellCfg container.ShellSetupConfig, role, imageType string) {
+		bgCtx := context.Background()
 
-		if shellErr != nil {
-			log.Printf("[Container] Shell setup error for %s: %v", info.ID[:12], shellErr)
-			sendProgress("configuring", "Shell setup failed, using basic shell", 92)
-		} else if !shellResult.Success {
-			log.Printf("[Container] Shell setup incomplete for %s: %s", info.ID[:12], shellResult.Message)
-			sendProgress("configuring", "Shell setup warning: "+shellResult.Message, 92)
-		} else {
-			log.Printf("[Container] Shell setup complete for %s", info.ID[:12])
-			sendProgress("configuring", "Shell configured successfully", 95)
+		// 1. Run shell setup if enhanced mode is enabled
+		if shellCfg.Enhanced && imageType != "macos" {
+			log.Printf("[Container] Starting async shell setup for %s", containerID[:12])
+			shellCtx, shellCancel := context.WithTimeout(bgCtx, 5*time.Minute)
+			shellResult, shellErr := container.SetupShellWithConfig(shellCtx, h.manager.GetClient(), containerID, shellCfg)
+			shellCancel()
+
+			if shellErr != nil {
+				log.Printf("[Container] Async shell setup error for %s: %v", containerID[:12], shellErr)
+			} else if !shellResult.Success {
+				log.Printf("[Container] Async shell setup incomplete for %s: %s", containerID[:12], shellResult.Message)
+			} else {
+				log.Printf("[Container] Async shell setup complete for %s", containerID[:12])
+			}
 		}
-	} else {
-		sendProgress("configuring", "Configuring minimal shell...", 90)
-	}
 
-	// Setup role if specified (run for ALL roles including standard to get AI tools)
-	if role != "" {
-		sendProgress("configuring", fmt.Sprintf("Setting up %s environment...", role), 95)
-		log.Printf("[Container] Starting role setup for %s (%s)", info.ID[:12], role)
+		// 2. Setup role if specified
+		if role != "" {
+			log.Printf("[Container] Starting async role setup for %s (%s)", containerID[:12], role)
+			roleCtx, roleCancel := context.WithTimeout(bgCtx, 5*time.Minute)
+			roleResult, roleErr := container.SetupRole(roleCtx, h.manager.GetClient(), containerID, role)
+			roleCancel()
 
-		roleResult, roleErr := container.SetupRole(ctx, h.manager.GetClient(), info.ID, role)
-		if roleErr != nil {
-			log.Printf("[Container] Role setup error for %s (%s): %v", info.ID[:12], role, roleErr)
-			sendProgress("configuring", fmt.Sprintf("Role setup failed: %v", roleErr), 97)
-		} else if !roleResult.Success {
-			log.Printf("[Container] Role setup incomplete for %s (%s): %s\nOutput: %s", info.ID[:12], role, roleResult.Message, roleResult.Output)
-			sendProgress("configuring", fmt.Sprintf("Role setup warning: %s", roleResult.Message), 97)
-		} else {
-			log.Printf("[Container] Role setup complete for %s (%s)\nOutput (last 500 chars): %s", info.ID[:12], role, truncateOutput(roleResult.Output, 500))
-			sendProgress("configuring", "Role tools installed", 98)
+			if roleErr != nil {
+				log.Printf("[Container] Async role setup error for %s (%s): %v", containerID[:12], role, roleErr)
+			} else if !roleResult.Success {
+				log.Printf("[Container] Async role setup incomplete for %s (%s): %s", containerID[:12], role, roleResult.Message)
+			} else {
+				log.Printf("[Container] Async role setup complete for %s (%s)", containerID[:12], role)
+			}
 		}
-	}
+
+		// 3. Detect and cache shell/tmux metadata (after setup so we detect new shell/tmux)
+		cacheCtx, cacheCancel := context.WithTimeout(bgCtx, 30*time.Second)
+		defer cacheCancel()
+
+		shellPath, hasTmux := container.DetectShellAndTmux(cacheCtx, h.manager.GetClient(), containerID)
+		if shellPath != "" {
+			if err := h.store.UpdateContainerShellMetadata(cacheCtx, dbID, shellPath, hasTmux, true); err != nil {
+				log.Printf("[Container] Failed to cache shell metadata for %s: %v", containerID[:12], err)
+			} else {
+				log.Printf("[Container] Cached shell metadata for %s: shell=%s, tmux=%v", containerID[:12], shellPath, hasTmux)
+			}
+
+			// Warm-start tmux session if available (creates detached session)
+			if hasTmux {
+				if err := container.WarmStartTmux(cacheCtx, h.manager.GetClient(), containerID, shellPath); err != nil {
+					log.Printf("[Container] Failed to warm-start tmux for %s: %v", containerID[:12], err)
+				} else {
+					log.Printf("[Container] Warm-started tmux session for %s", containerID[:12])
+				}
+			}
+		}
+	}(info.ID, recordID, userID, shellCfg, role, imageType)
 
 	// Update status to running now that setup is complete
 	h.manager.UpdateContainerStatus(info.ID, "running")
@@ -690,22 +713,23 @@ func (h *ContainerHandler) createContainerAsync(recordID string, cfg container.C
 			},
 		})
 
-		        h.eventsHub.NotifyContainerCreated(userID, gin.H{
-		            "id":         info.ID,
-		            "db_id":      recordID,
-		            "user_id":    info.UserID,
-		            "name":       cfg.ContainerName,
-		            "image":      imageName,
-		            "role":       role,
-		            "status":     info.Status,
-		            "created_at": info.CreatedAt,
-		            "ip_address": info.IPAddress,
-		            "resources": gin.H{
-		                "memory_mb":  record.MemoryMB,
-		                "cpu_shares": record.CPUShares,
-		                "disk_mb":    record.DiskMB,
-		            },
-		        })	}
+		h.eventsHub.NotifyContainerCreated(userID, gin.H{
+			"id":         info.ID,
+			"db_id":      recordID,
+			"user_id":    info.UserID,
+			"name":       cfg.ContainerName,
+			"image":      imageName,
+			"role":       role,
+			"status":     info.Status,
+			"created_at": info.CreatedAt,
+			"ip_address": info.IPAddress,
+			"resources": gin.H{
+				"memory_mb":  record.MemoryMB,
+				"cpu_shares": record.CPUShares,
+				"disk_mb":    record.DiskMB,
+			},
+		})
+	}
 }
 
 // Get returns a specific container
@@ -1291,130 +1315,131 @@ func (h *ContainerHandler) UpdateSettings(c *gin.Context) {
 			// We used to get role from labels here, but now we use found.Role from DB
 		}
 
-		        // Recreate container with new resource limits (tier is already available from context)
-		        recreateCfg := container.RecreateContainerConfig{
-		            UserID:        userID,
-		            ContainerName: found.Name,
-		            Image:         found.Image,
-		            Role:          found.Role, // Use the role from the database record
-		            OldDockerID:   found.DockerID,
-		            Tier:          tier,
-		            MemoryMB:      req.MemoryMB,
-		            CPUMillicores: req.CPUShares,
-		            DiskMB:        req.DiskMB,
-		        }
-		
-		        newInfo, err := h.manager.RecreateContainer(ctx, recreateCfg)
-		        if err != nil {
-		            log.Printf("[UpdateSettings] Failed to recreate container %s: %v", found.DockerID, err)
-		            c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to recreate container with new settings"})
-		            return
-		        }
-		
-		        newDockerID = newInfo.ID
-		        containerRestarted = true
-		        log.Printf("[UpdateSettings] Successfully recreated container %s -> %s with new resources", found.DockerID, newDockerID)
-		
-		        // Update the DockerID in database
-		        if err := h.store.UpdateContainerDockerID(ctx, found.ID, newDockerID); err != nil {
-		            log.Printf("[UpdateSettings] Warning: failed to update DockerID in database: %v", err)
-		        }
-		
-		        // If we need to reinstall tools, do it in background and keep status as 'configuring'
-		        if found.Role != "" {
-		            log.Printf("[UpdateSettings] Restoring role %s for recreated container %s", found.Role, newDockerID)
-		            
-		            // Run setup in background
-		            go func(containerRole string) {
-		                setupCtx := context.Background()
-		                
-		                // Basic shell setup first
-		                container.SetupEnhancedShell(setupCtx, h.manager.GetClient(), newDockerID)
-		                
-		                // Install tools
-		                container.SetupRole(setupCtx, h.manager.GetClient(), newDockerID, containerRole)
-		                
-		                // Now set to running
-		                h.manager.UpdateContainerStatus(newDockerID, "running")
-		                h.store.UpdateContainerStatus(setupCtx, found.ID, "running")
-		                
-		                // Notify via WebSocket that setup is complete
-		                if h.eventsHub != nil {
-		                    h.eventsHub.NotifyContainerUpdated(userID, gin.H{
-		                        "id":        newDockerID,
-		                        "db_id":     found.ID,
-		                        "status":    "running",
-		                        "message":   "Container tools restored",
-		                        "role":      containerRole,
-		                    })
-		                }
-		            }(found.Role) // Pass found.Role to the goroutine
-		        } else {
-		            // No tools to install, set to running immediately
-		            if err := h.store.UpdateContainerStatus(ctx, found.ID, "running"); err != nil {
-		                log.Printf("[UpdateSettings] Warning: failed to update container status to running: %v", err)
-		            }
-		            h.manager.UpdateContainerStatus(newDockerID, "running")
-		        }
-		    }
-		
-		    log.Printf("[UpdateSettings] Updating container %s with memory=%d, cpu=%d, disk=%d", found.ID, req.MemoryMB, req.CPUShares, req.DiskMB)
-		
-		    // Update in database
-		    if err := h.store.UpdateContainerSettings(ctx, found.ID, req.Name, req.MemoryMB, req.CPUShares, req.DiskMB); err != nil {
-		        log.Printf("[UpdateSettings] Failed to update settings for container %s: %v", found.ID, err)
-		        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update settings: " + err.Error()})
-		        return
-		    }
-		
-		    log.Printf("[UpdateSettings] Successfully updated container %s settings in database", found.ID)
-		
-		    // Notify AdminEventsHub that container was updated
-		    if h.adminEventsHub != nil {
-		        // Fetch the updated record from DB to ensure all fields are current
-		        updatedRecord, err := h.store.GetContainerByID(ctx, found.ID)
-		        if err == nil && updatedRecord != nil {
-		            h.adminEventsHub.Broadcast("container_updated", updatedRecord)
-		        } else {
-		            log.Printf("Warning: Failed to fetch updated container record for admin broadcast: %v", err)
-		        }
-		    }
-		
-		    // Notify via WebSocket
-		    if h.eventsHub != nil {
-		        h.eventsHub.NotifyContainerUpdated(userID, gin.H{
-		            "id":        newDockerID,
-		            "db_id":     found.ID,
-		            "name":      req.Name,
-		            "image":     found.Image,
-		            "status":    "running",
-		            "restarted": containerRestarted,
-		            "role":      found.Role,
-		            "resources": gin.H{
-		                "memory_mb":  req.MemoryMB,
-		                "cpu_shares": req.CPUShares,
-		                "disk_mb":    req.DiskMB,
-		            },
-		        })
-		    }
-		
-		    c.JSON(http.StatusOK, gin.H{
-		        "message":   "settings updated",
-		        "restarted": containerRestarted,
-		        "container": gin.H{
-		            "id":     newDockerID,
-		            "db_id":  found.ID,
-		            "name":   req.Name,
-		            "image":  found.Image,
-		            "status": "running",
-		            "role":   found.Role,
-		            "resources": gin.H{
-		                "memory_mb":  req.MemoryMB,
-		                "cpu_shares": req.CPUShares,
-		                "disk_mb":    req.DiskMB,
-		            },
-		        },
-		    })}
+		// Recreate container with new resource limits (tier is already available from context)
+		recreateCfg := container.RecreateContainerConfig{
+			UserID:        userID,
+			ContainerName: found.Name,
+			Image:         found.Image,
+			Role:          found.Role, // Use the role from the database record
+			OldDockerID:   found.DockerID,
+			Tier:          tier,
+			MemoryMB:      req.MemoryMB,
+			CPUMillicores: req.CPUShares,
+			DiskMB:        req.DiskMB,
+		}
+
+		newInfo, err := h.manager.RecreateContainer(ctx, recreateCfg)
+		if err != nil {
+			log.Printf("[UpdateSettings] Failed to recreate container %s: %v", found.DockerID, err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to recreate container with new settings"})
+			return
+		}
+
+		newDockerID = newInfo.ID
+		containerRestarted = true
+		log.Printf("[UpdateSettings] Successfully recreated container %s -> %s with new resources", found.DockerID, newDockerID)
+
+		// Update the DockerID in database
+		if err := h.store.UpdateContainerDockerID(ctx, found.ID, newDockerID); err != nil {
+			log.Printf("[UpdateSettings] Warning: failed to update DockerID in database: %v", err)
+		}
+
+		// If we need to reinstall tools, do it in background and keep status as 'configuring'
+		if found.Role != "" {
+			log.Printf("[UpdateSettings] Restoring role %s for recreated container %s", found.Role, newDockerID)
+
+			// Run setup in background
+			go func(containerRole string) {
+				setupCtx := context.Background()
+
+				// Basic shell setup first
+				container.SetupEnhancedShell(setupCtx, h.manager.GetClient(), newDockerID)
+
+				// Install tools
+				container.SetupRole(setupCtx, h.manager.GetClient(), newDockerID, containerRole)
+
+				// Now set to running
+				h.manager.UpdateContainerStatus(newDockerID, "running")
+				h.store.UpdateContainerStatus(setupCtx, found.ID, "running")
+
+				// Notify via WebSocket that setup is complete
+				if h.eventsHub != nil {
+					h.eventsHub.NotifyContainerUpdated(userID, gin.H{
+						"id":      newDockerID,
+						"db_id":   found.ID,
+						"status":  "running",
+						"message": "Container tools restored",
+						"role":    containerRole,
+					})
+				}
+			}(found.Role) // Pass found.Role to the goroutine
+		} else {
+			// No tools to install, set to running immediately
+			if err := h.store.UpdateContainerStatus(ctx, found.ID, "running"); err != nil {
+				log.Printf("[UpdateSettings] Warning: failed to update container status to running: %v", err)
+			}
+			h.manager.UpdateContainerStatus(newDockerID, "running")
+		}
+	}
+
+	log.Printf("[UpdateSettings] Updating container %s with memory=%d, cpu=%d, disk=%d", found.ID, req.MemoryMB, req.CPUShares, req.DiskMB)
+
+	// Update in database
+	if err := h.store.UpdateContainerSettings(ctx, found.ID, req.Name, req.MemoryMB, req.CPUShares, req.DiskMB); err != nil {
+		log.Printf("[UpdateSettings] Failed to update settings for container %s: %v", found.ID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update settings: " + err.Error()})
+		return
+	}
+
+	log.Printf("[UpdateSettings] Successfully updated container %s settings in database", found.ID)
+
+	// Notify AdminEventsHub that container was updated
+	if h.adminEventsHub != nil {
+		// Fetch the updated record from DB to ensure all fields are current
+		updatedRecord, err := h.store.GetContainerByID(ctx, found.ID)
+		if err == nil && updatedRecord != nil {
+			h.adminEventsHub.Broadcast("container_updated", updatedRecord)
+		} else {
+			log.Printf("Warning: Failed to fetch updated container record for admin broadcast: %v", err)
+		}
+	}
+
+	// Notify via WebSocket
+	if h.eventsHub != nil {
+		h.eventsHub.NotifyContainerUpdated(userID, gin.H{
+			"id":        newDockerID,
+			"db_id":     found.ID,
+			"name":      req.Name,
+			"image":     found.Image,
+			"status":    "running",
+			"restarted": containerRestarted,
+			"role":      found.Role,
+			"resources": gin.H{
+				"memory_mb":  req.MemoryMB,
+				"cpu_shares": req.CPUShares,
+				"disk_mb":    req.DiskMB,
+			},
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":   "settings updated",
+		"restarted": containerRestarted,
+		"container": gin.H{
+			"id":     newDockerID,
+			"db_id":  found.ID,
+			"name":   req.Name,
+			"image":  found.Image,
+			"status": "running",
+			"role":   found.Role,
+			"resources": gin.H{
+				"memory_mb":  req.MemoryMB,
+				"cpu_shares": req.CPUShares,
+				"disk_mb":    req.DiskMB,
+			},
+		},
+	})
+}
 
 // CreateWithProgress creates a container with SSE progress streaming
 func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
@@ -1512,40 +1537,40 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 			})
 			return
 		}
-		} else {
-			if _, ok := container.SupportedImages[req.Image]; !ok {
-				sendEvent(container.ProgressEvent{
-					Stage:    "validating",
-					Error:    "unsupported image type",
-					Complete: true,
-				})
-				return
-			}
+	} else {
+		if _, ok := container.SupportedImages[req.Image]; !ok {
+			sendEvent(container.ProgressEvent{
+				Stage:    "validating",
+				Error:    "unsupported image type",
+				Complete: true,
+			})
+			return
 		}
+	}
 
-		// Gate privileged macOS VM containers to enterprise/admin users only.
-		if req.Image == "macos" || req.Image == "macos-legacy" {
-			user, err := h.store.GetUserByID(ctx, userID)
-			if err != nil || user == nil {
-				sendEvent(container.ProgressEvent{
-					Stage:    "validating",
-					Error:    "user not found",
-					Complete: true,
-				})
-				return
-			}
-			if tier != "enterprise" && !user.IsAdmin {
-				sendEvent(container.ProgressEvent{
-					Stage:    "validating",
-					Error:    "macOS images require enterprise tier or admin access",
-					Complete: true,
-				})
-				return
-			}
+	// Gate privileged macOS VM containers to enterprise/admin users only.
+	if req.Image == "macos" || req.Image == "macos-legacy" {
+		user, err := h.store.GetUserByID(ctx, userID)
+		if err != nil || user == nil {
+			sendEvent(container.ProgressEvent{
+				Stage:    "validating",
+				Error:    "user not found",
+				Complete: true,
+			})
+			return
 		}
+		if tier != "enterprise" && !user.IsAdmin {
+			sendEvent(container.ProgressEvent{
+				Stage:    "validating",
+				Error:    "macOS images require enterprise tier or admin access",
+				Complete: true,
+			})
+			return
+		}
+	}
 
-		// Auto-generate name if not provided
-		containerName := strings.TrimSpace(req.Name)
+	// Auto-generate name if not provided
+	containerName := strings.TrimSpace(req.Name)
 	if containerName == "" {
 		containerName = generateContainerName()
 	}
@@ -1677,10 +1702,10 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 	}
 
 	limits := models.ValidateTrialResources(&req, tier)
-	
+
 	// Override limits if we have specific subscription logic not covered by tier string
 	userLimits := models.GetUserResourceLimits(tier, subscriptionActive)
-	
+
 	if !subscriptionActive && (tier == "free" || tier == "trial") {
 		// Enforce stricter limits for non-subscribers
 		if limits.MemoryMB > userLimits.MemoryMB {

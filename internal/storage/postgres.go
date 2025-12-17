@@ -274,6 +274,24 @@ func (s *PostgresStore) migrate() error {
 		END $$`,
 		`DO $$ BEGIN
 			IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+				WHERE table_name='containers' AND column_name='shell_path') THEN
+				ALTER TABLE containers ADD COLUMN shell_path VARCHAR(255) DEFAULT '';
+			END IF;
+		END $$`,
+		`DO $$ BEGIN
+			IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+				WHERE table_name='containers' AND column_name='has_tmux') THEN
+				ALTER TABLE containers ADD COLUMN has_tmux BOOLEAN DEFAULT false;
+			END IF;
+		END $$`,
+		`DO $$ BEGIN
+			IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+				WHERE table_name='containers' AND column_name='shell_setup_done') THEN
+				ALTER TABLE containers ADD COLUMN shell_setup_done BOOLEAN DEFAULT false;
+			END IF;
+		END $$`,
+		`DO $$ BEGIN
+			IF NOT EXISTS (SELECT 1 FROM information_schema.columns
 				WHERE table_name='users' AND column_name='is_admin') THEN
 				ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT false;
 			END IF;
@@ -1288,6 +1306,20 @@ func (s *PostgresStore) HardDeleteContainer(ctx context.Context, id string) erro
 	query := `DELETE FROM containers WHERE id = $1`
 	_, err := s.db.ExecContext(ctx, query, id)
 	return err
+}
+
+// UpdateContainerShellMetadata updates shell-related metadata for faster terminal connections
+func (s *PostgresStore) UpdateContainerShellMetadata(ctx context.Context, id, shellPath string, hasTmux, shellSetupDone bool) error {
+	query := `UPDATE containers SET shell_path = $2, has_tmux = $3, shell_setup_done = $4 WHERE id = $1 AND deleted_at IS NULL`
+	_, err := s.db.ExecContext(ctx, query, id, shellPath, hasTmux, shellSetupDone)
+	return err
+}
+
+// GetContainerShellMetadata retrieves cached shell metadata for a container
+func (s *PostgresStore) GetContainerShellMetadata(ctx context.Context, id string) (shellPath string, hasTmux bool, shellSetupDone bool, err error) {
+	query := `SELECT COALESCE(shell_path, ''), COALESCE(has_tmux, false), COALESCE(shell_setup_done, false) FROM containers WHERE id = $1 AND deleted_at IS NULL`
+	err = s.db.QueryRowContext(ctx, query, id).Scan(&shellPath, &hasTmux, &shellSetupDone)
+	return
 }
 
 // RestoreContainer restores a soft-deleted container

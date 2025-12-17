@@ -898,3 +898,90 @@ func SetupRole(ctx context.Context, cli client.CommonAPIClient, containerID stri
 		Output:  output.String(),
 	}, nil
 }
+
+// DetectShellAndTmux detects the best available shell and checks for tmux availability
+func DetectShellAndTmux(ctx context.Context, cli client.CommonAPIClient, containerID string) (shellPath string, hasTmux bool) {
+	// 1. Check for zsh (preferred)
+	if execCheck(ctx, cli, containerID, "test -x /bin/zsh || test -x /usr/bin/zsh") {
+		if execCheck(ctx, cli, containerID, "test -x /bin/zsh") {
+			shellPath = "/bin/zsh"
+		} else {
+			shellPath = "/usr/bin/zsh"
+		}
+	} else if execCheck(ctx, cli, containerID, "test -x /bin/bash || test -x /usr/bin/bash") {
+		if execCheck(ctx, cli, containerID, "test -x /bin/bash") {
+			shellPath = "/bin/bash"
+		} else {
+			shellPath = "/usr/bin/bash"
+		}
+	} else {
+		shellPath = "/bin/sh"
+	}
+
+	// 2. Check for tmux
+	hasTmux = execCheck(ctx, cli, containerID, "command -v tmux")
+
+	return shellPath, hasTmux
+}
+
+// WarmStartTmux starts a detached tmux session to reduce latency on first connect
+func WarmStartTmux(ctx context.Context, cli client.CommonAPIClient, containerID, shellPath string) error {
+	// Create a detached session named 'main'
+	cmd := []string{"tmux", "new-session", "-d", "-s", "main", shellPath}
+
+	execConfig := container.ExecOptions{
+		Cmd:          cmd,
+		AttachStdout: false,
+		AttachStderr: false,
+		Tty:          false, // Detached doesn't need TTY usually, but tmux might want it.
+		// Actually for new-session -d, we don't strictly need TTY attached to exec,
+		// but tmux needs a PTY inside. Docker exec handles this.
+		Env: []string{
+			"TERM=xterm-256color",
+			"HOME=/home/user",
+			"PATH=/home/user/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		},
+		User:       "user", // Run as user, not root
+		WorkingDir: "/home/user",
+	}
+
+	execResp, err := cli.ContainerExecCreate(ctx, containerID, execConfig)
+	if err != nil {
+		return err
+	}
+
+	return cli.ContainerExecStart(ctx, execResp.ID, container.ExecStartOptions{
+		Detach: true,
+	})
+}
+
+// execCheck is a helper to run a simple command and check exit code
+func execCheck(ctx context.Context, cli client.CommonAPIClient, containerID, command string) bool {
+	execConfig := container.ExecOptions{
+		Cmd:          []string{"/bin/sh", "-c", command},
+		AttachStdout: false,
+		AttachStderr: false,
+	}
+
+	execResp, err := cli.ContainerExecCreate(ctx, containerID, execConfig)
+	if err != nil {
+		return false
+	}
+
+	if err := cli.ContainerExecStart(ctx, execResp.ID, container.ExecStartOptions{}); err != nil {
+		return false
+	}
+
+	// Poll for exit code
+	for i := 0; i < 10; i++ {
+		inspect, err := cli.ContainerExecInspect(ctx, execResp.ID)
+		if err != nil {
+			return false
+		}
+		if !inspect.Running {
+			return inspect.ExitCode == 0
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	return false
+}
