@@ -24,13 +24,27 @@ type ContainerEvent struct {
 	Timestamp time.Time   `json:"timestamp"`
 }
 
+// SafeConn wraps websocket.Conn with a mutex for thread-safe writes
+type SafeConn struct {
+	Conn *websocket.Conn
+	Mu   sync.Mutex
+}
+
+// WriteMessage sends a message thread-safely
+func (sc *SafeConn) WriteMessage(messageType int, data []byte) error {
+	sc.Mu.Lock()
+	defer sc.Mu.Unlock()
+	sc.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+	return sc.Conn.WriteMessage(messageType, data)
+}
+
 // ContainerEventsHub manages WebSocket connections for container events
 type ContainerEventsHub struct {
 	manager *container.Manager
 	store   *storage.PostgresStore
 
 	// Map of userID -> set of connections
-	connections map[string]map[*websocket.Conn]bool
+	connections map[string]map[*websocket.Conn]*SafeConn
 	mu          sync.RWMutex
 
 	// Upgrader for WebSocket
@@ -50,7 +64,7 @@ func NewContainerEventsHub(manager *container.Manager, store *storage.PostgresSt
 	hub := &ContainerEventsHub{
 		manager:     manager,
 		store:       store,
-		connections: make(map[string]map[*websocket.Conn]bool),
+		connections: make(map[string]map[*websocket.Conn]*SafeConn),
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
 				return true // Allow all origins for now
@@ -125,26 +139,29 @@ func (h *ContainerEventsHub) HandleWebSocket(c *gin.Context) {
 	}
 
 	// Register connection
-	h.registerConnection(userID, conn)
+	sc := h.registerConnection(userID, conn)
 
 	// Send initial container list
-	h.sendContainerList(conn, userID, tier)
+	h.sendContainerList(sc, userID, tier)
 
 	// Handle connection lifecycle
-	go h.handleConnection(conn, userID, tier)
+	go h.handleConnection(sc, userID, tier)
 }
 
-// registerConnection adds a connection to the hub
-func (h *ContainerEventsHub) registerConnection(userID string, conn *websocket.Conn) {
+// registerConnection adds a connection to the hub and returns the safe wrapper
+func (h *ContainerEventsHub) registerConnection(userID string, conn *websocket.Conn) *SafeConn {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
 	if h.connections[userID] == nil {
-		h.connections[userID] = make(map[*websocket.Conn]bool)
+		h.connections[userID] = make(map[*websocket.Conn]*SafeConn)
 	}
-	h.connections[userID][conn] = true
+	
+	sc := &SafeConn{Conn: conn}
+	h.connections[userID][conn] = sc
 
 	log.Printf("[ContainerEvents] User %s connected (total connections: %d)", userID, len(h.connections[userID]))
+	return sc
 }
 
 // unregisterConnection removes a connection from the hub
@@ -164,13 +181,13 @@ func (h *ContainerEventsHub) unregisterConnection(userID string, conn *websocket
 }
 
 // handleConnection manages a WebSocket connection
-func (h *ContainerEventsHub) handleConnection(conn *websocket.Conn, userID, tier string) {
-	defer h.unregisterConnection(userID, conn)
+func (h *ContainerEventsHub) handleConnection(sc *SafeConn, userID, tier string) {
+	defer h.unregisterConnection(userID, sc.Conn)
 
 	// Set up ping/pong for connection health - use longer timeout for stability
-	conn.SetReadDeadline(time.Now().Add(180 * time.Second)) // 3 minutes
-	conn.SetPongHandler(func(string) error {
-		conn.SetReadDeadline(time.Now().Add(180 * time.Second))
+	sc.Conn.SetReadDeadline(time.Now().Add(180 * time.Second)) // 3 minutes
+	sc.Conn.SetPongHandler(func(string) error {
+		sc.Conn.SetReadDeadline(time.Now().Add(180 * time.Second))
 		return nil
 	})
 
@@ -185,7 +202,7 @@ func (h *ContainerEventsHub) handleConnection(conn *websocket.Conn, userID, tier
 	go func() {
 		defer close(done)
 		for {
-			_, message, err := conn.ReadMessage()
+			_, message, err := sc.Conn.ReadMessage()
 			if err != nil {
 				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 					log.Printf("[ContainerEvents] Read error: %v", err)
@@ -194,7 +211,7 @@ func (h *ContainerEventsHub) handleConnection(conn *websocket.Conn, userID, tier
 			}
 
 			// Reset read deadline on any message
-			conn.SetReadDeadline(time.Now().Add(180 * time.Second))
+			sc.Conn.SetReadDeadline(time.Now().Add(180 * time.Second))
 
 			// Try to parse as JSON to handle client pings
 			var msg struct {
@@ -204,8 +221,8 @@ func (h *ContainerEventsHub) handleConnection(conn *websocket.Conn, userID, tier
 				if msg.Type == "ping" {
 					// Respond with pong
 					pongMsg, _ := json.Marshal(map[string]string{"type": "pong"})
-					conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
-					if err := conn.WriteMessage(websocket.TextMessage, pongMsg); err != nil {
+					// Use SafeConn for writing
+					if err := sc.WriteMessage(websocket.TextMessage, pongMsg); err != nil {
 						return
 					}
 				}
@@ -219,8 +236,8 @@ func (h *ContainerEventsHub) handleConnection(conn *websocket.Conn, userID, tier
 		case <-done:
 			return
 		case <-pingTicker.C:
-			conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+			// Use SafeConn for writing
+			if err := sc.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
 		}
@@ -228,7 +245,7 @@ func (h *ContainerEventsHub) handleConnection(conn *websocket.Conn, userID, tier
 }
 
 // sendContainerList sends the full container list to a connection
-func (h *ContainerEventsHub) sendContainerList(conn *websocket.Conn, userID, tier string) {
+func (h *ContainerEventsHub) sendContainerList(sc *SafeConn, userID, tier string) {
 	ctx := context.Background()
 	records, err := h.store.GetContainersByUserID(ctx, userID)
 	if err != nil {
@@ -308,18 +325,18 @@ func (h *ContainerEventsHub) sendContainerList(conn *websocket.Conn, userID, tie
 		Timestamp: time.Now(),
 	}
 
-	h.sendToConnection(conn, event)
+	h.sendToConnection(sc, event)
 }
 
 // sendToConnection sends an event to a specific connection
-func (h *ContainerEventsHub) sendToConnection(conn *websocket.Conn, event ContainerEvent) {
+func (h *ContainerEventsHub) sendToConnection(sc *SafeConn, event ContainerEvent) {
 	data, err := json.Marshal(event)
 	if err != nil {
 		log.Printf("[ContainerEvents] Failed to marshal event: %v", err)
 		return
 	}
 
-	if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
+	if err := sc.WriteMessage(websocket.TextMessage, data); err != nil {
 		log.Printf("[ContainerEvents] Failed to send event: %v", err)
 	}
 }
@@ -335,9 +352,9 @@ func (h *ContainerEventsHub) broadcastLocal(userID string, event ContainerEvent)
 	}
 
 	// Copy connections to avoid holding lock during send
-	connList := make([]*websocket.Conn, 0, len(conns))
-	for conn := range conns {
-		connList = append(connList, conn)
+	connList := make([]*SafeConn, 0, len(conns))
+	for _, sc := range conns {
+		connList = append(connList, sc)
 	}
 	h.mu.RUnlock()
 
@@ -350,12 +367,11 @@ func (h *ContainerEventsHub) broadcastLocal(userID string, event ContainerEvent)
 	// Track dead connections to clean up
 	var deadConns []*websocket.Conn
 
-	for _, conn := range connList {
-		// Set a short write deadline to avoid blocking on dead connections
-		conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
-		if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
+	for _, sc := range connList {
+		// Use SafeConn.WriteMessage for thread safety
+		if err := sc.WriteMessage(websocket.TextMessage, data); err != nil {
 			// Connection is dead, mark for cleanup (don't spam logs for broken pipe)
-			deadConns = append(deadConns, conn)
+			deadConns = append(deadConns, sc.Conn)
 		}
 	}
 

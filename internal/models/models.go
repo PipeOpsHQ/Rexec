@@ -273,7 +273,7 @@ func DefaultShellConfig() ShellConfig {
 		HistorySearch:   boolPtr(true),
 		GitAliases:      boolPtr(true),
 		SystemStats:     boolPtr(true),
-		UseTmux:         boolPtr(true),
+		UseTmux:         boolPtr(false),
 	}
 }
 

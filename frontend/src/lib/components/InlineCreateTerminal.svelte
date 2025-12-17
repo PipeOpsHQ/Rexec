@@ -23,7 +23,7 @@
 
     let selectedImage = "";
     let isCreating = false;
-    let selectedRole = "standard";
+    let selectedRole = "minimal";
     let progress = 0;
     let progressMessage = "";
     let progressStage = "";
@@ -618,8 +618,11 @@
             <!-- Terminal Settings -->
             <div class="create-section">
                 <h4>Terminal Settings</h4>
-                <label class="setting-row">
+                <label class="setting-row" class:active={useTmux}>
                     <input type="checkbox" bind:checked={useTmux} />
+                    <div class="setting-icon">
+                        <StatusIcon status="clock" size={18} />
+                    </div>
                     <div class="setting-info">
                         <span class="setting-label">Enable resumable session (tmux)</span>
                         <span class="setting-desc">Keep processes running when you disconnect</span>
@@ -2022,14 +2025,14 @@
     /* Terminal Settings */
     .setting-row {
         display: flex;
-        align-items: flex-start;
+        align-items: center;
         gap: 12px;
-        padding: 10px;
+        padding: 12px;
         background: var(--bg-tertiary);
         border: 1px solid var(--border);
-        border-radius: 4px;
+        border-radius: 6px;
         cursor: pointer;
-        transition: all 0.15s ease;
+        transition: all 0.2s ease;
     }
 
     .setting-row:hover {
@@ -2037,15 +2040,34 @@
         background: var(--bg-card-hover);
     }
 
+    .setting-row.active {
+        border-color: var(--accent);
+        background: rgba(0, 255, 65, 0.05);
+    }
+
     .setting-row input[type="checkbox"] {
-        margin-top: 3px;
+        width: 16px;
+        height: 16px;
         accent-color: var(--accent);
+        cursor: pointer;
+    }
+
+    .setting-icon {
+        color: var(--text-muted);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .setting-row.active .setting-icon {
+        color: var(--accent);
     }
 
     .setting-info {
         display: flex;
         flex-direction: column;
         gap: 2px;
+        flex: 1;
     }
 
     .setting-label {

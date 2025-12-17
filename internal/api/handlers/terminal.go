@@ -602,10 +602,13 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 	})
 
 	// Kill any orphaned package manager processes from previous sessions
-	// This prevents apt-get lock issues after reconnects/deployments
-	go h.cleanupOrphanedPackageProcesses(dockerID)
+	// Only if NOT configuring (to avoid killing active role setup)
+	if containerStatus != "configuring" {
+		go h.cleanupOrphanedPackageProcesses(dockerID)
+	}
 
 	// Start terminal session with auto-restart on exit
+
 	h.runTerminalSessionWithRestart(session, containerInfo.ImageType)
 }
 

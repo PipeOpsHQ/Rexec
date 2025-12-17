@@ -373,9 +373,9 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 	}
 
 	// Prepare container config
-	useTmux := "true"
-	if req.Shell != nil && req.Shell.UseTmux != nil && !*req.Shell.UseTmux {
-		useTmux = "false"
+	useTmux := "false"
+	if req.Shell != nil && req.Shell.UseTmux != nil && *req.Shell.UseTmux {
+		useTmux = "true"
 	}
 
 	cfg := container.ContainerConfig{
@@ -684,11 +684,17 @@ func (h *ContainerHandler) createContainerAsync(recordID string, cfg container.C
 				}
 			}
 		}
+
+		// Update status to running now that setup is complete
+		h.manager.UpdateContainerStatus(containerID, "running")
+		// Use a new context for DB update as cacheCtx might be cancelled/timeout
+		updateCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		h.store.UpdateContainerStatus(updateCtx, dbID, "running")
 	}(info.ID, recordID, userID, shellCfg, role, imageType)
 
-	// Update status to running now that setup is complete
-	h.manager.UpdateContainerStatus(info.ID, "running")
-	h.store.UpdateContainerStatus(ctx, recordID, "running")
+	// Status update moved to goroutine to allow "configuring" state to persist during setup
+	// while still allowing users to connect via the "ready" event below.
 
 	// Notify AdminEventsHub that container status has updated (from creating to running)
 	if h.adminEventsHub != nil {
@@ -1691,9 +1697,9 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 	})
 
 	// Create container config
-	useTmux := "true"
-	if req.Shell != nil && req.Shell.UseTmux != nil && !*req.Shell.UseTmux {
-		useTmux = "false"
+	useTmux := "false"
+	if req.Shell != nil && req.Shell.UseTmux != nil && *req.Shell.UseTmux {
+		useTmux = "true"
 	}
 
 	cfg := container.ContainerConfig{
