@@ -818,8 +818,10 @@ let eventsSocket: WebSocket | null = null;
 let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 15;           // More attempts for resilience
 const RECONNECT_BASE_DELAY = 250;            // Start with 250ms for fast reconnect
-const RECONNECT_MAX_DELAY = 10000;           // Max 10s between retries
+const RECONNECT_MAX_DELAY = 30000;           // Max 30s between retries
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let pingInterval: ReturnType<typeof setInterval> | null = null;
+let lastPongTime = 0;
 
 // Get WebSocket URL
 function getWebSocketUrl(): string {
@@ -856,11 +858,40 @@ export function startContainerEvents() {
 
     eventsSocket.onopen = () => {
       wsConnected.set(true);
+      reconnectAttempts = 0; // Reset on successful connect
+      lastPongTime = Date.now();
+
+      // Start client-side ping to keep connection alive
+      if (pingInterval) clearInterval(pingInterval);
+      pingInterval = setInterval(() => {
+        if (eventsSocket?.readyState === WebSocket.OPEN) {
+          try {
+            eventsSocket.send(JSON.stringify({ type: "ping" }));
+          } catch {
+            // Connection might be closing
+          }
+
+          // Check if we haven't received activity in too long (2.5 minutes)
+          if (lastPongTime && Date.now() - lastPongTime > 150000) {
+            console.warn("[ContainerEvents] No activity in 2.5 minutes, reconnecting...");
+            eventsSocket?.close(4000, "Ping timeout");
+          }
+        }
+      }, 25000); // Ping every 25s
     };
 
     eventsSocket.onmessage = (event) => {
+      // Any message counts as activity
+      lastPongTime = Date.now();
+
       try {
         const data = JSON.parse(event.data);
+
+        // Handle pong response silently
+        if (data.type === "pong") {
+          return;
+        }
+
         handleContainerEvent(data);
       } catch (e) {
         console.error("[ContainerEvents] Failed to parse message:", e);
@@ -870,6 +901,12 @@ export function startContainerEvents() {
     eventsSocket.onclose = (event) => {
       eventsSocket = null;
       wsConnected.set(false);
+
+      // Clear ping interval
+      if (pingInterval) {
+        clearInterval(pingInterval);
+        pingInterval = null;
+      }
 
       // Don't reconnect if intentionally closed or auth issue
       const isIntentionalClose = event.code === 1000;
@@ -893,6 +930,10 @@ export function startContainerEvents() {
         }, 60000); // Retry after 1 minute
       }
     };
+
+    eventsSocket.onerror = () => {
+      // Error will trigger onclose, no need to handle separately
+    };
   } catch (e) {
     console.error("[ContainerEvents] Failed to create WebSocket:", e);
     // Retry after delay
@@ -908,6 +949,10 @@ export function stopContainerEvents() {
   if (reconnectTimer) {
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
+  }
+  if (pingInterval) {
+    clearInterval(pingInterval);
+    pingInterval = null;
   }
   if (eventsSocket) {
     eventsSocket.close(1000, "User logged out");
@@ -939,13 +984,43 @@ function handleContainerEvent(event: {
 
   switch (type) {
     case "list":
-      // Full container list received - Backend already sorts this
-      containers.update((state) => ({
-        ...state,
-        containers: containerData.containers || [],
-        limit: containerData.limit || 5,
-        isLoading: false,
-      }));
+      // Full container list received - use smart merge to avoid card rearrangement
+      containers.update((state) => {
+        const newContainers = containerData.containers || [];
+        const existingContainers = state.containers;
+
+        // If this is the first load or we have no existing containers, just use the new list
+        if (existingContainers.length === 0) {
+          return {
+            ...state,
+            containers: newContainers,
+            limit: containerData.limit || 5,
+            isLoading: false,
+          };
+        }
+
+        // Smart merge: preserve order of existing containers, update their data, add new ones
+        const existingIds = new Set(existingContainers.map((c) => c.id));
+        const newIds = new Set(newContainers.map((c: Container) => c.id));
+
+        // Update existing containers in place (preserving order)
+        const mergedContainers = existingContainers
+          .filter((existing) => newIds.has(existing.id)) // Remove deleted ones
+          .map((existing) => {
+            const updated = newContainers.find((n: Container) => n.id === existing.id);
+            return updated ? { ...existing, ...updated } : existing;
+          });
+
+        // Add any new containers to the beginning
+        const addedContainers = newContainers.filter((n: Container) => !existingIds.has(n.id));
+
+        return {
+          ...state,
+          containers: [...addedContainers, ...mergedContainers],
+          limit: containerData.limit || 5,
+          isLoading: false,
+        };
+      });
       break;
 
     case "progress":

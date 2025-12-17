@@ -167,26 +167,48 @@ func (h *ContainerEventsHub) unregisterConnection(userID string, conn *websocket
 func (h *ContainerEventsHub) handleConnection(conn *websocket.Conn, userID, tier string) {
 	defer h.unregisterConnection(userID, conn)
 
-	// Set up ping/pong for connection health
-	conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	// Set up ping/pong for connection health - use longer timeout for stability
+	conn.SetReadDeadline(time.Now().Add(180 * time.Second)) // 3 minutes
 	conn.SetPongHandler(func(string) error {
-		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		conn.SetReadDeadline(time.Now().Add(180 * time.Second))
 		return nil
 	})
 
-	// Ping ticker
+	// Ping ticker - send pings to keep connection alive
 	pingTicker := time.NewTicker(30 * time.Second)
 	defer pingTicker.Stop()
 
-	// Read messages (mainly for pong responses and keepalive)
+	// Channel to signal when read loop exits
+	done := make(chan struct{})
+
+	// Read messages (ping from client, pong responses, and keepalive)
 	go func() {
+		defer close(done)
 		for {
-			_, _, err := conn.ReadMessage()
+			_, message, err := conn.ReadMessage()
 			if err != nil {
 				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 					log.Printf("[ContainerEvents] Read error: %v", err)
 				}
 				return
+			}
+
+			// Reset read deadline on any message
+			conn.SetReadDeadline(time.Now().Add(180 * time.Second))
+
+			// Try to parse as JSON to handle client pings
+			var msg struct {
+				Type string `json:"type"`
+			}
+			if err := json.Unmarshal(message, &msg); err == nil {
+				if msg.Type == "ping" {
+					// Respond with pong
+					pongMsg, _ := json.Marshal(map[string]string{"type": "pong"})
+					conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+					if err := conn.WriteMessage(websocket.TextMessage, pongMsg); err != nil {
+						return
+					}
+				}
 			}
 		}
 	}()
@@ -194,7 +216,10 @@ func (h *ContainerEventsHub) handleConnection(conn *websocket.Conn, userID, tier
 	// Send pings periodically
 	for {
 		select {
+		case <-done:
+			return
 		case <-pingTicker.C:
+			conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
