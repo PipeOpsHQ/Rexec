@@ -1,12 +1,14 @@
 package middleware
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 )
 
 // RateLimiter implements a token bucket rate limiter
@@ -101,8 +103,12 @@ func (rl *RateLimiter) getRemaining(ip string) int {
 func (rl *RateLimiter) Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ip := c.ClientIP()
+		isWebSocket := websocket.IsWebSocketUpgrade(c.Request)
 
 		if !rl.isAllowed(ip) {
+			if isWebSocket {
+				log.Printf("[RateLimit] WebSocket rate limit exceeded for %s from %s (limit: %d/%v)", c.Request.URL.Path, ip, rl.rate, rl.window)
+			}
 			c.Header("X-RateLimit-Limit", strconv.Itoa(rl.rate))
 			c.Header("X-RateLimit-Remaining", "0")
 			c.Header("Retry-After", rl.window.String())

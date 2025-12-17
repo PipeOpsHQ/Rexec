@@ -1,7 +1,9 @@
 package middleware
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"strings"
@@ -38,7 +40,20 @@ func tokenFromWebSocketSubprotocolHeader(headerVal string) string {
 // jwtSecret must be the server's signing key.
 func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, jwtSecret []byte) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		reqCtx := c.Request.Context()
+		authStart := time.Now()
+		path := c.Request.URL.Path
+		isWebSocket := websocket.IsWebSocketUpgrade(c.Request)
+
+		// Log WebSocket connection attempts for debugging
+		if isWebSocket {
+			log.Printf("[Auth] WebSocket auth request for %s from %s", path, c.ClientIP())
+		}
+
+		// Create a context with timeout for all DB operations in auth
+		// This prevents hanging if DB is slow or connection pool is exhausted
+		dbCtx, dbCancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+		defer dbCancel()
+
 		// Get token from Authorization header or query params
 		authHeader := c.GetHeader("Authorization")
 		tokenString := ""
@@ -50,7 +65,7 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, j
 			}
 		}
 
-		if tokenString == "" && websocket.IsWebSocketUpgrade(c.Request) {
+		if tokenString == "" && isWebSocket {
 			// For browser WebSockets, pass the token in a header instead of the URL:
 			// Sec-WebSocket-Protocol: rexec.v1, rexec.token.<token>
 			tokenString = tokenFromWebSocketSubprotocolHeader(c.GetHeader("Sec-WebSocket-Protocol"))
@@ -65,33 +80,56 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, j
 		}
 
 		if tokenString == "" {
+			if isWebSocket {
+				log.Printf("[Auth] WebSocket auth failed for %s: no token provided", path)
+			}
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization token required"})
 			c.Abort()
 			return
 		}
 
+		// Log token type for debugging (don't log actual token)
+		tokenType := "JWT"
+		if strings.HasPrefix(tokenString, "rexec_") {
+			tokenType = "API"
+		}
+		if isWebSocket {
+			log.Printf("[Auth] WebSocket auth with %s token for %s", tokenType, path)
+		}
+
 		// Check if this is an API token (starts with rexec_)
 		if strings.HasPrefix(tokenString, "rexec_") {
 			// Validate API token
-			apiToken, err := store.ValidateAPIToken(reqCtx, tokenString)
+			apiToken, err := store.ValidateAPIToken(dbCtx, tokenString)
 			if err != nil {
-				store.CreateAuditLog(reqCtx, &models.AuditLog{
-					ID:        uuid.New().String(),
-					UserID:    nil,
-					Action:    "api_token_auth_failed",
-					IPAddress: c.ClientIP(),
-					UserAgent: c.Request.UserAgent(),
-					Details:   fmt.Sprintf("Invalid API token: %v", err),
-					CreatedAt: time.Now(),
-				})
+				if isWebSocket {
+					log.Printf("[Auth] WebSocket API token validation failed for %s after %v: %v", path, time.Since(authStart), err)
+				}
+				// Don't block on audit log - fire and forget
+				go func() {
+					auditCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+					defer cancel()
+					store.CreateAuditLog(auditCtx, &models.AuditLog{
+						ID:        uuid.New().String(),
+						UserID:    nil,
+						Action:    "api_token_auth_failed",
+						IPAddress: c.ClientIP(),
+						UserAgent: c.Request.UserAgent(),
+						Details:   fmt.Sprintf("Invalid API token: %v", err),
+						CreatedAt: time.Now(),
+					})
+				}()
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired API token"})
 				c.Abort()
 				return
 			}
 
 			// Get user info
-			user, err := store.GetUserByID(reqCtx, apiToken.UserID)
+			user, err := store.GetUserByID(dbCtx, apiToken.UserID)
 			if err != nil {
+				if isWebSocket {
+					log.Printf("[Auth] WebSocket user lookup failed for %s after %v: %v", path, time.Since(authStart), err)
+				}
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
 				c.Abort()
 				return
@@ -106,6 +144,10 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, j
 			c.Set("subscription_active", user.SubscriptionActive)
 			c.Set("api_token", true)
 			c.Set("api_token_scopes", apiToken.Scopes)
+
+			if isWebSocket {
+				log.Printf("[Auth] WebSocket API token auth successful for %s in %v", path, time.Since(authStart))
+			}
 			c.Next()
 			return
 		}
@@ -120,15 +162,23 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, j
 		})
 
 		if err != nil || token == nil {
-			store.CreateAuditLog(reqCtx, &models.AuditLog{
-				ID:        uuid.New().String(),
-				UserID:    nil,
-				Action:    "authentication_failed",
-				IPAddress: c.ClientIP(),
-				UserAgent: c.Request.UserAgent(),
-				Details:   fmt.Sprintf("Failed to parse token: %v", err),
-				CreatedAt: time.Now(),
-			})
+			if isWebSocket {
+				log.Printf("[Auth] WebSocket JWT parse failed for %s after %v: %v", path, time.Since(authStart), err)
+			}
+			// Don't block on audit log
+			go func() {
+				auditCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+				defer cancel()
+				store.CreateAuditLog(auditCtx, &models.AuditLog{
+					ID:        uuid.New().String(),
+					UserID:    nil,
+					Action:    "authentication_failed",
+					IPAddress: c.ClientIP(),
+					UserAgent: c.Request.UserAgent(),
+					Details:   fmt.Sprintf("Failed to parse token: %v", err),
+					CreatedAt: time.Now(),
+				})
+			}()
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
 			c.Abort()
 			return
@@ -136,16 +186,23 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, j
 
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok || !token.Valid {
-			// Log failed audit attempt
-			store.CreateAuditLog(reqCtx, &models.AuditLog{
-				ID:        uuid.New().String(),
-				UserID:    nil, // No user ID yet
-				Action:    "authentication_failed",
-				IPAddress: c.ClientIP(),
-				UserAgent: c.Request.UserAgent(),
-				Details:   fmt.Sprintf("Invalid or expired token: %v", err),
-				CreatedAt: time.Now(),
-			})
+			if isWebSocket {
+				log.Printf("[Auth] WebSocket JWT claims invalid for %s after %v", path, time.Since(authStart))
+			}
+			// Don't block on audit log
+			go func() {
+				auditCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+				defer cancel()
+				store.CreateAuditLog(auditCtx, &models.AuditLog{
+					ID:        uuid.New().String(),
+					UserID:    nil, // No user ID yet
+					Action:    "authentication_failed",
+					IPAddress: c.ClientIP(),
+					UserAgent: c.Request.UserAgent(),
+					Details:   fmt.Sprintf("Invalid or expired token: %v", err),
+					CreatedAt: time.Now(),
+				})
+			}()
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
 			c.Abort()
 			return
@@ -182,15 +239,23 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, j
 		subActive, subActive_ok := claims["subscription_active"].(bool)
 
 		if !userID_ok || !email_ok || !username_ok || !tier_ok || !guest_ok || !subActive_ok || !exp_ok {
-			store.CreateAuditLog(reqCtx, &models.AuditLog{
-				ID:        uuid.New().String(),
-				UserID:    &userID,
-				Action:    "authentication_failed",
-				IPAddress: c.ClientIP(),
-				UserAgent: c.Request.UserAgent(),
-				Details:   "Invalid token claims structure",
-				CreatedAt: time.Now(),
-			})
+			if isWebSocket {
+				log.Printf("[Auth] WebSocket JWT claims structure invalid for %s after %v", path, time.Since(authStart))
+			}
+			// Don't block on audit log
+			go func() {
+				auditCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+				defer cancel()
+				store.CreateAuditLog(auditCtx, &models.AuditLog{
+					ID:        uuid.New().String(),
+					UserID:    &userID,
+					Action:    "authentication_failed",
+					IPAddress: c.ClientIP(),
+					UserAgent: c.Request.UserAgent(),
+					Details:   "Invalid token claims structure",
+					CreatedAt: time.Now(),
+				})
+			}()
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
 			c.Abort()
 			return
@@ -204,18 +269,27 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, j
 		c.Set("subscription_active", subActive)
 		c.Set("tokenExp", int64(exp))
 
-		// Fetch user from DB to check MFA status
-		user, err := store.GetUserByID(reqCtx, userID)
+		// Fetch user from DB to check MFA status (with timeout)
+		userLookupStart := time.Now()
+		user, err := store.GetUserByID(dbCtx, userID)
 		if err != nil || user == nil {
-			store.CreateAuditLog(reqCtx, &models.AuditLog{
-				ID:        uuid.New().String(),
-				UserID:    &userID,
-				Action:    "authentication_failed",
-				IPAddress: c.ClientIP(),
-				UserAgent: c.Request.UserAgent(),
-				Details:   fmt.Sprintf("User not found in DB: %v", err),
-				CreatedAt: time.Now(),
-			})
+			if isWebSocket {
+				log.Printf("[Auth] WebSocket user lookup failed for %s after %v (DB: %v): %v", path, time.Since(authStart), time.Since(userLookupStart), err)
+			}
+			// Don't block on audit log
+			go func() {
+				auditCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+				defer cancel()
+				store.CreateAuditLog(auditCtx, &models.AuditLog{
+					ID:        uuid.New().String(),
+					UserID:    &userID,
+					Action:    "authentication_failed",
+					IPAddress: c.ClientIP(),
+					UserAgent: c.Request.UserAgent(),
+					Details:   fmt.Sprintf("User not found in DB: %v", err),
+					CreatedAt: time.Now(),
+				})
+			}()
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
 			c.Abort()
 			return
@@ -226,14 +300,22 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, j
 
 		// --- Session revocation enforcement ---
 		if sessionID != "" {
-			srec, err := store.GetUserSession(reqCtx, sessionID)
+			sessionLookupStart := time.Now()
+			srec, err := store.GetUserSession(dbCtx, sessionID)
 			if err != nil || srec == nil || srec.UserID != userID || srec.RevokedAt != nil {
+				if isWebSocket {
+					log.Printf("[Auth] WebSocket session lookup failed for %s after %v (session check: %v): %v", path, time.Since(authStart), time.Since(sessionLookupStart), err)
+				}
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "session_revoked"})
 				c.Abort()
 				return
 			}
-			// Touch last seen (best effort, throttled in store).
-			_ = store.TouchUserSession(reqCtx, sessionID, c.ClientIP(), c.Request.UserAgent())
+			// Touch last seen (best effort, fire and forget to avoid blocking)
+			go func() {
+				touchCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+				defer cancel()
+				_ = store.TouchUserSession(touchCtx, sessionID, c.ClientIP(), c.Request.UserAgent())
+			}()
 			c.Set("sessionID", sessionID)
 		}
 
@@ -255,31 +337,47 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, j
 		if len(user.AllowedIPs) > 0 {
 			clientIP := c.ClientIP()
 			if !checkIPWhitelist(clientIP, user.AllowedIPs) {
-				store.CreateAuditLog(reqCtx, &models.AuditLog{
-					ID:        uuid.New().String(),
-					UserID:    &userID,
-					Action:    "ip_blocked",
-					IPAddress: clientIP,
-					UserAgent: c.Request.UserAgent(),
-					Details:   fmt.Sprintf("IP %s not in allowed list", clientIP),
-					CreatedAt: time.Now(),
-				})
+				if isWebSocket {
+					log.Printf("[Auth] WebSocket IP blocked for %s after %v: IP %s not in allowed list", path, time.Since(authStart), clientIP)
+				}
+				// Don't block on audit log
+				go func() {
+					auditCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+					defer cancel()
+					store.CreateAuditLog(auditCtx, &models.AuditLog{
+						ID:        uuid.New().String(),
+						UserID:    &userID,
+						Action:    "ip_blocked",
+						IPAddress: clientIP,
+						UserAgent: c.Request.UserAgent(),
+						Details:   fmt.Sprintf("IP %s not in allowed list", clientIP),
+						CreatedAt: time.Now(),
+					})
+				}()
 				c.JSON(http.StatusForbidden, gin.H{"error": "Access denied from this IP address"})
 				c.Abort()
 				return
 			}
 		}
 
-		// Log successful authentication
-		store.CreateAuditLog(reqCtx, &models.AuditLog{
-			ID:        uuid.New().String(),
-			UserID:    &userID,
-			Action:    "authentication_success",
-			IPAddress: c.ClientIP(),
-			UserAgent: c.Request.UserAgent(),
-			Details:   fmt.Sprintf("User '%s' authenticated successfully.", username),
-			CreatedAt: time.Now(),
-		})
+		// Log successful authentication (don't block on this)
+		go func() {
+			auditCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			store.CreateAuditLog(auditCtx, &models.AuditLog{
+				ID:        uuid.New().String(),
+				UserID:    &userID,
+				Action:    "authentication_success",
+				IPAddress: c.ClientIP(),
+				UserAgent: c.Request.UserAgent(),
+				Details:   fmt.Sprintf("User '%s' authenticated successfully.", username),
+				CreatedAt: time.Now(),
+			})
+		}()
+
+		if isWebSocket {
+			log.Printf("[Auth] WebSocket auth successful for %s in %v (user: %s)", path, time.Since(authStart), userID)
+		}
 
 		c.Next()
 	}

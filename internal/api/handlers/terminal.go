@@ -292,9 +292,12 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 	containerIdOrName := c.Param("containerId")
 	userID, exists := c.Get("userID")
 	if !exists {
+		log.Printf("[Terminal] Unauthorized connection attempt for container %s", containerIdOrName)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
+
+	log.Printf("[Terminal] Connection request for container %s (user: %s, ID length: %d)", containerIdOrName, userID, len(containerIdOrName))
 	reqCtx := c.Request.Context()
 
 	// Verify user owns this container (lookup by Docker ID or terminal name)
@@ -303,55 +306,93 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 	var dockerID string
 
 	if !ok {
+		log.Printf("[Terminal] Container %s not in manager cache, checking database...", containerIdOrName)
 		// Try to find in database - could be DB UUID or Docker ID
 		var err error
+		lookupStart := time.Now()
+
+		// Add timeout to prevent hanging on slow DB queries
+		dbCtx, dbCancel := context.WithTimeout(reqCtx, 3*time.Second)
+		defer dbCancel()
 
 		// Check if it looks like a Docker ID (64 hex chars) or DB UUID (36 chars with dashes)
 		if len(containerIdOrName) == 64 {
-			// Looks like Docker ID - search by Docker ID
-			dbContainer, err = h.store.GetContainerByUserAndDockerID(reqCtx, userID.(string), containerIdOrName)
+			// Looks like Docker ID - search by Docker ID with ownership check
+			log.Printf("[Terminal] Looking up container by Docker ID: %s", containerIdOrName[:12])
+			dbContainer, err = h.store.GetContainerByUserAndDockerID(dbCtx, userID.(string), containerIdOrName)
 		} else {
 			// Looks like DB UUID - search by DB ID
-			dbContainer, err = h.store.GetContainerByID(reqCtx, containerIdOrName)
+			log.Printf("[Terminal] Looking up container by DB UUID: %s", containerIdOrName)
+			dbContainer, err = h.store.GetContainerByID(dbCtx, containerIdOrName)
 			// Verify ownership
 			if err == nil && dbContainer != nil && dbContainer.UserID != userID.(string) {
+				log.Printf("[Terminal] Container %s found but owned by different user (owner: %s, requester: %s)", containerIdOrName, dbContainer.UserID, userID)
 				dbContainer = nil // Not owned by this user
 			}
+		}
+		lookupDuration := time.Since(lookupStart)
+
+		// Check for timeout
+		if dbCtx.Err() == context.DeadlineExceeded {
+			log.Printf("[Terminal] Database lookup timed out for %s after 3s", containerIdOrName)
+			err = dbCtx.Err()
+		}
+
+		if err != nil {
+			log.Printf("[Terminal] Database lookup failed for %s after %v: %v", containerIdOrName, lookupDuration, err)
+		} else if dbContainer == nil {
+			log.Printf("[Terminal] Container %s not found in database after %v", containerIdOrName, lookupDuration)
+		} else {
+			log.Printf("[Terminal] Found container in database: %s (Docker ID: %s) after %v", dbContainer.ID, dbContainer.DockerID[:12], lookupDuration)
 		}
 
 		if err == nil && dbContainer != nil && dbContainer.DockerID != "" {
 			// Found in DB, try getting from manager using the Docker ID
 			if info, found := h.containerManager.GetContainer(dbContainer.DockerID); found {
+				log.Printf("[Terminal] Container found in manager cache after DB lookup: %s", dbContainer.DockerID[:12])
 				containerInfo = info
 				ok = true
 			} else {
 				// Container exists in DB but not in manager cache
 				// Quick verify it exists in Docker (fast check, no full sync)
+				log.Printf("[Terminal] Container not in manager cache, verifying in Docker: %s", dbContainer.DockerID[:12])
+				dockerInspectStart := time.Now()
 				_, dockerErr := h.containerManager.GetClient().ContainerInspect(reqCtx, dbContainer.DockerID)
+				dockerInspectDuration := time.Since(dockerInspectStart)
 				if dockerErr == nil {
+					log.Printf("[Terminal] Container verified in Docker after %v: %s", dockerInspectDuration, dbContainer.DockerID[:12])
 					// Container exists in Docker - we can proceed with DB record
 					// Don't need to load into manager cache for terminal connection
 					// The DB record has all info we need
 					// Set dockerID now so we can use it later even if containerInfo is nil
 					dockerID = dbContainer.DockerID
 					ok = true // Mark as found so we skip the slow LoadExistingContainers below
+				} else {
+					log.Printf("[Terminal] Container not found in Docker after %v: %s (error: %v)", dockerInspectDuration, dbContainer.DockerID[:12], dockerErr)
 				}
 			}
 		}
 	}
 
 	if !ok {
+		log.Printf("[Terminal] Container %s still not found, attempting Docker sync...", containerIdOrName)
 		// Only do slow Docker sync if we haven't found it in DB
 		// For newly created containers, they should be in cache immediately.
 		// Only do slow Docker sync as last resort (e.g., server restart, container from another instance).
 		// Use a short timeout to avoid blocking terminal connections for too long.
+		syncStart := time.Now()
 		syncCtx, syncCancel := context.WithTimeout(reqCtx, 2*time.Second)
 		if err := h.containerManager.LoadExistingContainers(syncCtx); err != nil {
-			log.Printf("[Terminal] Failed to sync containers: %v", err)
+			log.Printf("[Terminal] Failed to sync containers after %v: %v", time.Since(syncStart), err)
+		} else {
+			log.Printf("[Terminal] Docker sync completed in %v", time.Since(syncStart))
 		}
 		syncCancel()
 		// Try again after sync
 		containerInfo, ok = h.containerManager.GetContainer(containerIdOrName)
+		if ok {
+			log.Printf("[Terminal] Container found in manager cache after Docker sync: %s", containerIdOrName)
+		}
 	}
 
 	// If still not found, check if this is a collab user trying to access a container
@@ -360,6 +401,7 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 	isOwner := false
 
 	if !ok {
+		log.Printf("[Terminal] Container %s not found after all lookups, checking collab access...", containerIdOrName)
 		// If we found container in DB but not in manager, try to use Docker ID from DB
 		if dbContainer != nil && dbContainer.DockerID != "" {
 			// Verify container exists in Docker
@@ -403,7 +445,11 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 				isOwner = false
 				log.Printf("[Terminal] Collab user %s accessing container %s via direct Docker lookup", userID, dockerID[:12])
 			} else {
-				log.Printf("[Terminal] Container not found: %s (user: %s)", containerIdOrName, userID)
+				log.Printf("[Terminal] Container not found after all attempts: %s (user: %s, length: %d)", containerIdOrName, userID, len(containerIdOrName))
+				// Check if request was cancelled (timeout)
+				if reqCtx.Err() != nil {
+					log.Printf("[Terminal] Request context cancelled (likely timeout): %v", reqCtx.Err())
+				}
 				c.JSON(http.StatusNotFound, gin.H{
 					"error":           "container not found",
 					"code":            "container_not_found",
