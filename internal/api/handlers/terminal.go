@@ -783,12 +783,27 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 			},
 		}
 	} else {
-		// Try to get cached shell metadata from database first (much faster)
 		var shell string
 		var hasTmux bool
 		var shellCached bool
 
-		if h.store != nil {
+		// Check if container is configuring FIRST - this enables true fast path
+		// by skipping all slow operations (DB lookup, shell detection, tmux check)
+		var isConfiguring bool
+		if info, ok := h.containerManager.GetContainer(session.ContainerID); ok {
+			isConfiguring = info.Status == "configuring"
+		}
+
+		if isConfiguring {
+			// Fast path: container is still setting up, use basic shell without tmux
+			// This allows instant terminal access while setup continues in background
+			// Skip DB lookup entirely for fastest possible connection
+			shell = "/bin/sh"
+			hasTmux = false
+			shellCached = true // Mark as cached to skip detection below
+			log.Printf("[Terminal] Container configuring, using fast /bin/sh path for %s", session.ContainerID[:12])
+		} else if h.store != nil {
+			// Try to get cached shell metadata from database (only for non-configuring containers)
 			dbCtx, dbCancel := context.WithTimeout(ctx, 2*time.Second)
 			cachedShell, cachedTmux, setupDone, err := h.store.GetContainerShellMetadata(dbCtx, session.ContainerID)
 			dbCancel()
@@ -800,36 +815,22 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 			}
 		}
 
-		// Check if container is configuring
-		var isConfiguring bool
-		if info, ok := h.containerManager.GetContainer(session.ContainerID); ok {
-			isConfiguring = info.Status == "configuring"
-		}
-
-		// Fall back to detection if not cached
+		// Fall back to detection if not cached and not configuring
 		if !shellCached {
-			if isConfiguring {
-				// Fast path: container is still setting up, use basic shell without tmux
-				// This allows instant terminal access while setup continues in background
-				shell = "/bin/sh"
-				hasTmux = false
-				log.Printf("[Terminal] Container configuring, using fast /bin/sh path for %s", session.ContainerID[:12])
+			shell = h.detectShell(ctx, session.ContainerID, imageType)
+
+			// Check tmux cache or detect
+			h.mu.RLock()
+			tmuxCached, tmuxInCache := h.tmuxCache[session.ContainerID]
+			h.mu.RUnlock()
+
+			if tmuxInCache {
+				hasTmux = tmuxCached
 			} else {
-				shell = h.detectShell(ctx, session.ContainerID, imageType)
-
-				// Check tmux cache or detect (only when not configuring)
-				h.mu.RLock()
-				tmuxCached, tmuxInCache := h.tmuxCache[session.ContainerID]
-				h.mu.RUnlock()
-
-				if tmuxInCache {
-					hasTmux = tmuxCached
-				} else {
-					hasTmux = h.commandExists(ctx, session.ContainerID, "tmux")
-					h.mu.Lock()
-					h.tmuxCache[session.ContainerID] = hasTmux
-					h.mu.Unlock()
-				}
+				hasTmux = h.commandExists(ctx, session.ContainerID, "tmux")
+				h.mu.Lock()
+				h.tmuxCache[session.ContainerID] = hasTmux
+				h.mu.Unlock()
 			}
 		}
 
