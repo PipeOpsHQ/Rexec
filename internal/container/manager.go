@@ -1812,6 +1812,7 @@ func (m *Manager) LoadExistingContainers(ctx context.Context) error {
 			CreatedAt:     time.Unix(c.Created, 0),
 			LastUsedAt:    time.Now(),
 			IPAddress:     ipAddress,
+			Labels:        c.Labels,
 		}
 
 		m.containers[c.ID] = info
