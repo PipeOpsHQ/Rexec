@@ -578,10 +578,17 @@ function createContainersStore() {
                     }
                   : null,
               }));
+              // Include container_id (Docker ID) so terminal can connect early
+              // When status is configuring/running, the API returns Docker ID in the "id" field
+              // (and DB ID in "db_id" field)
+              const dockerId = (status === "configuring" || status === "running") 
+                ? containerData.id 
+                : undefined;
               onProgress?.({
                 stage: status,
                 message: stageInfo.message,
                 progress: stageInfo.progress,
+                container_id: dockerId,
               });
             }
 
