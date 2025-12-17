@@ -299,6 +299,19 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 
 	// Verify user owns this container (lookup by Docker ID or terminal name)
 	containerInfo, ok := h.containerManager.GetContainer(containerIdOrName)
+
+	if !ok {
+		// Optimization: Try to find by DB ID first before triggering slow Docker sync
+		// This handles cases where frontend uses DB UUID instead of Docker ID
+		if dbContainer, err := h.store.GetContainerByID(reqCtx, containerIdOrName); err == nil && dbContainer != nil && dbContainer.DockerID != "" {
+			// Found in DB, try getting from manager using the Docker ID
+			if info, found := h.containerManager.GetContainer(dbContainer.DockerID); found {
+				containerInfo = info
+				ok = true
+			}
+		}
+	}
+
 	if !ok {
 		// Try to sync from Docker in case container exists but wasn't loaded
 		if err := h.containerManager.LoadExistingContainers(reqCtx); err != nil {
