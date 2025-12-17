@@ -129,6 +129,27 @@ func NewHub() (*Hub, error) {
 	return hub, nil
 }
 
+// SetCache stores a value in Redis with TTL
+func (h *Hub) SetCache(key string, value string, ttl time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return h.client.Set(ctx, key, value, ttl).Err()
+}
+
+// GetCache retrieves a value from Redis
+func (h *Hub) GetCache(key string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	return h.client.Get(ctx, key).Result()
+}
+
+// DelCache removes a value from Redis
+func (h *Hub) DelCache(key string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return h.client.Del(ctx, key).Err()
+}
+
 // Start begins listening on all channels
 func (h *Hub) Start() {
 	channels := []string{

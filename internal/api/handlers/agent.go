@@ -540,6 +540,11 @@ func (h *AgentHandler) UpdateAgent(c *gin.Context) {
 		return
 	}
 
+	// Invalidate cache
+	if h.pubsubHub != nil {
+		h.pubsubHub.DelCache("rexec:cache:agent:" + agentID)
+	}
+
 	// Update in-memory agent connection if online
 	h.agentsMu.Lock()
 	if conn, ok := h.agents[agentID]; ok {
@@ -603,6 +608,11 @@ func (h *AgentHandler) DeleteAgent(c *gin.Context) {
 		return
 	}
 
+	// Invalidate cache
+	if h.pubsubHub != nil {
+		h.pubsubHub.DelCache("rexec:cache:agent:" + agentID)
+	}
+
 	c.JSON(http.StatusOK, gin.H{"message": "agent deleted"})
 }
 
@@ -633,11 +643,30 @@ func (h *AgentHandler) HandleAgentWebSocket(c *gin.Context) {
 
 	// Verify agent ownership
 	ctx := c.Request.Context()
-	agent, err := h.store.GetAgent(ctx, agentID)
-	if err != nil || agent == nil {
-		log.Printf("[Agent WS] Agent not found: %s, err=%v", agentID, err)
-		c.JSON(http.StatusNotFound, gin.H{"error": "agent not found"})
-		return
+	var agent *storage.Agent
+	var err error
+
+	// Try cache
+	cacheKey := "rexec:cache:agent:" + agentID
+	if h.pubsubHub != nil {
+		if cached, err := h.pubsubHub.GetCache(cacheKey); err == nil {
+			_ = json.Unmarshal([]byte(cached), &agent)
+		}
+	}
+
+	if agent == nil {
+		agent, err = h.store.GetAgent(ctx, agentID)
+		if err != nil || agent == nil {
+			log.Printf("[Agent WS] Agent not found: %s, err=%v", agentID, err)
+			c.JSON(http.StatusNotFound, gin.H{"error": "agent not found"})
+			return
+		}
+		// Cache result
+		if h.pubsubHub != nil {
+			if data, err := json.Marshal(agent); err == nil {
+				_ = h.pubsubHub.SetCache(cacheKey, string(data), 5*time.Minute)
+			}
+		}
 	}
 
 	if agent.UserID != userID {
@@ -903,10 +932,29 @@ func (h *AgentHandler) HandleUserWebSocket(c *gin.Context) {
 
 	// Verify agent exists and ownership (required for both local and remote agents).
 	ctx := c.Request.Context()
-	agentRecord, err := h.store.GetAgent(ctx, agentID)
-	if err != nil || agentRecord == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "agent not found"})
-		return
+	var agentRecord *storage.Agent
+	var err error
+
+	// Try cache
+	cacheKey := "rexec:cache:agent:" + agentID
+	if h.pubsubHub != nil {
+		if cached, err := h.pubsubHub.GetCache(cacheKey); err == nil {
+			_ = json.Unmarshal([]byte(cached), &agentRecord)
+		}
+	}
+
+	if agentRecord == nil {
+		agentRecord, err = h.store.GetAgent(ctx, agentID)
+		if err != nil || agentRecord == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "agent not found"})
+			return
+		}
+		// Cache result
+		if h.pubsubHub != nil {
+			if data, err := json.Marshal(agentRecord); err == nil {
+				_ = h.pubsubHub.SetCache(cacheKey, string(data), 5*time.Minute)
+			}
+		}
 	}
 	if agentRecord.UserID != userID {
 		c.JSON(http.StatusForbidden, gin.H{"error": "not authorized"})
@@ -1560,10 +1608,25 @@ func (h *AgentHandler) countDistinctAgentTerminalsForUser(userID string) int {
 func (h *AgentHandler) verifyToken(tokenString string) (string, error) {
 	// Check if this is an API token (starts with rexec_)
 	if strings.HasPrefix(tokenString, "rexec_") {
+		// Try cache first
+		cacheKey := "rexec:cache:token:" + tokenString
+		if h.pubsubHub != nil {
+			if userID, err := h.pubsubHub.GetCache(cacheKey); err == nil && userID != "" {
+				return userID, nil
+			}
+		}
+
 		apiToken, err := h.store.ValidateAPIToken(context.Background(), tokenString)
 		if err != nil {
 			return "", fmt.Errorf("invalid API token: %w", err)
 		}
+
+		// Cache result
+		if h.pubsubHub != nil {
+			// Cache for 5 minutes
+			_ = h.pubsubHub.SetCache(cacheKey, apiToken.UserID, 5*time.Minute)
+		}
+
 		return apiToken.UserID, nil
 	}
 
