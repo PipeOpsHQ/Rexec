@@ -244,7 +244,7 @@ function createContainersStore() {
       name: string,
       image: string,
       customImage?: string,
-      _role?: string, // Role is sent to backend but not used client-side
+      role?: string,
       onProgress?: (event: ProgressEvent) => void,
       onComplete?: (container: Container) => void,
       onError?: (error: string) => void,
@@ -268,6 +268,9 @@ function createContainersStore() {
           stage: "initializing",
         },
       }));
+
+      // Timeout for container creation (2 minutes)
+      let creationTimeout: ReturnType<typeof setTimeout> | null = null;
 
       // Set up WebSocket event listeners for progress updates
       const handleProgress = (e: CustomEvent) => {
@@ -307,7 +310,7 @@ function createContainersStore() {
               // Robust deduplication: check all ID combinations
               if (c.id === containerObj.id) return false;
               if (c.db_id && c.db_id === containerObj.db_id) return false;
-              if (c.id === containerObj.db_id) return false; // Existing ID matches new DB_ID
+              if (c.id === containerObj.db_id) return false;
               return true;
             }),
           ],
@@ -332,6 +335,10 @@ function createContainersStore() {
       };
 
       const cleanup = () => {
+        if (creationTimeout) {
+          clearTimeout(creationTimeout);
+          creationTimeout = null;
+        }
         if (typeof window !== "undefined") {
           window.removeEventListener(
             "container-progress",
@@ -363,65 +370,54 @@ function createContainersStore() {
         );
       }
 
-      // Use polling-based creation (which the backend sends WebSocket progress events for)
-      this.createContainerFallback(
+      // Set a timeout in case WebSocket events never arrive
+      creationTimeout = setTimeout(() => {
+        cleanup();
+        update((state) => ({ ...state, creating: null }));
+        onError?.("Terminal creation timed out. Please check your connection and try again.");
+      }, 120000); // 2 minute timeout
+
+      // Make the POST request to start container creation
+      // All progress updates come via WebSocket events
+      this.postCreateContainer(
         name,
         image,
         customImage,
-        _role,
+        role,
         onProgress,
-        onComplete,
         onError,
         resources,
         shellOptions,
+        cleanup,
       );
     },
 
-    // Container creation with polling for async backend
-    async createContainerFallback(
+    // POST to create container - progress comes via WebSocket
+    async postCreateContainer(
       name: string,
       image: string,
       customImage?: string,
       role?: string,
       onProgress?: (event: ProgressEvent) => void,
-      onComplete?: (container: Container) => void,
       onError?: (error: string) => void,
       resources?: { memory_mb?: number; cpu_shares?: number; disk_mb?: number },
       shellOptions?: { use_tmux?: boolean },
+      cleanup?: () => void,
     ) {
       const authToken = getToken();
       if (!authToken) {
+        cleanup?.();
         onError?.("Not authenticated");
         return;
       }
-
-      // Set creating state - use the same stages as SSE
-      update((state) => ({
-        ...state,
-        creating: {
-          name,
-          image,
-          progress: 5,
-          message: "Validating request...",
-          stage: "validating",
-        },
-      }));
-
-      onProgress?.({
-        stage: "validating",
-        message: "Validating request...",
-        progress: 5,
-      });
 
       const body: Record<string, any> = { name, image };
       if (image === "custom" && customImage) {
         body.custom_image = customImage;
       }
-      // Add role if specified
       if (role) {
         body.role = role;
       }
-      // Add resource customization if provided
       if (resources?.memory_mb) {
         body.memory_mb = resources.memory_mb;
       }
@@ -431,7 +427,6 @@ function createContainersStore() {
       if (resources?.disk_mb) {
         body.disk_mb = resources.disk_mb;
       }
-      // Add shell options if provided
       if (shellOptions) {
         body.shell = {
           use_tmux: shellOptions.use_tmux,
@@ -451,297 +446,36 @@ function createContainersStore() {
         const data = await response.json();
 
         if (!response.ok) {
+          cleanup?.();
           update((state) => ({ ...state, creating: null }));
           onError?.(data.error || "Failed to create terminal");
           return;
         }
 
-        // Container creation is async - poll for status
-        const containerId = data.db_id || data.id;
-
-        // Initial progress update - validation complete, now pulling
-        // This ensures immediate UI update without waiting for WebSocket
+        // POST succeeded - update progress to show we're pulling/creating
+        // Backend will send WebSocket events with container_id when ready
         update((state) => ({
           ...state,
           creating: state.creating
             ? {
                 ...state.creating,
                 progress: 15,
-                message: "Pulling image...",
-                stage: "pulling",
+                message: "Creating container...",
+                stage: "creating",
               }
             : null,
         }));
 
-        // Notify callback immediately so UI updates
         onProgress?.({
-          stage: "pulling",
-          message: "Pulling image...",
+          stage: "creating",
+          message: "Creating container...",
           progress: 15,
         });
 
-        // Poll for container status (as backup/timeout mechanism)
-        // WebSocket events will provide real-time progress updates
-        const maxAttempts = 120; // 2 minutes max
-        const pollInterval = 1000; // 1 second
-        let attempts = 0;
-
-        // Stage definitions (used for fallback when WebSocket isn't working)
-        const stageConfig: Record<
-          string,
-          { progress: number; message: string }
-        > = {
-          pulling: { progress: 15, message: "Pulling image..." },
-          creating: { progress: 35, message: "Creating container..." },
-          starting: { progress: 55, message: "Starting container..." },
-          configuring: { progress: 75, message: "Configuring environment..." },
-          ready: { progress: 100, message: "Ready!" },
-        };
-
-        // Track if we're receiving WebSocket progress events
-        let receivedWsProgress = false;
-        const wsProgressHandler = () => {
-          receivedWsProgress = true;
-        };
-        if (typeof window !== "undefined") {
-          window.addEventListener("container-progress", wsProgressHandler);
-        }
-
-        const pollStatus = async (): Promise<void> => {
-          // Optimization: If WebSocket is connected and receiving events, stop polling
-          // This avoids redundant network requests and ensures we rely on real-time updates
-          if (get(wsConnected) && receivedWsProgress) {
-            if (typeof window !== "undefined") {
-              window.removeEventListener(
-                "container-progress",
-                wsProgressHandler,
-              );
-            }
-            return;
-          }
-
-          attempts++;
-
-          try {
-            const statusResponse = await fetch(
-              `/api/containers/${containerId}`,
-              {
-                headers: {
-                  Authorization: `Bearer ${authToken}`,
-                },
-              },
-            );
-
-            if (!statusResponse.ok) {
-              if (statusResponse.status === 404 && attempts < 5) {
-                // Container might not be in Docker yet - still pulling
-                setTimeout(pollStatus, pollInterval);
-                return;
-              }
-              throw new Error("Failed to get terminal status");
-            }
-
-            const containerData = await statusResponse.json();
-            const status = containerData.status;
-
-            // Check if creating state was cleared (by WebSocket completing)
-            let creatingCleared = false;
-            const unsub = subscribe((state) => {
-              if (!state.creating) {
-                creatingCleared = true;
-              }
-            });
-            unsub();
-
-            if (creatingCleared) {
-              // Already completed via WebSocket event
-              if (typeof window !== "undefined") {
-                window.removeEventListener(
-                  "container-progress",
-                  wsProgressHandler,
-                );
-              }
-              return;
-            }
-
-            // Update progress based on container status (fallback when WebSocket isn't working)
-            if (!receivedWsProgress && status in stageConfig) {
-              const stageInfo = stageConfig[status];
-              update((state) => ({
-                ...state,
-                creating: state.creating
-                  ? {
-                      ...state.creating,
-                      progress: stageInfo.progress,
-                      message: stageInfo.message,
-                      stage: status,
-                    }
-                  : null,
-              }));
-              // Include container_id (Docker ID) so terminal can connect early
-              // When status is configuring/running, the API returns Docker ID in the "id" field
-              // (and DB ID in "db_id" field)
-              const dockerId = (status === "configuring" || status === "running") 
-                ? containerData.id 
-                : undefined;
-              onProgress?.({
-                stage: status,
-                message: stageInfo.message,
-                progress: stageInfo.progress,
-                container_id: dockerId,
-              });
-            }
-
-            // If stuck in configuring for too long (30+ seconds), treat as ready
-            // Shell setup continues in background but user can connect
-            if (status === "configuring" && attempts >= 30) {
-              if (typeof window !== "undefined") {
-                window.removeEventListener(
-                  "container-progress",
-                  wsProgressHandler,
-                );
-              }
-
-              const container: Container = {
-                id: containerData.id || containerData.docker_id || containerId,
-                db_id: containerData.db_id || containerId,
-                user_id: containerData.user_id,
-                name: containerData.name || name,
-                image: containerData.image || image,
-                status: "running",
-                created_at:
-                  containerData.created_at || new Date().toISOString(),
-                ip_address: containerData.ip_address,
-                resources: containerData.resources,
-              };
-
-              update((state) => ({
-                ...state,
-                containers: [
-                  container,
-                  ...state.containers.filter((c) => {
-                    if (c.id === container.id) return false;
-                    if (c.db_id && c.db_id === container.db_id) return false;
-                    if (c.id === container.db_id) return false;
-                    return true;
-                  }),
-                ],
-                creating: null,
-              }));
-
-              onProgress?.({
-                stage: "ready",
-                message: "Terminal ready (setup continuing in background)",
-                progress: 100,
-                complete: true,
-              });
-
-              onComplete?.(container);
-              return;
-            }
-
-            if (status === "running") {
-              // Container is running - complete immediately
-              // Shell setup runs in background, user can connect right away
-
-              if (typeof window !== "undefined") {
-                window.removeEventListener(
-                  "container-progress",
-                  wsProgressHandler,
-                );
-              }
-
-              const container: Container = {
-                id: containerData.id || containerData.docker_id || containerId,
-                db_id: containerData.db_id || containerId,
-                user_id: containerData.user_id || "",
-                name: containerData.name || name,
-                image: containerData.image || image,
-                status: "running",
-                created_at:
-                  containerData.created_at || new Date().toISOString(),
-                ip_address: containerData.ip_address,
-                resources: containerData.resources,
-              };
-
-              update((state) => ({
-                ...state,
-                containers: [
-                  container,
-                  ...state.containers.filter((c) => {
-                    if (c.id === container.id) return false;
-                    if (c.db_id && c.db_id === container.db_id) return false;
-                    if (c.id === container.db_id) return false;
-                    return true;
-                  }),
-                ],
-                creating: null,
-              }));
-
-              onProgress?.({
-                stage: "ready",
-                message: "Terminal ready!",
-                progress: 100,
-                complete: true,
-                container_id: container.id,
-              });
-
-              onComplete?.(container);
-              return;
-            }
-
-            if (status === "error") {
-              if (typeof window !== "undefined") {
-                window.removeEventListener(
-                  "container-progress",
-                  wsProgressHandler,
-                );
-              }
-              update((state) => ({ ...state, creating: null }));
-              onError?.("Terminal creation failed. Please try again.");
-              return;
-            }
-
-            if (attempts >= maxAttempts) {
-              if (typeof window !== "undefined") {
-                window.removeEventListener(
-                  "container-progress",
-                  wsProgressHandler,
-                );
-              }
-              update((state) => ({ ...state, creating: null }));
-              onError?.(
-                "Terminal creation timed out. Please check your terminals list.",
-              );
-              return;
-            }
-
-            // Keep polling
-            setTimeout(pollStatus, pollInterval);
-          } catch (e) {
-            if (attempts >= maxAttempts) {
-              if (typeof window !== "undefined") {
-                window.removeEventListener(
-                  "container-progress",
-                  wsProgressHandler,
-                );
-              }
-              update((state) => ({ ...state, creating: null }));
-              onError?.(
-                e instanceof Error
-                  ? e.message
-                  : "Failed to check terminal status",
-              );
-            } else {
-              // Retry on error
-              setTimeout(pollStatus, pollInterval);
-            }
-          }
-        };
-
-        // Start polling
-        setTimeout(pollStatus, pollInterval);
+        // Now we wait for WebSocket events (progress, created, or error)
+        // The timeout in createContainerWithProgress will handle if nothing arrives
       } catch (e) {
+        cleanup?.();
         update((state) => ({ ...state, creating: null }));
         onError?.(e instanceof Error ? e.message : "Failed to create terminal");
       }
