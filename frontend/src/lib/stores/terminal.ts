@@ -1252,9 +1252,11 @@ function createTerminalStore() {
 
         // Handle container restart - fetch new container ID and reconnect
         if (isContainerRestartRequired) {
-          session.terminal.writeln(
-            "\r\n\x1b[33m⟳ Container restarting, reconnecting...\x1b[0m",
-          );
+          if (currentSession.terminal) {
+            currentSession.terminal.writeln(
+              "\r\n\x1b[33m⟳ Container restarting, reconnecting...\x1b[0m",
+            );
+          }
 
           // Fetch the container info to get the new ID
           this.refreshContainerAndReconnect(
@@ -1289,12 +1291,13 @@ function createTerminalStore() {
           }));
 
           // Only show message after silent threshold is exceeded
-          if (attemptNum > WS_SILENT_RECONNECT_THRESHOLD) {
-            session.terminal.writeln(
+          if (
+            attemptNum > WS_SILENT_RECONNECT_THRESHOLD &&
+            currentSession.terminal
+          ) {
+            currentSession.terminal.writeln(
               `\r\n\x1b[33m⟳ Reconnecting (${attemptNum}/${WS_MAX_RECONNECT})...\x1b[0m`,
             );
-          } else {
-            // Silent reconnect - just log to console
           }
 
           const timer = setTimeout(() => {
@@ -1308,14 +1311,18 @@ function createTerminalStore() {
 
           // Show appropriate message based on reason
           if (isContainerGone) {
-            session.terminal.writeln(
-              "\r\n\x1b[31m✖ Terminal session ended. Terminal may have been stopped or removed.\x1b[0m",
-            );
+            if (currentSession.terminal) {
+              currentSession.terminal.writeln(
+                "\r\n\x1b[31m✖ Terminal session ended. Terminal may have been stopped or removed.\x1b[0m",
+              );
+            }
             updateSession(sessionId, (s) => ({ ...s, status: "error" }));
           } else if (maxAttemptsReached) {
-            session.terminal.writeln(
-              "\r\n\x1b[31m✖ Connection lost after multiple attempts. Click \x1b[33m⟳\x1b[31m to reconnect.\x1b[0m",
-            );
+            if (currentSession.terminal) {
+              currentSession.terminal.writeln(
+                "\r\n\x1b[31m✖ Connection lost after multiple attempts. Click \x1b[33m⟳\x1b[31m to reconnect.\x1b[0m",
+              );
+            }
             updateSession(sessionId, (s) => ({ ...s, status: "error" }));
           }
           // If intentional close (code 1000), don't show any message
@@ -1347,36 +1354,40 @@ function createTerminalStore() {
         isProcessingQueue = false;
       };
 
-      session.terminal.onData((data) => {
-        if (ws.readyState !== WebSocket.OPEN) return;
+      // Attach input handlers once terminal is ready
+      // This is deferred because terminal may be null during parallel loading
+      waitForTerminal((terminal) => {
+        terminal.onData((data) => {
+          if (ws.readyState !== WebSocket.OPEN) return;
 
-        // Block input if this is a view-only collab session
-        const currentSession = getState().sessions.get(sessionId);
-        if (
-          currentSession?.isCollabSession &&
-          currentSession?.collabMode === "view"
-        ) {
-          return;
-        }
-
-        // Send input immediately for responsiveness
-        // Large pastes are chunked to avoid WebSocket message size limits
-        if (data.length > CHUNK_SIZE) {
-          // Large paste - chunk it
-          for (let i = 0; i < data.length; i += CHUNK_SIZE) {
-            inputQueue.push(data.slice(i, i + CHUNK_SIZE));
+          // Block input if this is a view-only collab session
+          const currentSession = getState().sessions.get(sessionId);
+          if (
+            currentSession?.isCollabSession &&
+            currentSession?.collabMode === "view"
+          ) {
+            return;
           }
-          processInputQueue();
-        } else {
-          // Normal input - send immediately (no buffering for instant feel)
-          ws.send(JSON.stringify({ type: "input", data: data }));
-        }
-      });
 
-      // Handle binary data efficiently (for file transfers, etc.)
-      session.terminal.onBinary((data) => {
-        if (ws.readyState !== WebSocket.OPEN) return;
-        ws.send(JSON.stringify({ type: "input", data: data }));
+          // Send input immediately for responsiveness
+          // Large pastes are chunked to avoid WebSocket message size limits
+          if (data.length > CHUNK_SIZE) {
+            // Large paste - chunk it
+            for (let i = 0; i < data.length; i += CHUNK_SIZE) {
+              inputQueue.push(data.slice(i, i + CHUNK_SIZE));
+            }
+            processInputQueue();
+          } else {
+            // Normal input - send immediately (no buffering for instant feel)
+            ws.send(JSON.stringify({ type: "input", data: data }));
+          }
+        });
+
+        // Handle binary data efficiently (for file transfers, etc.)
+        terminal.onBinary((data) => {
+          if (ws.readyState !== WebSocket.OPEN) return;
+          ws.send(JSON.stringify({ type: "input", data: data }));
+        });
       });
     },
 
