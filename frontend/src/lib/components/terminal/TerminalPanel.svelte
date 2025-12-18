@@ -4,16 +4,24 @@
     import { terminal, type TerminalSession } from "$stores/terminal";
     import { recordings } from "$stores/recordings";
     import { collab } from "$stores/collab";
+    import { containers } from "$stores/containers";
     import { toast } from "$stores/toast";
     import { token } from "$stores/auth";
     import { formatMemoryBytes } from "$utils/api";
     import SplitTerminalView from "./SplitTerminalView.svelte";
+    import PlatformIcon from "../icons/PlatformIcon.svelte";
 
     export let session: TerminalSession;
 
     // Check if current user is a guest in this session
     $: isGuest = session.isCollabSession === true;
     $: isViewOnly = session.collabMode === "view";
+
+    // Look up container role from containers store
+    $: containerInfo = $containers.containers.find(
+        (c) => c.id === session.containerId || c.db_id === session.containerId,
+    );
+    $: containerRole = containerInfo?.role || null;
 
     // Check if this session has active sharing (for pulsing indicator)
     $: hasActiveSharing =
@@ -518,6 +526,12 @@
                 <span class="status-indicator"></span>
                 {status}
             </span>
+            {#if containerRole}
+                <span class="role-badge" title="Environment: {containerRole}">
+                    <PlatformIcon platform={containerRole} size={14} />
+                    <span class="role-name">{containerRole}</span>
+                </span>
+            {/if}
             {#if isConnected && (session.stats.memoryLimit > 0 || session.stats.memory > 0 || session.stats.cpu > 0)}
                 <span class="terminal-stats">
                     <span
@@ -1283,6 +1297,31 @@
 
     .view-only-badge svg {
         opacity: 0.8;
+    }
+
+    .role-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        background: rgba(100, 100, 255, 0.1);
+        border: 1px solid rgba(100, 100, 255, 0.2);
+        border-radius: 4px;
+        color: #a0a0ff;
+        font-size: 10px;
+        font-weight: 500;
+        text-transform: capitalize;
+    }
+
+    .role-badge :global(svg) {
+        opacity: 0.8;
+    }
+
+    .role-name {
+        max-width: 80px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .stat-io {
