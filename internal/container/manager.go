@@ -1238,8 +1238,8 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 		// Ensure permissions on volume mount and configure tmux for session persistence
 		// The tmux session is created by the terminal handler on first connect
 		// This just sets up the config and keeps the container alive
-		tmuxSetup := fmt.Sprintf(`mkdir -p /home/user && (chmod 777 /home/user || true) && 
-mkdir -p /home/user/.tmux && 
+		tmuxSetup := fmt.Sprintf(`mkdir -p /home/user && (chmod 777 /home/user || true) &&
+mkdir -p /home/user/.tmux &&
 cat > /home/user/.tmux.conf << 'TMUXCONF'
 # Rexec tmux config for session persistence
 set -g default-terminal "xterm-256color"
@@ -1284,8 +1284,8 @@ TMUXCONF
 if tmux -V 2>/dev/null | grep -qE 'tmux ([3-9]\.[3-9]|[4-9]\.)'; then
     echo 'set -g allow-passthrough on' >> /home/user/.tmux.conf
 fi
-export HOME=/home/user && 
-cd /home/user && 
+export HOME=/home/user &&
+cd /home/user &&
 # Keep container running indefinitely
 # Terminal sessions are managed via docker exec + tmux
 exec tail -f /dev/null`, shell, shell)
@@ -1868,6 +1868,8 @@ type RecreateContainerConfig struct {
 	MemoryMB      int64 // Memory in MB (0 = use tier default)
 	CPUMillicores int64 // CPU in millicores (0 = use tier default)
 	DiskMB        int64 // Disk quota in MB (0 = use tier default)
+	// Shell options
+	UseTmux *bool // Whether to use tmux for session persistence (nil = inherit from old container)
 }
 
 // RecreateContainer recreates a container that was removed from Docker
@@ -1907,6 +1909,17 @@ func (m *Manager) RecreateContainer(ctx context.Context, cfg RecreateContainerCo
 	labels := map[string]string{
 		"rexec.tier":    cfg.Tier,
 		"rexec.user_id": cfg.UserID,
+	}
+	if cfg.Role != "" {
+		labels["rexec.role"] = cfg.Role
+	}
+	// Preserve tmux preference
+	if cfg.UseTmux != nil {
+		if *cfg.UseTmux {
+			labels["rexec.use_tmux"] = "true"
+		} else {
+			labels["rexec.use_tmux"] = "false"
+		}
 	}
 
 	// Create new container using existing method

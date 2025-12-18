@@ -1107,6 +1107,8 @@ func (h *ContainerHandler) Start(c *gin.Context) {
 			MemoryMB:      int64(found.MemoryMB),
 			CPUMillicores: int64(found.CPUShares),
 			DiskMB:        int64(found.DiskMB),
+			// UseTmux will be nil here since container doesn't exist in Docker
+			// It will use the default (no tmux) unless explicitly set
 		}
 
 		newInfo, err := h.manager.RecreateContainer(ctx, recreateCfg)
@@ -1379,6 +1381,16 @@ func (h *ContainerHandler) UpdateSettings(c *gin.Context) {
 		log.Printf("[UpdateSettings] Container %s is running, will recreate with new resources: memory=%dMB, cpu=%d millicores (%.1f vCPU)",
 			found.DockerID, req.MemoryMB, req.CPUShares, float64(req.CPUShares)/1000.0)
 
+		// Get tmux preference from old container labels before stopping
+		var useTmux *bool
+		if oldInfo, ok := h.manager.GetContainer(found.DockerID); ok && oldInfo != nil {
+			if val, exists := oldInfo.Labels["rexec.use_tmux"]; exists {
+				tmuxEnabled := val == "true"
+				useTmux = &tmuxEnabled
+				log.Printf("[UpdateSettings] Preserving tmux preference: %v for container %s", tmuxEnabled, found.DockerID[:12])
+			}
+		}
+
 		// Stop the running container first
 		if err := h.manager.StopContainer(ctx, found.DockerID); err != nil {
 			log.Printf("[UpdateSettings] Warning: failed to stop container %s: %v", found.DockerID, err)
@@ -1405,6 +1417,7 @@ func (h *ContainerHandler) UpdateSettings(c *gin.Context) {
 			MemoryMB:      req.MemoryMB,
 			CPUMillicores: req.CPUShares,
 			DiskMB:        req.DiskMB,
+			UseTmux:       useTmux, // Preserve tmux preference from old container labels
 		}
 
 		newInfo, err := h.manager.RecreateContainer(ctx, recreateCfg)
@@ -1423,9 +1436,14 @@ func (h *ContainerHandler) UpdateSettings(c *gin.Context) {
 			log.Printf("[UpdateSettings] Warning: failed to update DockerID in database: %v", err)
 		}
 
-		// If we need to reinstall tools, do it in background and keep status as 'configuring'
-		if found.Role != "" {
-			log.Printf("[UpdateSettings] Restoring role %s for recreated container %s", found.Role, newDockerID)
+		// Only reinstall role tools if disk size changed (volume may have been recreated)
+		// Memory and CPU changes don't require reinstallation since tools persist on the volume
+		diskChanged := req.DiskMB != found.DiskMB
+		needsReinstall := found.Role != "" && diskChanged
+
+		if needsReinstall {
+			log.Printf("[UpdateSettings] Disk size changed (%dMB -> %dMB), reinstalling role %s for container %s",
+				found.DiskMB, req.DiskMB, found.Role, newDockerID[:12])
 
 			// Run setup in background
 			go func(containerRole string) {
@@ -1452,6 +1470,13 @@ func (h *ContainerHandler) UpdateSettings(c *gin.Context) {
 					})
 				}
 			}(found.Role) // Pass found.Role to the goroutine
+		} else if found.Role != "" {
+			// Role exists but disk didn't change - tools should still be on the volume
+			log.Printf("[UpdateSettings] Disk size unchanged, skipping role reinstallation for %s", newDockerID[:12])
+			if err := h.store.UpdateContainerStatus(ctx, found.ID, "running"); err != nil {
+				log.Printf("[UpdateSettings] Warning: failed to update container status to running: %v", err)
+			}
+			h.manager.UpdateContainerStatus(newDockerID, "running")
 		} else {
 			// No tools to install, set to running immediately
 			if err := h.store.UpdateContainerStatus(ctx, found.ID, "running"); err != nil {

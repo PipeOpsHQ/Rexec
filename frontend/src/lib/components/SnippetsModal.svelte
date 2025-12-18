@@ -34,15 +34,16 @@
     let isLoading = true;
     let isLoadingMarketplace = false;
     let activeTab: "list" | "create" | "marketplace" = "list";
-    
+
     // Marketplace filters
     let marketplaceSearch = "";
     let marketplaceCategory = "all";
-    
-    // Create state
+
+    // Create/Edit state
     let newName = "";
     let newContent = "";
     let isCreating = false;
+    let editingSnippet: Snippet | null = null;
 
     // Delete state
     let showDeleteConfirm = false;
@@ -51,8 +52,10 @@
     // Load user snippets
     async function loadSnippets() {
         isLoading = true;
-        const { data, error } = await api.get<{ snippets: Snippet[] }>("/api/snippets");
-        
+        const { data, error } = await api.get<{ snippets: Snippet[] }>(
+            "/api/snippets",
+        );
+
         if (data) {
             snippets = data.snippets || [];
         } else if (error) {
@@ -66,13 +69,14 @@
         isLoadingMarketplace = true;
         const params = new URLSearchParams();
         if (marketplaceSearch) params.set("search", marketplaceSearch);
-        if (marketplaceCategory !== "all") params.set("language", marketplaceCategory);
+        if (marketplaceCategory !== "all")
+            params.set("language", marketplaceCategory);
         params.set("sort", "popular");
 
         const { data, error } = await api.get<{ snippets: Snippet[] }>(
-            `/api/marketplace/snippets?${params.toString()}`
+            `/api/marketplace/snippets?${params.toString()}`,
         );
-        
+
         if (data) {
             marketplaceSnippets = data.snippets || [];
         } else if (error) {
@@ -86,7 +90,7 @@
         loadSnippets();
         if (activeTab === "marketplace") loadMarketplaceSnippets();
     }
-    
+
     // Load marketplace when switching to tab
     $: if (activeTab === "marketplace" && marketplaceSnippets.length === 0) {
         loadMarketplaceSnippets();
@@ -99,6 +103,21 @@
         activeTab = "list";
         newName = "";
         newContent = "";
+        editingSnippet = null;
+    }
+
+    function startEditing(snippet: Snippet) {
+        editingSnippet = snippet;
+        newName = snippet.name;
+        newContent = snippet.content;
+        activeTab = "create";
+    }
+
+    function cancelEditing() {
+        editingSnippet = null;
+        newName = "";
+        newContent = "";
+        activeTab = "list";
     }
 
     function handleKeydown(e: KeyboardEvent) {
@@ -113,20 +132,47 @@
         }
 
         isCreating = true;
-        const { data, error } = await api.post<Snippet>("/api/snippets", {
-            name: newName.trim(),
-            content: newContent.trim(),
-            language: "bash" // Default for now
-        });
 
-        if (data) {
-            snippets = [data, ...snippets];
-            toast.success("Snippet saved");
-            activeTab = "list";
-            newName = "";
-            newContent = "";
+        if (editingSnippet) {
+            // Update existing snippet
+            const { data, error } = await api.put<Snippet>(
+                `/api/snippets/${editingSnippet.id}`,
+                {
+                    name: newName.trim(),
+                    content: newContent.trim(),
+                    language: editingSnippet.language || "bash",
+                },
+            );
+
+            if (data) {
+                snippets = snippets.map((s) =>
+                    s.id === editingSnippet!.id ? data : s,
+                );
+                toast.success("Snippet updated");
+                editingSnippet = null;
+                activeTab = "list";
+                newName = "";
+                newContent = "";
+            } else {
+                toast.error(error || "Failed to update snippet");
+            }
         } else {
-            toast.error(error || "Failed to save snippet");
+            // Create new snippet
+            const { data, error } = await api.post<Snippet>("/api/snippets", {
+                name: newName.trim(),
+                content: newContent.trim(),
+                language: "bash",
+            });
+
+            if (data) {
+                snippets = [data, ...snippets];
+                toast.success("Snippet saved");
+                activeTab = "list";
+                newName = "";
+                newContent = "";
+            } else {
+                toast.error(error || "Failed to save snippet");
+            }
         }
         isCreating = false;
     }
@@ -143,7 +189,7 @@
 
         const { error } = await api.delete(`/api/snippets/${id}`);
         if (!error) {
-            snippets = snippets.filter(s => s.id !== id);
+            snippets = snippets.filter((s) => s.id !== id);
             toast.success("Snippet deleted");
         } else {
             toast.error(error || "Failed to delete snippet");
@@ -160,7 +206,7 @@
         // Note: This relies on terminal store tracking sessions by container ID
         // We might need to look up session ID if we only have container ID
         // But terminal.sendInput takes sessionId.
-        
+
         // Wait, terminal store has sessions map.
         // We need to find the session for this container.
 
@@ -169,10 +215,10 @@
         // The store doesn't expose a direct lookup by container ID publicly easily?
         // Actually, we can just send it if we have the session object in parent.
         // But let's assume we can find it or the parent handles the run.
-        
+
         // Alternative: Dispatch 'run' event and let parent handle it.
         // This is cleaner as parent has the session context.
-        dispatch('run', { snippet });
+        dispatch("run", { snippet });
         toast.success(`Running "${snippet.name}"`);
         handleClose();
     }
@@ -183,7 +229,9 @@
 <ConfirmModal
     bind:show={showDeleteConfirm}
     title="Delete Snippet"
-    message={snippetToDelete ? `Are you sure you want to delete "${snippetToDelete.name}"?` : ""}
+    message={snippetToDelete
+        ? `Are you sure you want to delete "${snippetToDelete.name}"?`
+        : ""}
     confirmText="Delete"
     variant="danger"
     on:confirm={confirmDeleteSnippet}
@@ -191,34 +239,39 @@
 
 {#if show}
     <div class="modal-backdrop" transition:fade={{ duration: 150 }}>
-        <div class="modal-container" transition:scale={{ duration: 150, start: 0.95 }}>
+        <div
+            class="modal-container"
+            transition:scale={{ duration: 150, start: 0.95 }}
+        >
             <div class="modal-header">
                 <div class="modal-title-group">
-                    <span class="modal-icon"><StatusIcon status="bolt" size={20} /></span>
+                    <span class="modal-icon"
+                        ><StatusIcon status="bolt" size={20} /></span
+                    >
                     <h2>Snippets & Macros</h2>
                 </div>
                 <button class="close-btn" onclick={handleClose}>×</button>
             </div>
 
             <div class="tabs">
-                <button 
-                    class="tab-btn" 
-                    class:active={activeTab === "list"} 
-                    onclick={() => activeTab = "list"}
+                <button
+                    class="tab-btn"
+                    class:active={activeTab === "list"}
+                    onclick={() => (activeTab = "list")}
                 >
                     My Snippets
                 </button>
-                <button 
-                    class="tab-btn" 
-                    class:active={activeTab === "marketplace"} 
-                    onclick={() => activeTab = "marketplace"}
+                <button
+                    class="tab-btn"
+                    class:active={activeTab === "marketplace"}
+                    onclick={() => (activeTab = "marketplace")}
                 >
                     Marketplace
                 </button>
-                <button 
-                    class="tab-btn" 
-                    class:active={activeTab === "create"} 
-                    onclick={() => activeTab = "create"}
+                <button
+                    class="tab-btn"
+                    class:active={activeTab === "create"}
+                    onclick={() => (activeTab = "create")}
                 >
                     Create
                 </button>
@@ -233,9 +286,14 @@
                         </div>
                     {:else if snippets.length === 0}
                         <div class="empty-state">
-                            <div class="empty-icon"><StatusIcon status="terminal" size={32} /></div>
+                            <div class="empty-icon">
+                                <StatusIcon status="terminal" size={32} />
+                            </div>
                             <p>No snippets found.</p>
-                            <button class="btn btn-primary" onclick={() => activeTab = "create"}>
+                            <button
+                                class="btn btn-primary"
+                                onclick={() => (activeTab = "create")}
+                            >
                                 Create Your First Snippet
                             </button>
                         </div>
@@ -244,23 +302,45 @@
                             {#each snippets as snippet (snippet.id)}
                                 <div class="snippet-card">
                                     <div class="snippet-info">
-                                        <div class="snippet-name">{snippet.name}</div>
-                                        <div class="snippet-preview">{snippet.content}</div>
+                                        <div class="snippet-name">
+                                            {snippet.name}
+                                        </div>
+                                        <div class="snippet-preview">
+                                            {snippet.content}
+                                        </div>
                                     </div>
                                     <div class="snippet-actions">
-                                        <button 
+                                        <button
                                             class="btn btn-primary btn-sm"
                                             onclick={() => runSnippet(snippet)}
                                             title="Run in terminal"
                                         >
                                             Run
                                         </button>
-                                        <button 
+                                        <button
+                                            class="btn btn-icon btn-sm btn-edit"
+                                            onclick={() =>
+                                                startEditing(snippet)}
+                                            title="Edit"
+                                        >
+                                            <StatusIcon
+                                                status="edit"
+                                                size={14}
+                                            />
+                                        </button>
+                                        <button
                                             class="btn btn-icon btn-sm btn-delete"
-                                            onclick={() => deleteSnippet(snippet.id, snippet.name)}
+                                            onclick={() =>
+                                                deleteSnippet(
+                                                    snippet.id,
+                                                    snippet.name,
+                                                )}
                                             title="Delete"
                                         >
-                                            <StatusIcon status="trash" size={14} />
+                                            <StatusIcon
+                                                status="trash"
+                                                size={14}
+                                            />
                                         </button>
                                     </div>
                                 </div>
@@ -272,14 +352,16 @@
                     <div class="marketplace-controls">
                         <div class="search-box">
                             <StatusIcon status="search" size={14} />
-                            <input 
-                                type="text" 
+                            <input
+                                type="text"
                                 placeholder="Search snippets..."
                                 bind:value={marketplaceSearch}
-                                onkeydown={(e) => e.key === 'Enter' && loadMarketplaceSnippets()}
+                                onkeydown={(e) =>
+                                    e.key === "Enter" &&
+                                    loadMarketplaceSnippets()}
                             />
                         </div>
-                        <select 
+                        <select
                             class="category-select"
                             bind:value={marketplaceCategory}
                             onchange={() => loadMarketplaceSnippets()}
@@ -301,7 +383,9 @@
                         </div>
                     {:else if marketplaceSnippets.length === 0}
                         <div class="empty-state">
-                            <div class="empty-icon"><StatusIcon status="grid" size={32} /></div>
+                            <div class="empty-icon">
+                                <StatusIcon status="grid" size={32} />
+                            </div>
                             <p>No snippets found in marketplace.</p>
                         </div>
                     {:else}
@@ -310,36 +394,55 @@
                                 <div class="snippet-card marketplace-card">
                                     <div class="snippet-header">
                                         <div class="snippet-icon">
-                                            <StatusIcon status={snippet.category || 'file'} size={16} />
+                                            <StatusIcon
+                                                status={snippet.category ||
+                                                    "file"}
+                                                size={16}
+                                            />
                                         </div>
                                         <div class="snippet-meta">
-                                            <div class="snippet-name">{snippet.name}</div>
+                                            <div class="snippet-name">
+                                                {snippet.name}
+                                            </div>
                                             {#if snippet.username}
-                                                <div class="snippet-author">by {snippet.username}</div>
+                                                <div class="snippet-author">
+                                                    by {snippet.username}
+                                                </div>
                                             {/if}
                                         </div>
                                         {#if snippet.usage_count}
-                                            <div class="snippet-uses">{snippet.usage_count} uses</div>
+                                            <div class="snippet-uses">
+                                                {snippet.usage_count} uses
+                                            </div>
                                         {/if}
                                     </div>
                                     {#if snippet.description}
-                                        <div class="snippet-desc">{snippet.description}</div>
+                                        <div class="snippet-desc">
+                                            {snippet.description}
+                                        </div>
                                     {/if}
-                                    <div class="snippet-preview">{snippet.content}</div>
+                                    <div class="snippet-preview">
+                                        {snippet.content}
+                                    </div>
                                     <div class="snippet-actions">
                                         {#if snippet.install_command}
-                                            <button 
+                                            <button
                                                 class="btn btn-secondary btn-sm"
                                                 onclick={() => {
-                                                    navigator.clipboard.writeText(snippet.install_command || '');
-                                                    toast.success("Install command copied!");
+                                                    navigator.clipboard.writeText(
+                                                        snippet.install_command ||
+                                                            "",
+                                                    );
+                                                    toast.success(
+                                                        "Install command copied!",
+                                                    );
                                                 }}
                                                 title="Copy install command"
                                             >
                                                 Install
                                             </button>
                                         {/if}
-                                        <button 
+                                        <button
                                             class="btn btn-primary btn-sm"
                                             onclick={() => runSnippet(snippet)}
                                             title="Run in terminal"
@@ -353,35 +456,52 @@
                     {/if}
                 {:else}
                     <div class="create-form">
+                        <div class="form-header">
+                            <h3>
+                                {editingSnippet
+                                    ? "Edit Snippet"
+                                    : "Create Snippet"}
+                            </h3>
+                        </div>
                         <div class="form-group">
                             <label for="snip-name">Name</label>
-                            <input 
-                                id="snip-name" 
-                                type="text" 
-                                bind:value={newName} 
-                                placeholder="e.g. Install Node.js"
+                            <input
+                                id="snip-name"
+                                type="text"
                                 class="input"
+                                placeholder="e.g., Git Status"
+                                bind:value={newName}
                             />
                         </div>
                         <div class="form-group">
                             <label for="snip-content">Command / Script</label>
-                            <textarea 
-                                id="snip-content" 
-                                bind:value={newContent} 
-                                placeholder="npm install -g ..."
+                            <textarea
+                                id="snip-content"
                                 class="input textarea"
-                                rows="6"
+                                placeholder="e.g., git status -sb"
+                                bind:value={newContent}
                             ></textarea>
-                            <p class="hint">Multi-line scripts will be executed sequentially.</p>
+                            <p class="hint">
+                                Tip: Multi-line scripts are supported
+                            </p>
                         </div>
                         <div class="form-actions">
-                            <button class="btn btn-secondary" onclick={() => activeTab = "list"}>Cancel</button>
-                            <button 
-                                class="btn btn-primary" 
-                                onclick={createSnippet}
-                                disabled={isCreating || !newName.trim() || !newContent.trim()}
+                            <button
+                                class="btn btn-secondary"
+                                onclick={cancelEditing}>Cancel</button
                             >
-                                {isCreating ? "Saving..." : "Save Snippet"}
+                            <button
+                                class="btn btn-primary"
+                                onclick={createSnippet}
+                                disabled={isCreating ||
+                                    !newName.trim() ||
+                                    !newContent.trim()}
+                            >
+                                {isCreating
+                                    ? "Saving..."
+                                    : editingSnippet
+                                      ? "Update Snippet"
+                                      : "Save Snippet"}
                             </button>
                         </div>
                     </div>
@@ -632,13 +752,30 @@
         color: #ff6b6b;
     }
 
+    .btn-edit:hover {
+        background: rgba(100, 180, 255, 0.2);
+        color: #64b5f6;
+    }
+
+    .form-header {
+        margin-bottom: 16px;
+    }
+
+    .form-header h3 {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text);
+        margin: 0;
+    }
+
     .btn-sm {
         padding: 4px 10px;
         font-size: 11px;
     }
 
     /* Loading/Empty */
-    .loading-state, .empty-state {
+    .loading-state,
+    .empty-state {
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -662,7 +799,11 @@
         color: var(--accent);
     }
 
-    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
 
     /* Marketplace Styles */
     .marketplace-controls {
