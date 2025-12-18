@@ -1003,7 +1003,8 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 	var execConfig container.ExecOptions
 	if isMacOS {
 		// macOS containers don't use tmux (yet)
-		shell := h.detectShell(ctx, session.ContainerID, imageType)
+		// Use /bin/bash directly for macOS - no detection needed
+		shell := "/bin/bash"
 		execConfig = container.ExecOptions{
 			AttachStdin:  true,
 			AttachStdout: true,
@@ -1252,6 +1253,13 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 			log.Printf("[Terminal] Default resize failed for %s: %v", session.ContainerID[:12], err)
 		}
 	}
+
+	// Send shell_ready message after attach succeeds - terminal is now usable
+	session.SendMessage(TerminalMessage{
+		Type: "shell_ready",
+		Data: "Shell ready",
+	})
+	log.Printf("[Terminal] Shell ready for %s (total setup: %v)", session.ContainerID[:12], time.Since(execStartTime))
 
 	// Handle bidirectional communication
 	var wg sync.WaitGroup
