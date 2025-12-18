@@ -1824,11 +1824,12 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 		Progress: 80,
 	})
 
-	// Stage 4: Starting
+	// Stage 4: Starting - IMMEDIATELY send container_id so terminal can connect
 	sendEvent(container.ProgressEvent{
-		Stage:    "starting",
-		Message:  "Starting container...",
-		Progress: 85,
+		Stage:       "starting",
+		Message:     "Starting container - connecting terminal...",
+		Progress:    85,
+		ContainerID: info.ID, // Send container_id early for instant terminal connection
 	})
 
 	// Determine the image name for storage
