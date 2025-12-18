@@ -654,6 +654,10 @@ function createTerminalStore() {
         };
       });
 
+      // Connect WebSocket immediately - don't wait for component mount
+      // This starts the connection while xterm is still being attached to DOM
+      this.connectWebSocket(sessionId);
+
       // Update URL to reflect active terminal
       this.updateUrl(containerId);
 
