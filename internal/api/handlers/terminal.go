@@ -312,7 +312,7 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 		lookupStart := time.Now()
 
 		// Add timeout to prevent hanging on slow DB queries
-		dbCtx, dbCancel := context.WithTimeout(reqCtx, 3*time.Second)
+		dbCtx, dbCancel := context.WithTimeout(reqCtx, 5*time.Second)
 		defer dbCancel()
 
 		// Check if it looks like a Docker ID (64 hex chars) or DB UUID (36 chars with dashes)
@@ -392,14 +392,14 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 		// For newly created containers, they should be in cache immediately (single-replica)
 		// For multi-replica, container should be found via DB lookup above
 		// Only do Docker sync as last resort (e.g., server restart, orphaned container)
-		// Use a short timeout to avoid blocking terminal connections for too long.
+		// Use a reasonable timeout for Docker sync
 		syncStart := time.Now()
-		syncCtx, syncCancel := context.WithTimeout(reqCtx, 2*time.Second)
+		syncCtx, syncCancel := context.WithTimeout(reqCtx, 5*time.Second)
 		if err := h.containerManager.LoadExistingContainers(syncCtx); err != nil {
 			log.Printf("[Terminal] Failed to sync containers after %v: %v", time.Since(syncStart), err)
 		} else {
 			syncDuration := time.Since(syncStart)
-			if syncDuration > 1*time.Second {
+			if syncDuration > 2*time.Second {
 				log.Printf("[Terminal] SLOW Docker sync completed in %v - consider checking Docker daemon performance", syncDuration)
 			} else {
 				log.Printf("[Terminal] Docker sync completed in %v", syncDuration)
