@@ -1074,52 +1074,38 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 			dbCancel()
 		}
 
-		// Fall back to detection if not cached and not configuring
+		// Fall back to /bin/sh for immediate connection if not cached
+		// Do detection in background for future connections
 		if !shellCached {
-			detectStart := time.Now()
-			shell = h.detectShell(ctx, session.ContainerID, imageType)
-			detectDuration := time.Since(detectStart)
-			if detectDuration > 500*time.Millisecond {
-				log.Printf("[Terminal] Slow shell detection for %s: %v", session.ContainerID[:12], detectDuration)
-			}
+			// Use /bin/sh immediately for fastest connection
+			shell = "/bin/sh"
+			hasTmux = false
+			log.Printf("[Terminal] Using fast /bin/sh for immediate connection to %s", session.ContainerID[:12])
 
-			// Check tmux cache or detect (tmux is optional, not default)
-			h.mu.RLock()
-			tmuxCached, tmuxInCache := h.tmuxCache[session.ContainerID]
-			h.mu.RUnlock()
+			// Detect proper shell in background and cache for next connection
+			go func(containerID, imgType string) {
+				bgCtx, bgCancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer bgCancel()
 
-			if tmuxInCache {
-				hasTmux = tmuxCached
-			} else {
-				tmuxCheckStart := time.Now()
-				hasTmux = h.commandExists(ctx, session.ContainerID, "tmux")
-				tmuxCheckDuration := time.Since(tmuxCheckStart)
-				if tmuxCheckDuration > 300*time.Millisecond {
-					log.Printf("[Terminal] Slow tmux detection for %s: %v", session.ContainerID[:12], tmuxCheckDuration)
-				}
+				detectedShell := h.detectShell(bgCtx, containerID, imgType)
+				detectedTmux := h.commandExists(bgCtx, containerID, "tmux")
+
+				// Update caches
 				h.mu.Lock()
-				h.tmuxCache[session.ContainerID] = hasTmux
+				h.shellCache[containerID] = detectedShell
+				h.tmuxCache[containerID] = detectedTmux
 				h.mu.Unlock()
-			}
 
-			// Cache shell metadata to DB for future connections (async to avoid delay)
-			// This helps with multi-replica scenarios and reconnections
-			if h.store != nil && shell != "" {
-				go func(dockerID, detectedShell string, detectedTmux bool) {
-					cacheCtx, cacheCancel := context.WithTimeout(context.Background(), 3*time.Second)
-					defer cacheCancel()
-					// Look up DB UUID by Docker ID
-					if dbContainer, err := h.store.GetContainerByDockerID(cacheCtx, dockerID); err == nil && dbContainer != nil {
-						if err := h.store.UpdateContainerShellMetadata(cacheCtx, dbContainer.ID, detectedShell, detectedTmux, true); err != nil {
-							log.Printf("[Terminal] Failed to cache shell metadata for %s: %v", dockerID[:12], err)
-						} else {
-							log.Printf("[Terminal] Cached detected shell metadata for %s: shell=%s, tmux=%v", dockerID[:12], detectedShell, detectedTmux)
-						}
+				// Cache to DB for multi-replica scenarios
+				if h.store != nil && detectedShell != "" {
+					dbCtx, dbCancel := context.WithTimeout(context.Background(), 3*time.Second)
+					defer dbCancel()
+					if dbContainer, err := h.store.GetContainerByDockerID(dbCtx, containerID); err == nil && dbContainer != nil {
+						h.store.UpdateContainerShellMetadata(dbCtx, dbContainer.ID, detectedShell, detectedTmux, true)
 					}
-				}(session.ContainerID, shell, hasTmux)
-			}
-
-			log.Printf("[Terminal] Detected shell for %s: shell=%s, tmux=%v (detection took %v)", session.ContainerID[:12], shell, hasTmux, detectDuration)
+				}
+				log.Printf("[Terminal] Background shell detection complete for %s: shell=%s, tmux=%v", containerID[:12], detectedShell, detectedTmux)
+			}(session.ContainerID, imageType)
 		}
 
 		// Check for user preference via label (disable tmux if requested)
