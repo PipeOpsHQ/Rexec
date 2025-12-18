@@ -1143,6 +1143,8 @@
 
     function goToCreate() {
         currentView = "create";
+        // Preload terminal store so it's ready when container is created
+        ensureTerminalStore();
     }
 
     function goToSettings() {

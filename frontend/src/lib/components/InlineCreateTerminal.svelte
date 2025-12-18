@@ -502,6 +502,9 @@
         // Load roles from API (cached)
         roles.load();
 
+        // Preload xterm modules eagerly so terminal is ready instantly
+        preloadXterm();
+
         // Select default image based on role
         if (selectedRole && roleToOS[selectedRole]) {
             selectedImage = roleToOS[selectedRole];
