@@ -1177,6 +1177,22 @@ func runServer() {
 			c.File(indexFile)
 		})
 
+		router.GET("/account/snippets", func(c *gin.Context) {
+			serveSEO(c, snippetsSEO)
+		})
+
+		router.GET("/account/ssh", func(c *gin.Context) {
+			c.File(indexFile)
+		})
+
+		router.GET("/account/sshkeys", func(c *gin.Context) {
+			c.File(indexFile)
+		})
+
+		router.GET("/account/billing", func(c *gin.Context) {
+			c.File(indexFile)
+		})
+
 		// Also support direct container ID or agent URL in URL path
 		router.GET("/:id", func(c *gin.Context) {
 			id := c.Param("id")
