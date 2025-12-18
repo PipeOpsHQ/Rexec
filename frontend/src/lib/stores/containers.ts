@@ -374,7 +374,7 @@ function createContainersStore() {
       creationTimeout = setTimeout(() => {
         cleanup();
         update((state) => ({ ...state, creating: null }));
-        onError?.("Terminal creation timed out. Please check your connection and try again.");
+        onError?.("Terminal creation is taking longer than expected. Please try again.");
       }, 120000); // 2 minute timeout
 
       // Make the POST request to start container creation

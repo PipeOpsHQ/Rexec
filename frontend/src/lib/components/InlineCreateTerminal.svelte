@@ -602,21 +602,6 @@
             </div>
             <div class="error-content">
                 <p class="error-message">{errorMessage}</p>
-                {#if errorMessage.includes("tcp://") || errorMessage.includes("docker") || errorMessage.includes("connect")}
-                    <div class="error-hint">
-                        <p>
-                            This may indicate an issue with the Docker host.
-                            Check that:
-                        </p>
-                        <ul>
-                            <li>
-                                The Docker daemon is running on the remote host
-                            </li>
-                            <li>TLS certificates are properly configured</li>
-                            <li>Firewall rules allow the connection</li>
-                        </ul>
-                    </div>
-                {/if}
             </div>
             <button
                 class="retry-btn"
