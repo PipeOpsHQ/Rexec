@@ -215,12 +215,12 @@
         if (isDragging || isResizing) {
             isDragging = false;
             isResizing = false;
-            // Fit terminals after resize
-            setTimeout(() => terminal.fitAll(), 50);
+            // Fit terminals after resize - immediate for instant feedback
+            terminal.fitAll();
         }
         if (isResizingDocked) {
             isResizingDocked = false;
-            setTimeout(() => terminal.fitAll(), 50);
+            terminal.fitAll();
         }
     }
 
@@ -257,7 +257,7 @@
     function handleDockedTouchEnd() {
         if (isResizingDocked) {
             isResizingDocked = false;
-            setTimeout(() => terminal.fitAll(), 50);
+            terminal.fitAll();
         }
     }
 
