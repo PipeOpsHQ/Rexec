@@ -765,9 +765,10 @@ function createTerminalStore() {
         const currentState = getState().sessions.get(sessionId);
         const isReconnect = currentState?.hasConnectedOnce === true;
 
-        // Don't set status to "connected" yet - wait for shell_ready message
+        // Set to connected immediately - shell setup happens in background
         updateSession(sessionId, (s) => ({
           ...s,
+          status: "connected",
           reconnectAttempts: 0,
           hasConnectedOnce: true,
         }));
@@ -2288,13 +2289,12 @@ function createTerminalStore() {
       const ws = createRexecWebSocket(wsUrl, authToken);
 
       ws.onopen = () => {
-        // Don't set status to "connected" yet - wait for shell_ready message
-        // Reset reconnect attempts on successful connection
+        // Set to connected immediately - shell setup happens in background
         updateSession(sessionId, (s) => {
           const newPanes = new Map(s.splitPanes);
           const p = newPanes.get(paneId);
           if (p) {
-            newPanes.set(paneId, { ...p, reconnectAttempts: 0 });
+            newPanes.set(paneId, { ...p, status: "connected", reconnectAttempts: 0 });
           }
           return { ...s, splitPanes: newPanes };
         });
