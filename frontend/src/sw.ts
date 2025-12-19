@@ -1,51 +1,63 @@
 /// <reference lib="webworker" />
-import { precacheAndRoute, cleanupOutdatedCaches, createHandlerBoundToURL } from 'workbox-precaching';
-import { registerRoute, NavigationRoute } from 'workbox-routing';
-import { CacheFirst, StaleWhileRevalidate, NetworkOnly } from 'workbox-strategies';
-import { ExpirationPlugin } from 'workbox-expiration';
-import { CacheableResponsePlugin } from 'workbox-cacheable-response';
+import {
+  precacheAndRoute,
+  cleanupOutdatedCaches,
+  createHandlerBoundToURL,
+} from "workbox-precaching";
+import { registerRoute, NavigationRoute } from "workbox-routing";
+import {
+  CacheFirst,
+  StaleWhileRevalidate,
+  NetworkOnly,
+} from "workbox-strategies";
+import { ExpirationPlugin } from "workbox-expiration";
+import { CacheableResponsePlugin } from "workbox-cacheable-response";
 
 declare let self: ServiceWorkerGlobalScope;
 
 // ===========================================
 // CACHE VERSION - INCREMENT TO FORCE REFRESH
 // ===========================================
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = "v4";
 
 // Clean up old caches
 cleanupOutdatedCaches();
 
 // Force clear ALL caches when version changes
 // This also calls skipWaiting to ensure Safari picks up changes immediately
-self.addEventListener('install', (event) => {
-  console.log('[SW] Installing version:', CACHE_VERSION);
+self.addEventListener("install", (event) => {
+  console.log("[SW] Installing version:", CACHE_VERSION);
   // Force the new service worker to activate immediately (important for Safari)
   event.waitUntil(self.skipWaiting());
 });
 
-self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating version:', CACHE_VERSION);
+self.addEventListener("activate", (event) => {
+  console.log("[SW] Activating version:", CACHE_VERSION);
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          // Delete ALL caches on version change to ensure fresh start
-          // This is aggressive but ensures Safari and all browsers get fresh content
-          console.log('[SW] Deleting cache:', cacheName);
-          return caches.delete(cacheName);
-        })
-      );
-    }).then(() => {
-      console.log('[SW] All caches cleared, claiming clients');
-      return self.clients.claim();
-    }).then(() => {
-      // Notify all clients to reload (important for Safari)
-      return self.clients.matchAll({ type: 'window' }).then((clients) => {
-        clients.forEach((client) => {
-          client.postMessage({ type: 'SW_UPDATED', version: CACHE_VERSION });
+    caches
+      .keys()
+      .then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => {
+            // Delete ALL caches on version change to ensure fresh start
+            // This is aggressive but ensures Safari and all browsers get fresh content
+            console.log("[SW] Deleting cache:", cacheName);
+            return caches.delete(cacheName);
+          }),
+        );
+      })
+      .then(() => {
+        console.log("[SW] All caches cleared, claiming clients");
+        return self.clients.claim();
+      })
+      .then(() => {
+        // Notify all clients to reload (important for Safari)
+        return self.clients.matchAll({ type: "window" }).then((clients) => {
+          clients.forEach((client) => {
+            client.postMessage({ type: "SW_UPDATED", version: CACHE_VERSION });
+          });
         });
-      });
-    })
+      }),
   );
 });
 
@@ -72,84 +84,86 @@ try {
 
 // Cache Google Fonts with CacheFirst (they never change)
 registerRoute(
-  ({ url }) => url.origin === 'https://fonts.googleapis.com' || url.origin === 'https://fonts.gstatic.com',
+  ({ url }) =>
+    url.origin === "https://fonts.googleapis.com" ||
+    url.origin === "https://fonts.gstatic.com",
   new CacheFirst({
-    cacheName: 'google-fonts',
+    cacheName: "google-fonts",
     plugins: [
       new CacheableResponsePlugin({ statuses: [0, 200] }),
-      new ExpirationPlugin({ maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 }), // 1 year
+      new ExpirationPlugin({
+        maxEntries: 30,
+        maxAgeSeconds: 60 * 60 * 24 * 365,
+      }), // 1 year
     ],
-  })
+  }),
 );
 
 // Cache static reference API data with StaleWhileRevalidate
 // These change infrequently, so show cached version immediately and update in background
 registerRoute(
-  ({ url }) => 
-    url.pathname === '/api/roles' || 
-    url.pathname === '/api/images' || 
-    url.pathname === '/api/billing/plans',
+  ({ url }) =>
+    url.pathname === "/api/roles" ||
+    url.pathname === "/api/images" ||
+    url.pathname === "/api/billing/plans",
   new StaleWhileRevalidate({
-    cacheName: 'api-static-data',
+    cacheName: "api-static-data",
     plugins: [
       new CacheableResponsePlugin({ statuses: [0, 200] }),
       new ExpirationPlugin({ maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 }), // 24 hours
     ],
-  })
+  }),
 );
 
 // NEVER cache dynamic API endpoints - terminal app needs real-time data
 // This includes: containers, auth, billing status, recordings, collab, etc.
 registerRoute(
-  ({ url }) => 
-    url.pathname.startsWith('/api/') && 
-    url.pathname !== '/api/roles' && 
-    url.pathname !== '/api/images' && 
-    url.pathname !== '/api/billing/plans',
-  new NetworkOnly()
+  ({ url }) =>
+    url.pathname.startsWith("/api/") &&
+    url.pathname !== "/api/roles" &&
+    url.pathname !== "/api/images" &&
+    url.pathname !== "/api/billing/plans",
+  new NetworkOnly(),
 );
 
 // NEVER cache port forward proxies - they're dynamic HTTP tunnels
-registerRoute(
-  ({ url }) => url.pathname.startsWith('/p/'),
-  new NetworkOnly()
-);
+registerRoute(({ url }) => url.pathname.startsWith("/p/"), new NetworkOnly());
 
 // NEVER cache recording streams
-registerRoute(
-  ({ url }) => url.pathname.startsWith('/r/'),
-  new NetworkOnly()
-);
+registerRoute(({ url }) => url.pathname.startsWith("/r/"), new NetworkOnly());
 
 // Handle navigation requests - serve index.html for SPA routing
 // This uses the precached index.html for all navigation requests (App Shell model)
-const handler = createHandlerBoundToURL('index.html');
+const handler = createHandlerBoundToURL("index.html");
 registerRoute(
   new NavigationRoute(handler, {
     // Don't intercept these paths - let them go to the server
     denylist: [
-      /^\/api/,      // API calls
-      /^\/ws/,       // WebSockets
-      /^\/r\//,      // Recording streams
-      /^\/p\//,      // Port forward proxies
-      /^\/health/,   // Health check
+      /^\/api/, // API calls
+      /^\/ws/, // WebSockets
+      /^\/r\//, // Recording streams
+      /^\/p\//, // Port forward proxies
+      /^\/health/, // Health check
     ],
-  })
+  }),
 );
 
 // Skip waiting only when explicitly requested (e.g. by user clicking 'Update')
 // This prevents disrupting active terminal sessions
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
   }
   // Allow forcing a full cache clear from the app
-  if (event.data && event.data.type === 'CLEAR_ALL_CACHES') {
-    caches.keys().then((cacheNames) => {
-      return Promise.all(cacheNames.map((name) => caches.delete(name)));
-    }).then(() => {
-      console.log('[SW] All caches cleared');
-      self.skipWaiting();
-    });
+  if (event.data && event.data.type === "CLEAR_ALL_CACHES") {
+    caches
+      .keys()
+      .then((cacheNames) => {
+        return Promise.all(cacheNames.map((name) => caches.delete(name)));
+      })
+      .then(() => {
+        console.log("[SW] All caches cleared");
+        self.skipWaiting();
+      });
   }
 });

@@ -524,7 +524,7 @@ func runServer() {
 	// Gzip compression for faster transfers (skip WebSocket)
 	router.Use(gzip.Gzip(gzip.DefaultCompression, gzip.WithExcludedPaths([]string{"/ws/", "/ws/admin/events"})))
 
-	// Cache control middleware for static assets
+	// Cache control middleware for static assets and HTML pages
 	router.Use(func(c *gin.Context) {
 		path := c.Request.URL.Path
 		// Service worker - check order matters! Must be before generic .js check
@@ -536,6 +536,24 @@ func runServer() {
 			c.Header("Cache-Control", "public, max-age=31536000, immutable")
 		} else if strings.HasSuffix(path, ".js") || strings.HasSuffix(path, ".css") {
 			c.Header("Cache-Control", "public, max-age=86400")
+		} else if strings.HasSuffix(path, ".html") ||
+			path == "/" ||
+			strings.HasPrefix(path, "/terminal/") ||
+			strings.HasPrefix(path, "/agent:") ||
+			strings.HasPrefix(path, "/join/") ||
+			strings.HasPrefix(path, "/use-cases/") ||
+			strings.HasPrefix(path, "/account") ||
+			path == "/pricing" ||
+			path == "/guides" ||
+			path == "/marketplace" ||
+			path == "/admin" ||
+			path == "/billing" ||
+			path == "/docs" ||
+			path == "/agents" {
+			// HTML pages and SPA routes - no caching to ensure fresh content
+			c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
+			c.Header("Pragma", "no-cache")
+			c.Header("Expires", "0")
 		}
 		c.Next()
 	})
