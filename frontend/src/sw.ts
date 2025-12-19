@@ -18,7 +18,7 @@ declare let self: ServiceWorkerGlobalScope;
 // ===========================================
 // CACHE VERSION - INCREMENT TO FORCE REFRESH
 // ===========================================
-const CACHE_VERSION = "v4";
+const CACHE_VERSION = "v5";
 
 // Clean up old caches
 cleanupOutdatedCaches();
@@ -133,8 +133,9 @@ registerRoute(({ url }) => url.pathname.startsWith("/p/"), new NetworkOnly());
 registerRoute(({ url }) => url.pathname.startsWith("/r/"), new NetworkOnly());
 
 // Handle navigation requests - serve index.html for SPA routing
-// This uses the precached index.html for all navigation requests (App Shell model)
-const handler = createHandlerBoundToURL("index.html");
+// This uses the precached root URL for all navigation requests (App Shell model)
+// Note: Using "/" instead of "index.html" to avoid redirect issues
+const handler = createHandlerBoundToURL("/");
 registerRoute(
   new NavigationRoute(handler, {
     // Don't intercept these paths - let them go to the server

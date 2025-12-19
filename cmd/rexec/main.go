@@ -1024,7 +1024,10 @@ func runServer() {
 		}
 
 		router.StaticFile("/", indexFile)
-		router.StaticFile("/index.html", indexFile)
+		// Explicitly handle /index.html to avoid redirect issues with Service Worker
+		router.GET("/index.html", func(c *gin.Context) {
+			c.File(indexFile)
+		})
 		router.Static("/assets", filepath.Join(webDir, "assets"))
 		router.StaticFile("/favicon.ico", filepath.Join(webDir, "favicon.svg")) // Serve SVG for .ico requests
 		router.StaticFile("/favicon.svg", filepath.Join(webDir, "favicon.svg"))
