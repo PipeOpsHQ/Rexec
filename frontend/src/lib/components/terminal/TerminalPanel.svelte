@@ -47,6 +47,42 @@
         session?.status === "connecting" &&
         !session?.hasConnectedOnce;
     let connectingStartTime = Date.now();
+    let connectingElapsed = 0;
+    let connectingTimer: ReturnType<typeof setInterval> | null = null;
+
+    // Check for slow connection using Network Information API
+    const isSlowConnection = (() => {
+        const nav = navigator as Navigator & {
+            connection?: {
+                effectiveType?: string;
+                saveData?: boolean;
+            };
+        };
+        if (nav.connection) {
+            const type = nav.connection.effectiveType;
+            return (
+                type === "slow-2g" ||
+                type === "2g" ||
+                nav.connection.saveData === true
+            );
+        }
+        return false;
+    })();
+
+    // Start/stop elapsed timer when overlay shows
+    $: if (showConnectingOverlay && !connectingTimer) {
+        connectingStartTime = Date.now();
+        connectingElapsed = 0;
+        connectingTimer = setInterval(() => {
+            connectingElapsed = Math.floor(
+                (Date.now() - connectingStartTime) / 1000,
+            );
+        }, 1000);
+    } else if (!showConnectingOverlay && connectingTimer) {
+        clearInterval(connectingTimer);
+        connectingTimer = null;
+        connectingElapsed = 0;
+    }
 
     // More actions dropdown state
     let showMoreMenu = false;
@@ -1084,7 +1120,25 @@
             <div class="connecting-content">
                 <div class="connecting-spinner"></div>
                 <span class="connecting-text">Connecting to terminal...</span>
-                <span class="connecting-subtext">Loading terminal modules</span>
+                <span class="connecting-subtext">
+                    {#if connectingElapsed > 0}
+                        {connectingElapsed}s
+                        {#if isSlowConnection}
+                            · Slow network detected
+                        {:else if connectingElapsed > 5}
+                            · Loading terminal modules
+                        {:else}
+                            · Establishing connection
+                        {/if}
+                    {:else}
+                        Initializing...
+                    {/if}
+                </span>
+                {#if connectingElapsed > 10}
+                    <span class="connecting-hint">
+                        Taking longer than usual. Check your connection.
+                    </span>
+                {/if}
             </div>
         </div>
     {/if}
@@ -1266,16 +1320,17 @@
         flex-direction: column;
         align-items: center;
         gap: 12px;
-        color: var(--text);
+        padding: 24px;
+        text-align: center;
     }
 
     .connecting-spinner {
-        width: 40px;
-        height: 40px;
-        border: 3px solid var(--border);
-        border-top-color: var(--green);
+        width: 32px;
+        height: 32px;
+        border: 3px solid rgba(0, 255, 170, 0.2);
+        border-top-color: var(--accent, #00ffaa);
         border-radius: 50%;
-        animation: spin 1s linear infinite;
+        animation: spin 0.8s linear infinite;
     }
 
     @keyframes spin {
@@ -1286,13 +1341,22 @@
 
     .connecting-text {
         font-size: 16px;
-        font-weight: 500;
-        color: var(--text);
+        font-weight: 600;
+        color: #fff;
     }
 
     .connecting-subtext {
+        font-size: 13px;
+        color: #888;
+    }
+
+    .connecting-hint {
         font-size: 12px;
-        color: var(--text-muted);
+        color: var(--yellow, #fce00a);
+        margin-top: 8px;
+        padding: 8px 12px;
+        background: rgba(252, 224, 10, 0.1);
+        border-radius: 6px;
     }
 
     .terminal-status.connecting .status-indicator {
