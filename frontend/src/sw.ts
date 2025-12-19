@@ -1,14 +1,11 @@
 /// <reference lib="webworker" />
-import {
-  precacheAndRoute,
-  cleanupOutdatedCaches,
-  createHandlerBoundToURL,
-} from "workbox-precaching";
+import { precacheAndRoute, cleanupOutdatedCaches } from "workbox-precaching";
 import { registerRoute, NavigationRoute } from "workbox-routing";
 import {
   CacheFirst,
   StaleWhileRevalidate,
   NetworkOnly,
+  NetworkFirst,
 } from "workbox-strategies";
 import { ExpirationPlugin } from "workbox-expiration";
 import { CacheableResponsePlugin } from "workbox-cacheable-response";
@@ -18,7 +15,7 @@ declare let self: ServiceWorkerGlobalScope;
 // ===========================================
 // CACHE VERSION - INCREMENT TO FORCE REFRESH
 // ===========================================
-const CACHE_VERSION = "v5";
+const CACHE_VERSION = "v6";
 
 // Clean up old caches
 cleanupOutdatedCaches();
@@ -133,20 +130,26 @@ registerRoute(({ url }) => url.pathname.startsWith("/p/"), new NetworkOnly());
 registerRoute(({ url }) => url.pathname.startsWith("/r/"), new NetworkOnly());
 
 // Handle navigation requests - serve index.html for SPA routing
-// This uses the precached root URL for all navigation requests (App Shell model)
-// Note: Using "/" instead of "index.html" to avoid redirect issues
-const handler = createHandlerBoundToURL("/");
+// Use NetworkFirst strategy to avoid issues with precache URL mismatches
+// Falls back to cache if network fails, ensuring offline support
 registerRoute(
-  new NavigationRoute(handler, {
-    // Don't intercept these paths - let them go to the server
-    denylist: [
-      /^\/api/, // API calls
-      /^\/ws/, // WebSockets
-      /^\/r\//, // Recording streams
-      /^\/p\//, // Port forward proxies
-      /^\/health/, // Health check
-    ],
-  }),
+  new NavigationRoute(
+    new NetworkFirst({
+      cacheName: "navigation-cache",
+      plugins: [new CacheableResponsePlugin({ statuses: [0, 200] })],
+      networkTimeoutSeconds: 3,
+    }),
+    {
+      // Don't intercept these paths - let them go to the server
+      denylist: [
+        /^\/api/, // API calls
+        /^\/ws/, // WebSockets
+        /^\/r\//, // Recording streams
+        /^\/p\//, // Port forward proxies
+        /^\/health/, // Health check
+      ],
+    },
+  ),
 );
 
 // Skip waiting only when explicitly requested (e.g. by user clicking 'Update')
