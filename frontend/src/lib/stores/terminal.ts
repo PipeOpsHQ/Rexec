@@ -800,9 +800,16 @@ function createTerminalStore() {
       const getCurrentSession = () => getState().sessions.get(sessionId);
 
       // Helper to wait for terminal to be ready (with timeout)
+      // Increased timeout for mobile networks which may be slower to load xterm modules
+      const isMobile =
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+          navigator.userAgent,
+        );
+      const defaultMaxWait = isMobile ? 15000 : 8000; // 15s for mobile, 8s for desktop
+
       const waitForTerminal = (
         callback: (terminal: Terminal) => void,
-        maxWait = 5000,
+        maxWait = defaultMaxWait,
       ) => {
         const startTime = Date.now();
         const check = () => {

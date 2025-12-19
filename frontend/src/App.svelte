@@ -11,7 +11,7 @@
     import { collab } from "$stores/collab";
     import { theme } from "$stores/theme";
     import { syncCanonicalTags, syncSocialImageTags } from "$utils/seo";
-    import { preloadXterm } from "$utils/xterm";
+    import { preloadXterm, preloadXtermWithRetry } from "$utils/xterm";
 
     // Components (eager)
     import Header from "$components/Header.svelte";
@@ -1170,6 +1170,22 @@
                     // Fetch containers for authenticated users
                     await containers.fetchContainers();
                     startAutoRefresh(); // Start polling for container updates
+
+                    // Preload xterm modules immediately for authenticated users
+                    // This significantly improves terminal connection speed on mobile
+                    // Use aggressive retry for mobile networks
+                    const isMobile =
+                        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+                            navigator.userAgent,
+                        );
+                    if (isMobile) {
+                        preloadXtermWithRetry(3);
+                    } else {
+                        preloadXterm();
+                    }
+                    // Also preload terminal store and view component
+                    ensureTerminalStore();
+                    preloadComponent("terminalView");
 
                     // Refresh security state
                     import("$stores/security").then(({ security }) => {

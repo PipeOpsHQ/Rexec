@@ -30,9 +30,23 @@
 
     const dispatch = createEventDispatcher();
 
+    // Detect mobile for showing loading overlay
+    const isMobile =
+        typeof navigator !== "undefined" &&
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+            navigator.userAgent,
+        );
+
     // Track connected status for showing brief "connected" indicator
     let showConnectedIndicator = false;
     let previousStatus = session?.status;
+
+    // Track if we should show the connecting overlay (mobile only, first connect)
+    let showConnectingOverlay =
+        isMobile &&
+        session?.status === "connecting" &&
+        !session?.hasConnectedOnce;
+    let connectingStartTime = Date.now();
 
     // More actions dropdown state
     let showMoreMenu = false;
@@ -53,11 +67,28 @@
     // Show connected indicator briefly when status changes to connected
     $: if (session?.status === "connected" && previousStatus === "connecting") {
         showConnectedIndicator = true;
+        showConnectingOverlay = false;
         setTimeout(() => {
             showConnectedIndicator = false;
         }, 2000);
     }
     $: previousStatus = session?.status;
+
+    // Update connecting overlay state reactively
+    $: {
+        if (
+            isMobile &&
+            session?.status === "connecting" &&
+            !session?.hasConnectedOnce
+        ) {
+            if (!showConnectingOverlay) {
+                showConnectingOverlay = true;
+                connectingStartTime = Date.now();
+            }
+        } else if (session?.status !== "connecting") {
+            showConnectingOverlay = false;
+        }
+    }
 
     // Check if recording this terminal
     $: isRecording =
@@ -1048,6 +1079,16 @@
         </div>
     {/if}
 
+    {#if showConnectingOverlay}
+        <div class="connecting-overlay">
+            <div class="connecting-content">
+                <div class="connecting-spinner"></div>
+                <span class="connecting-text">Connecting to terminal...</span>
+                <span class="connecting-subtext">Loading terminal modules</span>
+            </div>
+        </div>
+    {/if}
+
     {#if isDisconnected}
         <div class="disconnected-overlay">
             <svg
@@ -1203,6 +1244,55 @@
     .terminal-status.connecting {
         border-color: var(--yellow);
         color: var(--yellow);
+    }
+
+    /* Connecting overlay for mobile */
+    .connecting-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.85);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        backdrop-filter: blur(4px);
+    }
+
+    .connecting-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        color: var(--text);
+    }
+
+    .connecting-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid var(--border);
+        border-top-color: var(--green);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .connecting-text {
+        font-size: 16px;
+        font-weight: 500;
+        color: var(--text);
+    }
+
+    .connecting-subtext {
+        font-size: 12px;
+        color: var(--text-muted);
     }
 
     .terminal-status.connecting .status-indicator {

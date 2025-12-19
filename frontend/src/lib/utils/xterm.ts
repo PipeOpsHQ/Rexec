@@ -65,11 +65,59 @@ export async function loadXtermWebgl(): Promise<XtermWebglModule> {
 export function preloadXterm(): void {
   // Start loading core modules immediately (fire-and-forget)
   loadXtermCore().catch(() => {
-    // Ignore errors - will be handled when actually needed
+    // Retry once on failure (common on slow mobile networks)
+    setTimeout(() => {
+      loadXtermCore().catch(() => {
+        // Second failure - will be handled when actually needed
+      });
+    }, 1000);
   });
 
   // Also preload WebGL addon
   loadXtermWebgl().catch(() => {
     // WebGL is optional, ignore errors
   });
+}
+
+/**
+ * Check if xterm core modules are already loaded/cached.
+ * Useful for showing loading indicators on slow connections.
+ */
+export function isXtermLoaded(): boolean {
+  return xtermCorePromise !== null;
+}
+
+/**
+ * Preload xterm with retry logic for mobile networks.
+ * More aggressive retry for unreliable connections.
+ */
+export function preloadXtermWithRetry(maxRetries = 3): Promise<void> {
+  let attempts = 0;
+
+  const tryLoad = (): Promise<void> => {
+    attempts++;
+    return loadXtermCore()
+      .then(() => {
+        // Success - also try webgl
+        loadXtermWebgl().catch(() => {});
+      })
+      .catch((err) => {
+        if (attempts < maxRetries) {
+          // Exponential backoff: 500ms, 1000ms, 2000ms
+          const delay = 500 * Math.pow(2, attempts - 1);
+          return new Promise((resolve) => setTimeout(resolve, delay)).then(
+            tryLoad,
+          );
+        }
+        // Final failure - don't throw, just log
+        console.warn(
+          "[xterm] Failed to preload after",
+          maxRetries,
+          "attempts:",
+          err,
+        );
+      });
+  };
+
+  return tryLoad();
 }
