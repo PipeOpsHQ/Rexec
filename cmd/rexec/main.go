@@ -1102,7 +1102,8 @@ func runServer() {
 		})
 
 		// Terminal URL routes - serve index.html for SPA routing
-		router.GET("/terminal/:id", func(c *gin.Context) {
+		// Use wildcard to handle both container IDs and agent:uuid format
+		router.GET("/terminal/*path", func(c *gin.Context) {
 			c.File(indexFile)
 		})
 
