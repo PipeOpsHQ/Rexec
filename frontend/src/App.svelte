@@ -511,6 +511,17 @@
             // Fetch containers for returning guests
             await containers.fetchContainers();
 
+            // Check for pending terminal URL - redirect after login
+            const pendingTerminalUrl =
+                localStorage.getItem("pendingTerminalUrl");
+            if (pendingTerminalUrl) {
+                localStorage.removeItem("pendingTerminalUrl");
+                window.history.replaceState({}, "", pendingTerminalUrl);
+                await handleTerminalUrl();
+                toast.success("Guest access started! You have 1 hour.");
+                return;
+            }
+
             // Show welcome message
             if (result.returningGuest) {
                 if (result.containerCount > 0) {
@@ -544,15 +555,27 @@
             if (result.success) {
                 // Clear URL params
                 window.history.replaceState({}, "", window.location.pathname);
-                currentView = "dashboard";
                 await containers.fetchContainers();
+
+                // Check for pending terminal URL - redirect after login
+                const pendingTerminalUrl =
+                    localStorage.getItem("pendingTerminalUrl");
+                if (pendingTerminalUrl) {
+                    localStorage.removeItem("pendingTerminalUrl");
+                    window.history.replaceState({}, "", pendingTerminalUrl);
+                    await handleTerminalUrl();
+                    toast.success("Successfully signed in!");
+                    return;
+                }
+
+                currentView = "dashboard";
                 toast.success("Successfully signed in!");
             }
         }
     }
 
     // Handle OAuth postMessage from popup window
-    function handleOAuthMessage(event: MessageEvent) {
+    async function handleOAuthMessage(event: MessageEvent) {
         // Verify origin
         if (event.origin !== window.location.origin) return;
 
@@ -584,6 +607,18 @@
                 if (cliCallback) {
                     localStorage.removeItem("cli_callback");
                     window.location.href = `${cliCallback}?token=${encodeURIComponent(token)}`;
+                    return;
+                }
+
+                // Check for pending terminal URL - redirect after login
+                const pendingTerminalUrl =
+                    localStorage.getItem("pendingTerminalUrl");
+                if (pendingTerminalUrl) {
+                    localStorage.removeItem("pendingTerminalUrl");
+                    window.history.replaceState({}, "", pendingTerminalUrl);
+                    // Re-run route handling to process the terminal URL
+                    await handleTerminalUrl();
+                    toast.success(`Welcome, ${user.name}!`);
                     return;
                 }
 
@@ -886,6 +921,37 @@
             return;
         }
 
+        // Check for pending terminal redirect after authentication
+        const pendingTerminalUrl = localStorage.getItem("pendingTerminalUrl");
+        if (pendingTerminalUrl && get(isAuthenticated)) {
+            localStorage.removeItem("pendingTerminalUrl");
+            // Navigate to the stored terminal URL
+            window.history.replaceState({}, "", pendingTerminalUrl);
+            // Re-run handleTerminalUrl to process the terminal route now that user is authenticated
+            // We need to extract the container ID and open the terminal
+            const termMatch = pendingTerminalUrl.match(
+                /^\/(?:terminal\/)?([a-f0-9]{64}|[a-f0-9-]{36})$/i,
+            );
+            if (termMatch) {
+                const containerId = termMatch[1];
+                preloadComponent("terminalView");
+                import("$utils/xterm").then((mod) => mod.loadXtermCore());
+                const result = await containers.getContainer(containerId);
+                if (result.success && result.container) {
+                    void openTerminalForContainer(
+                        containerId,
+                        result.container.name,
+                        "docked",
+                    );
+                    currentView = "dashboard";
+                } else {
+                    currentView = "404";
+                    toast.error("Terminal session not found or has expired");
+                }
+            }
+            return;
+        }
+
         // Check for popped-out terminal window (?terminal=containerId&name=containerName)
         const terminalParam = params.get("terminal");
         const nameParam = params.get("name");
@@ -925,25 +991,35 @@
             /^\/(?:terminal\/)?([a-f0-9]{64}|[a-f0-9-]{36})$/i,
         );
 
-        if (match && get(isAuthenticated)) {
-            // Preload terminal assets for instant load
-            preloadComponent("terminalView");
-            import("$utils/xterm").then((mod) => mod.loadXtermCore());
-
+        if (match) {
             const containerId = match[1];
-            // Fetch container info and create session - TerminalPanel handles WebSocket
-            const result = await containers.getContainer(containerId);
-            if (result.success && result.container) {
-                // Set terminal to docked mode for direct URL access (full screen)
-                void openTerminalForContainer(
-                    containerId,
-                    result.container.name,
-                    "docked",
-                );
-                currentView = "dashboard";
+
+            if (get(isAuthenticated)) {
+                // Preload terminal assets for instant load
+                preloadComponent("terminalView");
+                import("$utils/xterm").then((mod) => mod.loadXtermCore());
+
+                // Fetch container info and create session - TerminalPanel handles WebSocket
+                const result = await containers.getContainer(containerId);
+                if (result.success && result.container) {
+                    // Set terminal to docked mode for direct URL access (full screen)
+                    void openTerminalForContainer(
+                        containerId,
+                        result.container.name,
+                        "docked",
+                    );
+                    currentView = "dashboard";
+                } else {
+                    // Container not found
+                    currentView = "404";
+                }
             } else {
-                // Container not found
-                currentView = "404";
+                // Not authenticated - store intended URL and show landing with login prompt
+                localStorage.setItem("pendingTerminalUrl", path);
+                currentView = "landing";
+                setTimeout(() => {
+                    toast.info("Please sign in to access this terminal");
+                }, 500);
             }
             return;
         }
