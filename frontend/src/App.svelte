@@ -1221,9 +1221,24 @@
             isInitialized = true; // Mark as initialized after token validation
         })();
 
+        // Handle bfcache (back-forward cache) restoration
+        // When page is restored from bfcache, onMount doesn't run again
+        // but we need to re-check the URL for terminal routes
+        const handlePageShow = (event: PageTransitionEvent) => {
+            if (event.persisted && isInitialized) {
+                // Page was restored from bfcache
+                console.log(
+                    "[App] Page restored from bfcache, re-checking route",
+                );
+                handleTerminalUrl();
+            }
+        };
+        window.addEventListener("pageshow", handlePageShow);
+
         // Cleanup on destroy
         return () => {
             window.removeEventListener("message", handleOAuthMessage);
+            window.removeEventListener("pageshow", handlePageShow);
             unsubscribeCollab();
             unsubscribeTheme();
             stopAutoRefresh(); // Stop polling when component unmounts
