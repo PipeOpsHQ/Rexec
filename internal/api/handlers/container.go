@@ -155,6 +155,7 @@ func (h *ContainerHandler) List(c *gin.Context) {
 			"user_id":      record.UserID,
 			"name":         record.Name,
 			"image":        record.Image,
+			"role":         record.Role,
 			"status":       status,
 			"created_at":   record.CreatedAt,
 			"last_used_at": record.LastUsedAt,
