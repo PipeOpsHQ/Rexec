@@ -207,10 +207,11 @@ func (h *SnippetHandler) ListPublicSnippets(c *gin.Context) {
 	userID := c.GetString("userID") // May be empty for unauthenticated users
 
 	language := c.Query("language")
+	category := c.Query("category")
 	search := c.Query("search")
 	sort := c.DefaultQuery("sort", "popular") // popular, recent, name
 
-	snippets, err := h.store.GetPublicSnippets(c.Request.Context(), language, search, sort)
+	snippets, err := h.store.GetPublicSnippets(c.Request.Context(), language, category, search, sort)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.APIError{Code: http.StatusInternalServerError, Message: "failed to fetch public snippets"})
 		return

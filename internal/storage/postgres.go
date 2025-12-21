@@ -558,7 +558,7 @@ func (s *PostgresStore) seedExampleSnippets() error {
 		}
 	}
 
-	if snippetCount >= 50 {
+	if snippetCount >= 100 {
 		// Already seeded
 		return nil
 	}
@@ -652,6 +652,25 @@ func (s *PostgresStore) seedExampleSnippets() error {
 		{"seed-048", "Install bottom (btm)", "#!/bin/bash\ncargo install bottom\necho 'bottom (btm) installed! Run btm for system monitoring.'", "bash", "Install bottom system monitor TUI (requires Rust)", "chart", "install", "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && source $HOME/.cargo/env", true},
 		{"seed-049", "Install httpie", "#!/bin/bash\npip install --user httpie\nhttp --version\necho 'HTTPie installed! Use http GET/POST for API testing.'", "bash", "Install HTTPie user-friendly HTTP client", "network", "install", "", false},
 		{"seed-050", "Install jq + yq", "#!/bin/bash\nsudo apt-get update && sudo apt-get install -y jq\npip install --user yq\njq --version\nyq --version\necho 'jq and yq installed for JSON/YAML processing!'", "bash", "Install jq and yq for JSON/YAML processing", "file", "install", "", false},
+
+		// Shell Enhancement Tools (from roles)
+		{"seed-051", "Install zsh-autosuggestions", "#!/bin/bash\necho 'Installing zsh-autosuggestions...'\ngit clone https://github.com/zsh-users/zsh-autosuggestions ~/.zsh/zsh-autosuggestions\necho 'source ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh' >> ~/.zshrc\necho ''\necho 'zsh-autosuggestions installed!'\necho 'Restart your shell or run: source ~/.zshrc'", "bash", "Install zsh-autosuggestions for fish-like autosuggestions in zsh", "terminal", "install", "apt-get install -y zsh git || true", true},
+		{"seed-052", "Install zsh-syntax-highlighting", "#!/bin/bash\necho 'Installing zsh-syntax-highlighting...'\ngit clone https://github.com/zsh-users/zsh-syntax-highlighting.git ~/.zsh/zsh-syntax-highlighting\necho 'source ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh' >> ~/.zshrc\necho ''\necho 'zsh-syntax-highlighting installed!'\necho 'Restart your shell or run: source ~/.zshrc'", "bash", "Install zsh-syntax-highlighting for fish-like syntax highlighting in zsh", "terminal", "install", "apt-get install -y zsh git || true", true},
+		{"seed-053", "Install Oh My Zsh", "#!/bin/bash\necho 'Installing Oh My Zsh...'\nsh -c \"$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\" \"\" --unattended\necho ''\necho 'Oh My Zsh installed!'\necho 'Restart your shell to use zsh with Oh My Zsh'", "bash", "Install Oh My Zsh - framework for managing zsh configuration", "terminal", "install", "apt-get install -y zsh curl git || true", true},
+		{"seed-054", "Install tmux", "#!/bin/bash\necho 'Installing tmux...'\napt-get update && apt-get install -y tmux || brew install tmux\ntmux -V\necho ''\necho 'tmux installed!'\necho ''\necho 'Quick start:'\necho '  tmux new -s mysession  # create new session'\necho '  tmux attach -t mysession  # attach to session'\necho '  Ctrl+b d  # detach from session'\necho '  Ctrl+b c  # new window'\necho '  Ctrl+b n/p  # next/previous window'", "bash", "Install tmux terminal multiplexer", "terminal", "install", "", false},
+		{"seed-055", "Tmux Config", "#!/bin/bash\necho 'Creating tmux configuration...'\ncat > ~/.tmux.conf << 'EOF'\n# Better prefix key\nset -g prefix C-a\nunbind C-b\nbind C-a send-prefix\n\n# Mouse support\nset -g mouse on\n\n# Start windows at 1\nset -g base-index 1\nsetw -g pane-base-index 1\n\n# Better colors\nset -g default-terminal \"xterm-256color\"\nset -ga terminal-overrides \",xterm-256color:Tc\"\n\n# Faster escape\nset -sg escape-time 0\n\n# Split panes with | and -\nbind | split-window -h\nbind - split-window -v\n\n# Reload config\nbind r source-file ~/.tmux.conf \\; display \"Config reloaded!\"\nEOF\necho 'tmux config created at ~/.tmux.conf'\necho 'Run: tmux source-file ~/.tmux.conf'", "bash", "Create a sensible tmux configuration file", "settings", "system", "", false},
+		{"seed-056", "Install neofetch", "#!/bin/bash\necho 'Installing neofetch...'\napt-get update && apt-get install -y neofetch || brew install neofetch\necho ''\nneofetch\necho ''\necho 'neofetch installed! Run neofetch to see system info'", "bash", "Install neofetch - system information tool with ASCII art", "terminal", "install", "", false},
+		{"seed-057", "Install htop", "#!/bin/bash\necho 'Installing htop...'\napt-get update && apt-get install -y htop || brew install htop\nhtop --version\necho ''\necho 'htop installed! Run htop for interactive process viewer'\necho ''\necho 'Keys:'\necho '  F2 - Setup'\necho '  F3 - Search'\necho '  F4 - Filter'\necho '  F5 - Tree view'\necho '  F9 - Kill process'\necho '  q - Quit'", "bash", "Install htop - interactive process viewer", "chart", "install", "", false},
+		{"seed-058", "Install vim", "#!/bin/bash\necho 'Installing vim...'\napt-get update && apt-get install -y vim || brew install vim\nvim --version | head -1\necho ''\necho 'vim installed!'", "bash", "Install vim text editor", "edit", "install", "", false},
+		{"seed-059", "Install nano", "#!/bin/bash\necho 'Installing nano...'\napt-get update && apt-get install -y nano || brew install nano\nnano --version\necho ''\necho 'nano installed!'", "bash", "Install nano text editor", "edit", "install", "", false},
+		{"seed-060", "Install curl + wget", "#!/bin/bash\necho 'Installing curl and wget...'\napt-get update && apt-get install -y curl wget || brew install curl wget\ncurl --version | head -1\nwget --version | head -1\necho ''\necho 'curl and wget installed!'", "bash", "Install curl and wget for HTTP requests and downloads", "network", "install", "", false},
+		{"seed-061", "Install git", "#!/bin/bash\necho 'Installing git...'\napt-get update && apt-get install -y git || brew install git\ngit --version\necho ''\necho 'git installed!'\necho ''\necho 'Configure git:'\necho '  git config --global user.name \"Your Name\"'\necho '  git config --global user.email \"you@example.com\"'", "bash", "Install git version control system", "git", "install", "", false},
+		{"seed-062", "Install make + gcc", "#!/bin/bash\necho 'Installing build essentials (make, gcc)...'\napt-get update && apt-get install -y build-essential || brew install make gcc\nmake --version | head -1\ngcc --version | head -1\necho ''\necho 'Build tools installed!'", "bash", "Install make and gcc build tools", "build", "install", "", false},
+		{"seed-063", "Install yarn", "#!/bin/bash\necho 'Installing yarn...'\nnpm install -g yarn\nyarn --version\necho ''\necho 'yarn installed!'\necho ''\necho 'Usage:'\necho '  yarn init  # create package.json'\necho '  yarn add <package>  # add dependency'\necho '  yarn install  # install all dependencies'", "bash", "Install yarn package manager for Node.js", "package", "install", "apt-get install -y nodejs npm || true", true},
+		{"seed-064", "Install ripgrep", "#!/bin/bash\necho 'Installing ripgrep (rg)...'\napt-get update && apt-get install -y ripgrep || brew install ripgrep || cargo install ripgrep\nrg --version\necho ''\necho 'ripgrep installed!'\necho ''\necho 'Usage:'\necho '  rg \"pattern\"  # search in current dir'\necho '  rg -i \"pattern\"  # case insensitive'\necho '  rg -t py \"pattern\"  # search only Python files'\necho '  rg -l \"pattern\"  # list files only'", "bash", "Install ripgrep - fast recursive search tool", "search", "install", "", false},
+		{"seed-065", "Install Node.js + npm", "#!/bin/bash\necho 'Installing Node.js and npm...'\ncurl -fsSL https://deb.nodesource.com/setup_lts.x | bash -\napt-get install -y nodejs || brew install node\nnode --version\nnpm --version\necho ''\necho 'Node.js and npm installed!'", "bash", "Install Node.js LTS and npm package manager", "nodejs", "install", "", false},
+		{"seed-066", "Install Python 3 + pip", "#!/bin/bash\necho 'Installing Python 3 and pip...'\napt-get update && apt-get install -y python3 python3-pip python3-venv || brew install python3\npython3 --version\npip3 --version\necho ''\necho 'Python 3 and pip installed!'", "bash", "Install Python 3 with pip and venv", "python", "install", "", false},
+		{"seed-067", "Install zsh", "#!/bin/bash\necho 'Installing zsh...'\napt-get update && apt-get install -y zsh || brew install zsh\nzsh --version\necho ''\necho 'zsh installed!'\necho ''\necho 'To set zsh as default shell:'\necho '  chsh -s $(which zsh)'", "bash", "Install zsh shell", "terminal", "install", "", false},
 	}
 
 	// Insert snippets
@@ -2133,7 +2152,7 @@ func (s *PostgresStore) UpdateSnippet(ctx context.Context, snippet *models.Snipp
 }
 
 // GetPublicSnippets retrieves all public snippets for marketplace
-func (s *PostgresStore) GetPublicSnippets(ctx context.Context, language, search, sort string) ([]*models.Snippet, error) {
+func (s *PostgresStore) GetPublicSnippets(ctx context.Context, language, category, search, sort string) ([]*models.Snippet, error) {
 	var args []interface{}
 	argIdx := 1
 
@@ -2148,6 +2167,12 @@ func (s *PostgresStore) GetPublicSnippets(ctx context.Context, language, search,
 	if language != "" && language != "all" {
 		query += fmt.Sprintf(" AND s.language = $%d", argIdx)
 		args = append(args, language)
+		argIdx++
+	}
+
+	if category != "" && category != "all" {
+		query += fmt.Sprintf(" AND s.category = $%d", argIdx)
+		args = append(args, category)
 		argIdx++
 	}
 

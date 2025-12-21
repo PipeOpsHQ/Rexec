@@ -35,26 +35,29 @@
 
     const categories = [
         { value: "all", label: "All", icon: "grid" },
+        { value: "install", label: "Install", icon: "download" },
         { value: "system", label: "System", icon: "terminal" },
+        { value: "ai", label: "AI Tools", icon: "ai" },
+        { value: "devops", label: "DevOps", icon: "devops" },
         { value: "nodejs", label: "Node.js", icon: "nodejs" },
         { value: "python", label: "Python", icon: "python" },
         { value: "golang", label: "Go", icon: "golang" },
-        { value: "devops", label: "DevOps", icon: "devops" },
         { value: "editor", label: "Editor", icon: "edit" },
-        { value: "ai", label: "AI Tools", icon: "ai" },
+        { value: "network", label: "Network", icon: "network" },
     ];
 
     async function loadSnippets() {
         isLoading = true;
         const params = new URLSearchParams();
         if (searchQuery) params.set("search", searchQuery);
-        if (selectedCategory !== "all") params.set("language", selectedCategory);
+        if (selectedCategory !== "all")
+            params.set("category", selectedCategory);
         params.set("sort", sortBy);
 
         const { data, error } = await api.get<{ snippets: Snippet[] }>(
-            `/api/marketplace/snippets?${params.toString()}`
+            `/api/marketplace/snippets?${params.toString()}`,
         );
-        
+
         if (data) {
             snippets = data.snippets || [];
         } else if (error) {
@@ -100,14 +103,26 @@
     function getIconForCategory(category: string): string {
         // Return icon name for StatusIcon component
         switch (category) {
-            case "system": return "system";
-            case "nodejs": return "nodejs";
-            case "python": return "python";
-            case "golang": return "golang";
-            case "devops": return "devops";
-            case "editor": return "edit";
-            case "ai": return "ai";
-            default: return "file";
+            case "system":
+                return "system";
+            case "install":
+                return "download";
+            case "nodejs":
+                return "nodejs";
+            case "python":
+                return "python";
+            case "golang":
+                return "golang";
+            case "devops":
+                return "devops";
+            case "editor":
+                return "edit";
+            case "ai":
+                return "ai";
+            case "network":
+                return "network";
+            default:
+                return "file";
         }
     }
 
@@ -131,33 +146,47 @@
                     <span>Community Snippets</span>
                 </div>
                 <h1>Snippet <span class="accent">Marketplace</span></h1>
-                <p class="header-desc">Discover, share, and use terminal commands from the community</p>
+                <p class="header-desc">
+                    Discover, share, and use terminal commands from the
+                    community
+                </p>
             </div>
         </header>
 
         <!-- Search & Filters -->
         <div class="controls">
             <div class="search-wrapper">
-                <span class="search-icon"><StatusIcon status="search" size={16} /></span>
-                <input 
-                    type="text" 
+                <span class="search-icon"
+                    ><StatusIcon status="search" size={16} /></span
+                >
+                <input
+                    type="text"
                     class="search-input"
                     placeholder="Search snippets..."
                     bind:value={searchQuery}
-                    onkeydown={(e) => e.key === 'Enter' && handleSearch()}
+                    onkeydown={(e) => e.key === "Enter" && handleSearch()}
                 />
                 {#if searchQuery}
-                    <button class="search-clear" onclick={() => { searchQuery = ''; loadSnippets(); }}>×</button>
+                    <button
+                        class="search-clear"
+                        onclick={() => {
+                            searchQuery = "";
+                            loadSnippets();
+                        }}>×</button
+                    >
                 {/if}
             </div>
 
             <div class="filter-row">
                 <div class="category-pills">
                     {#each categories as cat}
-                        <button 
-                            class="pill" 
+                        <button
+                            class="pill"
                             class:active={selectedCategory === cat.value}
-                            onclick={() => { selectedCategory = cat.value; loadSnippets(); }}
+                            onclick={() => {
+                                selectedCategory = cat.value;
+                                loadSnippets();
+                            }}
                         >
                             {cat.label}
                         </button>
@@ -191,84 +220,145 @@
             {:else}
                 <div class="snippet-list">
                     {#each snippets as snippet (snippet.id)}
-                        <article class="snippet-card" class:expanded={expandedSnippet === snippet.id}>
-                            <div class="card-main" onclick={() => toggleExpand(snippet.id)}>
+                        <article
+                            class="snippet-card"
+                            class:expanded={expandedSnippet === snippet.id}
+                        >
+                            <div
+                                class="card-main"
+                                onclick={() => toggleExpand(snippet.id)}
+                            >
                                 <div class="card-left">
                                     <span class="card-icon">
-                                        <StatusIcon status={snippet.icon || getIconForCategory(snippet.category || '')} size={24} />
+                                        <StatusIcon
+                                            status={snippet.icon ||
+                                                getIconForCategory(
+                                                    snippet.category || "",
+                                                )}
+                                            size={24}
+                                        />
                                     </span>
                                 </div>
                                 <div class="card-center">
                                     <h3 class="card-title">{snippet.name}</h3>
                                     <div class="card-meta">
-                                        <span class="meta-author">@{snippet.username || "rexec"}</span>
+                                        <span class="meta-author"
+                                            >@{snippet.username ||
+                                                "rexec"}</span
+                                        >
                                         <span class="meta-sep">·</span>
-                                        <span class="meta-uses">{formatUsageCount(snippet.usage_count)} uses</span>
+                                        <span class="meta-uses"
+                                            >{formatUsageCount(
+                                                snippet.usage_count,
+                                            )} uses</span
+                                        >
                                         {#if snippet.requires_install}
                                             <span class="meta-sep">·</span>
-                                            <span class="meta-install">requires install</span>
+                                            <span class="meta-install"
+                                                >requires install</span
+                                            >
                                         {/if}
                                     </div>
                                 </div>
                                 <div class="card-right">
                                     <div class="card-tags">
-                                        <span class="tag tag-lang">{snippet.language}</span>
+                                        <span class="tag tag-lang"
+                                            >{snippet.language}</span
+                                        >
                                     </div>
                                     <div class="card-actions">
                                         {#if snippet.requires_install && snippet.install_command}
-                                            <button 
+                                            <button
                                                 class="action-btn"
-                                                onclick={(e) => { e.stopPropagation(); runInstall(snippet); }}
+                                                onclick={(e) => {
+                                                    e.stopPropagation();
+                                                    runInstall(snippet);
+                                                }}
                                                 title="Copy install command"
                                             >
-                                                <StatusIcon status="download" size={14} />
+                                                <StatusIcon
+                                                    status="download"
+                                                    size={14}
+                                                />
                                             </button>
                                         {/if}
-                                        <button 
+                                        <button
                                             class="action-btn"
-                                            onclick={(e) => { e.stopPropagation(); copyToClipboard(snippet.content); }}
+                                            onclick={(e) => {
+                                                e.stopPropagation();
+                                                copyToClipboard(
+                                                    snippet.content,
+                                                );
+                                            }}
                                             title="Copy to clipboard"
                                         >
-                                            <StatusIcon status="copy" size={14} />
+                                            <StatusIcon
+                                                status="copy"
+                                                size={14}
+                                            />
                                         </button>
-                                        <button 
+                                        <button
                                             class="action-btn primary"
-                                            onclick={(e) => { e.stopPropagation(); useSnippet(snippet); }}
+                                            onclick={(e) => {
+                                                e.stopPropagation();
+                                                useSnippet(snippet);
+                                            }}
                                             title="Use snippet"
                                         >
-                                            <StatusIcon status="play" size={14} />
+                                            <StatusIcon
+                                                status="play"
+                                                size={14}
+                                            />
                                         </button>
                                     </div>
-                                    <span class="expand-icon" class:rotated={expandedSnippet === snippet.id}>
-                                        <StatusIcon status="chevron-down" size={14} />
+                                    <span
+                                        class="expand-icon"
+                                        class:rotated={expandedSnippet ===
+                                            snippet.id}
+                                    >
+                                        <StatusIcon
+                                            status="chevron-down"
+                                            size={14}
+                                        />
                                     </span>
                                 </div>
                             </div>
-                            
+
                             {#if expandedSnippet === snippet.id}
                                 <div class="card-expanded">
                                     {#if snippet.description}
-                                        <p class="card-desc">{snippet.description}</p>
+                                        <p class="card-desc">
+                                            {snippet.description}
+                                        </p>
                                     {/if}
-                                    
+
                                     {#if snippet.requires_install && snippet.install_command}
                                         <div class="install-block">
                                             <div class="install-header">
-                                                <StatusIcon status="download" size={14} />
+                                                <StatusIcon
+                                                    status="download"
+                                                    size={14}
+                                                />
                                                 <span>Install first</span>
                                             </div>
                                             <div class="install-content">
-                                                <code>{snippet.install_command}</code>
-                                                <button 
+                                                <code
+                                                    >{snippet.install_command}</code
+                                                >
+                                                <button
                                                     class="copy-btn"
-                                                    onclick={() => copyToClipboard(snippet.install_command || '')}
+                                                    onclick={() =>
+                                                        copyToClipboard(
+                                                            snippet.install_command ||
+                                                                "",
+                                                        )}
                                                 >
                                                     Copy
                                                 </button>
                                             </div>
                                         </div>
                                     {/if}
-                                    
+
                                     <div class="code-block">
                                         <div class="code-header">
                                             <span class="code-dots">
@@ -276,15 +366,22 @@
                                                 <span class="dot yellow"></span>
                                                 <span class="dot green"></span>
                                             </span>
-                                            <span class="code-title">{snippet.name}</span>
-                                            <button 
+                                            <span class="code-title"
+                                                >{snippet.name}</span
+                                            >
+                                            <button
                                                 class="code-copy"
-                                                onclick={() => copyToClipboard(snippet.content)}
+                                                onclick={() =>
+                                                    copyToClipboard(
+                                                        snippet.content,
+                                                    )}
                                             >
                                                 Copy
                                             </button>
                                         </div>
-                                        <pre class="code-content"><code>{snippet.content}</code></pre>
+                                        <pre class="code-content"><code
+                                                >{snippet.content}</code
+                                            ></pre>
                                     </div>
                                 </div>
                             {/if}
@@ -784,9 +881,15 @@
         border-radius: 50%;
     }
 
-    .code-dots .red { background: #ff5f56; }
-    .code-dots .yellow { background: #ffbd2e; }
-    .code-dots .green { background: #27c93f; }
+    .code-dots .red {
+        background: #ff5f56;
+    }
+    .code-dots .yellow {
+        background: #ffbd2e;
+    }
+    .code-dots .green {
+        background: #27c93f;
+    }
 
     .code-title {
         flex: 1;
@@ -856,8 +959,36 @@
     }
 
     /* Animations */
-    @keyframes spin { to { transform: rotate(360deg); } }
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-    @keyframes slideDown { from { opacity: 0; max-height: 0; } to { opacity: 1; max-height: 500px; } }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            max-height: 0;
+        }
+        to {
+            opacity: 1;
+            max-height: 500px;
+        }
+    }
+    @keyframes pulse {
+        0%,
+        100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.5;
+        }
+    }
 </style>
