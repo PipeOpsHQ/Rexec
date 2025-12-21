@@ -1934,10 +1934,15 @@ function createTerminalStore() {
           // Ignore (WebGL module may not be supported in some environments)
         });
 
-      // Setup resize observer
+      // Setup resize observer with debouncing to prevent rapid resize events
       if (window.ResizeObserver) {
+        let resizeTimeout: ReturnType<typeof setTimeout> | null = null;
         const resizeObserver = new ResizeObserver(() => {
-          this.fitSession(sessionId);
+          // Debounce resize events to prevent terminal corruption
+          if (resizeTimeout) clearTimeout(resizeTimeout);
+          resizeTimeout = setTimeout(() => {
+            this.fitSession(sessionId);
+          }, 50); // 50ms debounce
         });
         resizeObserver.observe(element);
         updateSession(sessionId, (s) => ({ ...s, resizeObserver }));
@@ -2018,10 +2023,15 @@ function createTerminalStore() {
       // Force a refresh to ensure proper rendering after reattachment
       session.terminal.refresh(0, session.terminal.rows - 1);
 
-      // Setup new resize observer
+      // Setup new resize observer with debouncing
       if (window.ResizeObserver) {
+        let resizeTimeout: ReturnType<typeof setTimeout> | null = null;
         const resizeObserver = new ResizeObserver(() => {
-          this.fitSession(sessionId);
+          // Debounce resize events to prevent terminal corruption
+          if (resizeTimeout) clearTimeout(resizeTimeout);
+          resizeTimeout = setTimeout(() => {
+            this.fitSession(sessionId);
+          }, 50); // 50ms debounce
         });
         resizeObserver.observe(element);
         updateSession(sessionId, (s) => ({ ...s, resizeObserver }));
@@ -2790,10 +2800,15 @@ function createTerminalStore() {
           // Ignore
         });
 
-      // Setup resize observer
+      // Setup resize observer with debouncing
       if (window.ResizeObserver) {
+        let resizeTimeout: ReturnType<typeof setTimeout> | null = null;
         const resizeObserver = new ResizeObserver(() => {
-          this.fitSplitPane(sessionId, paneId);
+          // Debounce resize events to prevent terminal corruption
+          if (resizeTimeout) clearTimeout(resizeTimeout);
+          resizeTimeout = setTimeout(() => {
+            this.fitSplitPane(sessionId, paneId);
+          }, 50); // 50ms debounce
         });
         resizeObserver.observe(element);
         pane.resizeObserver = resizeObserver;
