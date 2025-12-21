@@ -2,6 +2,17 @@
 
 The Rexec Agent allows you to connect any server or local machine to Rexec as a terminal. This enables remote terminal access through the Rexec dashboard without exposing SSH ports or managing complex network configurations.
 
+## Getting Started
+
+The easiest way to set up an agent is through the Rexec dashboard:
+
+1. Go to **[Settings → Agents](https://rexec.pipeops.io/settings)** in your Rexec dashboard
+2. Click **"Add Agent"** to create a new agent
+3. Copy the generated command (includes your token and agent configuration)
+4. Paste and run the command on your server
+
+The dashboard provides a ready-to-use command that handles registration automatically.
+
 ## Overview
 
 The agent system consists of two components:
@@ -10,6 +21,8 @@ The agent system consists of two components:
 2. **rexec agent** - Agent commands integrated into the rexec-cli for unified management
 
 ## Quick Start
+
+> **Tip:** For the fastest setup, use the [Settings page](https://rexec.pipeops.io/settings) to generate a ready-to-use install command with your token pre-configured.
 
 ### 1. Install the Agent
 
@@ -66,6 +79,7 @@ rexec-agent register [options]
 | `--host` | | API host (default: https://rexec.pipeops.io) |
 
 **Examples:**
+
 ```bash
 # Interactive registration (prompts for token)
 rexec-agent register --name "my-server"
@@ -97,6 +111,7 @@ rexec-agent start [options]
 | `--daemon` | `-d` | Run in background |
 
 **Examples:**
+
 ```bash
 # Run in foreground (useful for testing/debugging)
 rexec-agent start
@@ -122,6 +137,7 @@ rexec-agent status
 ```
 
 **Output:**
+
 ```
 Agent Status
 ─────────────────────────────────────────
@@ -150,11 +166,13 @@ sudo rexec-agent install
 ```
 
 This creates a systemd service that:
+
 - Starts automatically on boot
 - Restarts on failure
 - Manages credentials securely
 
 **Managing the service:**
+
 ```bash
 # Check status
 sudo systemctl status rexec-agent
@@ -171,16 +189,17 @@ sudo journalctl -u rexec-agent -f
 
 ## Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `REXEC_TOKEN` | Authentication token (overrides config) |
-| `REXEC_HOST` | API host URL (overrides config) |
-| `REXEC_API` | API host URL (alias of `REXEC_HOST`) |
+| Variable       | Description                                 |
+| -------------- | ------------------------------------------- |
+| `REXEC_TOKEN`  | Authentication token (overrides config)     |
+| `REXEC_HOST`   | API host URL (overrides config)             |
+| `REXEC_API`    | API host URL (alias of `REXEC_HOST`)        |
 | `REXEC_CONFIG` | Config file path (overrides default search) |
 
 ## Configuration Files
 
 The agent loads configuration from:
+
 - `/etc/rexec/agent.yaml` (system-wide installs), or
 - `~/.rexec/agent.json` (user installs)
 
@@ -292,13 +311,13 @@ rexec-agent register --name "rpi-sensor-hub" --shell /bin/sh
 
 ## Comparison with Containers
 
-| Feature | Agent | Container |
-|---------|-------|-----------|
-| Setup | Install on existing server | Provisioned by Rexec |
-| Resources | Uses host resources | Dedicated container |
-| Persistence | Full disk access | Ephemeral or volume-based |
-| Network | Host network | Isolated network |
-| Use Case | Existing servers | Development environments |
+| Feature     | Agent                      | Container                 |
+| ----------- | -------------------------- | ------------------------- |
+| Setup       | Install on existing server | Provisioned by Rexec      |
+| Resources   | Uses host resources        | Dedicated container       |
+| Persistence | Full disk access           | Ephemeral or volume-based |
+| Network     | Host network               | Isolated network          |
+| Use Case    | Existing servers           | Development environments  |
 
 ## API Reference
 
@@ -339,6 +358,7 @@ Headers:
 ### WebSocket Messages
 
 **From Server:**
+
 - `shell_start` - Start a new shell session
 - `shell_input` - Send input to shell
 - `shell_resize` - Resize terminal
@@ -347,6 +367,7 @@ Headers:
 - `exec` - Execute a command
 
 **From Agent:**
+
 - `shell_started` - Shell session started
 - `shell_output` - Shell output data
 - `shell_stopped` - Shell session ended

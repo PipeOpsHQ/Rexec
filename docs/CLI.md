@@ -68,9 +68,11 @@ rexec login [--token TOKEN]
 ```
 
 **Options:**
+
 - `--token` - Provide token directly (skips interactive prompt)
 
 **Examples:**
+
 ```bash
 # Interactive login
 rexec login
@@ -99,6 +101,7 @@ rexec whoami
 ```
 
 **Output:**
+
 ```
 User Profile
 ─────────────────────────────
@@ -120,6 +123,7 @@ rexec list
 ```
 
 **Output:**
+
 ```
 Terminals
 ─────────────────────────────────────────────────────────────────────────────
@@ -147,6 +151,7 @@ rexec create [options]
 | `--cpu` | `-c` | 0.5 | CPU limit |
 
 **Available Roles:**
+
 - `default` - Basic terminal
 - `devops` - DevOps tools (docker, kubectl, terraform)
 - `fullstack` - Web development (node, python, databases)
@@ -156,6 +161,7 @@ rexec create [options]
 - `security` - Security tools (nmap, metasploit)
 
 **Examples:**
+
 ```bash
 # Basic terminal
 rexec create --name mydev
@@ -177,11 +183,13 @@ rexec ssh <terminal-id>
 ```
 
 **Features:**
+
 - Full PTY support
 - Automatic terminal resize handling
 - Press `Ctrl+]` to disconnect
 
 **Examples:**
+
 ```bash
 # Connect using ID
 rexec connect abc123
@@ -238,6 +246,7 @@ rexec run <snippet-name> [--terminal <id>]
 ```
 
 **Examples:**
+
 ```bash
 # Run with terminal selection prompt
 rexec run docker-install
@@ -249,6 +258,8 @@ rexec run setup-nodejs --terminal abc123
 ### Agent Mode
 
 See [AGENTS.md](AGENTS.md) for detailed agent documentation.
+
+> **Tip:** The easiest way to set up an agent is through the [Settings page](https://rexec.pipeops.io/settings) in your dashboard. It generates a ready-to-use command with your token pre-configured that you can copy and paste directly onto your server.
 
 ```bash
 # Register this machine
@@ -279,6 +290,7 @@ rexec ui
 ```
 
 **TUI Features:**
+
 - Visual terminal list with status indicators
 - Quick connect (press 1-9)
 - Create new terminals
@@ -322,18 +334,18 @@ rexec config set host https://custom.rexec.io
 
 ## Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `REXEC_HOST` | API host URL (overrides config) |
-| `REXEC_TOKEN` | Authentication token (overrides config) |
-| `REXEC_TUI_PATH` | Custom path to TUI binary |
+| Variable         | Description                             |
+| ---------------- | --------------------------------------- |
+| `REXEC_HOST`     | API host URL (overrides config)         |
+| `REXEC_TOKEN`    | Authentication token (overrides config) |
+| `REXEC_TUI_PATH` | Custom path to TUI binary               |
 
 ## Exit Codes
 
-| Code | Description |
-|------|-------------|
-| 0 | Success |
-| 1 | General error |
+| Code | Description   |
+| ---- | ------------- |
+| 0    | Success       |
+| 1    | General error |
 
 ## Tips & Tricks
 
@@ -411,6 +423,7 @@ REXEC_DEBUG=1 rexec connect abc123
 ### Terminal resize not working
 
 Ensure your terminal emulator supports SIGWINCH. Try:
+
 ```bash
 # Manual resize
 printf '\e[8;50;120t'
