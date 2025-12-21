@@ -140,7 +140,7 @@ type CleanupConfig struct {
 // DefaultCleanupConfig returns sensible defaults for cleanup
 func DefaultCleanupConfig() CleanupConfig {
 	return CleanupConfig{
-		IdleTimeout:   1 * time.Hour,   // Stop guest containers idle for 1 hour
+		IdleTimeout:   5 * time.Hour,   // Stop guest containers idle for 5 hours
 		CheckInterval: 5 * time.Minute, // Check every 5 minutes
 		Enabled:       true,
 	}
