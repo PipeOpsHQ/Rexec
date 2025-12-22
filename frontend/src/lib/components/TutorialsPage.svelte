@@ -422,13 +422,16 @@
 
 <!-- Video Modal -->
 {#if selectedTutorial}
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <div
         class="modal-overlay"
         role="dialog"
         aria-modal="true"
+        tabindex="-1"
         onclick={closeTutorial}
         onkeydown={(e) => e.key === "Escape" && closeTutorial()}
     >
+        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
         <div
             class="video-modal"
             role="document"
@@ -459,13 +462,16 @@
 
 <!-- Admin Modal -->
 {#if showAdminModal && $isAdmin}
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <div
         class="modal-overlay"
         role="dialog"
         aria-modal="true"
+        tabindex="-1"
         onclick={closeAdminModal}
         onkeydown={(e) => e.key === "Escape" && closeAdminModal()}
     >
+        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
         <div
             class="admin-modal"
             role="document"

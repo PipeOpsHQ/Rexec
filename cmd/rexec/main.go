@@ -548,6 +548,7 @@ func runServer() {
 			strings.HasPrefix(path, "/account") ||
 			path == "/pricing" ||
 			path == "/guides" ||
+			path == "/tutorials" ||
 			path == "/marketplace" ||
 			path == "/admin" ||
 			path == "/billing" ||
@@ -904,6 +905,10 @@ func runServer() {
 			Title:       "Snippets | Rexec",
 			Description: "Create, share, and run reusable scripts and macros on Rexec terminals.",
 		}
+		tutorialsSEO := seoConfig{
+			Title:       "Tutorials | Rexec - Video Guides",
+			Description: "Learn how to use Rexec with step-by-step video tutorials covering terminals, agents, CLI tools, and more.",
+		}
 		useCaseDetailSEO := map[string]seoConfig{
 			"collaborative-intelligence": {
 				Title:              "Collaborative Intelligence | Rexec - Cloud Development Environment",
@@ -1171,6 +1176,10 @@ func runServer() {
 
 		router.GET("/marketplace", func(c *gin.Context) {
 			serveSEO(c, marketplaceSEO)
+		})
+
+		router.GET("/tutorials", func(c *gin.Context) {
+			serveSEO(c, tutorialsSEO)
 		})
 
 		router.GET("/billing", func(c *gin.Context) {
