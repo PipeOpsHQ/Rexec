@@ -932,6 +932,8 @@
         max-width: 900px;
         max-height: 90vh;
         overflow: hidden;
+        display: flex;
+        flex-direction: column;
     }
 
     .modal-header {
@@ -981,6 +983,7 @@
         font-size: 14px;
         line-height: 1.6;
         white-space: pre-wrap;
+        overflow-y: auto;
     }
 
     /* Admin Modal */
