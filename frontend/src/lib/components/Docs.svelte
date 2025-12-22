@@ -6,35 +6,57 @@
         navigate: { view: string };
     }>();
 
-
     // SEO metadata for docs page
     onMount(() => {
         document.title = "Documentation | Rexec - Terminal as a Service";
 
         // Update meta tags
-        const metaDescription = document.querySelector('meta[name="description"]');
+        const metaDescription = document.querySelector(
+            'meta[name="description"]',
+        );
         if (metaDescription) {
-            metaDescription.setAttribute("content", "Complete documentation for Rexec - learn about instant cloud terminals, BYOS agents, CLI tools, security features, and API integration.");
+            metaDescription.setAttribute(
+                "content",
+                "Complete documentation for Rexec - learn about instant cloud terminals, BYOS agents, CLI tools, security features, and API integration.",
+            );
         }
 
         const ogTitle = document.querySelector('meta[property="og:title"]');
         if (ogTitle) {
-            ogTitle.setAttribute("content", "Documentation | Rexec - Terminal as a Service");
+            ogTitle.setAttribute(
+                "content",
+                "Documentation | Rexec - Terminal as a Service",
+            );
         }
 
-        const ogDescription = document.querySelector('meta[property="og:description"]');
+        const ogDescription = document.querySelector(
+            'meta[property="og:description"]',
+        );
         if (ogDescription) {
-            ogDescription.setAttribute("content", "Complete documentation for Rexec - learn about instant cloud terminals, BYOS agents, CLI tools, security features, and API integration.");
+            ogDescription.setAttribute(
+                "content",
+                "Complete documentation for Rexec - learn about instant cloud terminals, BYOS agents, CLI tools, security features, and API integration.",
+            );
         }
 
-        const twitterTitle = document.querySelector('meta[name="twitter:title"]');
+        const twitterTitle = document.querySelector(
+            'meta[name="twitter:title"]',
+        );
         if (twitterTitle) {
-            twitterTitle.setAttribute("content", "Documentation | Rexec - Terminal as a Service");
+            twitterTitle.setAttribute(
+                "content",
+                "Documentation | Rexec - Terminal as a Service",
+            );
         }
 
-        const twitterDescription = document.querySelector('meta[name="twitter:description"]');
+        const twitterDescription = document.querySelector(
+            'meta[name="twitter:description"]',
+        );
         if (twitterDescription) {
-            twitterDescription.setAttribute("content", "Complete documentation for Rexec - learn about instant cloud terminals, BYOS agents, CLI tools, security features, and API integration.");
+            twitterDescription.setAttribute(
+                "content",
+                "Complete documentation for Rexec - learn about instant cloud terminals, BYOS agents, CLI tools, security features, and API integration.",
+            );
         }
 
         // Handle hash fragments for anchor links (e.g., #faq)
@@ -44,7 +66,10 @@
                 const targetId = window.location.hash.substring(1);
                 const targetElement = document.getElementById(targetId);
                 if (targetElement) {
-                    targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    targetElement.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start",
+                    });
                 }
             }, 100);
         }
@@ -55,66 +80,78 @@
         {
             icon: "bolt",
             title: "Instant Terminals",
-            description: "Spin up Linux terminals in seconds with no setup required. Choose from Ubuntu, Debian, Arch, or Kali Linux."
+            description:
+                "Spin up Linux terminals in seconds with no setup required. Choose from Ubuntu, Debian, Arch, or Kali Linux.",
         },
         {
             icon: "shield",
             title: "Network Isolation",
-            description: "Each terminal runs in its own isolated Docker container with dedicated networking for maximum security."
+            description:
+                "Each terminal runs in its own isolated Docker container with dedicated networking for maximum security.",
         },
         {
             icon: "cloud",
             title: "Persistent Storage",
-            description: "Your files and configurations persist across sessions. Pick up exactly where you left off."
+            description:
+                "Your files and configurations persist across sessions. Pick up exactly where you left off.",
         },
         {
             icon: "users",
             title: "Collaborative Sessions",
-            description: "Share terminals in real-time with team members. Perfect for pair programming and live debugging."
+            description:
+                "Share terminals in real-time with team members. Perfect for pair programming and live debugging.",
         },
         {
             icon: "agent",
             title: "BYOS Agent",
-            description: "Connect your own servers, VMs, or local machines to the platform using the rexec-agent."
+            description:
+                "Connect your own servers, VMs, or local machines to the platform using the rexec-agent.",
         },
         {
             icon: "terminal",
             title: "CLI & TUI",
-            description: "Full-featured command line tools for power users. Manage terminals without leaving your shell."
-        }
+            description:
+                "Full-featured command line tools for power users. Manage terminals without leaving your shell.",
+        },
     ];
 
     const securityFeatures = [
         {
             icon: "lock",
             title: "JWT Authentication",
-            description: "Secure token-based authentication with automatic expiration and refresh."
+            description:
+                "Secure token-based authentication with automatic expiration and refresh.",
         },
         {
             icon: "shield",
             title: "MFA Support",
-            description: "Two-factor authentication using TOTP for additional account security."
+            description:
+                "Two-factor authentication using TOTP for additional account security.",
         },
         {
             icon: "server",
             title: "Container Isolation",
-            description: "Docker security profiles with no-new-privileges flag prevent privilege escalation."
+            description:
+                "Docker security profiles with no-new-privileges flag prevent privilege escalation.",
         },
         {
             icon: "key",
             title: "SSH Key Management",
-            description: "Store and inject SSH keys securely into your terminals for seamless git operations."
+            description:
+                "Store and inject SSH keys securely into your terminals for seamless git operations.",
         },
         {
             icon: "data",
             title: "Encrypted Storage",
-            description: "Sensitive data like tokens and SSH keys are encrypted at rest using AES-256."
+            description:
+                "Sensitive data like tokens and SSH keys are encrypted at rest using AES-256.",
         },
         {
             icon: "clock",
             title: "Session Timeouts",
-            description: "Automatic session expiration and idle cleanup protect against abandoned sessions."
-        }
+            description:
+                "Automatic session expiration and idle cleanup protect against abandoned sessions.",
+        },
     ];
 
     const guides = [
@@ -122,39 +159,41 @@
             title: "CLI Documentation",
             description: "Install and use the rexec command line tool",
             href: "/docs/cli",
-            icon: "cli"
+            icon: "cli",
         },
         {
             title: "Agent Setup",
             description: "Connect your own machines to the platform",
             href: "/docs/agent",
-            icon: "agent"
+            icon: "agent",
         },
         {
             title: "Use Cases",
             description: "Explore what you can build with Rexec",
             href: "/use-cases",
-            icon: "rocket"
+            icon: "rocket",
         },
         {
             title: "AI Tools Guide",
             description: "Integrate with AI coding assistants",
             href: "/guides",
-            icon: "ai"
+            icon: "ai",
         },
         {
             title: "FAQ",
             description: "Frequently asked questions about Rexec",
             href: "#faq",
-            icon: "question"
-        }
+            icon: "question",
+        },
     ];
 </script>
 
 <div class="docs-page">
     <div class="docs-header">
         <h1>Documentation</h1>
-        <p class="docs-subtitle">Everything you need to know about Rexec - Terminal as a Service</p>
+        <p class="docs-subtitle">
+            Everything you need to know about Rexec - Terminal as a Service
+        </p>
     </div>
 
     <!-- Quick Links -->
@@ -197,8 +236,9 @@
         <h2><StatusIcon status="shield" size={20} /> Security & Compliance</h2>
         <div class="security-intro">
             <p>
-                Rexec is built with security at its core. Every terminal runs in an isolated container 
-                with its own network namespace, ensuring complete separation between users.
+                Rexec is built with security at its core. Every terminal runs in
+                an isolated container with its own network namespace, ensuring
+                complete separation between users.
             </p>
         </div>
         <div class="security-grid">
@@ -221,8 +261,9 @@
         <h2><StatusIcon status="code" size={20} /> API Reference</h2>
         <div class="api-section">
             <p>
-                Rexec provides a RESTful API for programmatic access to all platform features. 
-                Generate API tokens from your account settings to authenticate requests.
+                Rexec provides a RESTful API for programmatic access to all
+                platform features. Generate API tokens from your account
+                settings to authenticate requests.
             </p>
             <div class="api-endpoints">
                 <div class="endpoint">
@@ -258,15 +299,19 @@
             </div>
             <div class="api-auth">
                 <h4>Authentication</h4>
-                <pre><code>curl -H "Authorization: Bearer YOUR_API_TOKEN" \
-     https://rexec.pipeops.io/api/containers</code></pre>
+                <pre><code
+                        >curl -H "Authorization: Bearer YOUR_API_TOKEN" \
+     https://rexec.pipeops.io/api/containers</code
+                    ></pre>
             </div>
         </div>
     </section>
 
     <!-- Architecture -->
     <section class="section">
-        <h2><StatusIcon status="workflow" size={20} /> Architecture Overview</h2>
+        <h2>
+            <StatusIcon status="workflow" size={20} /> Architecture Overview
+        </h2>
         <div class="architecture">
             <div class="arch-diagram">
                 <div class="arch-layer">
@@ -310,17 +355,114 @@
 
     <!-- FAQ -->
     <section class="section" id="faq">
-        <h2><StatusIcon status="question" size={20} /> Frequently Asked Questions</h2>
+        <h2>
+            <StatusIcon status="question" size={20} /> Frequently Asked Questions
+        </h2>
         <div class="faq-grid">
+            <details class="faq-item">
+                <summary class="faq-question">
+                    <StatusIcon status="question" size={16} />
+                    <span>Is Rexec a Virtual Machine?</span>
+                </summary>
+                <div class="faq-answer">
+                    <p>
+                        <strong>No!</strong> Rexec is <strong>not</strong> a VM
+                        or hypervisor. It's a
+                        <strong>Terminal as a Service</strong> platform that gives
+                        you instant terminal access to:
+                    </p>
+                    <ul>
+                        <li>
+                            <strong>Cloud containers</strong> — Lightweight Linux
+                            environments we provision for you
+                        </li>
+                        <li>
+                            <strong>Your own machines</strong> — Any laptop, server,
+                            or device running the Rexec Agent
+                        </li>
+                    </ul>
+                    <p>
+                        Think of it as a cloud-based terminal multiplexer, not a
+                        virtualization platform. There's no hypervisor, no VM
+                        overhead — just fast, secure terminal access from
+                        anywhere.
+                    </p>
+                </div>
+            </details>
+
+            <details class="faq-item">
+                <summary class="faq-question">
+                    <StatusIcon status="agent" size={16} />
+                    <span>Can I access my laptop or server from anywhere?</span>
+                </summary>
+                <div class="faq-answer">
+                    <p>
+                        <strong>Yes!</strong> This is exactly what the
+                        <strong>Rexec Agent</strong> is for. Install a lightweight
+                        agent on any machine, and you get instant terminal access
+                        from the Rexec dashboard — no SSH port exposure, no VPN, no
+                        complex setup.
+                    </p>
+                    <p><strong>How it works:</strong></p>
+                    <ul>
+                        <li>
+                            <strong>No inbound ports</strong> — The agent connects
+                            outbound, so no firewall holes needed
+                        </li>
+                        <li>
+                            <strong>Works from any browser</strong> — Access your
+                            machine from desktop, tablet, or phone
+                        </li>
+                        <li>
+                            <strong>AI-native</strong> — Continue coding with AI tools
+                            without opening your laptop
+                        </li>
+                        <li>
+                            <strong>Auto-reconnect</strong> — Connection drops are
+                            handled automatically
+                        </li>
+                    </ul>
+                    <p>Get started in 30 seconds:</p>
+                    <div class="code-block">
+                        <code
+                            >curl -sSL https://rexec.io/install-agent.sh | bash<br
+                            />rexec-agent register --name "my-laptop"<br
+                            />rexec-agent start --daemon</code
+                        >
+                    </div>
+                    <p>
+                        See the <a href="/docs/agent">Agent Setup Guide</a> for more
+                        details.
+                    </p>
+                </div>
+            </details>
+
             <details class="faq-item">
                 <summary class="faq-question">
                     <StatusIcon status="question" size={16} />
                     <span>Is this related to the old rexec protocol?</span>
                 </summary>
                 <div class="faq-answer">
-                    <p><strong>No, not at all!</strong> We understand the concern — the legacy <code>rexec</code> (Remote Execution) protocol from the 1980s is indeed deprecated and insecure. Our Rexec is a completely different, modern product.</p>
-                    <p>We chose the name "Rexec" as shorthand for <strong>"Remote Execution"</strong> — which perfectly describes what we do: execute commands on remote cloud terminals. Think of it as reclaiming a cool name for a secure, modern use case.</p>
-                    <p>Our platform uses <strong>TLS encryption</strong>, <strong>JWT authentication</strong>, <strong>container isolation</strong>, and follows modern security best practices. It's as secure as any enterprise cloud platform.</p>
+                    <p>
+                        <strong>No, not at all!</strong> We understand the
+                        concern — the legacy <code>rexec</code> (Remote Execution)
+                        protocol from the 1980s is indeed deprecated and insecure.
+                        Our Rexec is a completely different, modern product.
+                    </p>
+                    <p>
+                        We chose the name "Rexec" as shorthand for <strong
+                            >"Remote Execution"</strong
+                        > — which perfectly describes what we do: execute commands
+                        on remote cloud terminals. Think of it as reclaiming a cool
+                        name for a secure, modern use case.
+                    </p>
+                    <p>
+                        Our platform uses <strong>TLS encryption</strong>,
+                        <strong>JWT authentication</strong>,
+                        <strong>container isolation</strong>, and follows modern
+                        security best practices. It's as secure as any
+                        enterprise cloud platform.
+                    </p>
                 </div>
             </details>
 
@@ -330,49 +472,118 @@
                     <span>How is Rexec secure?</span>
                 </summary>
                 <div class="faq-answer">
-                    <p>Security is built into every layer of Rexec. We follow industry best practices and enterprise-grade security standards:</p>
+                    <p>
+                        Security is built into every layer of Rexec. We follow
+                        industry best practices and enterprise-grade security
+                        standards:
+                    </p>
 
                     <p><strong>Encryption & Transport Security</strong></p>
                     <ul>
-                        <li><strong>TLS 1.3 everywhere</strong> — All connections use modern TLS encryption. No plaintext, ever.</li>
-                        <li><strong>WebSocket over HTTPS</strong> — Terminal sessions use encrypted WebSocket connections</li>
-                        <li><strong>Certificate pinning</strong> — Agent connections verify server certificates</li>
+                        <li>
+                            <strong>TLS 1.3 everywhere</strong> — All connections
+                            use modern TLS encryption. No plaintext, ever.
+                        </li>
+                        <li>
+                            <strong>WebSocket over HTTPS</strong> — Terminal sessions
+                            use encrypted WebSocket connections
+                        </li>
+                        <li>
+                            <strong>Certificate pinning</strong> — Agent connections
+                            verify server certificates
+                        </li>
                     </ul>
 
                     <p><strong>Authentication & Access Control</strong></p>
                     <ul>
-                        <li><strong>OAuth 2.0 + PKCE</strong> — Secure authentication flow preventing token interception</li>
-                        <li><strong>Multi-Factor Authentication (MFA)</strong> — Optional TOTP-based 2FA for your account</li>
-                        <li><strong>Short-lived JWT tokens</strong> — Access tokens expire quickly; refresh tokens are securely stored</li>
-                        <li><strong>API tokens with scopes</strong> — Fine-grained permissions for programmatic access</li>
+                        <li>
+                            <strong>OAuth 2.0 + PKCE</strong> — Secure authentication
+                            flow preventing token interception
+                        </li>
+                        <li>
+                            <strong>Multi-Factor Authentication (MFA)</strong> — Optional
+                            TOTP-based 2FA for your account
+                        </li>
+                        <li>
+                            <strong>Short-lived JWT tokens</strong> — Access tokens
+                            expire quickly; refresh tokens are securely stored
+                        </li>
+                        <li>
+                            <strong>API tokens with scopes</strong> — Fine-grained
+                            permissions for programmatic access
+                        </li>
                     </ul>
 
                     <p><strong>Container Isolation</strong></p>
                     <ul>
-                        <li><strong>Kernel namespaces</strong> — Each terminal runs in isolated PID, network, and mount namespaces</li>
-                        <li><strong>Resource limits (cgroups)</strong> — CPU, memory, and I/O are strictly limited per container</li>
-                        <li><strong>Read-only root filesystem</strong> — System files cannot be modified</li>
-                        <li><strong>No privileged mode</strong> — Containers cannot access host resources</li>
-                        <li><strong>Seccomp profiles</strong> — Dangerous syscalls are blocked at the kernel level</li>
+                        <li>
+                            <strong>Kernel namespaces</strong> — Each terminal runs
+                            in isolated PID, network, and mount namespaces
+                        </li>
+                        <li>
+                            <strong>Resource limits (cgroups)</strong> — CPU, memory,
+                            and I/O are strictly limited per container
+                        </li>
+                        <li>
+                            <strong>Read-only root filesystem</strong> — System files
+                            cannot be modified
+                        </li>
+                        <li>
+                            <strong>No privileged mode</strong> — Containers cannot
+                            access host resources
+                        </li>
+                        <li>
+                            <strong>Seccomp profiles</strong> — Dangerous syscalls
+                            are blocked at the kernel level
+                        </li>
                     </ul>
 
                     <p><strong>Data Protection</strong></p>
                     <ul>
-                        <li><strong>No shared state</strong> — Your terminal is completely isolated from other users</li>
-                        <li><strong>Encrypted at rest</strong> — Persistent data is encrypted on disk</li>
-                        <li><strong>Automatic cleanup</strong> — Deleted terminals are securely wiped</li>
-                        <li><strong>No telemetry or logging of commands</strong> — We don't log what you type</li>
+                        <li>
+                            <strong>No shared state</strong> — Your terminal is completely
+                            isolated from other users
+                        </li>
+                        <li>
+                            <strong>Encrypted at rest</strong> — Persistent data is
+                            encrypted on disk
+                        </li>
+                        <li>
+                            <strong>Automatic cleanup</strong> — Deleted terminals
+                            are securely wiped
+                        </li>
+                        <li>
+                            <strong>No telemetry or logging of commands</strong> —
+                            We don't log what you type
+                        </li>
                     </ul>
 
                     <p><strong>Infrastructure Security</strong></p>
                     <ul>
-                        <li><strong>SOC 2 compliant hosting</strong> — Deployed on enterprise-grade cloud infrastructure</li>
-                        <li><strong>Regular security audits</strong> — Penetration testing and vulnerability assessments</li>
-                        <li><strong>DDoS protection</strong> — Built-in rate limiting and traffic filtering</li>
-                        <li><strong>Incident response</strong> — 24/7 monitoring with rapid response procedures</li>
+                        <li>
+                            <strong>SOC 2 compliant hosting</strong> — Deployed on
+                            enterprise-grade cloud infrastructure
+                        </li>
+                        <li>
+                            <strong>Regular security audits</strong> — Penetration
+                            testing and vulnerability assessments
+                        </li>
+                        <li>
+                            <strong>DDoS protection</strong> — Built-in rate limiting
+                            and traffic filtering
+                        </li>
+                        <li>
+                            <strong>Incident response</strong> — 24/7 monitoring with
+                            rapid response procedures
+                        </li>
                     </ul>
 
-                    <p>For enterprise deployments, we also offer <strong>self-hosted options</strong>, <strong>SSO/SAML integration</strong>, and <strong>audit logging</strong>.</p>
+                    <p>
+                        For enterprise deployments, we also offer <strong
+                            >self-hosted options</strong
+                        >, <strong>SSO/SAML integration</strong>, and
+                        <strong>audit logging</strong>.
+                    </p>
                 </div>
             </details>
 
@@ -382,52 +593,123 @@
                     <span>What can I use Rexec for?</span>
                 </summary>
                 <div class="faq-answer">
-                    <p>Rexec gives you instant access to Linux environments from anywhere. Here's what developers and teams are using it for:</p>
+                    <p>
+                        Rexec gives you instant access to Linux environments
+                        from anywhere. Here's what developers and teams are
+                        using it for:
+                    </p>
 
                     <p><strong>Software Development</strong></p>
                     <ul>
-                        <li><strong>Instant dev environments</strong> — Spin up a full Linux environment in seconds with your preferred distro</li>
-                        <li><strong>Cross-platform testing</strong> — Test your code on Ubuntu, Debian, Fedora, Alpine, and more</li>
-                        <li><strong>Dependency isolation</strong> — Keep project dependencies separate without Docker on your machine</li>
-                        <li><strong>Pair programming</strong> — Share your terminal session with teammates in real-time</li>
+                        <li>
+                            <strong>Instant dev environments</strong> — Spin up a
+                            full Linux environment in seconds with your preferred
+                            distro
+                        </li>
+                        <li>
+                            <strong>Cross-platform testing</strong> — Test your code
+                            on Ubuntu, Debian, Fedora, Alpine, and more
+                        </li>
+                        <li>
+                            <strong>Dependency isolation</strong> — Keep project dependencies
+                            separate without Docker on your machine
+                        </li>
+                        <li>
+                            <strong>Pair programming</strong> — Share your terminal
+                            session with teammates in real-time
+                        </li>
                     </ul>
 
                     <p><strong>DevOps & SRE</strong></p>
                     <ul>
-                        <li><strong>Debug production issues</strong> — Access a clean environment to test and reproduce bugs</li>
-                        <li><strong>Script testing</strong> — Safely test deployment scripts before running on production</li>
-                        <li><strong>CI/CD debugging</strong> — Reproduce pipeline failures in an identical environment</li>
-                        <li><strong>Infrastructure management</strong> — Connect to your servers via Rexec Agents for secure remote access</li>
+                        <li>
+                            <strong>Debug production issues</strong> — Access a clean
+                            environment to test and reproduce bugs
+                        </li>
+                        <li>
+                            <strong>Script testing</strong> — Safely test deployment
+                            scripts before running on production
+                        </li>
+                        <li>
+                            <strong>CI/CD debugging</strong> — Reproduce pipeline
+                            failures in an identical environment
+                        </li>
+                        <li>
+                            <strong>Infrastructure management</strong> — Connect to
+                            your servers via Rexec Agents for secure remote access
+                        </li>
                     </ul>
 
                     <p><strong>Learning & Teaching</strong></p>
                     <ul>
-                        <li><strong>Learn Linux safely</strong> — Experiment without fear of breaking your machine</li>
-                        <li><strong>Coding bootcamps</strong> — Provide students with identical, pre-configured environments</li>
-                        <li><strong>Workshops & demos</strong> — Live-code in a browser without setup friction</li>
-                        <li><strong>Certifications prep</strong> — Practice for Linux certifications (RHCSA, LFCS, etc.)</li>
+                        <li>
+                            <strong>Learn Linux safely</strong> — Experiment without
+                            fear of breaking your machine
+                        </li>
+                        <li>
+                            <strong>Coding bootcamps</strong> — Provide students with
+                            identical, pre-configured environments
+                        </li>
+                        <li>
+                            <strong>Workshops & demos</strong> — Live-code in a browser
+                            without setup friction
+                        </li>
+                        <li>
+                            <strong>Certifications prep</strong> — Practice for Linux
+                            certifications (RHCSA, LFCS, etc.)
+                        </li>
                     </ul>
 
                     <p><strong>AI & Machine Learning</strong></p>
                     <ul>
-                        <li><strong>GPU-enabled environments</strong> — Access CUDA-ready containers for ML workloads</li>
-                        <li><strong>Model training</strong> — Run long-running training jobs in persistent terminals</li>
-                        <li><strong>Jupyter alternative</strong> — Full terminal access for complex workflows</li>
+                        <li>
+                            <strong>GPU-enabled environments</strong> — Access CUDA-ready
+                            containers for ML workloads
+                        </li>
+                        <li>
+                            <strong>Model training</strong> — Run long-running training
+                            jobs in persistent terminals
+                        </li>
+                        <li>
+                            <strong>Jupyter alternative</strong> — Full terminal access
+                            for complex workflows
+                        </li>
                     </ul>
 
                     <p><strong>Remote Access & BYOS</strong></p>
                     <ul>
-                        <li><strong>Access your homelab</strong> — Connect to home servers from anywhere via Agent</li>
-                        <li><strong>On-premises servers</strong> — Securely access internal infrastructure through the browser</li>
-                        <li><strong>Multi-job workflows</strong> — Manage terminals across multiple machines from one dashboard</li>
-                        <li><strong>Mobile access</strong> — SSH into your servers from your phone or tablet</li>
+                        <li>
+                            <strong>Access your homelab</strong> — Connect to home
+                            servers from anywhere via Agent
+                        </li>
+                        <li>
+                            <strong>On-premises servers</strong> — Securely access
+                            internal infrastructure through the browser
+                        </li>
+                        <li>
+                            <strong>Multi-job workflows</strong> — Manage terminals
+                            across multiple machines from one dashboard
+                        </li>
+                        <li>
+                            <strong>Mobile access</strong> — SSH into your servers
+                            from your phone or tablet
+                        </li>
                     </ul>
 
                     <p><strong>Security & Pentesting</strong></p>
                     <ul>
-                        <li><strong>Isolated testing</strong> — Run security tools in a sandboxed environment</li>
-                        <li><strong>CTF competitions</strong> — Spin up Kali or ParrotOS for capture-the-flag challenges</li>
-                        <li><strong>Malware analysis</strong> — Safely analyze suspicious files in a throwaway container</li>
+                        <li>
+                            <strong>Isolated testing</strong> — Run security tools
+                            in a sandboxed environment
+                        </li>
+                        <li>
+                            <strong>CTF competitions</strong> — Spin up Kali or ParrotOS
+                            for capture-the-flag challenges
+                        </li>
+                        <li>
+                            <strong>Malware analysis</strong> — Safely analyze suspicious
+                            files in a throwaway container
+                        </li>
                     </ul>
                 </div>
             </details>
@@ -438,12 +720,26 @@
                     <span>Is my data persistent?</span>
                 </summary>
                 <div class="faq-answer">
-                    <p>Terminals persist between sessions — your files and work are saved until you explicitly delete the terminal. However, once you delete a terminal, all data is permanently removed.</p>
+                    <p>
+                        Terminals persist between sessions — your files and work
+                        are saved until you explicitly delete the terminal.
+                        However, once you delete a terminal, all data is
+                        permanently removed.
+                    </p>
                     <p>For long-term storage, we recommend:</p>
                     <ul>
-                        <li><strong>Push to Git</strong> — Commit your work to a remote repository</li>
-                        <li><strong>Use Rexec Agents</strong> — Connect your own infrastructure for full control</li>
-                        <li><strong>Export files</strong> — Download important files before deleting</li>
+                        <li>
+                            <strong>Push to Git</strong> — Commit your work to a remote
+                            repository
+                        </li>
+                        <li>
+                            <strong>Use Rexec Agents</strong> — Connect your own infrastructure
+                            for full control
+                        </li>
+                        <li>
+                            <strong>Export files</strong> — Download important files
+                            before deleting
+                        </li>
                     </ul>
                 </div>
             </details>
@@ -454,23 +750,48 @@
                     <span>What does it cost?</span>
                 </summary>
                 <div class="faq-answer">
-                    <p>Rexec offers a generous free tier for personal use. <strong>Sign in with PipeOps</strong> to unlock:</p>
+                    <p>
+                        Rexec offers a generous free tier for personal use. <strong
+                            >Sign in with PipeOps</strong
+                        > to unlock:
+                    </p>
                     <ul>
-                        <li><strong>Persistent terminals</strong> — Your terminals survive browser restarts</li>
-                        <li><strong>SSH key management</strong> — Store and inject keys into terminals</li>
-                        <li><strong>Snippets library</strong> — Save and reuse commands</li>
-                        <li><strong>Agent connections</strong> — Connect your own servers</li>
-                        <li><strong>Session history</strong> — Access your terminal recordings</li>
+                        <li>
+                            <strong>Persistent terminals</strong> — Your terminals
+                            survive browser restarts
+                        </li>
+                        <li>
+                            <strong>SSH key management</strong> — Store and inject
+                            keys into terminals
+                        </li>
+                        <li>
+                            <strong>Snippets library</strong> — Save and reuse commands
+                        </li>
+                        <li>
+                            <strong>Agent connections</strong> — Connect your own
+                            servers
+                        </li>
+                        <li>
+                            <strong>Session history</strong> — Access your terminal
+                            recordings
+                        </li>
                     </ul>
-                    <p>For teams and power users, <strong>Pro</strong> and <strong>Enterprise</strong> plans add:</p>
+                    <p>
+                        For teams and power users, <strong>Pro</strong> and
+                        <strong>Enterprise</strong> plans add:
+                    </p>
                     <ul>
-                        <li><strong>More concurrent terminals</strong> (10+ vs 3)</li>
+                        <li>
+                            <strong>More concurrent terminals</strong> (10+ vs 3)
+                        </li>
                         <li><strong>Unlimited agents</strong></li>
                         <li><strong>Priority support</strong></li>
                         <li><strong>Custom images</strong></li>
                         <li><strong>SSO/SAML integration</strong></li>
                     </ul>
-                    <p>Check our <a href="/pricing">pricing page</a> for details.</p>
+                    <p>
+                        Check our <a href="/pricing">pricing page</a> for details.
+                    </p>
                 </div>
             </details>
 
@@ -480,13 +801,106 @@
                     <span>Can I connect my own servers?</span>
                 </summary>
                 <div class="faq-answer">
-                    <p>Yes! With the <strong>Rexec Agent</strong>, you can connect any Linux or macOS machine to the platform. This enables:</p>
+                    <p>
+                        Yes! With the <strong>Rexec Agent</strong>, you can
+                        connect any Linux or macOS machine to the platform. This
+                        enables:
+                    </p>
                     <ul>
-                        <li><strong>BYOS (Bring Your Own Server)</strong> — Use your own hardware</li>
-                        <li><strong>On-premises access</strong> — Securely access internal servers</li>
-                        <li><strong>Custom environments</strong> — Full control over your setup</li>
+                        <li>
+                            <strong>BYOS (Bring Your Own Server)</strong> — Use your
+                            own hardware
+                        </li>
+                        <li>
+                            <strong>On-premises access</strong> — Securely access
+                            internal servers
+                        </li>
+                        <li>
+                            <strong>Custom environments</strong> — Full control over
+                            your setup
+                        </li>
                     </ul>
-                    <p>See the <a href="/docs/agent">Agent Setup Guide</a> for installation instructions.</p>
+                    <p>
+                        See the <a href="/docs/agent">Agent Setup Guide</a> for installation
+                        instructions.
+                    </p>
+                </div>
+            </details>
+
+            <details class="faq-item">
+                <summary class="faq-question">
+                    <StatusIcon status="bolt" size={16} />
+                    <span>Can I use Rexec with AI coding tools?</span>
+                </summary>
+                <div class="faq-answer">
+                    <p>
+                        <strong>Absolutely!</strong> Rexec was designed with AI-native
+                        workflows in mind. Use cases include:
+                    </p>
+                    <ul>
+                        <li>
+                            <strong>Continue building remotely</strong> — Register
+                            your dev machine as an agent and keep coding from any
+                            AI CLI (Claude, Cursor, Windsurf, etc.) without opening
+                            your laptop
+                        </li>
+                        <li>
+                            <strong>Sandboxed execution</strong> — Let AI tools run
+                            commands in isolated containers
+                        </li>
+                        <li>
+                            <strong>Persistent environments</strong> — Your AI tools
+                            can pick up where they left off
+                        </li>
+                    </ul>
+                    <p>
+                        Imagine being at dinner and continuing your build on
+                        your home machine through an AI assistant — that's what
+                        Rexec enables.
+                    </p>
+                </div>
+            </details>
+
+            <details class="faq-item">
+                <summary class="faq-question">
+                    <StatusIcon status="container" size={16} />
+                    <span
+                        >What's the difference between containers and agents?</span
+                    >
+                </summary>
+                <div class="faq-answer">
+                    <p>
+                        Both give you terminal access, but they serve different
+                        purposes:
+                    </p>
+                    <p><strong>Containers (provisioned by Rexec):</strong></p>
+                    <ul>
+                        <li>
+                            One-click setup — choose Ubuntu, Debian, Alpine,
+                            Fedora, etc.
+                        </li>
+                        <li>
+                            Isolated and disposable — perfect for experiments
+                            and sandboxes
+                        </li>
+                        <li>Pre-configured with dev tools and SSH</li>
+                    </ul>
+                    <p><strong>Agents (your own machines):</strong></p>
+                    <ul>
+                        <li>
+                            Full access to your laptop, server, Raspberry Pi, or
+                            any machine
+                        </li>
+                        <li>Uses your machine's resources and network</li>
+                        <li>
+                            No inbound ports or VPN required — agent connects
+                            outbound
+                        </li>
+                        <li>
+                            Perfect for accessing your dev environment from
+                            anywhere
+                        </li>
+                    </ul>
                 </div>
             </details>
         </div>
@@ -496,7 +910,12 @@
     <section class="section support-section">
         <h2><StatusIcon status="chat" size={20} /> Need Help?</h2>
         <div class="support-cards">
-            <a href="https://github.com/pipeops-dev/rexec/issues" target="_blank" rel="noopener" class="support-card">
+            <a
+                href="https://github.com/pipeops-dev/rexec/issues"
+                target="_blank"
+                rel="noopener"
+                class="support-card"
+            >
                 <StatusIcon status="bug" size={24} />
                 <h4>Report an Issue</h4>
                 <p>Found a bug? Let us know on GitHub.</p>
@@ -748,10 +1167,22 @@
         text-transform: uppercase;
     }
 
-    .method.get { background: rgba(0, 150, 255, 0.2); color: #0096ff; }
-    .method.post { background: rgba(0, 255, 65, 0.2); color: var(--accent); }
-    .method.delete { background: rgba(255, 60, 60, 0.2); color: #ff3c3c; }
-    .method.websocket { background: rgba(180, 100, 255, 0.2); color: #b464ff; }
+    .method.get {
+        background: rgba(0, 150, 255, 0.2);
+        color: #0096ff;
+    }
+    .method.post {
+        background: rgba(0, 255, 65, 0.2);
+        color: var(--accent);
+    }
+    .method.delete {
+        background: rgba(255, 60, 60, 0.2);
+        color: #ff3c3c;
+    }
+    .method.websocket {
+        background: rgba(180, 100, 255, 0.2);
+        color: #b464ff;
+    }
 
     .endpoint code {
         flex: 1;
