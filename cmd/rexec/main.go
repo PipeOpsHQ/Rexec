@@ -475,6 +475,9 @@ func runServer() {
 	// Initialize snippet handler
 	snippetHandler := handlers.NewSnippetHandler(store)
 
+	// Initialize tutorial handler
+	tutorialHandler := handlers.NewTutorialHandler(store)
+
 	// Initialize token handler for API tokens
 	tokenHandler := handlers.NewTokenHandler(store)
 
@@ -785,7 +788,20 @@ func runServer() {
 
 			// Debug/runtime info (admin-only)
 			admin.GET("/runtime", handlers.GetRuntimeStats)
+
+			// Tutorial management (admin-only)
+			tutorials := admin.Group("/tutorials")
+			{
+				tutorials.GET("", tutorialHandler.ListAllTutorials)
+				tutorials.POST("", tutorialHandler.CreateTutorial)
+				tutorials.PUT("/:id", tutorialHandler.UpdateTutorial)
+				tutorials.DELETE("/:id", tutorialHandler.DeleteTutorial)
+			}
 		}
+
+		// Public tutorials endpoint (authenticated users)
+		api.GET("/tutorials", tutorialHandler.ListPublicTutorials)
+		api.GET("/tutorials/:id", tutorialHandler.GetTutorial)
 	}
 
 	// Stripe webhook (public, verified by signature)
@@ -823,6 +839,9 @@ func runServer() {
 
 	// Public snippets marketplace (no auth required, but authenticated users see ownership)
 	router.GET("/api/marketplace/snippets", snippetHandler.ListPublicSnippets)
+
+	// Public tutorials (no auth required)
+	router.GET("/api/public/tutorials", tutorialHandler.ListPublicTutorials)
 
 	// Serve static files (frontend)
 	webDir := os.Getenv("WEB_DIR")

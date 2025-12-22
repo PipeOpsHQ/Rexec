@@ -485,6 +485,24 @@ func (s *PostgresStore) migrate() error {
 	CREATE INDEX IF NOT EXISTS idx_api_tokens_user_id ON api_tokens(user_id);
 	CREATE INDEX IF NOT EXISTS idx_api_tokens_token_hash ON api_tokens(token_hash);
 
+	-- Tutorials table for admin-created video tutorials
+	CREATE TABLE IF NOT EXISTS tutorials (
+		id VARCHAR(36) PRIMARY KEY,
+		title VARCHAR(255) NOT NULL,
+		description TEXT,
+		video_url VARCHAR(512) NOT NULL,
+		thumbnail VARCHAR(512),
+		duration VARCHAR(20),
+		category VARCHAR(100) DEFAULT 'getting-started',
+		display_order INT DEFAULT 0,
+		is_published BOOLEAN DEFAULT false,
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_tutorials_category ON tutorials(category);
+	CREATE INDEX IF NOT EXISTS idx_tutorials_published ON tutorials(is_published);
+
 	-- Add new columns if missing (for existing installations)
 	DO $$ BEGIN
 		IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='agents' AND column_name='last_heartbeat') THEN
@@ -2257,6 +2275,166 @@ func (s *PostgresStore) IncrementSnippetUsage(ctx context.Context, id string) er
 // DeleteSnippet deletes a snippet by ID
 func (s *PostgresStore) DeleteSnippet(ctx context.Context, id string) error {
 	query := `DELETE FROM snippets WHERE id = $1`
+	_, err := s.db.ExecContext(ctx, query, id)
+	return err
+}
+
+// ============================================================================
+// Tutorial operations
+// ============================================================================
+
+// CreateTutorial creates a new tutorial (admin only)
+func (s *PostgresStore) CreateTutorial(ctx context.Context, tutorial *models.Tutorial) error {
+	query := `
+		INSERT INTO tutorials (id, title, description, video_url, thumbnail, duration, category, display_order, is_published, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+	`
+	_, err := s.db.ExecContext(ctx, query,
+		tutorial.ID,
+		tutorial.Title,
+		tutorial.Description,
+		tutorial.VideoURL,
+		tutorial.Thumbnail,
+		tutorial.Duration,
+		tutorial.Category,
+		tutorial.Order,
+		tutorial.IsPublished,
+		tutorial.CreatedAt,
+		tutorial.UpdatedAt,
+	)
+	return err
+}
+
+// GetTutorialByID retrieves a single tutorial by ID
+func (s *PostgresStore) GetTutorialByID(ctx context.Context, id string) (*models.Tutorial, error) {
+	var t models.Tutorial
+	query := `
+		SELECT id, title, COALESCE(description, ''), video_url, COALESCE(thumbnail, ''), COALESCE(duration, ''), category, display_order, is_published, created_at, updated_at
+		FROM tutorials WHERE id = $1
+	`
+	err := s.db.QueryRowContext(ctx, query, id).Scan(
+		&t.ID,
+		&t.Title,
+		&t.Description,
+		&t.VideoURL,
+		&t.Thumbnail,
+		&t.Duration,
+		&t.Category,
+		&t.Order,
+		&t.IsPublished,
+		&t.CreatedAt,
+		&t.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &t, nil
+}
+
+// GetPublishedTutorials retrieves all published tutorials ordered by category and display_order
+func (s *PostgresStore) GetPublishedTutorials(ctx context.Context, category string) ([]*models.Tutorial, error) {
+	var args []interface{}
+	query := `
+		SELECT id, title, COALESCE(description, ''), video_url, COALESCE(thumbnail, ''), COALESCE(duration, ''), category, display_order, is_published, created_at, updated_at
+		FROM tutorials
+		WHERE is_published = true
+	`
+	if category != "" {
+		query += ` AND category = $1`
+		args = append(args, category)
+	}
+	query += ` ORDER BY category, display_order, created_at`
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tutorials []*models.Tutorial
+	for rows.Next() {
+		var t models.Tutorial
+		if err := rows.Scan(
+			&t.ID,
+			&t.Title,
+			&t.Description,
+			&t.VideoURL,
+			&t.Thumbnail,
+			&t.Duration,
+			&t.Category,
+			&t.Order,
+			&t.IsPublished,
+			&t.CreatedAt,
+			&t.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		tutorials = append(tutorials, &t)
+	}
+	return tutorials, nil
+}
+
+// GetAllTutorials retrieves all tutorials (for admin)
+func (s *PostgresStore) GetAllTutorials(ctx context.Context) ([]*models.Tutorial, error) {
+	query := `
+		SELECT id, title, COALESCE(description, ''), video_url, COALESCE(thumbnail, ''), COALESCE(duration, ''), category, display_order, is_published, created_at, updated_at
+		FROM tutorials
+		ORDER BY category, display_order, created_at
+	`
+	rows, err := s.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tutorials []*models.Tutorial
+	for rows.Next() {
+		var t models.Tutorial
+		if err := rows.Scan(
+			&t.ID,
+			&t.Title,
+			&t.Description,
+			&t.VideoURL,
+			&t.Thumbnail,
+			&t.Duration,
+			&t.Category,
+			&t.Order,
+			&t.IsPublished,
+			&t.CreatedAt,
+			&t.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		tutorials = append(tutorials, &t)
+	}
+	return tutorials, nil
+}
+
+// UpdateTutorial updates an existing tutorial
+func (s *PostgresStore) UpdateTutorial(ctx context.Context, tutorial *models.Tutorial) error {
+	query := `
+		UPDATE tutorials
+		SET title = $1, description = $2, video_url = $3, thumbnail = $4, duration = $5, category = $6, display_order = $7, is_published = $8, updated_at = $9
+		WHERE id = $10
+	`
+	_, err := s.db.ExecContext(ctx, query,
+		tutorial.Title,
+		tutorial.Description,
+		tutorial.VideoURL,
+		tutorial.Thumbnail,
+		tutorial.Duration,
+		tutorial.Category,
+		tutorial.Order,
+		tutorial.IsPublished,
+		tutorial.UpdatedAt,
+		tutorial.ID,
+	)
+	return err
+}
+
+// DeleteTutorial deletes a tutorial by ID
+func (s *PostgresStore) DeleteTutorial(ctx context.Context, id string) error {
+	query := `DELETE FROM tutorials WHERE id = $1`
 	_, err := s.db.ExecContext(ctx, query, id)
 	return err
 }

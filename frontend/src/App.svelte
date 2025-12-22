@@ -127,7 +127,8 @@
         | "launch"
         | "notFound"
         | "terminalView"
-        | "screenLock";
+        | "screenLock"
+        | "tutorials";
 
     type LazyComponentModule = { default: any };
     type LazyLoader = () => Promise<LazyComponentModule>;
@@ -159,6 +160,7 @@
         notFound: () => import("$components/NotFound.svelte"),
         terminalView: () => import("$components/terminal/TerminalView.svelte"),
         screenLock: () => import("$components/ScreenLock.svelte"),
+        tutorials: () => import("$components/TutorialsPage.svelte"),
     };
 
     let lazyComponents: Partial<Record<LazyComponentKey, any>> = {};
@@ -227,6 +229,7 @@
         | "account-recordings"
         | "account-api"
         | "docs"
+        | "tutorials"
         | "404" = "landing";
     let isLoading = true;
     let isInitialized = false; // Prevents reactive statements from firing before token validation
@@ -299,6 +302,13 @@
                 "Learn how to use Rexec with AI tools like Claude, ChatGPT, and GitHub Copilot. Step-by-step tutorials for terminal automation.",
             keywords:
                 "tutorials, guides, AI tools, Claude, ChatGPT, terminal automation",
+        },
+        tutorials: {
+            title: "Tutorials - Rexec | Video Guides",
+            description:
+                "Learn how to use Rexec with step-by-step video tutorials covering terminals, agents, CLI tools, and more.",
+            keywords:
+                "tutorials, videos, guides, how to, terminal, agents, CLI",
         },
         "use-cases": {
             title: "Use Cases - Rexec | Terminal as a Service",
@@ -759,6 +769,12 @@
             if (path === "/ai-tools") {
                 window.history.replaceState({}, "", "/guides");
             }
+            return;
+        }
+
+        // Check for /tutorials route
+        if (path === "/tutorials") {
+            currentView = "tutorials";
             return;
         }
 
@@ -1360,6 +1376,8 @@
         const path = window.location.pathname;
         if (path === "/" || path === "") {
             currentView = $isAuthenticated ? "dashboard" : "landing";
+        } else if (path === "/tutorials") {
+            currentView = "tutorials";
         } else if (path === "/guides" || path === "/ai-tools") {
             currentView = "guides";
         } else if (path === "/use-cases" || path === "/agentic") {
@@ -1568,6 +1586,9 @@
                 break;
             case "guides":
                 preloadComponent("guides");
+                break;
+            case "tutorials":
+                preloadComponent("tutorials");
                 break;
             case "use-cases":
                 preloadComponent("useCases");
@@ -2033,6 +2054,12 @@
                             }
                         }}
                     />
+                {:else}
+                    <div class="view-loading">Loading...</div>
+                {/if}
+            {:else if currentView === "tutorials"}
+                {#if lazyComponents.tutorials}
+                    <svelte:component this={lazyComponents.tutorials} />
                 {:else}
                     <div class="view-loading">Loading...</div>
                 {/if}

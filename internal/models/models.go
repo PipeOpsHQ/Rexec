@@ -81,6 +81,21 @@ type PortForward struct {
 	CreatedAt     time.Time `json:"created_at"`
 }
 
+// Tutorial represents an admin-created video tutorial
+type Tutorial struct {
+	ID          string    `json:"id"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	VideoURL    string    `json:"video_url"`    // YouTube/Vimeo embed URL
+	Thumbnail   string    `json:"thumbnail"`    // Optional thumbnail URL
+	Duration    string    `json:"duration"`     // e.g., "5:30"
+	Category    string    `json:"category"`     // getting-started, agents, containers, etc.
+	Order       int       `json:"order"`        // Display order within category
+	IsPublished bool      `json:"is_published"` // Only published tutorials are shown
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
 // Snippet represents a saved script or macro
 type Snippet struct {
 	ID              string    `json:"id"`
@@ -249,13 +264,13 @@ func GetUserResourceLimits(tier string, subscriptionActive bool) ResourceLimits 
 
 // ShellConfig defines shell customization options
 type ShellConfig struct {
-	Enhanced        *bool  `json:"enhanced"`         // Install oh-my-zsh + plugins (default: true)
-	Theme           string `json:"theme,omitempty"`  // zsh theme: "rexec" (default), "minimal", "powerlevel10k"
-	Autosuggestions *bool  `json:"autosuggestions"`  // Enable zsh-autosuggestions (default: true)
-	SyntaxHighlight *bool  `json:"syntax_highlight"` // Enable zsh-syntax-highlighting (default: true)
-	HistorySearch   *bool  `json:"history_search"`   // Enable history-substring-search (default: true)
-	GitAliases      *bool  `json:"git_aliases"`      // Enable git shortcuts (default: true)
-	SystemStats     *bool  `json:"system_stats"`     // Show system stats on login (default: true)
+	Enhanced        *bool  `json:"enhanced"`           // Install oh-my-zsh + plugins (default: true)
+	Theme           string `json:"theme,omitempty"`    // zsh theme: "rexec" (default), "minimal", "powerlevel10k"
+	Autosuggestions *bool  `json:"autosuggestions"`    // Enable zsh-autosuggestions (default: true)
+	SyntaxHighlight *bool  `json:"syntax_highlight"`   // Enable zsh-syntax-highlighting (default: true)
+	HistorySearch   *bool  `json:"history_search"`     // Enable history-substring-search (default: true)
+	GitAliases      *bool  `json:"git_aliases"`        // Enable git shortcuts (default: true)
+	SystemStats     *bool  `json:"system_stats"`       // Show system stats on login (default: true)
 	UseTmux         *bool  `json:"use_tmux,omitempty"` // Enable tmux session persistence (default: true)
 }
 

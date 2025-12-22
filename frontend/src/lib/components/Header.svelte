@@ -35,8 +35,9 @@
     let countdownInterval: ReturnType<typeof setInterval> | null = null;
     let isOAuthLoading = false;
     let sessionCountValue = 0;
-    let terminalModulePromise: Promise<typeof import("$stores/terminal")> | null =
-        null;
+    let terminalModulePromise: Promise<
+        typeof import("$stores/terminal")
+    > | null = null;
     let terminalModule: typeof import("$stores/terminal") | null = null;
     let unsubscribeSessionCount: (() => void) | null = null;
 
@@ -209,6 +210,10 @@
             <StatusIcon status="snippet" size={14} />
             <span>Snippets</span>
         </a>
+        <a class="nav-link" href="/tutorials">
+            <StatusIcon status="video" size={14} />
+            <span>Tutorials</span>
+        </a>
         <a class="nav-link" href="/docs">
             <StatusIcon status="book" size={14} />
             <span>Docs</span>
@@ -219,9 +224,11 @@
         <button
             class="theme-toggle"
             onclick={() => theme.toggle()}
-            title={$theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={$theme === "dark"
+                ? "Switch to light mode"
+                : "Switch to dark mode"}
         >
-            {#if $theme === 'dark'}
+            {#if $theme === "dark"}
                 <StatusIcon status="sun" size={16} />
             {:else}
                 <StatusIcon status="moon" size={16} />
@@ -232,14 +239,19 @@
             {#if sessionCountValue > 0}
                 <span class="terminal-status">
                     <span class="terminal-dot"></span>
-                    {sessionCountValue} Terminal{sessionCountValue > 1 ? 's' : ''}
+                    {sessionCountValue} Terminal{sessionCountValue > 1
+                        ? "s"
+                        : ""}
                 </span>
             {/if}
 
             <div class="user-menu-container">
                 <button
                     class="user-badge"
-                    onclick={(e) => { e.stopPropagation(); toggleUserMenu(); }}
+                    onclick={(e) => {
+                        e.stopPropagation();
+                        toggleUserMenu();
+                    }}
                 >
                     <span class="user-avatar">
                         {$auth.user?.name?.charAt(0).toUpperCase() || "U"}
@@ -325,7 +337,12 @@
                         >
                             <StatusIcon status="settings" size={14} />
                             Settings
-                            {#if $isGuest}<span class="lock-icon"><StatusIcon status="lock" size={12} /></span>{/if}
+                            {#if $isGuest}<span class="lock-icon"
+                                    ><StatusIcon
+                                        status="lock"
+                                        size={12}
+                                    /></span
+                                >{/if}
                         </button>
                         <button
                             class="user-menu-item"
@@ -343,7 +360,12 @@
                         >
                             <StatusIcon status="key" size={14} />
                             SSH Keys
-                            {#if $isGuest}<span class="lock-icon"><StatusIcon status="lock" size={12} /></span>{/if}
+                            {#if $isGuest}<span class="lock-icon"
+                                    ><StatusIcon
+                                        status="lock"
+                                        size={12}
+                                    /></span
+                                >{/if}
                         </button>
                         <button
                             class="user-menu-item"
@@ -361,7 +383,12 @@
                         >
                             <StatusIcon status="invoice" size={14} />
                             Billing
-                            {#if $isGuest}<span class="lock-icon"><StatusIcon status="lock" size={12} /></span>{/if}
+                            {#if $isGuest}<span class="lock-icon"
+                                    ><StatusIcon
+                                        status="lock"
+                                        size={12}
+                                    /></span
+                                >{/if}
                         </button>
 
                         <div class="user-menu-divider"></div>
@@ -381,7 +408,12 @@
                         >
                             <StatusIcon status="snippet" size={14} />
                             Snippets
-                            {#if $isGuest}<span class="lock-icon"><StatusIcon status="lock" size={12} /></span>{/if}
+                            {#if $isGuest}<span class="lock-icon"
+                                    ><StatusIcon
+                                        status="lock"
+                                        size={12}
+                                    /></span
+                                >{/if}
                         </button>
                         <button
                             class="user-menu-item"
@@ -399,7 +431,12 @@
                         >
                             <StatusIcon status="terminal" size={14} />
                             CLI
-                            {#if $isGuest}<span class="lock-icon"><StatusIcon status="lock" size={12} /></span>{/if}
+                            {#if $isGuest}<span class="lock-icon"
+                                    ><StatusIcon
+                                        status="lock"
+                                        size={12}
+                                    /></span
+                                >{/if}
                         </button>
                         <button
                             class="user-menu-item"
@@ -417,7 +454,12 @@
                         >
                             <StatusIcon status="server" size={14} />
                             Agents
-                            {#if $isGuest}<span class="lock-icon"><StatusIcon status="lock" size={12} /></span>{/if}
+                            {#if $isGuest}<span class="lock-icon"
+                                    ><StatusIcon
+                                        status="lock"
+                                        size={12}
+                                    /></span
+                                >{/if}
                         </button>
 
                         <div class="user-menu-divider"></div>
@@ -492,14 +534,32 @@
                 </button>
             </div>
             <div class="mobile-nav-links">
-                <button class="mobile-nav-link" onclick={() => { closeMobileMenu(); dispatch("pricing"); }}>
+                <button
+                    class="mobile-nav-link"
+                    onclick={() => {
+                        closeMobileMenu();
+                        dispatch("pricing");
+                    }}
+                >
                     <StatusIcon status="pricing" size={16} /> Pricing
                 </button>
-                <button class="mobile-nav-link" onclick={() => { closeMobileMenu(); dispatch("home"); }}>
+                <button
+                    class="mobile-nav-link"
+                    onclick={() => {
+                        closeMobileMenu();
+                        dispatch("home");
+                    }}
+                >
                     <StatusIcon status="chart" size={16} /> Dashboard
                 </button>
                 <div class="user-menu-divider"></div>
-                <button class="mobile-nav-link" onclick={() => { closeMobileMenu(); dispatch("create"); }}>
+                <button
+                    class="mobile-nav-link"
+                    onclick={() => {
+                        closeMobileMenu();
+                        dispatch("create");
+                    }}
+                >
                     <StatusIcon status="plus" size={16} /> New Terminal
                 </button>
             </div>
@@ -604,8 +664,12 @@
     }
 
     @keyframes slideIn {
-        from { transform: translateX(-100%); }
-        to { transform: translateX(0); }
+        from {
+            transform: translateX(-100%);
+        }
+        to {
+            transform: translateX(0);
+        }
     }
 
     .btn-spinner-sm {
