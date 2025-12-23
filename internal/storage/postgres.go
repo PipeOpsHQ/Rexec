@@ -485,7 +485,7 @@ func (s *PostgresStore) migrate() error {
 	CREATE INDEX IF NOT EXISTS idx_api_tokens_user_id ON api_tokens(user_id);
 	CREATE INDEX IF NOT EXISTS idx_api_tokens_token_hash ON api_tokens(token_hash);
 
-	// Tutorials table for admin-created video tutorials
+	-- Tutorials table for admin-created video tutorials
 	CREATE TABLE IF NOT EXISTS tutorials (
 		id VARCHAR(36) PRIMARY KEY,
 		title VARCHAR(255) NOT NULL,
