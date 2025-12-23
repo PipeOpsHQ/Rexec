@@ -102,15 +102,14 @@
     }
 
     function getEmbedUrl(url: string): string {
-        // Convert YouTube watch URLs to embed URLs
-        if (url.includes("youtube.com/watch")) {
-            const videoId = new URL(url).searchParams.get("v");
-            return `https://www.youtube.com/embed/${videoId}`;
+        // Handle YouTube URLs (supports various formats including shorts, live, etc.)
+        const ytMatch = url.match(
+            /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/,
+        );
+        if (ytMatch && ytMatch[1]) {
+            return `https://www.youtube.com/embed/${ytMatch[1]}`;
         }
-        if (url.includes("youtu.be/")) {
-            const videoId = url.split("youtu.be/")[1]?.split("?")[0];
-            return `https://www.youtube.com/embed/${videoId}`;
-        }
+
         // Convert Vimeo URLs
         if (url.includes("vimeo.com/")) {
             const videoId = url.split("vimeo.com/")[1]?.split("?")[0];
@@ -134,22 +133,11 @@
     function getThumbnail(tutorial: Tutorial): string {
         if (tutorial.thumbnail) return tutorial.thumbnail;
         // Generate YouTube thumbnail if possible
-        if (
-            tutorial.video_url.includes("youtube.com") ||
-            tutorial.video_url.includes("youtu.be")
-        ) {
-            let videoId = "";
-            if (tutorial.video_url.includes("youtube.com/watch")) {
-                videoId =
-                    new URL(tutorial.video_url).searchParams.get("v") || "";
-            } else if (tutorial.video_url.includes("youtu.be/")) {
-                videoId =
-                    tutorial.video_url.split("youtu.be/")[1]?.split("?")[0] ||
-                    "";
-            }
-            if (videoId) {
-                return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
-            }
+        const ytMatch = tutorial.video_url.match(
+            /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/,
+        );
+        if (ytMatch && ytMatch[1]) {
+            return `https://img.youtube.com/vi/${ytMatch[1]}/maxresdefault.jpg`;
         }
         return "/og-image.png";
     }
