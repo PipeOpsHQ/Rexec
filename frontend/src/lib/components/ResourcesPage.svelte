@@ -472,11 +472,11 @@
         <!-- Tutorial Grid -->
         <div class="tutorials-grid">
             {#each filteredResources as resource (resource.id)}
+                {@const thumb = getThumbnail(resource)}
                 <div
                     class="tutorial-card"
                     class:unpublished={!resource.is_published}
                 >
-                    {@const thumb = getThumbnail(resource)}
                     <button
                         class="thumbnail"
                         onclick={() => openResource(resource)}
