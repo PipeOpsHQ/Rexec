@@ -193,31 +193,43 @@
                 return escapeHtml(part);
             })
             .join("");
-    }
+
 
     function renderMarkdown(text: string): string {
         if (!text) return "";
         let html = text
+            // Headers
             .replace(/^### (.*$)/gim, "<h3>$1</h3>")
             .replace(/^## (.*$)/gim, "<h2>$1</h2>")
             .replace(/^# (.*$)/gim, "<h1>$1</h1>")
-            .replace(/\*\*(.*)\*\*/gim, "<strong>$1</strong>")
-            .replace(/\*(.*)\*/gim, "<em>$1</em>")
+            // Bold & Italic (non-greedy)
+            .replace(/\*\*(.*?)\*\*/gim, "<strong>$1</strong>")
+            .replace(/\*(.*?)\*/gim, "<em>$1</em>")
+            // Images
             .replace(
                 /!\[(.*?)\]\((.*?)\)/gim,
                 "<img src='$2' alt='$1' class='img-fluid' />",
             )
+            // Links
             .replace(
                 /\[(.*?)\]\((.*?)\)/gim,
                 "<a href='$2' target='_blank' rel='noopener'>$1</a>",
             )
-            .replace(/```([^`]+)```/gim, "<pre><code>$1</code></pre>")
+            // Code Blocks
+            .replace(/```([\s\S]*?)```/gim, "<pre><code>$1</code></pre>")
+            // Inline Code
             .replace(/`([^`]+)`/gim, "<code>$1</code>")
+            // Blockquotes
+            .replace(/^> (.*$)/gim, "<blockquote>$1</blockquote>")
+            // Horizontal Rules
+            .replace(/^---$/gim, "<hr />")
+            // Lists
             .replace(/^\s*-\s+(.*)/gim, "<ul><li>$1</li></ul>")
             .replace(/<\/ul>\s*<ul>/gim, "")
-            .replace(/\n\n/gim, "</p><p>");
+            // Paragraphs (breaks)
+            .replace(/\n\n/gim, "<br/><br/>");
 
-        return `<p>${html}</p>`;
+        return `<div class="markdown-content">${html}</div>`;
     }
 
     async function handleImageUpload(e: Event) {
@@ -1262,32 +1274,96 @@
     .markdown-body :global(h2),
     .markdown-body :global(h3) {
         color: var(--text);
-        margin-top: 24px;
+        margin-top: 32px;
         margin-bottom: 16px;
+        line-height: 1.3;
     }
 
-    .markdown-body :global(p) {
+    .markdown-body :global(h1) {
+        font-size: 28px;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 8px;
+    }
+
+    .markdown-body :global(h2) {
+        font-size: 24px;
+    }
+
+    .markdown-body :global(h3) {
+        font-size: 20px;
+    }
+
+    .markdown-body :global(p),
+    .markdown-body {
         margin-bottom: 16px;
         line-height: 1.7;
+        font-size: 15px;
+    }
+
+    .markdown-body :global(a) {
+        color: var(--accent);
+        text-decoration: none;
+    }
+
+    .markdown-body :global(a:hover) {
+        text-decoration: underline;
+    }
+
+    .markdown-body :global(ul) {
+        margin-bottom: 16px;
+        padding-left: 24px;
+    }
+
+    .markdown-body :global(li) {
+        margin-bottom: 8px;
+        line-height: 1.6;
+    }
+
+    .markdown-body :global(blockquote) {
+        border-left: 4px solid var(--accent);
+        background: var(--bg-tertiary);
+        padding: 16px 20px;
+        margin: 24px 0;
+        border-radius: 0 8px 8px 0;
+        font-style: italic;
+        color: var(--text-secondary);
+    }
+
+    .markdown-body :global(hr) {
+        border: 0;
+        height: 1px;
+        background: var(--border);
+        margin: 32px 0;
     }
 
     .markdown-body :global(img) {
         max-width: 100%;
         border-radius: 8px;
-        margin: 16px 0;
+        margin: 24px 0;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
     }
 
     .markdown-body :global(pre) {
-        background: var(--bg-tertiary);
+        background: #111;
         padding: 16px;
         border-radius: 8px;
         overflow-x: auto;
-        margin-bottom: 16px;
+        margin-bottom: 24px;
+        border: 1px solid var(--border);
     }
 
     .markdown-body :global(code) {
         font-family: "JetBrains Mono", monospace;
         font-size: 13px;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 2px 6px;
+        border-radius: 4px;
+    }
+
+    .markdown-body :global(pre) :global(code) {
+        background: transparent;
+        padding: 0;
+        color: #e0e0e0;
     }
 
     .toolbar {

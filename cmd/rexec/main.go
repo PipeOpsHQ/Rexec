@@ -1120,7 +1120,7 @@ func runServer() {
 				c.Header("Content-Disposition", "attachment; filename="+filename)
 				c.File(filePath)
 			})
-		}
+
 
 		// SPA routes - serve index.html for client-side routing
 		router.GET("/guides", func(c *gin.Context) {
@@ -1134,7 +1134,7 @@ func runServer() {
 			if seo, ok := useCaseDetailSEO[slug]; ok {
 				serveSEO(c, seo)
 				return
-			}
+
 			serveSEO(c, useCasesSEO)
 		})
 		router.GET("/snippets", func(c *gin.Context) {
@@ -1181,6 +1181,22 @@ func runServer() {
 		})
 
 		router.GET("/resources", func(c *gin.Context) {
+			id := c.Query("id")
+			if id != "" {
+				if tutorial, err := store.GetTutorialByID(c.Request.Context(), id); err == nil && tutorial.IsPublished {
+					customSEO := seoConfig{
+						Title:              fmt.Sprintf("%s | Rexec Resources", tutorial.Title),
+						Description:        tutorial.Description,
+						OGTitle:            tutorial.Title,
+						OGDescription:      tutorial.Description,
+						OGType:             "article",
+						TwitterTitle:       tutorial.Title,
+						TwitterDescription: tutorial.Description,
+					}
+					serveSEO(c, customSEO)
+					return
+				}
+			}
 			serveSEO(c, resourcesSEO)
 		})
 

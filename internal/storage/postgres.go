@@ -2356,7 +2356,7 @@ func (s *PostgresStore) GetPublishedTutorials(ctx context.Context, category stri
 		query += ` AND category = $1`
 		args = append(args, category)
 	}
-	query += ` ORDER BY category, display_order, created_at`
+	query += ` ORDER BY created_at DESC`
 
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -2394,7 +2394,7 @@ func (s *PostgresStore) GetAllTutorials(ctx context.Context) ([]*models.Tutorial
 	query := `
 		SELECT id, title, COALESCE(description, ''), COALESCE(type, 'video'), COALESCE(content, ''), COALESCE(video_url, ''), COALESCE(thumbnail, ''), COALESCE(duration, ''), category, display_order, is_published, created_at, updated_at
 		FROM tutorials
-		ORDER BY category, display_order, created_at
+		ORDER BY created_at DESC
 	`
 	rows, err := s.db.QueryContext(ctx, query)
 	if err != nil {
