@@ -813,7 +813,7 @@
                         Cancel
                     </button>
                     <button type="submit" class="btn btn-primary">
-                        {editingTutorial ? "Save Changes" : "Create Tutorial"}
+                        {editingResource ? "Save Changes" : "Create Resource"}
                     </button>
                 </div>
             </form>
