@@ -1362,30 +1362,30 @@
     .markdown-body :global(h2),
     .markdown-body :global(h3) {
         color: var(--text);
-        margin-top: 32px;
-        margin-bottom: 16px;
-        line-height: 1.3;
+        margin-top: 16px;
+        margin-bottom: 8px;
+        line-height: 1.2;
     }
 
     .markdown-body :global(h1) {
-        font-size: 28px;
+        font-size: 24px;
         border-bottom: 1px solid var(--border);
-        padding-bottom: 8px;
+        padding-bottom: 6px;
     }
 
     .markdown-body :global(h2) {
-        font-size: 24px;
+        font-size: 20px;
     }
 
     .markdown-body :global(h3) {
-        font-size: 20px;
+        font-size: 17px;
     }
 
     .markdown-body :global(p),
     .markdown-body {
-        margin-bottom: 16px;
-        line-height: 1.7;
-        font-size: 15px;
+        margin-bottom: 8px;
+        line-height: 1.5;
+        font-size: 14px;
     }
 
     .markdown-body :global(a) {
@@ -1398,21 +1398,21 @@
     }
 
     .markdown-body :global(ul) {
-        margin-bottom: 16px;
-        padding-left: 24px;
+        margin-bottom: 8px;
+        padding-left: 20px;
     }
 
     .markdown-body :global(li) {
-        margin-bottom: 8px;
-        line-height: 1.6;
+        margin-bottom: 4px;
+        line-height: 1.4;
     }
 
     .markdown-body :global(blockquote) {
-        border-left: 4px solid var(--accent);
+        border-left: 3px solid var(--accent);
         background: var(--bg-tertiary);
-        padding: 16px 20px;
-        margin: 24px 0;
-        border-radius: 0 8px 8px 0;
+        padding: 10px 14px;
+        margin: 12px 0;
+        border-radius: 0 6px 6px 0;
         font-style: italic;
         color: var(--text-secondary);
     }
@@ -1421,31 +1421,31 @@
         border: 0;
         height: 1px;
         background: var(--border);
-        margin: 32px 0;
+        margin: 16px 0;
     }
 
     .markdown-body :global(img) {
         max-width: 100%;
-        border-radius: 8px;
-        margin: 24px 0;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        border-radius: 6px;
+        margin: 12px 0;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
     }
 
     .markdown-body :global(pre) {
         background: #111;
-        padding: 16px;
-        border-radius: 8px;
+        padding: 12px;
+        border-radius: 6px;
         overflow-x: auto;
-        margin-bottom: 24px;
+        margin-bottom: 12px;
         border: 1px solid var(--border);
     }
 
     .markdown-body :global(code) {
         font-family: "JetBrains Mono", monospace;
-        font-size: 13px;
+        font-size: 12px;
         background: rgba(255, 255, 255, 0.1);
-        padding: 2px 6px;
-        border-radius: 4px;
+        padding: 1px 5px;
+        border-radius: 3px;
     }
 
     .markdown-body :global(pre) :global(code) {
@@ -1456,30 +1456,30 @@
 
     .markdown-body :global(.table-wrapper) {
         overflow-x: auto;
-        margin: 24px 0;
-        border-radius: 8px;
+        margin: 12px 0;
+        border-radius: 6px;
         border: 1px solid var(--border);
     }
 
     .markdown-body :global(.markdown-table) {
         width: 100%;
         border-collapse: collapse;
-        font-size: 14px;
+        font-size: 13px;
         background: var(--bg-secondary);
     }
 
     .markdown-body :global(.markdown-table) :global(th) {
         background: var(--bg-tertiary);
-        padding: 12px 16px;
+        padding: 8px 12px;
         text-align: left;
         font-weight: 600;
         color: var(--text-primary);
-        border-bottom: 2px solid var(--border);
+        border-bottom: 1px solid var(--border);
         white-space: nowrap;
     }
 
     .markdown-body :global(.markdown-table) :global(td) {
-        padding: 10px 16px;
+        padding: 6px 12px;
         border-bottom: 1px solid var(--border);
         color: var(--text-secondary);
     }
@@ -1497,9 +1497,9 @@
     }
 
     .markdown-body :global(h4) {
-        font-size: 18px;
-        margin-top: 32px;
-        margin-bottom: 12px;
+        font-size: 15px;
+        margin-top: 14px;
+        margin-bottom: 6px;
         color: var(--text-primary);
     }
 
