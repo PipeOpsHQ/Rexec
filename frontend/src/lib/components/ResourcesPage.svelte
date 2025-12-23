@@ -402,236 +402,229 @@
 </svelte:head>
 
 <div class="tutorials-page">
-    <div class="page-header">
-        <div class="header-content">
-            <div class="header-badge">
-                <StatusIcon status="book" size={14} />
-                <span>Learning Resources</span>
+    {#if !selectedResource}
+        <div class="page-header">
+            <div class="header-content">
+                <div class="header-badge">
+                    <StatusIcon status="book" size={14} />
+                    <span>Learning Resources</span>
+                </div>
+                <h1>
+                    Master Rexec with <span class="accent"
+                        >Guides & Tutorials</span
+                    >
+                </h1>
+                <p class="subtitle">
+                    Learn how to create terminals, manage agents, and automate
+                    your workflows with videos and step-by-step guides.
+                </p>
             </div>
-            <h1>
-                Master Rexec with <span class="accent">Guides & Tutorials</span>
-            </h1>
-            <p class="subtitle">
-                Learn how to create terminals, manage agents, and automate your
-                workflows with videos and step-by-step guides.
-            </p>
+            {#if $isAdmin}
+                <button
+                    class="btn btn-primary"
+                    onclick={() => openAdminModal()}
+                >
+                    <StatusIcon status="add" size={16} />
+                    Add Resource
+                </button>
+            {/if}
         </div>
-        {#if $isAdmin}
-            <button class="btn btn-primary" onclick={() => openAdminModal()}>
-                <StatusIcon status="add" size={16} />
-                Add Resource
-            </button>
-        {/if}
-    </div>
 
-    {#if isLoading}
-        <div class="loading">
-            <div class="spinner"></div>
-            <p>Loading resources...</p>
-        </div>
-    {:else if fetchError}
-        <div class="empty-state">
-            <StatusIcon status="warning" size={48} />
-            <h2>Failed to load resources</h2>
-            <p>Something went wrong. Please try again later.</p>
-            <button class="btn btn-secondary" onclick={fetchResources}>
-                Retry
-            </button>
-        </div>
-    {:else if resources.length === 0}
-        <div class="empty-state">
-            <StatusIcon status="video" size={48} />
-            <h2>No resources yet</h2>
-            <p>Check back soon for guides and videos on using Rexec.</p>
-        </div>
-    {:else}
-        <!-- Category Filter -->
-        <div class="category-filter">
-            <button
-                class="category-btn"
-                class:active={selectedCategory === ""}
-                onclick={() => (selectedCategory = "")}
-            >
-                All
-            </button>
-            {#each visibleCategories as category}
+        {#if isLoading}
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Loading resources...</p>
+            </div>
+        {:else if fetchError}
+            <div class="empty-state">
+                <StatusIcon status="warning" size={48} />
+                <h2>Failed to load resources</h2>
+                <p>Something went wrong. Please try again later.</p>
+                <button class="btn btn-secondary" onclick={fetchResources}>
+                    Retry
+                </button>
+            </div>
+        {:else if resources.length === 0}
+            <div class="empty-state">
+                <StatusIcon status="video" size={48} />
+                <h2>No resources yet</h2>
+                <p>Check back soon for guides and videos on using Rexec.</p>
+            </div>
+        {:else}
+            <!-- Category Filter -->
+            <div class="category-filter">
                 <button
                     class="category-btn"
-                    class:active={selectedCategory === category}
-                    onclick={() => (selectedCategory = category)}
+                    class:active={selectedCategory === ""}
+                    onclick={() => (selectedCategory = "")}
                 >
-                    <StatusIcon
-                        status={categoryIcons[category] || "folder"}
-                        size={14}
-                    />
-                    {categoryLabels[category] || category}
+                    All
                 </button>
-            {/each}
-        </div>
-
-        <!-- Tutorial Grid -->
-        <div class="tutorials-grid">
-            {#each filteredResources as resource (resource.id)}
-                {@const thumb = getThumbnail(resource)}
-                <div
-                    class="tutorial-card"
-                    class:unpublished={!resource.is_published}
-                >
+                {#each visibleCategories as category}
                     <button
-                        class="thumbnail"
-                        onclick={() => openResource(resource)}
+                        class="category-btn"
+                        class:active={selectedCategory === category}
+                        onclick={() => (selectedCategory = category)}
                     >
-                        {#if thumb}
-                            <img src={thumb} alt={resource.title} />
-                        {:else}
-                            <div class="placeholder-thumb">
-                                <StatusIcon
-                                    status={resource.type === "guide"
-                                        ? "book"
-                                        : "video"}
-                                    size={32}
-                                />
-                            </div>
-                        {/if}
-
-                        {#if resource.type === "video"}
-                            <div class="play-overlay">
-                                <div class="play-button">
-                                    <StatusIcon status="play" size={24} />
-                                </div>
-                            </div>
-                        {:else}
-                            <div class="type-badge">
-                                <StatusIcon status="book" size={12} /> Guide
-                            </div>
-                        {/if}
-
-                        {#if resource.duration}
-                            <span class="duration">{resource.duration}</span>
-                        {/if}
-                        {#if !resource.is_published && $isAdmin}
-                            <span class="draft-badge">Draft</span>
-                        {/if}
+                        <StatusIcon
+                            status={categoryIcons[category] || "folder"}
+                            size={14}
+                        />
+                        {categoryLabels[category] || category}
                     </button>
-                    <div class="tutorial-info">
-                        <span class="category-tag">
-                            <StatusIcon
-                                status={categoryIcons[resource.category] ||
-                                    "folder"}
-                                size={12}
-                            />
-                            {categoryLabels[resource.category] ||
-                                resource.category}
-                        </span>
-                        <h3>
-                            <a
-                                href="?id={resource.id}"
-                                class="clickable-title"
-                                onclick={(e) => {
-                                    e.preventDefault();
-                                    openResource(resource);
-                                }}
-                            >
-                                {resource.title}
-                            </a>
-                        </h3>
-                        <p class="description">{resource.description}</p>
+                {/each}
+            </div>
 
-                        {#if $isAdmin}
-                            <div class="admin-actions">
-                                <button
-                                    class="btn btn-sm btn-ghost"
-                                    onclick={() => openAdminModal(resource)}
-                                >
-                                    <StatusIcon status="edit" size={14} />
-                                    Edit
-                                </button>
-                                <button
-                                    class="btn btn-sm btn-ghost"
-                                    onclick={() => togglePublished(resource)}
-                                >
+            <!-- Tutorial Grid -->
+            <div class="tutorials-grid">
+                {#each filteredResources as resource (resource.id)}
+                    {@const thumb = getThumbnail(resource)}
+                    <div
+                        class="tutorial-card"
+                        class:unpublished={!resource.is_published}
+                    >
+                        <button
+                            class="thumbnail"
+                            onclick={() => openResource(resource)}
+                        >
+                            {#if thumb}
+                                <img src={thumb} alt={resource.title} />
+                            {:else}
+                                <div class="placeholder-thumb">
                                     <StatusIcon
-                                        status={resource.is_published
-                                            ? "eye-off"
-                                            : "eye"}
-                                        size={14}
+                                        status={resource.type === "guide"
+                                            ? "book"
+                                            : "video"}
+                                        size={32}
                                     />
-                                    {resource.is_published
-                                        ? "Unpublish"
-                                        : "Publish"}
-                                </button>
-                                <button
-                                    class="btn btn-sm btn-ghost danger"
-                                    onclick={() => deleteResource(resource.id)}
+                                </div>
+                            {/if}
+
+                            {#if resource.type === "video"}
+                                <div class="play-overlay">
+                                    <div class="play-button">
+                                        <StatusIcon status="play" size={24} />
+                                    </div>
+                                </div>
+                            {:else}
+                                <div class="type-badge">
+                                    <StatusIcon status="book" size={12} /> Guide
+                                </div>
+                            {/if}
+
+                            {#if resource.duration}
+                                <span class="duration">{resource.duration}</span
                                 >
-                                    <StatusIcon status="trash" size={14} />
-                                </button>
-                            </div>
-                        {/if}
+                            {/if}
+                            {#if !resource.is_published && $isAdmin}
+                                <span class="draft-badge">Draft</span>
+                            {/if}
+                        </button>
+                        <div class="tutorial-info">
+                            <span class="category-tag">
+                                <StatusIcon
+                                    status={categoryIcons[resource.category] ||
+                                        "folder"}
+                                    size={12}
+                                />
+                                {categoryLabels[resource.category] ||
+                                    resource.category}
+                            </span>
+                            <h3>
+                                <a
+                                    href="?id={resource.id}"
+                                    class="clickable-title"
+                                    onclick={(e) => {
+                                        e.preventDefault();
+                                        openResource(resource);
+                                    }}
+                                >
+                                    {resource.title}
+                                </a>
+                            </h3>
+                            <p class="description">{resource.description}</p>
+
+                            {#if $isAdmin}
+                                <div class="admin-actions">
+                                    <button
+                                        class="btn btn-sm btn-ghost"
+                                        onclick={() => openAdminModal(resource)}
+                                    >
+                                        <StatusIcon status="edit" size={14} />
+                                        Edit
+                                    </button>
+                                    <button
+                                        class="btn btn-sm btn-ghost"
+                                        onclick={() =>
+                                            togglePublished(resource)}
+                                    >
+                                        <StatusIcon
+                                            status={resource.is_published
+                                                ? "eye-off"
+                                                : "eye"}
+                                            size={14}
+                                        />
+                                        {resource.is_published
+                                            ? "Unpublish"
+                                            : "Publish"}
+                                    </button>
+                                    <button
+                                        class="btn btn-sm btn-ghost danger"
+                                        onclick={() =>
+                                            deleteResource(resource.id)}
+                                    >
+                                        <StatusIcon status="trash" size={14} />
+                                    </button>
+                                </div>
+                            {/if}
+                        </div>
                     </div>
-                </div>
-            {/each}
+                {/each}
+            </div>
+        {/if}
+    {:else}
+        <div class="resource-detail">
+            <div class="detail-header">
+                <button class="back-btn" onclick={closeResource}>
+                    <StatusIcon status="arrow-left" size={20} />
+                    Back to Resources
+                </button>
+                <h1>{selectedResource.title}</h1>
+            </div>
+
+            <div class="detail-content">
+                {#if selectedResource.type === "video"}
+                    <div class="video-container">
+                        <iframe
+                            src={getEmbedUrl(selectedResource.video_url)}
+                            title={selectedResource.title}
+                            frameborder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowfullscreen
+                        ></iframe>
+                    </div>
+                    <div class="resource-description">
+                        <h3>Description</h3>
+                        <p>{@html linkify(selectedResource.description)}</p>
+                    </div>
+                {:else}
+                    <div class="guide-content">
+                        {#if selectedResource.thumbnail && !selectedResource.content.includes(selectedResource.thumbnail)}
+                            <img
+                                src={selectedResource.thumbnail}
+                                alt={selectedResource.title}
+                                class="guide-hero"
+                            />
+                        {/if}
+                        <div class="markdown-body">
+                            {@html renderMarkdown(selectedResource.content)}
+                        </div>
+                    </div>
+                {/if}
+            </div>
         </div>
     {/if}
 </div>
-
-<!-- Video Modal -->
-{#if selectedResource}
-    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-    <div
-        class="modal-overlay"
-        role="dialog"
-        aria-modal="true"
-        tabindex="-1"
-        onclick={closeResource}
-        onkeydown={(e) => e.key === "Escape" && closeResource()}
-    >
-        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-        <div
-            class="video-modal"
-            class:guide-modal={selectedResource.type === "guide"}
-            role="document"
-            onclick={(e) => e.stopPropagation()}
-            onkeydown={(e) => e.stopPropagation()}
-        >
-            <div class="modal-header">
-                <h2>{selectedResource.title}</h2>
-                <button class="close-btn" onclick={closeResource}>
-                    <StatusIcon status="close" size={20} />
-                </button>
-            </div>
-
-            {#if selectedResource.type === "video"}
-                <div class="video-container">
-                    <iframe
-                        src={getEmbedUrl(selectedResource.video_url)}
-                        title={selectedResource.title}
-                        frameborder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowfullscreen
-                    ></iframe>
-                </div>
-                <div class="modal-description">
-                    <h3>Description</h3>
-                    <p>{@html linkify(selectedResource.description)}</p>
-                </div>
-            {:else}
-                <div class="guide-content">
-                    {#if selectedResource.thumbnail && !selectedResource.content.includes(selectedResource.thumbnail)}
-                        <img
-                            src={selectedResource.thumbnail}
-                            alt={selectedResource.title}
-                            class="guide-hero"
-                        />
-                    {/if}
-                    <div class="markdown-body">
-                        {@html renderMarkdown(selectedResource.content)}
-                    </div>
-                </div>
-            {/if}
-        </div>
-    </div>
-{/if}
 
 <!-- Admin Modal -->
 {#if showAdminModal && $isAdmin}
@@ -1138,16 +1131,46 @@
         padding: 20px;
     }
 
-    .video-modal {
+    .resource-detail {
+        animation: fadeIn 0.3s ease;
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+
+    .detail-header {
+        margin-bottom: 24px;
+    }
+
+    .detail-header h1 {
+        margin-top: 16px;
+        font-size: 32px;
+        color: var(--text);
+        font-weight: 700;
+        line-height: 1.2;
+    }
+
+    .back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: transparent;
+        border: none;
+        color: var(--text-secondary);
+        font-size: 14px;
+        cursor: pointer;
+        padding: 0;
+        transition: color 0.2s;
+    }
+
+    .back-btn:hover {
+        color: var(--accent);
+    }
+
+    .detail-content {
         background: var(--bg-card);
         border: 1px solid var(--border);
         border-radius: 12px;
-        width: 100%;
-        max-width: 900px;
-        max-height: 90vh;
         overflow: hidden;
-        display: flex;
-        flex-direction: column;
     }
 
     .modal-header {
@@ -1193,38 +1216,33 @@
         height: 100%;
     }
 
-    .modal-description {
+    .resource-description {
         padding: 24px;
         color: var(--text-secondary);
         font-size: 14px;
         line-height: 1.6;
         white-space: pre-wrap;
-        overflow-y: auto;
         background: var(--bg-secondary);
         border-top: 1px solid var(--border);
     }
 
-    .modal-description h3 {
+    .resource-description h3 {
         margin: 0 0 12px 0;
         font-size: 16px;
         font-weight: 600;
         color: var(--text);
     }
 
-    .modal-description :global(a) {
+    .resource-description :global(a) {
         color: var(--accent);
         text-decoration: none;
     }
 
-    .modal-description :global(a:hover) {
+    .resource-description :global(a:hover) {
         text-decoration: underline;
     }
 
     /* Guide Modal */
-    .guide-modal {
-        overflow-y: auto;
-        display: block; /* Override flex */
-    }
 
     .guide-content {
         padding: 24px;
