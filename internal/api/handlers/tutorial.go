@@ -36,14 +36,14 @@ type CreateTutorialRequest struct {
 
 // UpdateTutorialRequest represents the request to update a tutorial
 type UpdateTutorialRequest struct {
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	VideoURL    string `json:"video_url"`
-	Thumbnail   string `json:"thumbnail"`
-	Duration    string `json:"duration"`
-	Category    string `json:"category"`
-	Order       *int   `json:"order"`
-	IsPublished *bool  `json:"is_published"`
+	Title       *string `json:"title"`
+	Description *string `json:"description"`
+	VideoURL    *string `json:"video_url"`
+	Thumbnail   *string `json:"thumbnail"`
+	Duration    *string `json:"duration"`
+	Category    *string `json:"category"`
+	Order       *int    `json:"order"`
+	IsPublished *bool   `json:"is_published"`
 }
 
 // TutorialResponse represents a tutorial in API responses
@@ -201,23 +201,23 @@ func (h *TutorialHandler) UpdateTutorial(c *gin.Context) {
 	}
 
 	// Update fields if provided
-	if req.Title != "" {
-		tutorial.Title = req.Title
+	if req.Title != nil {
+		tutorial.Title = *req.Title
 	}
-	if req.Description != "" {
-		tutorial.Description = req.Description
+	if req.Description != nil {
+		tutorial.Description = *req.Description
 	}
-	if req.VideoURL != "" {
-		tutorial.VideoURL = req.VideoURL
+	if req.VideoURL != nil {
+		tutorial.VideoURL = *req.VideoURL
 	}
-	if req.Thumbnail != "" {
-		tutorial.Thumbnail = req.Thumbnail
+	if req.Thumbnail != nil {
+		tutorial.Thumbnail = *req.Thumbnail
 	}
-	if req.Duration != "" {
-		tutorial.Duration = req.Duration
+	if req.Duration != nil {
+		tutorial.Duration = *req.Duration
 	}
-	if req.Category != "" {
-		tutorial.Category = req.Category
+	if req.Category != nil {
+		tutorial.Category = *req.Category
 	}
 	if req.Order != nil {
 		tutorial.Order = *req.Order
