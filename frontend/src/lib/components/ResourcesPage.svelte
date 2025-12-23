@@ -430,11 +430,13 @@
 
     onMount(async () => {
         await fetchResources();
-        const params = new URLSearchParams(window.location.search);
-        const id = params.get("id");
-        if (id) {
-            const resource = resources.find((r) => r.id === id);
-            if (resource) openResource(resource);
+        if (typeof window !== "undefined") {
+            const params = new URLSearchParams(window.location.search);
+            const id = params.get("id");
+            if (id) {
+                const resource = resources.find((r) => r.id === id);
+                if (resource) openResource(resource);
+            }
         }
     });
 </script>
@@ -869,7 +871,7 @@
         max-width: 1200px;
         margin: 0 auto;
         padding: 40px 20px;
-    }
+
 
     .page-header {
         display: flex;
