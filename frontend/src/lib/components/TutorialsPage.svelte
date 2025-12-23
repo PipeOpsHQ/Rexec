@@ -149,7 +149,7 @@
             /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/,
         );
         if (ytMatch && ytMatch[1]) {
-            return `https://img.youtube.com/vi/${ytMatch[1]}/maxresdefault.jpg`;
+            return `https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`;
         }
         return "/og-image.png";
     }
@@ -423,15 +423,13 @@
                             ></iframe>
                         </div>
                     {:else}
+                        {@const thumb = getThumbnail(tutorial)}
                         <button
                             class="thumbnail"
                             onclick={() => (playingId = tutorial.id)}
                         >
-                            {#if getThumbnail(tutorial)}
-                                <img
-                                    src={getThumbnail(tutorial)}
-                                    alt={tutorial.title}
-                                />
+                            {#if thumb}
+                                <img src={thumb} alt={tutorial.title} />
                             {:else}
                                 <div class="placeholder-thumb">
                                     <StatusIcon status="video" size={32} />
