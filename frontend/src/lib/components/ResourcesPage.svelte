@@ -207,12 +207,55 @@
 
         const codeBlocks: string[] = [];
         const inlineCode: string[] = [];
+        const tables: string[] = [];
 
         // Extract code blocks
         let processed = text.replace(/```([\s\S]*?)```/gim, (_, code) => {
             codeBlocks.push(code);
             return `__CODEBLOCK_${codeBlocks.length - 1}__`;
         });
+
+        // Extract and parse markdown tables
+        processed = processed.replace(
+            /(?:^|\n)((?:\|[^\n]+\|\n)+)/gm,
+            (match, tableContent) => {
+                const lines = tableContent.trim().split("\n");
+                if (lines.length < 2) return match;
+
+                // Check if second line is a separator row (|---|---|)
+                const separatorLine = lines[1];
+                if (!/^\|[\s\-:|]+\|$/.test(separatorLine.trim())) {
+                    return match;
+                }
+
+                const parseRow = (row: string): string[] => {
+                    return row
+                        .split("|")
+                        .slice(1, -1)
+                        .map((cell) => cell.trim());
+                };
+
+                const headerCells = parseRow(lines[0]);
+                const headerHtml = headerCells
+                    .map((cell) => `<th>${escapeHtml(cell)}</th>`)
+                    .join("");
+
+                const bodyRows = lines.slice(2);
+                const bodyHtml = bodyRows
+                    .map((row: string) => {
+                        const cells = parseRow(row);
+                        const cellsHtml = cells
+                            .map((cell) => `<td>${escapeHtml(cell)}</td>`)
+                            .join("");
+                        return `<tr>${cellsHtml}</tr>`;
+                    })
+                    .join("");
+
+                const tableHtml = `<div class="table-wrapper"><table class="markdown-table"><thead><tr>${headerHtml}</tr></thead><tbody>${bodyHtml}</tbody></table></div>`;
+                tables.push(tableHtml);
+                return `\n__TABLE_${tables.length - 1}__\n`;
+            },
+        );
 
         // Extract inline code
         processed = processed.replace(/`([^`]+)`/gim, (_, code) => {
@@ -226,6 +269,7 @@
         // Apply formatting
         let html = processed
             // Headers
+            .replace(/^#### (.*$)/gim, "<h4>$1</h4>")
             .replace(/^### (.*$)/gim, "<h3>$1</h3>")
             .replace(/^## (.*$)/gim, "<h2>$1</h2>")
             .replace(/^# (.*$)/gim, "<h1>$1</h1>")
@@ -251,6 +295,11 @@
             .replace(/<\/ul>\s*<ul>/gim, "")
             // Paragraphs (breaks)
             .replace(/\n\n/gim, "<br/><br/>");
+
+        // Restore tables
+        html = html.replace(/__TABLE_(\d+)__/g, (_, index) => {
+            return tables[parseInt(index)];
+        });
 
         // Restore code blocks
         html = html.replace(/__CODEBLOCK_(\d+)__/g, (_, index) => {
@@ -1403,6 +1452,55 @@
         background: transparent;
         padding: 0;
         color: #e0e0e0;
+    }
+
+    .markdown-body :global(.table-wrapper) {
+        overflow-x: auto;
+        margin: 24px 0;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+    }
+
+    .markdown-body :global(.markdown-table) {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+        background: var(--bg-secondary);
+    }
+
+    .markdown-body :global(.markdown-table) :global(th) {
+        background: var(--bg-tertiary);
+        padding: 12px 16px;
+        text-align: left;
+        font-weight: 600;
+        color: var(--text-primary);
+        border-bottom: 2px solid var(--border);
+        white-space: nowrap;
+    }
+
+    .markdown-body :global(.markdown-table) :global(td) {
+        padding: 10px 16px;
+        border-bottom: 1px solid var(--border);
+        color: var(--text-secondary);
+    }
+
+    .markdown-body
+        :global(.markdown-table)
+        :global(tbody)
+        :global(tr:last-child)
+        :global(td) {
+        border-bottom: none;
+    }
+
+    .markdown-body :global(.markdown-table) :global(tbody) :global(tr:hover) {
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    .markdown-body :global(h4) {
+        font-size: 18px;
+        margin-top: 32px;
+        margin-bottom: 12px;
+        color: var(--text-primary);
     }
 
     .toolbar {
