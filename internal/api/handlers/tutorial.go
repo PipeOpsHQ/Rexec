@@ -1,7 +1,13 @@
 package handlers
 
 import (
+	"fmt"
+	"io"
+	"log"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -12,21 +18,48 @@ import (
 
 // TutorialHandler handles tutorial API endpoints
 type TutorialHandler struct {
-	store *storage.PostgresStore
+	store   *storage.PostgresStore
+	s3Store *storage.S3Store
 }
 
 // NewTutorialHandler creates a new TutorialHandler
 func NewTutorialHandler(store *storage.PostgresStore) *TutorialHandler {
-	return &TutorialHandler{
+	handler := &TutorialHandler{
 		store: store,
 	}
+
+	// Initialize S3 store if configured
+	s3Bucket := os.Getenv("S3_BUCKET")
+	if s3Bucket != "" {
+		s3Config := storage.S3Config{
+			Bucket:          s3Bucket,
+			Region:          os.Getenv("S3_REGION"),
+			Endpoint:        os.Getenv("S3_ENDPOINT"),
+			AccessKeyID:     os.Getenv("S3_ACCESS_KEY_ID"),
+			SecretAccessKey: os.Getenv("S3_SECRET_ACCESS_KEY"),
+			Prefix:          os.Getenv("S3_PREFIX"),
+			ForcePathStyle:  os.Getenv("S3_FORCE_PATH_STYLE") == "true",
+		}
+
+		s3Store, err := storage.NewS3Store(s3Config)
+		if err != nil {
+			log.Printf("[Tutorial] Warning: Failed to initialize S3 store: %v (image uploads will be disabled)", err)
+		} else {
+			handler.s3Store = s3Store
+			log.Printf("[Tutorial] Handler initialized (storing images in S3: %s)", s3Bucket)
+		}
+	}
+
+	return handler
 }
 
 // CreateTutorialRequest represents the request to create a tutorial
 type CreateTutorialRequest struct {
 	Title       string `json:"title" binding:"required"`
 	Description string `json:"description"`
-	VideoURL    string `json:"video_url" binding:"required"`
+	Type        string `json:"type"`
+	Content     string `json:"content"`
+	VideoURL    string `json:"video_url"`
 	Thumbnail   string `json:"thumbnail"`
 	Duration    string `json:"duration"`
 	Category    string `json:"category"`
@@ -38,6 +71,8 @@ type CreateTutorialRequest struct {
 type UpdateTutorialRequest struct {
 	Title       *string `json:"title"`
 	Description *string `json:"description"`
+	Type        *string `json:"type"`
+	Content     *string `json:"content"`
 	VideoURL    *string `json:"video_url"`
 	Thumbnail   *string `json:"thumbnail"`
 	Duration    *string `json:"duration"`
@@ -51,6 +86,8 @@ type TutorialResponse struct {
 	ID          string    `json:"id"`
 	Title       string    `json:"title"`
 	Description string    `json:"description"`
+	Type        string    `json:"type"`
+	Content     string    `json:"content"`
 	VideoURL    string    `json:"video_url"`
 	Thumbnail   string    `json:"thumbnail"`
 	Duration    string    `json:"duration"`
@@ -66,6 +103,8 @@ func toTutorialResponse(t *models.Tutorial) TutorialResponse {
 		ID:          t.ID,
 		Title:       t.Title,
 		Description: t.Description,
+		Type:        t.Type,
+		Content:     t.Content,
 		VideoURL:    t.VideoURL,
 		Thumbnail:   t.Thumbnail,
 		Duration:    t.Duration,
@@ -161,6 +200,8 @@ func (h *TutorialHandler) CreateTutorial(c *gin.Context) {
 		ID:          uuid.New().String(),
 		Title:       req.Title,
 		Description: req.Description,
+		Type:        req.Type,
+		Content:     req.Content,
 		VideoURL:    req.VideoURL,
 		Thumbnail:   req.Thumbnail,
 		Duration:    req.Duration,
@@ -169,6 +210,10 @@ func (h *TutorialHandler) CreateTutorial(c *gin.Context) {
 		IsPublished: req.IsPublished,
 		CreatedAt:   now,
 		UpdatedAt:   now,
+	}
+
+	if tutorial.Type == "" {
+		tutorial.Type = "video"
 	}
 
 	if tutorial.Category == "" {
@@ -206,6 +251,12 @@ func (h *TutorialHandler) UpdateTutorial(c *gin.Context) {
 	}
 	if req.Description != nil {
 		tutorial.Description = *req.Description
+	}
+	if req.Type != nil {
+		tutorial.Type = *req.Type
+	}
+	if req.Content != nil {
+		tutorial.Content = *req.Content
 	}
 	if req.VideoURL != nil {
 		tutorial.VideoURL = *req.VideoURL
@@ -253,4 +304,72 @@ func (h *TutorialHandler) DeleteTutorial(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "tutorial deleted"})
+}
+
+// UploadImage uploads an image for a tutorial/guide
+// POST /api/admin/tutorials/images
+func (h *TutorialHandler) UploadImage(c *gin.Context) {
+	if h.s3Store == nil {
+		c.JSON(http.StatusServiceUnavailable, models.APIError{Code: http.StatusServiceUnavailable, Message: "storage not configured"})
+		return
+	}
+
+	file, header, err := c.Request.FormFile("image")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.APIError{Code: http.StatusBadRequest, Message: "invalid file"})
+		return
+	}
+	defer file.Close()
+
+	// Validate file type
+	ext := strings.ToLower(filepath.Ext(header.Filename))
+	if ext != ".jpg" && ext != ".jpeg" && ext != ".png" && ext != ".gif" && ext != ".webp" {
+		c.JSON(http.StatusBadRequest, models.APIError{Code: http.StatusBadRequest, Message: "invalid file type (allowed: jpg, png, gif, webp)"})
+		return
+	}
+
+	// Read file content
+	data, err := io.ReadAll(file)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.APIError{Code: http.StatusInternalServerError, Message: "failed to read file"})
+		return
+	}
+
+	// Generate unique filename
+	filename := fmt.Sprintf("tutorials/%s%s", uuid.New().String(), ext)
+	contentType := http.DetectContentType(data)
+
+	// Upload to S3
+	if err := h.s3Store.PutFile(c.Request.Context(), filename, data, contentType); err != nil {
+		log.Printf("Failed to upload image to S3: %v", err)
+		c.JSON(http.StatusInternalServerError, models.APIError{Code: http.StatusInternalServerError, Message: "failed to upload image"})
+		return
+	}
+
+	// Return the URL (proxied through API)
+	url := fmt.Sprintf("/api/public/tutorials/images/%s", filename)
+	c.JSON(http.StatusOK, gin.H{"url": url})
+}
+
+// GetImage serves a tutorial image
+// GET /api/public/tutorials/images/*path
+func (h *TutorialHandler) GetImage(c *gin.Context) {
+	if h.s3Store == nil {
+		c.JSON(http.StatusServiceUnavailable, models.APIError{Code: http.StatusServiceUnavailable, Message: "storage not configured"})
+		return
+	}
+
+	path := c.Param("path")
+	if strings.HasPrefix(path, "/") {
+		path = path[1:]
+	}
+
+	data, err := h.s3Store.GetFile(c.Request.Context(), path)
+	if err != nil {
+		c.JSON(http.StatusNotFound, models.APIError{Code: http.StatusNotFound, Message: "image not found"})
+		return
+	}
+
+	contentType := http.DetectContentType(data)
+	c.Data(http.StatusOK, contentType, data)
 }

@@ -128,7 +128,7 @@
         | "notFound"
         | "terminalView"
         | "screenLock"
-        | "tutorials";
+        | "resources";
 
     type LazyComponentModule = { default: any };
     type LazyLoader = () => Promise<LazyComponentModule>;
@@ -160,7 +160,7 @@
         notFound: () => import("$components/NotFound.svelte"),
         terminalView: () => import("$components/terminal/TerminalView.svelte"),
         screenLock: () => import("$components/ScreenLock.svelte"),
-        tutorials: () => import("$components/TutorialsPage.svelte"),
+        resources: () => import("$components/ResourcesPage.svelte"),
     };
 
     let lazyComponents: Partial<Record<LazyComponentKey, any>> = {};
@@ -229,7 +229,7 @@
         | "account-recordings"
         | "account-api"
         | "docs"
-        | "tutorials"
+        | "resources"
         | "404" = "landing";
     let isLoading = true;
     let isInitialized = false; // Prevents reactive statements from firing before token validation
@@ -303,12 +303,12 @@
             keywords:
                 "tutorials, guides, AI tools, Claude, ChatGPT, terminal automation",
         },
-        tutorials: {
-            title: "Tutorials - Rexec | Video Guides",
+        resources: {
+            title: "Resources - Rexec | Tutorials & Guides",
             description:
-                "Learn how to use Rexec with step-by-step video tutorials covering terminals, agents, CLI tools, and more.",
+                "Learn how to use Rexec with step-by-step video tutorials and comprehensive guides covering terminals, agents, CLI tools, and more.",
             keywords:
-                "tutorials, videos, guides, how to, terminal, agents, CLI",
+                "resources, tutorials, videos, guides, how to, terminal, agents, CLI",
         },
         "use-cases": {
             title: "Use Cases - Rexec | Terminal as a Service",
@@ -772,9 +772,9 @@
             return;
         }
 
-        // Check for /tutorials route
-        if (path === "/tutorials") {
-            currentView = "tutorials";
+        // Check for /resources route
+        if (path === "/resources") {
+            currentView = "resources";
             return;
         }
 
@@ -1282,7 +1282,7 @@
         currentView !== "launch" &&
         currentView !== "promo" &&
         currentView !== "guides" &&
-        currentView !== "tutorials" &&
+        currentView !== "resources" &&
         currentView !== "use-cases" &&
         currentView !== "use-case-detail" &&
         currentView !== "marketplace" &&
@@ -1377,8 +1377,8 @@
         const path = window.location.pathname;
         if (path === "/" || path === "") {
             currentView = $isAuthenticated ? "dashboard" : "landing";
-        } else if (path === "/tutorials") {
-            currentView = "tutorials";
+        } else if (path === "/resources") {
+            currentView = "resources";
         } else if (path === "/guides" || path === "/ai-tools") {
             currentView = "guides";
         } else if (path === "/use-cases" || path === "/agentic") {
@@ -1588,8 +1588,8 @@
             case "guides":
                 preloadComponent("guides");
                 break;
-            case "tutorials":
-                preloadComponent("tutorials");
+            case "resources":
+                preloadComponent("resources");
                 break;
             case "use-cases":
                 preloadComponent("useCases");
@@ -2058,9 +2058,9 @@
                 {:else}
                     <div class="view-loading">Loading...</div>
                 {/if}
-            {:else if currentView === "tutorials"}
-                {#if lazyComponents.tutorials}
-                    <svelte:component this={lazyComponents.tutorials} />
+            {:else if currentView === "resources"}
+                {#if lazyComponents.resources}
+                    <svelte:component this={lazyComponents.resources} />
                 {:else}
                     <div class="view-loading">Loading...</div>
                 {/if}

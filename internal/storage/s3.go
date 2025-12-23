@@ -17,11 +17,11 @@ import (
 
 // S3Store handles S3 storage operations for recordings
 type S3Store struct {
-	client     *s3.Client
-	bucket     string
-	prefix     string
-	endpoint   string
-	region     string
+	client   *s3.Client
+	bucket   string
+	prefix   string
+	endpoint string
+	region   string
 }
 
 // S3Config holds S3 configuration
@@ -195,6 +195,41 @@ func (s *S3Store) RecordingExists(ctx context.Context, recordingID string) (bool
 	}
 
 	return true, nil
+}
+
+// PutFile uploads a generic file to S3
+func (s *S3Store) PutFile(ctx context.Context, key string, data []byte, contentType string) error {
+	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
+		Bucket:      aws.String(s.bucket),
+		Key:         aws.String(key),
+		Body:        bytes.NewReader(data),
+		ContentType: aws.String(contentType),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to upload file to S3: %w", err)
+	}
+
+	log.Printf("[S3] Uploaded file %s (%d bytes)", key, len(data))
+	return nil
+}
+
+// GetFile downloads a generic file from S3
+func (s *S3Store) GetFile(ctx context.Context, key string) ([]byte, error) {
+	result, err := s.client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get file from S3: %w", err)
+	}
+	defer result.Body.Close()
+
+	data, err := io.ReadAll(result.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file data: %w", err)
+	}
+
+	return data, nil
 }
 
 // Close closes the S3 store (no-op for S3)

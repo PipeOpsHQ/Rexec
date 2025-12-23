@@ -797,6 +797,7 @@ func runServer() {
 				tutorials.POST("", tutorialHandler.CreateTutorial)
 				tutorials.PUT("/:id", tutorialHandler.UpdateTutorial)
 				tutorials.DELETE("/:id", tutorialHandler.DeleteTutorial)
+				tutorials.POST("/images", tutorialHandler.UploadImage)
 			}
 		}
 
@@ -843,6 +844,7 @@ func runServer() {
 
 	// Public tutorials (no auth required)
 	router.GET("/api/public/tutorials", tutorialHandler.ListPublicTutorials)
+	router.GET("/api/public/tutorials/images/*path", tutorialHandler.GetImage)
 
 	// Serve static files (frontend)
 	webDir := os.Getenv("WEB_DIR")

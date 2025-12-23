@@ -485,12 +485,14 @@ func (s *PostgresStore) migrate() error {
 	CREATE INDEX IF NOT EXISTS idx_api_tokens_user_id ON api_tokens(user_id);
 	CREATE INDEX IF NOT EXISTS idx_api_tokens_token_hash ON api_tokens(token_hash);
 
-	-- Tutorials table for admin-created video tutorials
+	// Tutorials table for admin-created video tutorials
 	CREATE TABLE IF NOT EXISTS tutorials (
 		id VARCHAR(36) PRIMARY KEY,
 		title VARCHAR(255) NOT NULL,
 		description TEXT,
-		video_url VARCHAR(512) NOT NULL,
+		type VARCHAR(20) DEFAULT 'video',
+		content TEXT,
+		video_url VARCHAR(512),
 		thumbnail VARCHAR(512),
 		duration VARCHAR(20),
 		category VARCHAR(100) DEFAULT 'getting-started',
@@ -517,6 +519,13 @@ func (s *PostgresStore) migrate() error {
 		IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='agents' AND column_name='distro') THEN
 			ALTER TABLE agents ADD COLUMN distro VARCHAR(100);
 		END IF;
+		IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='tutorials' AND column_name='type') THEN
+			ALTER TABLE tutorials ADD COLUMN type VARCHAR(20) DEFAULT 'video';
+		END IF;
+		IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='tutorials' AND column_name='content') THEN
+			ALTER TABLE tutorials ADD COLUMN content TEXT;
+		END IF;
+		ALTER TABLE tutorials ALTER COLUMN video_url DROP NOT NULL;
 	END $$;
 	`
 
@@ -2286,13 +2295,15 @@ func (s *PostgresStore) DeleteSnippet(ctx context.Context, id string) error {
 // CreateTutorial creates a new tutorial (admin only)
 func (s *PostgresStore) CreateTutorial(ctx context.Context, tutorial *models.Tutorial) error {
 	query := `
-		INSERT INTO tutorials (id, title, description, video_url, thumbnail, duration, category, display_order, is_published, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		INSERT INTO tutorials (id, title, description, type, content, video_url, thumbnail, duration, category, display_order, is_published, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 	`
 	_, err := s.db.ExecContext(ctx, query,
 		tutorial.ID,
 		tutorial.Title,
 		tutorial.Description,
+		tutorial.Type,
+		tutorial.Content,
 		tutorial.VideoURL,
 		tutorial.Thumbnail,
 		tutorial.Duration,
@@ -2309,13 +2320,15 @@ func (s *PostgresStore) CreateTutorial(ctx context.Context, tutorial *models.Tut
 func (s *PostgresStore) GetTutorialByID(ctx context.Context, id string) (*models.Tutorial, error) {
 	var t models.Tutorial
 	query := `
-		SELECT id, title, COALESCE(description, ''), video_url, COALESCE(thumbnail, ''), COALESCE(duration, ''), category, display_order, is_published, created_at, updated_at
+		SELECT id, title, COALESCE(description, ''), COALESCE(type, 'video'), COALESCE(content, ''), COALESCE(video_url, ''), COALESCE(thumbnail, ''), COALESCE(duration, ''), category, display_order, is_published, created_at, updated_at
 		FROM tutorials WHERE id = $1
 	`
 	err := s.db.QueryRowContext(ctx, query, id).Scan(
 		&t.ID,
 		&t.Title,
 		&t.Description,
+		&t.Type,
+		&t.Content,
 		&t.VideoURL,
 		&t.Thumbnail,
 		&t.Duration,
@@ -2335,7 +2348,7 @@ func (s *PostgresStore) GetTutorialByID(ctx context.Context, id string) (*models
 func (s *PostgresStore) GetPublishedTutorials(ctx context.Context, category string) ([]*models.Tutorial, error) {
 	var args []interface{}
 	query := `
-		SELECT id, title, COALESCE(description, ''), video_url, COALESCE(thumbnail, ''), COALESCE(duration, ''), category, display_order, is_published, created_at, updated_at
+		SELECT id, title, COALESCE(description, ''), COALESCE(type, 'video'), COALESCE(content, ''), COALESCE(video_url, ''), COALESCE(thumbnail, ''), COALESCE(duration, ''), category, display_order, is_published, created_at, updated_at
 		FROM tutorials
 		WHERE is_published = true
 	`
@@ -2358,6 +2371,8 @@ func (s *PostgresStore) GetPublishedTutorials(ctx context.Context, category stri
 			&t.ID,
 			&t.Title,
 			&t.Description,
+			&t.Type,
+			&t.Content,
 			&t.VideoURL,
 			&t.Thumbnail,
 			&t.Duration,
@@ -2377,7 +2392,7 @@ func (s *PostgresStore) GetPublishedTutorials(ctx context.Context, category stri
 // GetAllTutorials retrieves all tutorials (for admin)
 func (s *PostgresStore) GetAllTutorials(ctx context.Context) ([]*models.Tutorial, error) {
 	query := `
-		SELECT id, title, COALESCE(description, ''), video_url, COALESCE(thumbnail, ''), COALESCE(duration, ''), category, display_order, is_published, created_at, updated_at
+		SELECT id, title, COALESCE(description, ''), COALESCE(type, 'video'), COALESCE(content, ''), COALESCE(video_url, ''), COALESCE(thumbnail, ''), COALESCE(duration, ''), category, display_order, is_published, created_at, updated_at
 		FROM tutorials
 		ORDER BY category, display_order, created_at
 	`
@@ -2394,6 +2409,8 @@ func (s *PostgresStore) GetAllTutorials(ctx context.Context) ([]*models.Tutorial
 			&t.ID,
 			&t.Title,
 			&t.Description,
+			&t.Type,
+			&t.Content,
 			&t.VideoURL,
 			&t.Thumbnail,
 			&t.Duration,
@@ -2414,12 +2431,14 @@ func (s *PostgresStore) GetAllTutorials(ctx context.Context) ([]*models.Tutorial
 func (s *PostgresStore) UpdateTutorial(ctx context.Context, tutorial *models.Tutorial) error {
 	query := `
 		UPDATE tutorials
-		SET title = $1, description = $2, video_url = $3, thumbnail = $4, duration = $5, category = $6, display_order = $7, is_published = $8, updated_at = $9
-		WHERE id = $10
+		SET title = $1, description = $2, type = $3, content = $4, video_url = $5, thumbnail = $6, duration = $7, category = $8, display_order = $9, is_published = $10, updated_at = $11
+		WHERE id = $12
 	`
 	_, err := s.db.ExecContext(ctx, query,
 		tutorial.Title,
 		tutorial.Description,
+		tutorial.Type,
+		tutorial.Content,
 		tutorial.VideoURL,
 		tutorial.Thumbnail,
 		tutorial.Duration,

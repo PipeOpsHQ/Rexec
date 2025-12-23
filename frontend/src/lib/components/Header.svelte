@@ -210,9 +210,9 @@
             <StatusIcon status="snippet" size={14} />
             <span>Snippets</span>
         </a>
-        <a class="nav-link" href="/tutorials">
+        <a class="nav-link" href="/resources">
             <StatusIcon status="video" size={14} />
-            <span>Tutorials</span>
+            <span>Resources</span>
         </a>
         <a class="nav-link" href="/docs">
             <StatusIcon status="book" size={14} />

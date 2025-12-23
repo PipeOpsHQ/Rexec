@@ -81,12 +81,14 @@ type PortForward struct {
 	CreatedAt     time.Time `json:"created_at"`
 }
 
-// Tutorial represents an admin-created video tutorial
+// Tutorial represents an admin-created resource (video tutorial or guide)
 type Tutorial struct {
 	ID          string    `json:"id"`
 	Title       string    `json:"title"`
 	Description string    `json:"description"`
-	VideoURL    string    `json:"video_url"`    // YouTube/Vimeo embed URL
+	Type        string    `json:"type"`         // "video" or "guide"
+	Content     string    `json:"content"`      // Markdown content for guides
+	VideoURL    string    `json:"video_url"`    // YouTube/Vimeo embed URL (optional if type is guide)
 	Thumbnail   string    `json:"thumbnail"`    // Optional thumbnail URL
 	Duration    string    `json:"duration"`     // e.g., "5:30"
 	Category    string    `json:"category"`     // getting-started, agents, containers, etc.
