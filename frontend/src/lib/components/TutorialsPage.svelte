@@ -112,7 +112,7 @@
     }
 
     function getEmbedUrl(url: string, autoplay = false): string {
-        const params = autoplay ? "?autoplay=1&vq=hd2160" : "";
+        const params = autoplay ? "?autoplay=1&vq=hd2160" : "?vq=hd2160";
 
         // Handle YouTube URLs (supports various formats including shorts, live, etc.)
         const ytMatch = url.match(
