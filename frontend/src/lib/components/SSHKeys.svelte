@@ -35,11 +35,7 @@
     let hosts: RemoteHost[] = [];
     let isLoading = true;
     let showAddModal = false;
-    
-    // Add Key state
-    let newKeyName = "";
-    let newKeyContent = "";
-    
+
     // Add Host state
     let newHostName = "";
     let newHostAddress = "";
@@ -52,7 +48,11 @@
 
     // Delete state
     let showDeleteConfirm = false;
-    let itemToDelete: { id: string; name: string; type: "key" | "host" } | null = null;
+    let itemToDelete: {
+        id: string;
+        name: string;
+        type: "key" | "host";
+    } | null = null;
 
     async function handleOAuthLogin() {
         if (isOAuthLoading) return;
@@ -78,46 +78,31 @@
     async function loadData() {
         isLoading = true;
         if (activeTab === "keys") {
-            const { data, error } = await api.get<{ keys: SSHKey[] }>("/api/ssh/keys");
+            const { data, error } = await api.get<{ keys: SSHKey[] }>(
+                "/api/ssh/keys",
+            );
             if (data) keys = data.keys || [];
             else if (error) toast.error("Failed to load SSH keys");
         } else {
-            const { data, error } = await api.get<{ hosts: RemoteHost[] }>("/api/ssh/hosts");
+            const { data, error } = await api.get<{ hosts: RemoteHost[] }>(
+                "/api/ssh/hosts",
+            );
             if (data) hosts = data.hosts || [];
             else if (error) toast.error("Failed to load remote hosts");
         }
         isLoading = false;
     }
-    
+
     // Watch tab change
     $: if (activeTab) loadData();
 
-    // Add new SSH key
-    async function addKey() {
-        if (!newKeyName.trim() || !newKeyContent.trim()) {
-            toast.error("Please provide a name and key");
-            return;
-        }
-
-        isAdding = true;
-        const { data, error } = await api.post<SSHKey>("/api/ssh-keys", {
-            name: newKeyName.trim(),
-            public_key: newKeyContent.trim(),
-        });
-
-        if (data) {
-            keys = [...keys, data];
-            toast.success("SSH key added");
-            closeModal();
-        } else {
-            toast.error(error || "Failed to add SSH key");
-        }
-        isAdding = false;
-    }
-    
     // Add new Remote Host
     async function addHost() {
-        if (!newHostName.trim() || !newHostAddress.trim() || !newHostUser.trim()) {
+        if (
+            !newHostName.trim() ||
+            !newHostAddress.trim() ||
+            !newHostUser.trim()
+        ) {
             toast.error("Please fill in all required fields");
             return;
         }
@@ -128,7 +113,7 @@
             hostname: newHostAddress.trim(),
             port: newHostPort,
             username: newHostUser.trim(),
-            identity_file: newHostKeyPath.trim()
+            identity_file: newHostKeyPath.trim(),
         });
 
         if (data) {
@@ -171,7 +156,10 @@
                 toast.success("Remote connection deleted");
             }
         } else {
-            toast.error(error || `Failed to delete ${type === "key" ? "SSH key" : "host"}`);
+            toast.error(
+                error ||
+                    `Failed to delete ${type === "key" ? "SSH key" : "host"}`,
+            );
         }
     }
 
@@ -186,8 +174,6 @@
     // Modal helpers
     function openModal() {
         // Reset all form fields
-        newKeyName = "";
-        newKeyContent = "";
         newHostName = "";
         newHostAddress = "";
         newHostPort = 22;
@@ -198,10 +184,8 @@
 
     function closeModal() {
         showAddModal = false;
-        newKeyName = "";
-        newKeyContent = "";
     }
-    
+
     function copyToClipboard(text: string) {
         navigator.clipboard.writeText(text);
         toast.success("Command copied to clipboard");
@@ -222,7 +206,9 @@
 
 <ConfirmModal
     bind:show={showDeleteConfirm}
-    title="Delete {itemToDelete?.type === 'key' ? 'SSH Key' : 'Remote Connection'}"
+    title="Delete {itemToDelete?.type === 'key'
+        ? 'SSH Key'
+        : 'Remote Connection'}"
     message={itemToDelete
         ? `Are you sure you want to delete "${itemToDelete.name}"? This action cannot be undone.`
         : ""}
@@ -246,7 +232,8 @@
 
         <div class="section-header">
             <p class="section-description">
-                Save remote server details to quickly connect FROM your Rexec terminals.
+                Save remote server details to quickly connect FROM your Rexec
+                terminals.
             </p>
             <button
                 class="btn btn-primary"
@@ -265,11 +252,13 @@
             </div>
         {:else if $isGuest}
             <div class="guest-state">
-                <div class="guest-icon"><StatusIcon status="lock" size={48} /></div>
+                <div class="guest-icon">
+                    <StatusIcon status="lock" size={48} />
+                </div>
                 <h2>SSH Features Locked</h2>
                 <p>
-                    Sign in with PipeOps to manage your SSH configuration and enable
-                    secure access features.
+                    Sign in with PipeOps to manage your SSH configuration and
+                    enable secure access features.
                 </p>
                 <button
                     class="btn btn-primary"
@@ -286,10 +275,13 @@
             </div>
         {:else if hosts.length === 0}
             <div class="empty-state">
-                <div class="empty-icon"><StatusIcon status="globe" size={48} /></div>
+                <div class="empty-icon">
+                    <StatusIcon status="globe" size={48} />
+                </div>
                 <h2>No Remote Connections</h2>
                 <p>
-                    Add a remote server to quickly SSH into it from your Rexec terminal.
+                    Add a remote server to quickly SSH into it from your Rexec
+                    terminal.
                 </p>
                 <button class="btn btn-primary" onclick={openModal}>
                     + Add Your First Connection
@@ -299,13 +291,19 @@
             <div class="keys-list">
                 {#each hosts as host (host.id)}
                     <div class="key-card">
-                        <div class="key-icon"><StatusIcon status="globe" size={24} /></div>
+                        <div class="key-icon">
+                            <StatusIcon status="globe" size={24} />
+                        </div>
                         <div class="key-info">
                             <div class="key-name">{host.name}</div>
-                            <div class="key-fingerprint">{host.username}@{host.hostname}:{host.port}</div>
+                            <div class="key-fingerprint">
+                                {host.username}@{host.hostname}:{host.port}
+                            </div>
                             <div class="key-meta">
                                 {#if host.identity_file}
-                                    <span>Identity: {host.identity_file} • </span>
+                                    <span
+                                        >Identity: {host.identity_file} •
+                                    </span>
                                 {/if}
                                 <span>Added {formatDate(host.created_at)}</span>
                             </div>
@@ -320,14 +318,16 @@
                             </button>
                             <button
                                 class="btn btn-secondary btn-sm"
-                                onclick={() => copyToClipboard(host.ssh_command)}
+                                onclick={() =>
+                                    copyToClipboard(host.ssh_command)}
                                 title="Copy SSH Command"
                             >
                                 Copy
                             </button>
                             <button
                                 class="btn btn-danger btn-sm"
-                                onclick={() => deleteKey(host.id, host.name, "host")}
+                                onclick={() =>
+                                    deleteKey(host.id, host.name, "host")}
                             >
                                 Delete
                             </button>
@@ -401,7 +401,9 @@
                         bind:value={newHostKeyPath}
                         placeholder="e.g., ~/.ssh/id_rsa"
                     />
-                    <span class="form-hint">Path to private key inside the terminal</span>
+                    <span class="form-hint"
+                        >Path to private key inside the terminal</span
+                    >
                 </div>
             </div>
 
@@ -788,7 +790,7 @@
         font-size: 11px;
         color: var(--text-muted);
     }
-    
+
     .actions {
         display: flex;
         gap: 8px;

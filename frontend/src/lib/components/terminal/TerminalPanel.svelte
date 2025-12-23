@@ -553,8 +553,6 @@
     $: isConnected = status === "connected";
     $: isConnecting = status === "connecting";
     $: isDisconnected = status === "disconnected" || status === "error";
-    $: isSettingUp = session?.isSettingUp || false;
-    $: setupMessage = session?.setupMessage || "";
     $: hasSplitPanes = session?.splitPanes?.size > 0;
     $: splitPanes = session?.splitPanes
         ? Array.from(session.splitPanes.values())

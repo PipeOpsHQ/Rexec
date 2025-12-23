@@ -1327,11 +1327,6 @@
         window.history.pushState({}, "", "/account/snippets");
     }
 
-    function goToMarketplace() {
-        currentView = "marketplace";
-        window.history.pushState({}, "", "/marketplace");
-    }
-
     function goToAgents() {
         currentView = "agent-docs";
         window.history.pushState({}, "", "/agents");
@@ -1647,9 +1642,8 @@
             {#if currentView === "landing"}
                 <Landing
                     on:guest={openGuestModal}
-                    on:navigate={(e) => {
-                        // @ts-ignore - view is checked elsewhere or we trust it matches types
-                        currentView = e.detail.view;
+                    on:navigate={(e: CustomEvent<{ view: string }>) => {
+                        currentView = e.detail.view as typeof currentView;
                         window.history.pushState({}, "", "/" + e.detail.view);
                     }}
                 />
@@ -1658,7 +1652,9 @@
                     <svelte:component
                         this={lazyComponents.dashboard}
                         on:create={goToCreate}
-                        on:connect={(e) => {
+                        on:connect={(
+                            e: CustomEvent<{ id: string; name: string }>,
+                        ) => {
                             if (e.detail.id.startsWith("agent:")) {
                                 const agentId = e.detail.id.replace(
                                     "agent:",
@@ -1705,7 +1701,12 @@
                     <svelte:component
                         this={lazyComponents.settings}
                         on:back={goToDashboard}
-                        on:connectAgent={(e) => {
+                        on:connectAgent={(
+                            e: CustomEvent<{
+                                agentId: string;
+                                agentName: string;
+                            }>,
+                        ) => {
                             const { agentId, agentName } = e.detail;
                             void openTerminalForAgent(agentId, agentName);
                             currentView = "dashboard";
@@ -1721,7 +1722,7 @@
                     <svelte:component
                         this={lazyComponents.sshKeys}
                         on:back={goToDashboard}
-                        on:run={(e) => {
+                        on:run={(e: CustomEvent<{ command: string }>) => {
                             const command = e.detail.command;
                             const store = terminalStoreModule;
                             const activeSessionId =
@@ -1794,7 +1795,7 @@
                 {#if lazyComponents.docs}
                     <svelte:component
                         this={lazyComponents.docs}
-                        on:navigate={(e) => {
+                        on:navigate={(e: CustomEvent<{ view: string }>) => {
                             const view = e.detail.view;
                             if (view === "docs/cli") {
                                 currentView = "cli-docs";
@@ -1818,7 +1819,7 @@
                 {#if lazyComponents.account}
                     <svelte:component
                         this={lazyComponents.account}
-                        on:navigate={(e) => {
+                        on:navigate={(e: CustomEvent<{ view: string }>) => {
                             const view = e.detail.view;
                             if (view === "dashboard") goToDashboard();
                             else if (view === "settings") {
@@ -1873,7 +1874,7 @@
                     <svelte:component
                         this={lazyComponents.accountLayout}
                         section="settings"
-                        on:navigate={(e) => {
+                        on:navigate={(e: CustomEvent<{ view: string }>) => {
                             const view = e.detail.view;
                             if (view === "dashboard") goToDashboard();
                         }}
@@ -1884,7 +1885,12 @@
                                 currentView = "account";
                                 window.history.pushState({}, "", "/account");
                             }}
-                            on:connectAgent={(e) => {
+                            on:connectAgent={(
+                                e: CustomEvent<{
+                                    agentId: string;
+                                    agentName: string;
+                                }>,
+                            ) => {
                                 const { agentId, agentName } = e.detail;
                                 void openTerminalForAgent(agentId, agentName);
                                 currentView = "dashboard";
@@ -1901,7 +1907,7 @@
                     <svelte:component
                         this={lazyComponents.accountLayout}
                         section="ssh"
-                        on:navigate={(e) => {
+                        on:navigate={(e: CustomEvent<{ view: string }>) => {
                             const view = e.detail.view;
                             if (view === "dashboard") goToDashboard();
                         }}
@@ -1912,7 +1918,7 @@
                                 currentView = "account";
                                 window.history.pushState({}, "", "/account");
                             }}
-                            on:run={(e) => {
+                            on:run={(e: CustomEvent<{ command: string }>) => {
                                 const command = e.detail.command;
                                 const store = terminalStoreModule;
                                 const activeSessionId =
@@ -1946,7 +1952,7 @@
                     <svelte:component
                         this={lazyComponents.accountLayout}
                         section="billing"
-                        on:navigate={(e) => {
+                        on:navigate={(e: CustomEvent<{ view: string }>) => {
                             const view = e.detail.view;
                             if (view === "dashboard") goToDashboard();
                         }}
@@ -1971,7 +1977,7 @@
                     <svelte:component
                         this={lazyComponents.accountLayout}
                         section="snippets"
-                        on:navigate={(e) => {
+                        on:navigate={(e: CustomEvent<{ view: string }>) => {
                             const view = e.detail.view;
                             if (view === "dashboard") goToDashboard();
                         }}
@@ -1992,7 +1998,7 @@
                     <svelte:component
                         this={lazyComponents.accountLayout}
                         section="recordings"
-                        on:navigate={(e) => {
+                        on:navigate={(e: CustomEvent<{ view: string }>) => {
                             const view = e.detail.view;
                             if (view === "dashboard") goToDashboard();
                         }}
@@ -2009,7 +2015,7 @@
                     <svelte:component
                         this={lazyComponents.accountLayout}
                         section="api"
-                        on:navigate={(e) => {
+                        on:navigate={(e: CustomEvent<{ view: string }>) => {
                             const view = e.detail.view;
                             if (view === "dashboard") goToDashboard();
                         }}
@@ -2024,12 +2030,19 @@
                     <svelte:component
                         this={lazyComponents.joinSession}
                         code={joinCode}
-                        on:joined={(e) => {
+                        on:joined={(
+                            e: CustomEvent<{
+                                containerId: string;
+                                containerName: string;
+                                mode?: CollabMode;
+                                role?: CollabRole;
+                            }>,
+                        ) => {
                             void openTerminalForCollab(
                                 e.detail.containerId,
                                 e.detail.containerName,
-                                e.detail.mode || "control",
-                                e.detail.role || "viewer",
+                                e.detail.mode ?? "control",
+                                e.detail.role ?? "viewer",
                             );
                             currentView = "dashboard";
                         }}
@@ -2043,7 +2056,7 @@
                     <svelte:component
                         this={lazyComponents.guides}
                         on:tryNow={openGuestModal}
-                        on:navigate={(e) => {
+                        on:navigate={(e: CustomEvent<{ view: string }>) => {
                             const view = e.detail.view;
                             if (view === "agentic") {
                                 currentView = "use-cases";
@@ -2069,7 +2082,7 @@
                     <svelte:component
                         this={lazyComponents.useCases}
                         on:tryNow={openGuestModal}
-                        on:navigate={(e) => {
+                        on:navigate={(e: CustomEvent<{ slug: string }>) => {
                             useCaseSlug = e.detail.slug;
                             currentView = "use-case-detail";
                             window.history.pushState(
@@ -2092,7 +2105,7 @@
                             window.history.pushState({}, "", "/use-cases");
                         }}
                         on:tryNow={openGuestModal}
-                        on:navigate={(e) => {
+                        on:navigate={(e: CustomEvent<{ slug: string }>) => {
                             useCaseSlug = e.detail.slug;
                             window.history.pushState(
                                 {},
@@ -2131,7 +2144,7 @@
                     <svelte:component
                         this={lazyComponents.promo}
                         on:guest={openGuestModal}
-                        on:navigate={(e) => {
+                        on:navigate={(e: CustomEvent<{ view: string }>) => {
                             if (e.detail.view === "use-cases") {
                                 window.history.pushState({}, "", "/use-cases");
                                 currentView = "use-cases";
@@ -2152,7 +2165,7 @@
                     <svelte:component
                         this={lazyComponents.launch}
                         on:guest={openGuestModal}
-                        on:navigate={(e) => {
+                        on:navigate={(e: CustomEvent<{ view: string }>) => {
                             if (e.detail.view === "use-cases") {
                                 window.history.pushState({}, "", "/use-cases");
                                 currentView = "use-cases";

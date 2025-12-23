@@ -1,5 +1,5 @@
-import { writable, get } from 'svelte/store';
-import { auth } from './auth';
+import { writable, get } from "svelte/store";
+import { auth } from "./auth";
 
 export interface AgentSystemInfo {
   os: string;
@@ -33,8 +33,9 @@ export interface Agent {
   os: string;
   arch: string;
   shell: string;
+  distro?: string;
   tags?: string[];
-  status: 'online' | 'offline' | 'registered';
+  status: "online" | "offline" | "registered";
   connected_at?: string;
   last_ping?: string;
   created_at: string;
@@ -52,7 +53,7 @@ interface AgentsState {
   agentTokens: Record<string, string>;
 }
 
-const API_BASE = '/api';
+const API_BASE = "/api";
 
 function createAgentsStore() {
   const { subscribe, set, update } = writable<AgentsState>({
@@ -74,22 +75,25 @@ function createAgentsStore() {
     subscribe,
 
     async fetchAgents(): Promise<void> {
-      update(s => ({ ...s, loading: true, error: null }));
+      update((s) => ({ ...s, loading: true, error: null }));
       try {
         const res = await fetch(`${API_BASE}/agents`, {
           headers: getAuthHeader(),
         });
-        if (!res.ok) throw new Error('Failed to fetch agents');
+        if (!res.ok) throw new Error("Failed to fetch agents");
         const agentsList = await res.json();
-        
+
         // For online agents, fetch their status to get system_info and stats
         const enrichedAgents = await Promise.all(
           (agentsList || []).map(async (agent: Agent) => {
-            if (agent.status === 'online') {
+            if (agent.status === "online") {
               try {
-                const statusRes = await fetch(`${API_BASE}/agents/${agent.id}/status`, {
-                  headers: getAuthHeader(),
-                });
+                const statusRes = await fetch(
+                  `${API_BASE}/agents/${agent.id}/status`,
+                  {
+                    headers: getAuthHeader(),
+                  },
+                );
                 if (statusRes.ok) {
                   const status = await statusRes.json();
                   return {
@@ -103,42 +107,45 @@ function createAgentsStore() {
               }
             }
             return agent;
-          })
+          }),
         );
-        
+
         // API returns sorted list, so use it as is
-        update(s => ({ ...s, agents: enrichedAgents, loading: false }));
+        update((s) => ({ ...s, agents: enrichedAgents, loading: false }));
       } catch (err: any) {
-        update(s => ({ ...s, error: err.message, loading: false }));
+        update((s) => ({ ...s, error: err.message, loading: false }));
       }
     },
 
-    async registerAgent(name: string, description?: string): Promise<Agent | null> {
-      update(s => ({ ...s, loading: true, error: null }));
+    async registerAgent(
+      name: string,
+      description?: string,
+    ): Promise<Agent | null> {
+      update((s) => ({ ...s, loading: true, error: null }));
       try {
         const res = await fetch(`${API_BASE}/agents/register`, {
-          method: 'POST',
+          method: "POST",
           headers: {
             ...getAuthHeader(),
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({ name, description }),
         });
-        if (!res.ok) throw new Error('Failed to register agent');
+        if (!res.ok) throw new Error("Failed to register agent");
         const agent = await res.json();
         // Add new agent to the top of the list and save the API token
-        update(s => ({
+        update((s) => ({
           ...s,
-          agents: [{ ...agent, status: 'registered' }, ...s.agents],
+          agents: [{ ...agent, status: "registered" }, ...s.agents],
           loading: false,
           // Store the API token for this agent (used in getInstallScript)
-          agentTokens: agent.token 
+          agentTokens: agent.token
             ? { ...s.agentTokens, [agent.id]: agent.token }
             : s.agentTokens,
         }));
         return agent;
       } catch (err: any) {
-        update(s => ({ ...s, error: err.message, loading: false }));
+        update((s) => ({ ...s, error: err.message, loading: false }));
         return null;
       }
     },
@@ -146,40 +153,40 @@ function createAgentsStore() {
     async deleteAgent(agentId: string): Promise<boolean> {
       try {
         const res = await fetch(`${API_BASE}/agents/${agentId}`, {
-          method: 'DELETE',
+          method: "DELETE",
           headers: getAuthHeader(),
         });
-        if (!res.ok) throw new Error('Failed to delete agent');
-        update(s => ({
+        if (!res.ok) throw new Error("Failed to delete agent");
+        update((s) => ({
           ...s,
-          agents: s.agents.filter(a => a.id !== agentId),
+          agents: s.agents.filter((a) => a.id !== agentId),
         }));
         return true;
       } catch (err: any) {
-        update(s => ({ ...s, error: err.message }));
+        update((s) => ({ ...s, error: err.message }));
         return false;
       }
     },
 
     getToken(): string {
       const authState = get(auth);
-      return authState.token || '';
+      return authState.token || "";
     },
 
     getInstallScript(agentId: string): string {
       // Get the current state to check for agent-specific API token
       const state = get({ subscribe });
       const agentToken = state.agentTokens[agentId];
-      
+
       // Prefer the agent-specific API token (never expires)
       // Fall back to user's JWT token (expires in 24h) if no agent token available
-      const token = agentToken || get(auth).token || '';
+      const token = agentToken || get(auth).token || "";
       const baseUrl = window.location.origin;
-      
+
       // If using agent token, include it with a note that it's permanent
       return `curl -sSL ${baseUrl}/install-agent.sh | sudo bash -s -- --agent-id ${agentId} --token ${token}`;
     },
-    
+
     // Get the API token for a specific agent (if available)
     getAgentToken(agentId: string): string | undefined {
       const state = get({ subscribe });
@@ -187,17 +194,25 @@ function createAgentsStore() {
     },
 
     // Update agent status from WebSocket event
-    updateAgentStatus(agentId: string, status: 'online' | 'offline' | 'registered', agentData?: any) {
-      update(s => ({
+    updateAgentStatus(
+      agentId: string,
+      status: "online" | "offline" | "registered",
+      agentData?: any,
+    ) {
+      update((s) => ({
         ...s,
-        agents: s.agents.map(agent => {
+        agents: s.agents.map((agent) => {
           if (agent.id === agentId) {
             return {
               ...agent,
               status,
-              ...(agentData?.system_info && { system_info: agentData.system_info }),
+              ...(agentData?.system_info && {
+                system_info: agentData.system_info,
+              }),
               ...(agentData?.stats && { stats: agentData.stats }),
-              ...(agentData?.connected_at && { connected_at: agentData.connected_at }),
+              ...(agentData?.connected_at && {
+                connected_at: agentData.connected_at,
+              }),
               // Also update OS/Arch/Shell if provided by agentData and more specific
               ...(agentData?.os && { os: agentData.os }),
               ...(agentData?.arch && { arch: agentData.arch }),
@@ -211,7 +226,9 @@ function createAgentsStore() {
 
     reset() {
       set({
-        agents: [], loading: false, error: null,
+        agents: [],
+        loading: false,
+        error: null,
         agentTokens: {},
       });
     },
@@ -221,19 +238,19 @@ function createAgentsStore() {
 export const agents = createAgentsStore();
 
 // Listen for container WebSocket events to update agent status
-if (typeof window !== 'undefined') {
-  window.addEventListener('container-agent-connected', ((e: CustomEvent) => {
-    const agentId = e.detail.id?.replace('agent:', '');
+if (typeof window !== "undefined") {
+  window.addEventListener("container-agent-connected", ((e: CustomEvent) => {
+    const agentId = e.detail.id?.replace("agent:", "");
     if (agentId) {
       // Pass the whole e.detail as agentData to updateAgentStatus
-      agents.updateAgentStatus(agentId, 'online', e.detail);
+      agents.updateAgentStatus(agentId, "online", e.detail);
     }
   }) as EventListener);
 
-  window.addEventListener('container-agent-disconnected', ((e: CustomEvent) => {
-    const agentId = e.detail.id?.replace('agent:', '');
+  window.addEventListener("container-agent-disconnected", ((e: CustomEvent) => {
+    const agentId = e.detail.id?.replace("agent:", "");
     if (agentId) {
-      agents.updateAgentStatus(agentId, 'offline');
+      agents.updateAgentStatus(agentId, "offline");
     }
   }) as EventListener);
 }

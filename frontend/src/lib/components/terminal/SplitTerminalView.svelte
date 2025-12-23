@@ -1,6 +1,10 @@
 <script lang="ts">
-    import { onMount, onDestroy, tick } from "svelte";
-    import { terminal, type TerminalSession, type SplitPane } from "$stores/terminal";
+    import { onMount, onDestroy } from "svelte";
+    import {
+        terminal,
+        type TerminalSession,
+        type SplitPane,
+    } from "$stores/terminal";
 
     export let session: TerminalSession;
     export let pane: SplitPane;
@@ -41,8 +45,8 @@
     $: isConnecting = status === "connecting";
 </script>
 
-<div 
-    class="split-pane" 
+<div
+    class="split-pane"
     class:active={isActive}
     onclick={handleClick}
     onkeydown={() => {}}
@@ -51,17 +55,25 @@
 >
     <div class="split-pane-header">
         <span class="pane-label">
-            <span class="status-dot" class:connected={isConnected} class:connecting={isConnecting}></span>
+            <span
+                class="status-dot"
+                class:connected={isConnected}
+                class:connecting={isConnecting}
+            ></span>
             Session {pane.id.slice(-4)}
         </span>
-        <button class="close-pane" onclick={(e) => { e.stopPropagation(); handleClose(); }} title="Close split">
+        <button
+            class="close-pane"
+            onclick={(e) => {
+                e.stopPropagation();
+                handleClose();
+            }}
+            title="Close split"
+        >
             ×
         </button>
     </div>
-    <div 
-        class="split-pane-terminal"
-        bind:this={containerElement}
-    ></div>
+    <div class="split-pane-terminal" bind:this={containerElement}></div>
 </div>
 
 <style>
@@ -116,8 +128,13 @@
     }
 
     @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
+        0%,
+        100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.5;
+        }
     }
 
     .close-pane {

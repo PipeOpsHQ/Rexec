@@ -25,7 +25,6 @@
     let isLoading = true;
     let selectedCategory = "";
     let selectedResource: Resource | null = null;
-    let playingId: string | null = null;
 
     $: filteredResources = selectedCategory
         ? resources.filter((t) => t.category === selectedCategory)
@@ -193,7 +192,7 @@
                 return escapeHtml(part);
             })
             .join("");
-
+    }
 
     function renderMarkdown(text: string): string {
         if (!text) return "";
@@ -309,7 +308,7 @@
 
     function closeResource() {
         selectedResource = null;
-        playingId = null;
+
         const url = new URL(window.location.href);
         url.searchParams.delete("id");
         window.history.pushState({}, "", url);
@@ -420,7 +419,7 @@
             toast.success(
                 resource.is_published
                     ? "Resource unpublished"
-                    : "Resource published"
+                    : "Resource published",
             );
             await fetchResources();
         } catch (err) {
@@ -873,7 +872,7 @@
         max-width: 1200px;
         margin: 0 auto;
         padding: 40px 20px;
-
+    }
 
     .page-header {
         display: flex;

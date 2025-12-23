@@ -148,10 +148,6 @@
         sessionCountValue = 0;
     }
 
-    function handleGuestClick() {
-        dispatch("guest");
-    }
-
     async function handleOAuthLogin() {
         if (isOAuthLoading) return;
 

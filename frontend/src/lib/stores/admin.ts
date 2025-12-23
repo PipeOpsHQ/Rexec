@@ -35,6 +35,7 @@ export interface AdminAgent {
   os: string;
   arch: string;
   shell: string;
+  distro?: string;
   status: string;
   created_at: string;
   last_ping?: string;
@@ -98,7 +99,7 @@ function createAdminStore() {
       error: null,
     }));
 
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
 
     const token = localStorage.getItem("rexec_token"); // Assuming token is stored here
     if (!token) {
@@ -141,12 +142,12 @@ function createAdminStore() {
             newUsers = newUsers.map((u) =>
               u.id === (adminEvent.payload as AdminUser).id
                 ? (adminEvent.payload as AdminUser)
-                : u
+                : u,
             );
             break;
           case "user_deleted":
             newUsers = newUsers.filter(
-              (u) => u.id !== (adminEvent.payload as AdminUser).id
+              (u) => u.id !== (adminEvent.payload as AdminUser).id,
             );
             break;
           case "container_created":
@@ -159,12 +160,12 @@ function createAdminStore() {
             newContainers = newContainers.map((c) =>
               c.id === (adminEvent.payload as AdminContainer).id
                 ? (adminEvent.payload as AdminContainer)
-                : c
+                : c,
             );
             break;
           case "container_deleted":
             newContainers = newContainers.filter(
-              (c) => c.id !== (adminEvent.payload as AdminContainer).id
+              (c) => c.id !== (adminEvent.payload as AdminContainer).id,
             );
             break;
           case "session_created":
@@ -177,25 +178,33 @@ function createAdminStore() {
             newTerminals = newTerminals.map((t) =>
               t.id === (adminEvent.payload as AdminTerminal).id
                 ? (adminEvent.payload as AdminTerminal)
-                : t
+                : t,
             );
             break;
           case "session_deleted":
             newTerminals = newTerminals.filter(
-              (t) => t.id !== (adminEvent.payload as AdminTerminal).id
+              (t) => t.id !== (adminEvent.payload as AdminTerminal).id,
             );
             break;
           default:
-            console.warn("Admin WebSocket: Unknown event type", adminEvent.type);
+            console.warn(
+              "Admin WebSocket: Unknown event type",
+              adminEvent.type,
+            );
         }
 
-        return { ...state, users: newUsers, containers: newContainers, terminals: newTerminals };
+        return {
+          ...state,
+          users: newUsers,
+          containers: newContainers,
+          terminals: newTerminals,
+        };
       });
     };
 
     ws.onclose = (event) => {
       console.log(
-        `Admin WebSocket: Disconnected (Code: ${event.code}, Reason: ${event.reason})`
+        `Admin WebSocket: Disconnected (Code: ${event.code}, Reason: ${event.reason})`,
       );
       update((state) => ({ ...state, wsConnected: false }));
 
@@ -219,12 +228,12 @@ function createAdminStore() {
         const newReconnectInterval = state.wsReconnectInterval * 2; // Exponential backoff
         reconnectTimeout = setTimeout(
           connectWebSocket,
-          newReconnectInterval
+          newReconnectInterval,
         ) as ReturnType<typeof setTimeout>;
         console.log(
           `Admin WebSocket: Reconnecting in ${
             newReconnectInterval / 1000
-          }s (Attempt ${newReconnectAttempts})`
+          }s (Attempt ${newReconnectAttempts})`,
         );
         return {
           ...state,
@@ -233,7 +242,7 @@ function createAdminStore() {
         };
       } else {
         console.error(
-          "Admin WebSocket: Max reconnect attempts reached. Please refresh."
+          "Admin WebSocket: Max reconnect attempts reached. Please refresh.",
         );
         return { ...state, error: "Max reconnect attempts reached." };
       }
@@ -268,7 +277,7 @@ function createAdminStore() {
     fetchContainers: async () => {
       update((state) => ({ ...state, isLoading: true, error: null }));
       const { data, error } = await api.get<AdminContainer[]>(
-        "/api/admin/containers"
+        "/api/admin/containers",
       );
 
       if (error) {
@@ -285,7 +294,7 @@ function createAdminStore() {
     fetchTerminals: async () => {
       update((state) => ({ ...state, isLoading: true, error: null }));
       const { data, error } = await api.get<AdminTerminal[]>(
-        "/api/admin/terminals"
+        "/api/admin/terminals",
       );
 
       if (error) {
@@ -301,9 +310,7 @@ function createAdminStore() {
 
     fetchAgents: async () => {
       update((state) => ({ ...state, isLoading: true, error: null }));
-      const { data, error } = await api.get<AdminAgent[]>(
-        "/api/admin/agents"
-      );
+      const { data, error } = await api.get<AdminAgent[]>("/api/admin/agents");
 
       if (error) {
         update((state) => ({ ...state, isLoading: false, error }));
@@ -324,7 +331,9 @@ function createAdminStore() {
     },
 
     deleteContainer: async (containerId: string) => {
-      const { error } = await api.delete(`/api/admin/containers/${containerId}`);
+      const { error } = await api.delete(
+        `/api/admin/containers/${containerId}`,
+      );
       if (error) return { success: false, error };
       // WS event will handle updating the store
       return { success: true };

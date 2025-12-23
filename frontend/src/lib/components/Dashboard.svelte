@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { createEventDispatcher, tick, onMount } from "svelte";
+    import { createEventDispatcher, tick } from "svelte";
     import { writable } from "svelte/store";
     import {
         containers,
@@ -12,7 +12,12 @@
     import { auth } from "$stores/auth";
     import { terminal, connectedContainerIds } from "$stores/terminal";
     import { toast } from "$stores/toast";
-    import { formatRelativeTime, formatMemory, formatStorage, formatCPU } from "$utils/api";
+    import {
+        formatRelativeTime,
+        formatMemory,
+        formatStorage,
+        formatCPU,
+    } from "$utils/api";
     import ConfirmModal from "./ConfirmModal.svelte";
     import TerminalSettingsModal from "./TerminalSettingsModal.svelte";
     import PlatformIcon from "./icons/PlatformIcon.svelte";
@@ -21,14 +26,20 @@
     let copiedCommand = ""; // To show 'Copied!' feedback
 
     // Get current host for install commands
-    const currentHost = typeof window !== 'undefined' ? window.location.host : 'rexec.pipeops.io';
-    const protocol = typeof window !== 'undefined' ? window.location.protocol : 'https:';
+    const currentHost =
+        typeof window !== "undefined"
+            ? window.location.host
+            : "rexec.pipeops.io";
+    const protocol =
+        typeof window !== "undefined" ? window.location.protocol : "https:";
     const installUrl = `${protocol}//${currentHost}`;
 
     function copyToClipboard(text: string, id: string) {
         navigator.clipboard.writeText(text);
         copiedCommand = id;
-        setTimeout(() => { copiedCommand = ""; }, 2000);
+        setTimeout(() => {
+            copiedCommand = "";
+        }, 2000);
     }
 
     const dispatch = createEventDispatcher<{
@@ -36,19 +47,6 @@
         connect: { id: string; name: string };
         showAgentDocs: void;
     }>();
-
-    // Session type icons and labels - using StatusIcon types
-    const sessionTypeInfo: Record<string, { icon: string; label: string; color: string }> = {
-        container: { icon: "terminal", label: "Terminal", color: "#00d4ff" },
-        gpu: { icon: "gpu", label: "GPU Session", color: "#ff6b6b" },
-        ssh: { icon: "connected", label: "SSH Target", color: "#ffd93d" },
-        custom: { icon: "wrench", label: "Custom", color: "#a29bfe" },
-    };
-
-    function getSessionType(container: Container): string {
-        // For now, all are containers. Future: detect from container metadata
-        return container.session_type || "container";
-    }
 
     // Track containers being deleted
     // (moved to loadingStates)
@@ -60,7 +58,7 @@
     // Settings modal state
     let showSettingsModal = false;
     let settingsContainer: Container | null = null;
-    
+
     // Shortcuts modal state
     let showShortcutsModal = false;
 
@@ -81,20 +79,20 @@
     // Reactive connected container IDs - direct subscription for proper reactivity
     $: connectedIds = $connectedContainerIds;
 
-    // Check if container has active terminal connection (reactive version)
-    function isConnected(containerId: string): boolean {
-        return connectedIds.has(containerId);
-    }
-
     // Track loading states for containers - use a reactive store pattern
-    const loadingStatesStore = writable<Record<string, 'starting' | 'stopping' | 'deleting' | null>>({});
+    const loadingStatesStore = writable<
+        Record<string, "starting" | "stopping" | "deleting" | null>
+    >({});
     $: loadingStates = $loadingStatesStore;
-    
+
     // Track the last known status to detect WebSocket updates
     let lastKnownStatus: Record<string, string> = {};
 
-    function setLoading(id: string, state: 'starting' | 'stopping' | 'deleting' | null) {
-        loadingStatesStore.update(states => {
+    function setLoading(
+        id: string,
+        state: "starting" | "stopping" | "deleting" | null,
+    ) {
+        loadingStatesStore.update((states) => {
             const newStates = { ...states };
             if (state) {
                 newStates[id] = state;
@@ -106,7 +104,9 @@
     }
 
     // These are now reactive getters that depend on the store subscription
-    $: getLoadingState = (id: string): 'starting' | 'stopping' | 'deleting' | null => {
+    $: getLoadingState = (
+        id: string,
+    ): "starting" | "stopping" | "deleting" | null => {
         return $loadingStatesStore[id] || null;
     };
 
@@ -119,7 +119,7 @@
         for (const container of $containers.containers) {
             const prevStatus = lastKnownStatus[container.id];
             const currentStatus = container.status;
-            
+
             // If status changed, clear any loading state
             if (prevStatus && prevStatus !== currentStatus) {
                 if (loadingStates[container.id]) {
@@ -128,9 +128,9 @@
             }
             lastKnownStatus[container.id] = currentStatus;
         }
-        
+
         // Clean up deleted containers from lastKnownStatus
-        const currentIds = new Set($containers.containers.map(c => c.id));
+        const currentIds = new Set($containers.containers.map((c) => c.id));
         for (const id of Object.keys(lastKnownStatus)) {
             if (!currentIds.has(id)) {
                 delete lastKnownStatus[id];
@@ -143,7 +143,7 @@
 
     // Container actions
     async function handleStart(container: Container) {
-        setLoading(container.id, 'starting');
+        setLoading(container.id, "starting");
         const toastId = toast.loading(`Starting ${container.name}...`);
         const result = await containers.startContainer(container.id);
         setLoading(container.id, null);
@@ -165,7 +165,7 @@
     }
 
     async function handleStop(container: Container) {
-        setLoading(container.id, 'stopping');
+        setLoading(container.id, "stopping");
         const toastId = toast.loading(`Stopping ${container.name}...`);
         const result = await containers.stopContainer(container.id);
         setLoading(container.id, null);
@@ -195,28 +195,33 @@
 
         // Set loading state immediately and force UI update
         const loadingId = container.id || container.db_id;
-        if (loadingId) setLoading(loadingId, 'deleting');
-        
+        if (loadingId) setLoading(loadingId, "deleting");
+
         // Use tick to ensure DOM updates before API call
         await tick();
-        
+
         const toastId = toast.loading(`Deleting ${container.name}...`);
-        
+
         let result;
-        if (container.session_type === 'agent') {
+        if (container.session_type === "agent") {
             // Strip "agent:" prefix if present
-            const agentId = container.id.replace(/^agent:/, '');
+            const agentId = container.id.replace(/^agent:/, "");
             const success = await agents.deleteAgent(agentId);
             result = { success };
             // Also remove from containers store UI immediately
             if (success) {
-                containers.update(s => ({
+                containers.update((s) => ({
                     ...s,
-                    containers: s.containers.filter(c => c.id !== container.id)
+                    containers: s.containers.filter(
+                        (c) => c.id !== container.id,
+                    ),
                 }));
             }
         } else {
-            result = await containers.deleteContainer(container.id, container.db_id);
+            result = await containers.deleteContainer(
+                container.id,
+                container.db_id,
+            );
         }
 
         if (loadingId) setLoading(loadingId, null);
@@ -288,37 +293,72 @@
     // Distro detection for icon selection
     function getDistro(image: string): string {
         if (!image) return "linux";
-        
+
         // Handle both full image names (rexec/ubuntu:latest) and simple names (ubuntu)
         const lower = image.toLowerCase();
-        
+
         // Extract base name - handle formats like "rexec/ubuntu:latest", "ubuntu-24", "ubuntu"
-        const baseName = lower.split('/').pop()?.split(':')[0] || lower;
+        const baseName = lower.split("/").pop()?.split(":")[0] || lower;
         // Also get the core name without version suffix (ubuntu-24 -> ubuntu)
-        const coreName = baseName.split('-')[0];
-        
+        const coreName = baseName.split("-")[0];
+
         // Direct match on core name first
-        const directMatches = ['ubuntu', 'debian', 'alpine', 'fedora', 'centos', 'rocky', 'alma', 'arch', 'archlinux', 'kali', 'manjaro', 'mint', 'gentoo', 'void', 'nixos', 'slackware', 'parrot', 'blackarch', 'oracle', 'rhel', 'devuan', 'elementary'];
+        const directMatches = [
+            "ubuntu",
+            "debian",
+            "alpine",
+            "fedora",
+            "centos",
+            "rocky",
+            "alma",
+            "arch",
+            "archlinux",
+            "kali",
+            "manjaro",
+            "mint",
+            "gentoo",
+            "void",
+            "nixos",
+            "slackware",
+            "parrot",
+            "blackarch",
+            "oracle",
+            "rhel",
+            "devuan",
+            "elementary",
+        ];
         if (directMatches.includes(coreName)) {
             // Normalize archlinux to arch
-            return coreName === 'archlinux' ? 'arch' : coreName;
+            return coreName === "archlinux" ? "arch" : coreName;
         }
         if (directMatches.includes(baseName)) {
-            return baseName === 'archlinux' ? 'arch' : baseName;
+            return baseName === "archlinux" ? "arch" : baseName;
         }
-        
+
         // Partial matches for special cases
         if (lower.includes("ubuntu")) return "ubuntu";
         if (lower.includes("debian")) return "debian";
         if (lower.includes("alpine")) return "alpine";
         if (lower.includes("fedora")) return "fedora";
-        if (lower.includes("centos") || lower.includes("centos-stream")) return "centos";
+        if (lower.includes("centos") || lower.includes("centos-stream"))
+            return "centos";
         if (lower.includes("rocky")) return "rocky";
         if (lower.includes("alma")) return "alma";
-        if (lower.includes("archlinux") || lower.includes("arch")) return "arch";
+        if (lower.includes("archlinux") || lower.includes("arch"))
+            return "arch";
         if (lower.includes("kali")) return "kali";
-        if (lower.includes("opensuse") || lower.includes("suse") || lower.includes("tumbleweed")) return "suse";
-        if (lower.includes("rhel") || lower.includes("redhat") || lower.includes("ubi")) return "rhel";
+        if (
+            lower.includes("opensuse") ||
+            lower.includes("suse") ||
+            lower.includes("tumbleweed")
+        )
+            return "suse";
+        if (
+            lower.includes("rhel") ||
+            lower.includes("redhat") ||
+            lower.includes("ubi")
+        )
+            return "rhel";
         if (lower.includes("manjaro")) return "manjaro";
         if (lower.includes("mint")) return "mint";
         if (lower.includes("gentoo")) return "gentoo";
@@ -331,7 +371,7 @@
         if (lower.includes("devuan")) return "devuan";
         if (lower.includes("elementary")) return "elementary";
         if (lower.includes("openeuler")) return "linux";
-        
+
         return "linux";
     }
 
@@ -343,9 +383,12 @@
     $: creatingInfo = $creatingContainer;
     // Count creating as part of limit
     $: effectiveCount = containerList.length + (currentlyCreating ? 1 : 0);
-    
+
     // Check subscription status
-    $: isPaidUser = $auth.user?.tier === 'pro' || $auth.user?.tier === 'enterprise' || $auth.user?.subscriptionActive;
+    $: isPaidUser =
+        $auth.user?.tier === "pro" ||
+        $auth.user?.tier === "enterprise" ||
+        $auth.user?.subscriptionActive;
 </script>
 
 <ConfirmModal
@@ -364,7 +407,7 @@
 <TerminalSettingsModal
     bind:show={showSettingsModal}
     container={settingsContainer}
-    isPaidUser={isPaidUser}
+    {isPaidUser}
     on:close={closeSettings}
 />
 
@@ -424,7 +467,13 @@
                 onclick={() => dispatch("showAgentDocs")}
                 title="Connect your own machine"
             >
-                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg
+                    class="icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                >
                     <rect x="2" y="3" width="20" height="14" rx="2" />
                     <path d="M8 21h8M12 17v4" />
                     <circle cx="12" cy="10" r="3" />
@@ -480,7 +529,8 @@
             </div>
             <h2>No Terminals Yet</h2>
             <p>
-                Create your first terminal to access a cloud environment, GPU workspace, or connect to remote resources.
+                Create your first terminal to access a cloud environment, GPU
+                workspace, or connect to remote resources.
             </p>
             <button
                 class="btn btn-primary btn-lg"
@@ -502,22 +552,29 @@
                 </svg>
                 Create Terminal
             </button>
-            
+
             <div class="connect-own-tip">
                 <div class="tip-header">
                     <StatusIcon status="connected" size={16} />
                     <span>Or connect your own machine</span>
                 </div>
                 <p class="tip-text">
-                    Use the rexec agent to connect your own server, VM, or local machine.
+                    Use the rexec agent to connect your own server, VM, or local
+                    machine.
                 </p>
                 <div class="tip-code-block">
-                    <code class="tip-code">curl -fsSL {installUrl}/install-agent.sh | sudo bash</code>
+                    <code class="tip-code"
+                        >curl -fsSL {installUrl}/install-agent.sh | sudo bash</code
+                    >
                     <button
                         class="copy-btn"
-                        onclick={() => copyToClipboard(`curl -fsSL ${installUrl}/install-agent.sh | sudo bash`, 'agent-install')}
+                        onclick={() =>
+                            copyToClipboard(
+                                `curl -fsSL ${installUrl}/install-agent.sh | sudo bash`,
+                                "agent-install",
+                            )}
                     >
-                        {copiedCommand === 'agent-install' ? 'Copied!' : 'Copy'}
+                        {copiedCommand === "agent-install" ? "Copied!" : "Copy"}
                     </button>
                 </div>
             </div>
@@ -528,7 +585,10 @@
                 <div class="container-card creating-card">
                     <div class="container-header">
                         <span class="container-icon creating-icon">
-                            <PlatformIcon platform={getDistro(creatingInfo.image || '')} size={32} />
+                            <PlatformIcon
+                                platform={getDistro(creatingInfo.image || "")}
+                                size={32}
+                            />
                         </span>
                         <div class="container-info">
                             <h2 class="container-name">
@@ -567,27 +627,30 @@
             {/if}
             {#each containerList as container (container.id)}
                 {@const containerConnected = connectedIds.has(container.id)}
-                {@const isAgent = container.session_type === 'agent'}
+                {@const isAgent = container.session_type === "agent"}
                 <div
                     class="container-card"
                     class:agent-card={isAgent}
                     class:active={hasActiveSession(container.id)}
                     class:connected={containerConnected}
                     class:loading={isContainerLoading(container.id)}
-                    class:deleting={getLoadingState(container.id) === 'deleting'}
-                    class:starting={getLoadingState(container.id) === 'starting'}
-                    class:stopping={getLoadingState(container.id) === 'stopping'}
+                    class:deleting={getLoadingState(container.id) ===
+                        "deleting"}
+                    class:starting={getLoadingState(container.id) ===
+                        "starting"}
+                    class:stopping={getLoadingState(container.id) ===
+                        "stopping"}
                 >
                     {#if isContainerLoading(container.id)}
                         <div class="loading-overlay">
                             <div class="loading-content">
                                 <div class="spinner"></div>
                                 <span>
-                                    {#if getLoadingState(container.id) === 'deleting'}
+                                    {#if getLoadingState(container.id) === "deleting"}
                                         Deleting...
-                                    {:else if getLoadingState(container.id) === 'starting'}
+                                    {:else if getLoadingState(container.id) === "starting"}
                                         Starting...
-                                    {:else if getLoadingState(container.id) === 'stopping'}
+                                    {:else if getLoadingState(container.id) === "stopping"}
                                         Stopping...
                                     {/if}
                                 </span>
@@ -598,27 +661,63 @@
                     <div class="container-header">
                         <span class="container-icon">
                             {#if isAgent}
-                                <PlatformIcon platform={container.distro || (container.os === 'darwin' ? 'macos' : container.os === 'windows' ? 'windows' : 'linux')} size={32} />
+                                <PlatformIcon
+                                    platform={container.distro ||
+                                        (container.os === "darwin"
+                                            ? "macos"
+                                            : container.os === "windows"
+                                              ? "windows"
+                                              : "linux")}
+                                    size={32}
+                                />
                             {:else}
-                                <PlatformIcon platform={getDistro(container.image)} size={32} />
+                                <PlatformIcon
+                                    platform={getDistro(container.image)}
+                                    size={32}
+                                />
                             {/if}
                         </span>
                         <div class="container-info">
                             <h2 class="container-name">{container.name}</h2>
                             <div class="container-meta-row">
-                                <span class="container-image">{container.image}</span>
+                                <span class="container-image"
+                                    >{container.image}</span
+                                >
                                 {#if isAgent}
-                                    <span class="environment-badge agent-env" title="Connected via Agent">
-                                        <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <rect x="2" y="3" width="20" height="14" rx="2" />
+                                    <span
+                                        class="environment-badge agent-env"
+                                        title="Connected via Agent"
+                                    >
+                                        <svg
+                                            class="badge-icon"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="2"
+                                        >
+                                            <rect
+                                                x="2"
+                                                y="3"
+                                                width="20"
+                                                height="14"
+                                                rx="2"
+                                            />
                                             <path d="M8 21h8M12 17v4" />
                                         </svg>
                                         <span class="badge-text">Agent</span>
                                     </span>
                                 {:else if container.role}
-                                    <span class="environment-badge" title="Environment: {container.role}">
-                                        <PlatformIcon platform={container.role} size={14} />
-                                        <span class="badge-text">{container.role}</span>
+                                    <span
+                                        class="environment-badge"
+                                        title="Environment: {container.role}"
+                                    >
+                                        <PlatformIcon
+                                            platform={container.role}
+                                            size={14}
+                                        />
+                                        <span class="badge-text"
+                                            >{container.role}</span
+                                        >
                                     </span>
                                 {/if}
                             </div>
@@ -628,14 +727,20 @@
                                 container.status,
                             )}"
                         >
-                            <span class="status-dot" class:status-dot-pulse={isAgent && container.status === 'running'}></span>
+                            <span
+                                class="status-dot"
+                                class:status-dot-pulse={isAgent &&
+                                    container.status === "running"}
+                            ></span>
                             {container.status}
                         </span>
                     </div>
 
                     <div class="container-meta">
                         <div class="meta-item">
-                            <span class="meta-label">{isAgent ? 'Connected' : 'Created'}</span>
+                            <span class="meta-label"
+                                >{isAgent ? "Connected" : "Created"}</span
+                            >
                             <span class="meta-value"
                                 >{formatRelativeTime(
                                     container.created_at,
@@ -655,7 +760,9 @@
                         {#if isAgent && container.region}
                             <div class="meta-item meta-item-right">
                                 <span class="meta-label">Region</span>
-                                <span class="meta-value">{container.region}</span>
+                                <span class="meta-value"
+                                    >{container.region}</span
+                                >
                             </div>
                         {/if}
                     </div>
@@ -718,10 +825,23 @@
                                     {#if !containerConnected && !isConnecting(container.id)}
                                         <button
                                             class="btn btn-primary btn-sm flex-1 agent-connect-btn"
-                                            onclick={() => handleConnect(container)}
+                                            onclick={() =>
+                                                handleConnect(container)}
                                         >
-                                            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <rect x="2" y="3" width="20" height="14" rx="2" />
+                                            <svg
+                                                class="icon"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                stroke-width="2"
+                                            >
+                                                <rect
+                                                    x="2"
+                                                    y="3"
+                                                    width="20"
+                                                    height="14"
+                                                    rx="2"
+                                                />
                                                 <path d="M6 8l4 4-4 4" />
                                             </svg>
                                             Connect
@@ -752,7 +872,10 @@
                                         </button>
                                     {/if}
                                 {:else}
-                                    <button class="btn btn-secondary btn-sm flex-1" disabled>
+                                    <button
+                                        class="btn btn-secondary btn-sm flex-1"
+                                        disabled
+                                    >
                                         Offline
                                     </button>
                                 {/if}
@@ -769,14 +892,17 @@
                                         stroke-width="2"
                                     >
                                         <circle cx="12" cy="12" r="3" />
-                                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                                        <path
+                                            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
+                                        />
                                     </svg>
                                 </button>
                                 <button
                                     class="btn btn-icon btn-sm"
                                     title="Disconnect Agent"
                                     onclick={() => handleDelete(container)}
-                                    disabled={getLoadingState(container.id) === 'deleting'}
+                                    disabled={getLoadingState(container.id) ===
+                                        "deleting"}
                                     style="color: var(--red, #ff6b6b); border-color: rgba(255, 107, 107, 0.3);"
                                 >
                                     <svg
@@ -796,10 +922,21 @@
                                     title="Agent Details"
                                     onclick={() => dispatch("showAgentDocs")}
                                 >
-                                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <svg
+                                        class="icon"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
                                         <circle cx="12" cy="12" r="10" />
                                         <line x1="12" y1="16" x2="12" y2="12" />
-                                        <line x1="12" y1="8" x2="12.01" y2="8" />
+                                        <line
+                                            x1="12"
+                                            y1="8"
+                                            x2="12.01"
+                                            y2="8"
+                                        />
                                     </svg>
                                 </button>
                             </div>
@@ -808,9 +945,10 @@
                                 {#if !containerConnected && !isConnecting(container.id)}
                                     <button
                                         class="btn btn-primary btn-sm flex-1"
-                                        onclick={() =>
-                                            handleConnect(container)}
-                                        disabled={isContainerLoading(container.id)}
+                                        onclick={() => handleConnect(container)}
+                                        disabled={isContainerLoading(
+                                            container.id,
+                                        )}
                                     >
                                         <svg
                                             class="icon"
@@ -869,7 +1007,9 @@
                                         stroke-width="2"
                                     >
                                         <circle cx="12" cy="12" r="3" />
-                                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                                        <path
+                                            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
+                                        />
                                     </svg>
                                 </button>
                             </div>
@@ -898,7 +1038,8 @@
                                 <button
                                     class="btn btn-danger btn-sm flex-1"
                                     onclick={() => handleDelete(container)}
-                                    disabled={getLoadingState(container.id) === 'deleting'}
+                                    disabled={getLoadingState(container.id) ===
+                                        "deleting"}
                                 >
                                     <svg
                                         class="icon"
@@ -935,7 +1076,8 @@
                                 <button
                                     class="btn btn-danger btn-sm flex-1"
                                     onclick={() => handleDelete(container)}
-                                    disabled={getLoadingState(container.id) === 'deleting'}
+                                    disabled={getLoadingState(container.id) ===
+                                        "deleting"}
                                 >
                                     <svg
                                         class="icon"
@@ -956,7 +1098,8 @@
                                 <button
                                     class="btn btn-danger btn-sm flex-1"
                                     onclick={() => handleDelete(container)}
-                                    disabled={getLoadingState(container.id) === 'deleting'}
+                                    disabled={getLoadingState(container.id) ===
+                                        "deleting"}
                                 >
                                     <svg
                                         class="icon"
@@ -992,7 +1135,10 @@
 
 {#if showShortcutsModal}
     <div class="modal-backdrop" onclick={toggleShortcuts}>
-        <div class="modal-content shortcuts-modal" onclick={(e) => e.stopPropagation()}>
+        <div
+            class="modal-content shortcuts-modal"
+            onclick={(e) => e.stopPropagation()}
+        >
             <div class="modal-header">
                 <h3>Keyboard Shortcuts</h3>
                 <button class="close-btn" onclick={toggleShortcuts}>×</button>
@@ -1001,54 +1147,92 @@
                 <div class="shortcut-group">
                     <h4>General</h4>
                     <div class="shortcut-item">
-                        <div class="keys"><span class="key">Alt</span> + <span class="key">1-9</span></div>
+                        <div class="keys">
+                            <span class="key">Alt</span> +
+                            <span class="key">1-9</span>
+                        </div>
                         <span class="desc">Switch tabs</span>
                     </div>
                     <div class="shortcut-item">
-                        <div class="keys"><span class="key">Alt</span> + <span class="key">D</span></div>
+                        <div class="keys">
+                            <span class="key">Alt</span> +
+                            <span class="key">D</span>
+                        </div>
                         <span class="desc">Toggle Dock/Float</span>
                     </div>
                     <div class="shortcut-item">
-                        <div class="keys"><span class="key">Alt</span> + <span class="key">F</span></div>
+                        <div class="keys">
+                            <span class="key">Alt</span> +
+                            <span class="key">F</span>
+                        </div>
                         <span class="desc">Fullscreen</span>
                     </div>
                     <div class="shortcut-item">
-                        <div class="keys"><span class="key">Alt</span> + <span class="key">M</span></div>
+                        <div class="keys">
+                            <span class="key">Alt</span> +
+                            <span class="key">M</span>
+                        </div>
                         <span class="desc">Minimize</span>
                     </div>
                 </div>
                 <div class="shortcut-group">
                     <h4>macOS Specific</h4>
                     <div class="shortcut-item">
-                        <div class="keys"><span class="key">Cmd</span> + <span class="key">D</span></div>
+                        <div class="keys">
+                            <span class="key">Cmd</span> +
+                            <span class="key">D</span>
+                        </div>
                         <span class="desc">Split Vertical</span>
                     </div>
                     <div class="shortcut-item">
-                        <div class="keys"><span class="key">Cmd</span> + <span class="key">Shift</span> + <span class="key">D</span></div>
+                        <div class="keys">
+                            <span class="key">Cmd</span> +
+                            <span class="key">Shift</span>
+                            + <span class="key">D</span>
+                        </div>
                         <span class="desc">Split Horizontal</span>
                     </div>
                     <div class="shortcut-item">
-                        <div class="keys"><span class="key">Cmd</span> + <span class="key">T</span></div>
+                        <div class="keys">
+                            <span class="key">Cmd</span> +
+                            <span class="key">T</span>
+                        </div>
                         <span class="desc">New Tab</span>
                     </div>
                     <div class="shortcut-item">
-                        <div class="keys"><span class="key">Cmd</span> + <span class="key">W</span></div>
+                        <div class="keys">
+                            <span class="key">Cmd</span> +
+                            <span class="key">W</span>
+                        </div>
                         <span class="desc">Close Pane</span>
                     </div>
                     <div class="shortcut-item">
-                        <div class="keys"><span class="key">Cmd</span> + <span class="key">Arrows</span></div>
+                        <div class="keys">
+                            <span class="key">Cmd</span> +
+                            <span class="key">Arrows</span>
+                        </div>
                         <span class="desc">Navigate Panes</span>
                     </div>
                     <div class="shortcut-item">
-                        <div class="keys"><span class="key">Cmd</span> + <span class="key">C</span> / <span class="key">V</span></div>
+                        <div class="keys">
+                            <span class="key">Cmd</span> +
+                            <span class="key">C</span>
+                            / <span class="key">V</span>
+                        </div>
                         <span class="desc">Native Copy/Paste</span>
                     </div>
                     <div class="shortcut-item">
-                        <div class="keys"><span class="key">Cmd</span> + <span class="key">K</span></div>
+                        <div class="keys">
+                            <span class="key">Cmd</span> +
+                            <span class="key">K</span>
+                        </div>
                         <span class="desc">Clear Screen (Ctrl+L)</span>
                     </div>
                     <div class="shortcut-item">
-                        <div class="keys"><span class="key">Cmd</span> + <span class="key">.</span></div>
+                        <div class="keys">
+                            <span class="key">Cmd</span> +
+                            <span class="key">.</span>
+                        </div>
                         <span class="desc">Send Ctrl+C</span>
                     </div>
                 </div>
@@ -1264,12 +1448,13 @@
     }
 
     @keyframes pulse-live {
-        0%, 100% { 
-            opacity: 1; 
+        0%,
+        100% {
+            opacity: 1;
             box-shadow: 0 0 0 0 rgba(0, 255, 65, 0.4);
         }
-        50% { 
-            opacity: 0.6; 
+        50% {
+            opacity: 0.6;
             box-shadow: 0 0 0 4px rgba(0, 255, 65, 0);
         }
     }
@@ -1308,12 +1493,16 @@
         border-color: rgba(34, 197, 94, 0.6);
         background: var(--bg-secondary);
         box-shadow: 0 0 8px rgba(34, 197, 94, 0.08);
-        font-family: 'JetBrainsMono Nerd Font', 'FiraCode Nerd Font', 'Hack Nerd Font', monospace;
+        font-family:
+            "JetBrainsMono Nerd Font", "FiraCode Nerd Font", "Hack Nerd Font",
+            monospace;
     }
 
     .container-card.agent-card:hover {
         border-color: rgba(34, 197, 94, 0.8);
-        box-shadow: 0 0 12px rgba(34, 197, 94, 0.15), 0 0 20px rgba(34, 197, 94, 0.08);
+        box-shadow:
+            0 0 12px rgba(34, 197, 94, 0.15),
+            0 0 20px rgba(34, 197, 94, 0.08);
         transform: translateY(-2px);
     }
 
@@ -1348,8 +1537,6 @@
         width: 12px;
         height: 12px;
     }
-
-
 
     /* Loading states */
     .container-card.loading {
@@ -1422,7 +1609,12 @@
         left: 0;
         right: 0;
         height: 2px;
-        background: linear-gradient(90deg, transparent, var(--red, #ff6b6b), transparent);
+        background: linear-gradient(
+            90deg,
+            transparent,
+            var(--red, #ff6b6b),
+            transparent
+        );
         animation: strikethrough 0.5s ease forwards;
     }
 
@@ -1487,7 +1679,11 @@
         align-items: center;
         gap: 4px;
         padding: 2px 8px;
-        background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(0, 212, 255, 0.05));
+        background: linear-gradient(
+            135deg,
+            rgba(0, 212, 255, 0.1),
+            rgba(0, 212, 255, 0.05)
+        );
         border: 1px solid rgba(0, 212, 255, 0.3);
         border-radius: 4px;
         font-size: 10px;
@@ -1665,16 +1861,16 @@
         border: 1px solid var(--border-muted);
     }
 
-	    .meta-item {
-	        display: flex;
-	        flex-direction: column;
-	        gap: 2px;
-	    }
-	
-	    .meta-item-right {
-	        margin-left: auto;
-	        text-align: right;
-	    }
+    .meta-item {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .meta-item-right {
+        margin-left: auto;
+        text-align: right;
+    }
 
     .meta-label {
         font-size: 10px;
@@ -1807,7 +2003,7 @@
         .containers-grid {
             grid-template-columns: 1fr;
         }
-        
+
         .btn-text-desktop {
             display: none;
         }

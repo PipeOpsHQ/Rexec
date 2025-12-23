@@ -35,7 +35,8 @@ export interface Container {
     | "creating"
     | "starting"
     | "stopping"
-    | "error";
+    | "error"
+    | "offline";
   created_at: string;
   last_used_at?: string;
   idle_seconds?: number;
@@ -393,7 +394,9 @@ function createContainersStore() {
       creationTimeout = setTimeout(() => {
         cleanup();
         update((state) => ({ ...state, creating: null }));
-        onError?.("Terminal creation is taking longer than expected. Please try again.");
+        onError?.(
+          "Terminal creation is taking longer than expected. Please try again.",
+        );
       }, 120000); // 2 minute timeout
 
       // Make the POST request to start container creation
@@ -537,11 +540,17 @@ function createContainersStore() {
           const status = data.status;
 
           // Update progress based on status
-          const stageConfig: Record<string, { progress: number; message: string }> = {
+          const stageConfig: Record<
+            string,
+            { progress: number; message: string }
+          > = {
             pulling: { progress: 25, message: "Pulling image..." },
             creating: { progress: 40, message: "Creating container..." },
             starting: { progress: 55, message: "Starting container..." },
-            configuring: { progress: 75, message: "Configuring environment..." },
+            configuring: {
+              progress: 75,
+              message: "Configuring environment...",
+            },
             running: { progress: 100, message: "Ready!" },
           };
 
@@ -549,7 +558,9 @@ function createContainersStore() {
             const info = stageConfig[status];
             update((s) => ({
               ...s,
-              creating: s.creating ? { ...s.creating, ...info, stage: status } : null,
+              creating: s.creating
+                ? { ...s.creating, ...info, stage: status }
+                : null,
             }));
 
             // If configuring or running, dispatch with container_id for early terminal connection
@@ -581,7 +592,12 @@ function createContainersStore() {
 
             update((s) => ({
               ...s,
-              containers: [container, ...s.containers.filter((c) => c.id !== container.id && c.db_id !== container.db_id)],
+              containers: [
+                container,
+                ...s.containers.filter(
+                  (c) => c.id !== container.id && c.db_id !== container.db_id,
+                ),
+              ],
               creating: null,
             }));
 

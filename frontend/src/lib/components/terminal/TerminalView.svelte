@@ -1,6 +1,11 @@
 <script lang="ts">
     import { onMount, onDestroy, tick } from "svelte";
-    import { terminal, sessionCount, isFloating, isFullscreen } from "$stores/terminal";
+    import {
+        terminal,
+        sessionCount,
+        isFloating,
+        isFullscreen,
+    } from "$stores/terminal";
     import { toast } from "$stores/toast";
     import { containers, type Container } from "$stores/containers";
     import TerminalPanel from "./TerminalPanel.svelte";
@@ -11,28 +16,28 @@
 
     // Track view mode changes to force terminal re-render
     let viewModeKey = 0;
-    
+
     // Panel states
     let showRecordingsPanel = false;
     let showCollabPanel = false;
     let showSnippetsModal = false;
     let panelContainerId: string | null = null;
-    
-    function handleOpenRecordings(e: CustomEvent<{containerId: string}>) {
+
+    function handleOpenRecordings(e: CustomEvent<{ containerId: string }>) {
         panelContainerId = e.detail.containerId;
         showRecordingsPanel = true;
         showCollabPanel = false;
         showSnippetsModal = false;
     }
-    
-    function handleOpenCollab(e: CustomEvent<{containerId: string}>) {
+
+    function handleOpenCollab(e: CustomEvent<{ containerId: string }>) {
         panelContainerId = e.detail.containerId;
         showCollabPanel = true;
         showRecordingsPanel = false;
         showSnippetsModal = false;
     }
 
-    function handleOpenSnippets(e: CustomEvent<{containerId: string}>) {
+    function handleOpenSnippets(e: CustomEvent<{ containerId: string }>) {
         panelContainerId = e.detail.containerId;
         showSnippetsModal = true;
         showRecordingsPanel = false;
@@ -51,22 +56,24 @@
         }
     }
 
-    function handleRunSnippet(e: CustomEvent<{snippet: any}>) {
+    function handleRunSnippet(e: CustomEvent<{ snippet: any }>) {
         const snippet = e.detail.snippet;
         if (panelContainerId && snippet) {
             // Find session by container ID
-            const session = Array.from($terminal.sessions.values()).find(s => s.containerId === panelContainerId);
+            const session = Array.from($terminal.sessions.values()).find(
+                (s) => s.containerId === panelContainerId,
+            );
             if (session) {
                 // Send the snippet content to the terminal
                 terminal.sendInput(session.id, snippet.content);
                 // Auto-submit if it doesn't end with newline
-                if (!snippet.content.endsWith('\n')) {
-                    terminal.sendInput(session.id, '\n');
+                if (!snippet.content.endsWith("\n")) {
+                    terminal.sendInput(session.id, "\n");
                 }
             }
         }
     }
-    
+
     function closePanels() {
         showRecordingsPanel = false;
         showCollabPanel = false;
@@ -77,8 +84,10 @@
     // Mobile detection
     let isMobile = false;
     $: {
-        if (typeof window !== 'undefined') {
-            isMobile = window.innerWidth < 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        if (typeof window !== "undefined") {
+            isMobile =
+                window.innerWidth < 768 ||
+                /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
         }
     }
 
@@ -106,13 +115,16 @@
     $: dockedSessions = sessions.filter(([_, s]) => !s.isDetached);
     $: detachedSessions = sessions.filter(([_, s]) => s.isDetached);
     $: activeId = $terminal.activeSessionId;
-    
+
     // Get connected session container IDs
     $: connectedContainerIds = new Set(sessions.map(([_, s]) => s.containerId));
-    
+
     // Get terminals from API that are not currently connected
     $: availableTerminals = $containers.containers.filter(
-        c => c.status === "running" && !connectedContainerIds.has(c.id) && (!c.db_id || !connectedContainerIds.has(c.db_id))
+        (c) =>
+            c.status === "running" &&
+            !connectedContainerIds.has(c.id) &&
+            (!c.db_id || !connectedContainerIds.has(c.db_id)),
     );
 
     // Inline create terminal state
@@ -148,10 +160,15 @@
     }
 
     async function connectToAvailable(container: Container) {
-        const isAgent = container.session_type === "agent" || container.id.startsWith("agent:");
+        const isAgent =
+            container.session_type === "agent" ||
+            container.id.startsWith("agent:");
         if (isAgent) {
             const agentId = container.id.replace(/^agent:/, "");
-            const sid = await terminal.createAgentSession(agentId, container.name);
+            const sid = await terminal.createAgentSession(
+                agentId,
+                container.name,
+            );
             if (!sid) {
                 toast.error("Failed to connect to agent terminal");
                 return;
@@ -439,30 +456,31 @@
     // Global keyboard shortcuts
     function handleGlobalKeydown(event: KeyboardEvent) {
         // Detect platform
-        const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform || '') || 
-                      /Macintosh/.test(navigator.userAgent);
-        
+        const isMac =
+            /Mac|iPod|iPhone|iPad/.test(navigator.platform || "") ||
+            /Macintosh/.test(navigator.userAgent);
+
         // Use Cmd on Mac, Ctrl on Windows/Linux for app shortcuts
         const modKey = isMac ? event.metaKey : event.ctrlKey;
         const otherModKey = isMac ? event.ctrlKey : event.metaKey;
-        
+
         // Handle app-level shortcuts (Cmd/Ctrl+Key)
         if (modKey && !otherModKey && !event.altKey) {
             const key = event.key.toLowerCase();
             const isShift = event.shiftKey;
 
             // Cmd/Ctrl+D / Cmd/Ctrl+Shift+D: Split Pane
-            if (key === 'd' && activeId) {
+            if (key === "d" && activeId) {
                 event.preventDefault();
                 event.stopPropagation();
                 // Shift = Horizontal (Top/Bottom), No shift = Vertical (Left/Right)
-                const direction = isShift ? 'horizontal' : 'vertical';
+                const direction = isShift ? "horizontal" : "vertical";
                 terminal.splitPane(activeId, direction);
                 return;
             }
 
             // Cmd/Ctrl+T: New Tab (Inline Create)
-            if (key === 't') {
+            if (key === "t") {
                 event.preventDefault();
                 event.stopPropagation();
                 openCreatePanel();
@@ -470,28 +488,36 @@
             }
 
             // Cmd/Ctrl+W: Close Pane/Tab
-            if (key === 'w' && activeId) {
+            if (key === "w" && activeId) {
                 event.preventDefault();
                 event.stopPropagation();
                 const session = $terminal.sessions.get(activeId);
-                if (session && session.activePaneId && session.activePaneId !== 'main') {
+                if (
+                    session &&
+                    session.activePaneId &&
+                    session.activePaneId !== "main"
+                ) {
                     terminal.closeSplitPane(activeId, session.activePaneId);
                 } else {
                     closeSession(activeId);
                 }
                 return;
             }
-            
+
             // Cmd/Ctrl+N: New Window (Pop out) - only on Mac to avoid browser new window
-            if (isMac && key === 'n' && activeId) {
+            if (isMac && key === "n" && activeId) {
                 event.preventDefault();
                 event.stopPropagation();
-                popOutTerminal(activeId, window.innerWidth / 2 - 300, window.innerHeight / 2 - 200);
+                popOutTerminal(
+                    activeId,
+                    window.innerWidth / 2 - 300,
+                    window.innerHeight / 2 - 200,
+                );
                 return;
             }
 
             // Cmd+. (Mac only): Send Ctrl+C
-            if (isMac && key === '.' && activeId) {
+            if (isMac && key === "." && activeId) {
                 event.preventDefault();
                 event.stopPropagation();
                 terminal.sendCtrlC(activeId);
@@ -499,24 +525,31 @@
             }
 
             // Cmd/Ctrl+Arrows: Navigate Panes
-            const session = activeId ? $terminal.sessions.get(activeId) : undefined;
-            if (session && session.splitPanes && session.splitPanes.size > 0 && !isShift) {
-                let direction: 'left' | 'right' | 'up' | 'down' | null = null;
+            const session = activeId
+                ? $terminal.sessions.get(activeId)
+                : undefined;
+            if (
+                session &&
+                session.splitPanes &&
+                session.splitPanes.size > 0 &&
+                !isShift
+            ) {
+                let direction: "left" | "right" | "up" | "down" | null = null;
                 switch (event.key) {
-                    case 'ArrowLeft':
-                        direction = 'left';
+                    case "ArrowLeft":
+                        direction = "left";
                         break;
-                    case 'ArrowRight':
-                        direction = 'right';
+                    case "ArrowRight":
+                        direction = "right";
                         break;
-                    case 'ArrowUp':
-                        direction = 'up';
+                    case "ArrowUp":
+                        direction = "up";
                         break;
-                    case 'ArrowDown':
-                        direction = 'down';
+                    case "ArrowDown":
+                        direction = "down";
                         break;
                 }
-                if (direction) {
+                if (direction && activeId) {
                     event.preventDefault();
                     event.stopPropagation();
                     terminal.navigateSplitPanes(activeId, direction);
@@ -529,7 +562,7 @@
         if (!event.altKey) return;
 
         // Number keys 1-9 for tab switching
-        if (event.key >= '1' && event.key <= '9') {
+        if (event.key >= "1" && event.key <= "9") {
             const index = parseInt(event.key) - 1;
             if (index >= 0 && index < dockedSessions.length) {
                 event.preventDefault();
@@ -539,17 +572,18 @@
         }
 
         switch (event.key.toLowerCase()) {
-            case 'd': // Alt+D: Toggle Dock/Float
+            case "d": // Alt+D: Toggle Dock/Float
                 event.preventDefault();
                 toggleView();
                 break;
-            case 'f': // Alt+F: Toggle Fullscreen
+            case "f": // Alt+F: Toggle Fullscreen
                 event.preventDefault();
                 toggleFullscreen();
                 break;
-            case 'm': // Alt+M: Minimize
+            case "m": // Alt+M: Minimize
                 event.preventDefault();
-                if (isMinimized) restore(); else minimize();
+                if (isMinimized) restore();
+                else minimize();
                 break;
         }
     }
@@ -568,7 +602,9 @@
         // Re-check mobile on window resize
         const handleResize = () => {
             const wasMobile = isMobile;
-            isMobile = window.innerWidth < 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            isMobile =
+                window.innerWidth < 768 ||
+                /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
             // If switched to mobile while floating, go to docked
             if (isMobile && !wasMobile && $isFloating) {
@@ -576,7 +612,7 @@
                 toast.info("Switched to docked mode for mobile");
             }
         };
-        window.addEventListener('resize', handleResize);
+        window.addEventListener("resize", handleResize);
 
         window.addEventListener("mousemove", handleMouseMove);
         window.addEventListener("mouseup", handleMouseUp);
@@ -586,7 +622,7 @@
         window.addEventListener("mouseup", handleDetachedMouseUp);
 
         return () => {
-            window.removeEventListener('resize', handleResize);
+            window.removeEventListener("resize", handleResize);
         };
     });
 
@@ -603,7 +639,7 @@
     function handleGlobalClick(e: MouseEvent) {
         if (showAddMenu) {
             const target = e.target as HTMLElement;
-            if (!target.closest('.add-menu-container')) {
+            if (!target.closest(".add-menu-container")) {
                 showAddMenu = false;
             }
         }
@@ -629,14 +665,26 @@
                                 setActive(id);
                             }}
                         >
-                            <span class="status-dot {getStatusClass(session.status)}"></span>
+                            <span
+                                class="status-dot {getStatusClass(
+                                    session.status,
+                                )}"
+                            ></span>
                             <span class="tab-name">{session.name}</span>
                             <span
                                 class="tab-close"
                                 role="button"
                                 tabindex="0"
-                                onclick={(e) => { e.stopPropagation(); closeSession(id); }}
-                                onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); closeSession(id); } }}
+                                onclick={(e) => {
+                                    e.stopPropagation();
+                                    closeSession(id);
+                                }}
+                                onkeydown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                        e.stopPropagation();
+                                        closeSession(id);
+                                    }
+                                }}
                                 title="Close terminal"
                                 aria-label="Close {session.name}"
                             >
@@ -663,18 +711,30 @@
                         title="Snippets"
                         disabled={!activeId}
                     >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
-                            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
-                            <polyline points="14 2 14 8 20 8"/>
-                            <line x1="16" y1="13" x2="8" y2="13"/>
-                            <line x1="16" y1="17" x2="8" y2="17"/>
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            width="14"
+                            height="14"
+                        >
+                            <path
+                                d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"
+                            />
+                            <polyline points="14 2 14 8 20 8" />
+                            <line x1="16" y1="13" x2="8" y2="13" />
+                            <line x1="16" y1="17" x2="8" y2="17" />
                         </svg>
                     </button>
                     <button
                         class="btn btn-secondary btn-sm btn-icon share-btn"
                         onclick={() => {
                             if (activeId) {
-                                const session = $terminal.sessions.get(activeId);
+                                const session =
+                                    $terminal.sessions.get(activeId);
                                 if (session) {
                                     const url = `${window.location.origin}/terminal/${session.containerId}`;
                                     navigator.clipboard.writeText(url);
@@ -685,18 +745,38 @@
                         title="Share Terminal"
                         disabled={!activeId}
                     >
-                        <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
-                            <path d="M13.5 1a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM11 2.5a2.5 2.5 0 1 1 .603 1.628l-6.718 3.12a2.499 2.499 0 0 1 0 1.504l6.718 3.12a2.5 2.5 0 1 1-.488.876l-6.718-3.12a2.5 2.5 0 1 1 0-3.256l6.718-3.12A2.5 2.5 0 0 1 11 2.5zm-8.5 4a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm11 5.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/>
+                        <svg
+                            viewBox="0 0 16 16"
+                            fill="currentColor"
+                            width="14"
+                            height="14"
+                        >
+                            <path
+                                d="M13.5 1a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM11 2.5a2.5 2.5 0 1 1 .603 1.628l-6.718 3.12a2.499 2.499 0 0 1 0 1.504l6.718 3.12a2.5 2.5 0 1 1-.488.876l-6.718-3.12a2.5 2.5 0 1 1 0-3.256l6.718-3.12A2.5 2.5 0 0 1 11 2.5zm-8.5 4a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm11 5.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"
+                            />
                         </svg>
                     </button>
                     <button
                         class="btn btn-secondary btn-sm btn-icon"
-                        onclick={() => activeId && popOutTerminal(activeId, window.innerWidth / 2 - 300, window.innerHeight / 2 - 200)}
+                        onclick={() =>
+                            activeId &&
+                            popOutTerminal(
+                                activeId,
+                                window.innerWidth / 2 - 300,
+                                window.innerHeight / 2 - 200,
+                            )}
                         title="Float window"
                         disabled={!activeId}
                     >
-                        <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
-                            <path d="M5.5 0a.5.5 0 0 1 .5.5v4A1.5 1.5 0 0 1 4.5 6h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5zm5 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 10 4.5v-4a.5.5 0 0 1 .5-.5zM0 10.5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 6 11.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zm10 1a1.5 1.5 0 0 1 1.5-1.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4z"/>
+                        <svg
+                            viewBox="0 0 16 16"
+                            fill="currentColor"
+                            width="14"
+                            height="14"
+                        >
+                            <path
+                                d="M5.5 0a.5.5 0 0 1 .5.5v4A1.5 1.5 0 0 1 4.5 6h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5zm5 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 10 4.5v-4a.5.5 0 0 1 .5-.5zM0 10.5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 6 11.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zm10 1a1.5 1.5 0 0 1 1.5-1.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4z"
+                            />
                         </svg>
                     </button>
                     <button
@@ -704,8 +784,15 @@
                         onclick={toggleFullscreen}
                         title="Exit Fullscreen"
                     >
-                        <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
-                            <path d="M5.5 0a.5.5 0 0 1 .5.5v4A1.5 1.5 0 0 1 4.5 6h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5zm5 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 10 4.5v-4a.5.5 0 0 1 .5-.5zM0 10.5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 6 11.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zm10 1a1.5 1.5 0 0 1 1.5-1.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4z"/>
+                        <svg
+                            viewBox="0 0 16 16"
+                            fill="currentColor"
+                            width="14"
+                            height="14"
+                        >
+                            <path
+                                d="M5.5 0a.5.5 0 0 1 .5.5v4A1.5 1.5 0 0 1 4.5 6h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5zm5 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 10 4.5v-4a.5.5 0 0 1 .5-.5zM0 10.5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 6 11.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zm10 1a1.5 1.5 0 0 1 1.5-1.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4z"
+                            />
                         </svg>
                     </button>
                     <button
@@ -714,8 +801,15 @@
                         title="Close Terminal"
                         disabled={!activeId}
                     >
-                        <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
-                            <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854Z"/>
+                        <svg
+                            viewBox="0 0 16 16"
+                            fill="currentColor"
+                            width="14"
+                            height="14"
+                        >
+                            <path
+                                d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854Z"
+                            />
                         </svg>
                     </button>
                 </div>
@@ -727,18 +821,30 @@
                     <div class="create-panel fullscreen-create">
                         <div class="create-panel-header">
                             <h3>New Terminal</h3>
-                            <button class="close-create" onclick={closeCreatePanel}>× Cancel</button>
+                            <button
+                                class="close-create"
+                                onclick={closeCreatePanel}>× Cancel</button
+                            >
                         </div>
                         <InlineCreateTerminal
                             compact={false}
-                            on:created={(e) => handleInlineCreated(e.detail.id, e.detail.name)}
+                            on:created={(e) =>
+                                handleInlineCreated(e.detail.id, e.detail.name)}
                             on:cancel={closeCreatePanel}
                         />
                     </div>
                 {:else}
                     {#each dockedSessions as [id, session] (`full-${viewModeKey}-${id}`)}
-                        <div class="terminal-panel" class:active={id === activeId}>
-                            <TerminalPanel {session} on:openRecordings={handleOpenRecordings} on:openCollab={handleOpenCollab} on:openSnippets={handleOpenSnippets} />
+                        <div
+                            class="terminal-panel"
+                            class:active={id === activeId}
+                        >
+                            <TerminalPanel
+                                {session}
+                                on:openRecordings={handleOpenRecordings}
+                                on:openCollab={handleOpenCollab}
+                                on:openSnippets={handleOpenSnippets}
+                            />
                         </div>
                     {/each}
                 {/if}
@@ -786,8 +892,19 @@
                                     class="tab-close"
                                     role="button"
                                     tabindex="0"
-                                    onclick={(e) => { e.stopPropagation(); closeSession(id); }}
-                                    onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); closeSession(id); } }}
+                                    onclick={(e) => {
+                                        e.stopPropagation();
+                                        closeSession(id);
+                                    }}
+                                    onkeydown={(e) => {
+                                        if (
+                                            e.key === "Enter" ||
+                                            e.key === " "
+                                        ) {
+                                            e.stopPropagation();
+                                            closeSession(id);
+                                        }
+                                    }}
                                     title="Close terminal"
                                     aria-label="Close {session.name}"
                                 >
@@ -808,62 +925,129 @@
                     </div>
 
                     <div class="floating-actions">
-                        <button 
+                        <button
                             class="float-action-btn snippets-btn"
                             onclick={openSnippetsForActive}
                             title="Snippets"
                             disabled={!activeId}
                         >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12">
-                                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
-                                <polyline points="14 2 14 8 20 8"/>
-                                <line x1="16" y1="13" x2="8" y2="13"/>
-                                <line x1="16" y1="17" x2="8" y2="17"/>
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                width="12"
+                                height="12"
+                            >
+                                <path
+                                    d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"
+                                />
+                                <polyline points="14 2 14 8 20 8" />
+                                <line x1="16" y1="13" x2="8" y2="13" />
+                                <line x1="16" y1="17" x2="8" y2="17" />
                             </svg>
                         </button>
-                        <button 
+                        <button
                             class="float-action-btn share-btn"
                             onclick={() => {
                                 if (activeId) {
-                                    const session = $terminal.sessions.get(activeId);
+                                    const session =
+                                        $terminal.sessions.get(activeId);
                                     if (session) {
                                         const url = `${window.location.origin}/terminal/${session.containerId}`;
                                         navigator.clipboard.writeText(url);
                                         toast.success("Terminal link copied!");
                                     }
                                 }
-                            }} 
+                            }}
                             title="Share Terminal"
                             disabled={!activeId}
                         >
-                            <svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12">
-                                <path d="M13.5 1a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM11 2.5a2.5 2.5 0 1 1 .603 1.628l-6.718 3.12a2.499 2.499 0 0 1 0 1.504l6.718 3.12a2.5 2.5 0 1 1-.488.876l-6.718-3.12a2.5 2.5 0 1 1 0-3.256l6.718-3.12A2.5 2.5 0 0 1 11 2.5zm-8.5 4a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm11 5.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/>
+                            <svg
+                                viewBox="0 0 16 16"
+                                fill="currentColor"
+                                width="12"
+                                height="12"
+                            >
+                                <path
+                                    d="M13.5 1a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM11 2.5a2.5 2.5 0 1 1 .603 1.628l-6.718 3.12a2.499 2.499 0 0 1 0 1.504l6.718 3.12a2.5 2.5 0 1 1-.488.876l-6.718-3.12a2.5 2.5 0 1 1 0-3.256l6.718-3.12A2.5 2.5 0 0 1 11 2.5zm-8.5 4a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm11 5.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"
+                                />
                             </svg>
                         </button>
-                        <button 
+                        <button
                             class="float-action-btn"
-                            onclick={() => activeId && popOutTerminal(activeId, floatingPosition.x + 100, floatingPosition.y + 100)} 
+                            onclick={() =>
+                                activeId &&
+                                popOutTerminal(
+                                    activeId,
+                                    floatingPosition.x + 100,
+                                    floatingPosition.y + 100,
+                                )}
                             title="Pop out"
                             disabled={!activeId}
                         >
-                            <svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12">
-                                <path d="M5.5 0a.5.5 0 0 1 .5.5v4A1.5 1.5 0 0 1 4.5 6h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5zm5 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 10 4.5v-4a.5.5 0 0 1 .5-.5zM0 10.5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 6 11.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zm10 1a1.5 1.5 0 0 1 1.5-1.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4z"/>
+                            <svg
+                                viewBox="0 0 16 16"
+                                fill="currentColor"
+                                width="12"
+                                height="12"
+                            >
+                                <path
+                                    d="M5.5 0a.5.5 0 0 1 .5.5v4A1.5 1.5 0 0 1 4.5 6h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5zm5 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 10 4.5v-4a.5.5 0 0 1 .5-.5zM0 10.5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 6 11.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zm10 1a1.5 1.5 0 0 1 1.5-1.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4z"
+                                />
                             </svg>
                         </button>
-                        <button class="float-action-btn" onclick={toggleView} title="Dock window">
-                            <svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12">
-                                <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>
-                                <path d="M6 11.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z"/>
+                        <button
+                            class="float-action-btn"
+                            onclick={toggleView}
+                            title="Dock window"
+                        >
+                            <svg
+                                viewBox="0 0 16 16"
+                                fill="currentColor"
+                                width="12"
+                                height="12"
+                            >
+                                <path
+                                    d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"
+                                />
+                                <path
+                                    d="M6 11.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z"
+                                />
                             </svg>
                         </button>
-                        <button class="float-action-btn" onclick={minimize} title="Minimize">
-                            <svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12">
-                                <path d="M2 8a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 8Z"/>
+                        <button
+                            class="float-action-btn"
+                            onclick={minimize}
+                            title="Minimize"
+                        >
+                            <svg
+                                viewBox="0 0 16 16"
+                                fill="currentColor"
+                                width="12"
+                                height="12"
+                            >
+                                <path
+                                    d="M2 8a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 8Z"
+                                />
                             </svg>
                         </button>
-                        <button class="float-action-btn" onclick={toggleFullscreen} title="Fullscreen">
-                            <svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12">
-                                <path d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1h-4zM10 .5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 16 1.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zM.5 10a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5v-4a.5.5 0 0 1 .5-.5zm15 0a.5.5 0 0 1 .5.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5z"/>
+                        <button
+                            class="float-action-btn"
+                            onclick={toggleFullscreen}
+                            title="Fullscreen"
+                        >
+                            <svg
+                                viewBox="0 0 16 16"
+                                fill="currentColor"
+                                width="12"
+                                height="12"
+                            >
+                                <path
+                                    d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1h-4zM10 .5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 16 1.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zM.5 10a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5v-4a.5.5 0 0 1 .5-.5zm15 0a.5.5 0 0 1 .5.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5z"
+                                />
                             </svg>
                         </button>
                         <button
@@ -872,8 +1056,15 @@
                             title="Close Terminal"
                             disabled={!activeId}
                         >
-                            <svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12">
-                                <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854Z"/>
+                            <svg
+                                viewBox="0 0 16 16"
+                                fill="currentColor"
+                                width="12"
+                                height="12"
+                            >
+                                <path
+                                    d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854Z"
+                                />
                             </svg>
                         </button>
                     </div>
@@ -893,7 +1084,11 @@
                             </div>
                             <InlineCreateTerminal
                                 compact={true}
-                                on:created={(e) => handleInlineCreated(e.detail.id, e.detail.name)}
+                                on:created={(e) =>
+                                    handleInlineCreated(
+                                        e.detail.id,
+                                        e.detail.name,
+                                    )}
                                 on:cancel={closeCreatePanel}
                             />
                         </div>
@@ -903,7 +1098,12 @@
                                 class="terminal-panel"
                                 class:active={id === activeId}
                             >
-                                <TerminalPanel {session} on:openRecordings={handleOpenRecordings} on:openCollab={handleOpenCollab} on:openSnippets={handleOpenSnippets} />
+                                <TerminalPanel
+                                    {session}
+                                    on:openRecordings={handleOpenRecordings}
+                                    on:openCollab={handleOpenCollab}
+                                    on:openSnippets={handleOpenSnippets}
+                                />
                             </div>
                         {/each}
                     {/if}
@@ -949,7 +1149,7 @@
         {:else}
             <div class="docked-terminal" style="height: {dockedHeight}vh;">
                 <!-- Resize Handle at Top -->
-                <div 
+                <div
                     class="docked-resize-handle"
                     onmousedown={handleDockedResizeStart}
                     ontouchstart={handleDockedTouchStart}
@@ -994,8 +1194,19 @@
                                     class="tab-close"
                                     role="button"
                                     tabindex="0"
-                                    onclick={(e) => { e.stopPropagation(); closeSession(id); }}
-                                    onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); closeSession(id); } }}
+                                    onclick={(e) => {
+                                        e.stopPropagation();
+                                        closeSession(id);
+                                    }}
+                                    onkeydown={(e) => {
+                                        if (
+                                            e.key === "Enter" ||
+                                            e.key === " "
+                                        ) {
+                                            e.stopPropagation();
+                                            closeSession(id);
+                                        }
+                                    }}
                                     title="Close terminal"
                                     aria-label="Close {session.name}"
                                 >
@@ -1024,18 +1235,30 @@
                             title="Snippets"
                             disabled={!activeId}
                         >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
-                                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
-                                <polyline points="14 2 14 8 20 8"/>
-                                <line x1="16" y1="13" x2="8" y2="13"/>
-                                <line x1="16" y1="17" x2="8" y2="17"/>
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                width="14"
+                                height="14"
+                            >
+                                <path
+                                    d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"
+                                />
+                                <polyline points="14 2 14 8 20 8" />
+                                <line x1="16" y1="13" x2="8" y2="13" />
+                                <line x1="16" y1="17" x2="8" y2="17" />
                             </svg>
                         </button>
                         <button
                             class="btn btn-secondary btn-sm btn-icon share-btn"
                             onclick={() => {
                                 if (activeId) {
-                                    const session = $terminal.sessions.get(activeId);
+                                    const session =
+                                        $terminal.sessions.get(activeId);
                                     if (session) {
                                         const url = `${window.location.origin}/terminal/${session.containerId}`;
                                         navigator.clipboard.writeText(url);
@@ -1046,18 +1269,38 @@
                             title="Share Terminal"
                             disabled={!activeId}
                         >
-                            <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
-                                <path d="M13.5 1a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM11 2.5a2.5 2.5 0 1 1 .603 1.628l-6.718 3.12a2.499 2.499 0 0 1 0 1.504l6.718 3.12a2.5 2.5 0 1 1-.488.876l-6.718-3.12a2.5 2.5 0 1 1 0-3.256l6.718-3.12A2.5 2.5 0 0 1 11 2.5zm-8.5 4a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm11 5.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/>
+                            <svg
+                                viewBox="0 0 16 16"
+                                fill="currentColor"
+                                width="14"
+                                height="14"
+                            >
+                                <path
+                                    d="M13.5 1a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM11 2.5a2.5 2.5 0 1 1 .603 1.628l-6.718 3.12a2.499 2.499 0 0 1 0 1.504l6.718 3.12a2.5 2.5 0 1 1-.488.876l-6.718-3.12a2.5 2.5 0 1 1 0-3.256l6.718-3.12A2.5 2.5 0 0 1 11 2.5zm-8.5 4a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm11 5.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"
+                                />
                             </svg>
                         </button>
                         <button
                             class="btn btn-secondary btn-sm btn-icon"
-                            onclick={() => activeId && popOutTerminal(activeId, window.innerWidth / 2 - 300, window.innerHeight / 2 - 200)}
+                            onclick={() =>
+                                activeId &&
+                                popOutTerminal(
+                                    activeId,
+                                    window.innerWidth / 2 - 300,
+                                    window.innerHeight / 2 - 200,
+                                )}
                             title="Float window"
                             disabled={!activeId}
                         >
-                            <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
-                                <path d="M5.5 0a.5.5 0 0 1 .5.5v4A1.5 1.5 0 0 1 4.5 6h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5zm5 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 10 4.5v-4a.5.5 0 0 1 .5-.5zM0 10.5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 6 11.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zm10 1a1.5 1.5 0 0 1 1.5-1.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4z"/>
+                            <svg
+                                viewBox="0 0 16 16"
+                                fill="currentColor"
+                                width="14"
+                                height="14"
+                            >
+                                <path
+                                    d="M5.5 0a.5.5 0 0 1 .5.5v4A1.5 1.5 0 0 1 4.5 6h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5zm5 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 10 4.5v-4a.5.5 0 0 1 .5-.5zM0 10.5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 6 11.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zm10 1a1.5 1.5 0 0 1 1.5-1.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4z"
+                                />
                             </svg>
                         </button>
                         <button
@@ -1065,9 +1308,18 @@
                             onclick={toggleView}
                             title="Toggle dock/float"
                         >
-                            <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
-                                <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>
-                                <path d="M6 11.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z"/>
+                            <svg
+                                viewBox="0 0 16 16"
+                                fill="currentColor"
+                                width="14"
+                                height="14"
+                            >
+                                <path
+                                    d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"
+                                />
+                                <path
+                                    d="M6 11.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z"
+                                />
                             </svg>
                         </button>
                         <button
@@ -1075,8 +1327,15 @@
                             onclick={minimize}
                             title="Minimize"
                         >
-                            <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
-                                <path d="M2 8a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 8Z"/>
+                            <svg
+                                viewBox="0 0 16 16"
+                                fill="currentColor"
+                                width="14"
+                                height="14"
+                            >
+                                <path
+                                    d="M2 8a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 8Z"
+                                />
                             </svg>
                         </button>
                         <button
@@ -1084,8 +1343,15 @@
                             onclick={toggleFullscreen}
                             title="Fullscreen"
                         >
-                            <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
-                                <path d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1h-4zM10 .5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 16 1.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zM.5 10a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5v-4a.5.5 0 0 1 .5-.5zm15 0a.5.5 0 0 1 .5.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5z"/>
+                            <svg
+                                viewBox="0 0 16 16"
+                                fill="currentColor"
+                                width="14"
+                                height="14"
+                            >
+                                <path
+                                    d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1h-4zM10 .5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 16 1.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zM.5 10a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5v-4a.5.5 0 0 1 .5-.5zm15 0a.5.5 0 0 1 .5.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5z"
+                                />
                             </svg>
                         </button>
                         <button
@@ -1094,8 +1360,15 @@
                             title="Close Terminal"
                             disabled={!activeId}
                         >
-                            <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
-                                <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854Z"/>
+                            <svg
+                                viewBox="0 0 16 16"
+                                fill="currentColor"
+                                width="14"
+                                height="14"
+                            >
+                                <path
+                                    d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854Z"
+                                />
                             </svg>
                         </button>
                     </div>
@@ -1110,13 +1383,16 @@
                                 <h3>New Terminal</h3>
                                 <button
                                     class="close-create"
-                                    onclick={closeCreatePanel}
-                                    >× Cancel</button
+                                    onclick={closeCreatePanel}>× Cancel</button
                                 >
                             </div>
                             <InlineCreateTerminal
                                 compact={false}
-                                on:created={(e) => handleInlineCreated(e.detail.id, e.detail.name)}
+                                on:created={(e) =>
+                                    handleInlineCreated(
+                                        e.detail.id,
+                                        e.detail.name,
+                                    )}
                                 on:cancel={closeCreatePanel}
                             />
                         </div>
@@ -1126,7 +1402,12 @@
                                 class="terminal-panel"
                                 class:active={id === activeId}
                             >
-                                <TerminalPanel {session} on:openRecordings={handleOpenRecordings} on:openCollab={handleOpenCollab} on:openSnippets={handleOpenSnippets} />
+                                <TerminalPanel
+                                    {session}
+                                    on:openRecordings={handleOpenRecordings}
+                                    on:openCollab={handleOpenCollab}
+                                    on:openSnippets={handleOpenSnippets}
+                                />
                             </div>
                         {/each}
                     {/if}
@@ -1142,7 +1423,8 @@
         class="detached-window"
         style="left: {session.detachedPosition.x}px; top: {session
             .detachedPosition.y}px; width: {session.detachedSize
-            .width}px; height: {session.detachedSize.height}px; z-index: {session.detachedZIndex};"
+            .width}px; height: {session.detachedSize
+            .height}px; z-index: {session.detachedZIndex};"
         onmousedown={() => terminal.bringToFront(id)}
         role="dialog"
         tabindex="-1"
@@ -1175,7 +1457,12 @@
             </div>
         </div>
         <div class="detached-body" id="detached-terminal-{id}">
-            <TerminalPanel {session} on:openRecordings={handleOpenRecordings} on:openCollab={handleOpenCollab} on:openSnippets={handleOpenSnippets} />
+            <TerminalPanel
+                {session}
+                on:openRecordings={handleOpenRecordings}
+                on:openCollab={handleOpenCollab}
+                on:openSnippets={handleOpenSnippets}
+            />
         </div>
         <div
             class="detached-resize-handle"
@@ -1188,21 +1475,29 @@
 
 <!-- Recordings Panel Modal -->
 {#if panelContainerId}
-    <RecordingPanel containerId={panelContainerId} isOpen={showRecordingsPanel} on:close={closePanels} />
+    <RecordingPanel
+        containerId={panelContainerId}
+        isOpen={showRecordingsPanel}
+        on:close={closePanels}
+    />
 {/if}
 
 <!-- Collab Panel Modal -->
 {#if panelContainerId}
-    <CollabPanel containerId={panelContainerId} isOpen={showCollabPanel} on:close={closePanels} />
+    <CollabPanel
+        containerId={panelContainerId}
+        isOpen={showCollabPanel}
+        on:close={closePanels}
+    />
 {/if}
 
 <!-- Snippets Modal -->
 {#if panelContainerId}
-    <SnippetsModal 
-        containerId={panelContainerId} 
-        show={showSnippetsModal} 
-        on:close={closePanels} 
-        on:run={handleRunSnippet} 
+    <SnippetsModal
+        containerId={panelContainerId}
+        show={showSnippetsModal}
+        on:close={closePanels}
+        on:run={handleRunSnippet}
     />
 {/if}
 
@@ -1219,19 +1514,26 @@
                     <span class="menu-icon">+</span>
                     <span>Create New Terminal</span>
                 </button>
-                
+
                 {#if availableTerminals.length > 0}
                     <div class="add-menu-divider"></div>
-                    <div class="add-menu-label">Connect to available terminal</div>
+                    <div class="add-menu-label">
+                        Connect to available terminal
+                    </div>
                     <div class="add-menu-sessions">
                         {#each availableTerminals as container}
-                            {@const isAgentAvailable = container.session_type === 'agent' || container.id.startsWith('agent:')}
-                            <button 
+                            {@const isAgentAvailable =
+                                container.session_type === "agent" ||
+                                container.id.startsWith("agent:")}
+                            <button
                                 class="add-menu-item"
                                 class:agent-item={isAgentAvailable}
                                 onclick={() => connectToAvailable(container)}
                             >
-                                <span class="menu-icon status-dot running" class:agent-dot={isAgentAvailable}></span>
+                                <span
+                                    class="menu-icon status-dot running"
+                                    class:agent-dot={isAgentAvailable}
+                                ></span>
                                 <span>{container.name}</span>
                                 {#if isAgentAvailable}
                                     <span class="agent-badge">Agent</span>
@@ -1240,20 +1542,25 @@
                         {/each}
                     </div>
                 {/if}
-                
+
                 {#if sessions.length > 0}
                     <div class="add-menu-divider"></div>
-                    <div class="add-menu-label">Switch to connected session</div>
+                    <div class="add-menu-label">
+                        Switch to connected session
+                    </div>
                     <div class="add-menu-sessions">
                         {#each sessions as [id, session]}
                             {@const isAgentSessionItem = session.isAgentSession}
-                            <button 
-                                class="add-menu-item" 
+                            <button
+                                class="add-menu-item"
                                 class:active={id === activeId}
                                 class:agent-item={isAgentSessionItem}
                                 onclick={() => selectExistingSession(id)}
                             >
-                                <span class="menu-icon status-dot {session.status}" class:agent-dot={isAgentSessionItem}></span>
+                                <span
+                                    class="menu-icon status-dot {session.status}"
+                                    class:agent-dot={isAgentSessionItem}
+                                ></span>
                                 <span>{session.name}</span>
                                 {#if isAgentSessionItem}
                                     <span class="agent-badge">Agent</span>
@@ -2733,7 +3040,7 @@
         width: 12px;
         height: 12px;
         border-radius: 50%;
-        border:2px solid var(--border);
+        border: 2px solid var(--border);
         background: transparent;
         flex-shrink: 0;
     }
@@ -2908,7 +3215,7 @@
     .detached-resize-handle:hover {
         opacity: 1;
     }
-    
+
     /* Panel overlay and modal */
     .panel-overlay {
         position: fixed;
@@ -2923,7 +3230,7 @@
         z-index: 10000;
         backdrop-filter: blur(4px);
     }
-    
+
     .panel-modal {
         background: var(--bg-card);
         border: 1px solid var(--border);

@@ -10,15 +10,10 @@
     }>();
 
     let isOAuthLoading = false;
-    let animatedStats = { terminals: 0, uptime: 0, countries: 0 };
     let visibleSections: Set<string> = new Set();
     let heroLoaded = false;
-    let terminalTyping = false;
     let typedLines: number[] = [];
     let currentEraIndex = 0;
-
-    // Realistic early-stage stats
-    const targetStats = { terminals: 150, uptime: 99.5, countries: 8 };
 
     // Rotating era words
     const eraWords = ["AI", "Cloud", "DevOps", "Remote"];
@@ -66,7 +61,8 @@
 
     function handleCardReset(event: MouseEvent) {
         const cardEl = event.currentTarget as HTMLElement;
-        cardEl.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1)';
+        cardEl.style.transform =
+            "perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1)";
     }
 
     // 3D effect for hero terminal - tracks mouse across entire hero section
@@ -90,8 +86,14 @@
         const rotateX = -(deltaY / maxDistance) * maxRotation;
 
         // Clamp values
-        const clampedRotateX = Math.max(-maxRotation, Math.min(maxRotation, rotateX));
-        const clampedRotateY = Math.max(-maxRotation, Math.min(maxRotation, rotateY));
+        const clampedRotateX = Math.max(
+            -maxRotation,
+            Math.min(maxRotation, rotateX),
+        );
+        const clampedRotateY = Math.max(
+            -maxRotation,
+            Math.min(maxRotation, rotateY),
+        );
 
         // Add subtle translation for depth
         const translateX = (deltaX / maxDistance) * 10;
@@ -117,8 +119,9 @@
 
     function handleTerminalMouseLeave() {
         if (!terminalEl) return;
-        terminalEl.style.transform = 'perspective(1500px) rotateX(0deg) rotateY(0deg) translateX(0) translateY(0) scale(1)';
-        terminalEl.style.boxShadow = '0 25px 80px rgba(0, 0, 0, 0.4)';
+        terminalEl.style.transform =
+            "perspective(1500px) rotateX(0deg) rotateY(0deg) translateX(0) translateY(0) scale(1)";
+        terminalEl.style.boxShadow = "0 25px 80px rgba(0, 0, 0, 0.4)";
     }
 
     onMount(() => {
@@ -129,7 +132,6 @@
 
         // Start terminal typing animation
         setTimeout(() => {
-            terminalTyping = true;
             // Type each line with delay
             const lines = [0, 1, 2];
             lines.forEach((line, i) => {
@@ -139,26 +141,6 @@
             });
         }, 500);
 
-        // Animate stats on mount
-        const duration = 2000;
-        const steps = 60;
-        const interval = duration / steps;
-        let step = 0;
-
-        const timer = setInterval(() => {
-            step++;
-            const progress = step / steps;
-            const eased = 1 - Math.pow(1 - progress, 3);
-
-            animatedStats = {
-                terminals: Math.round(targetStats.terminals * eased),
-                uptime: Math.round(targetStats.uptime * eased * 10) / 10,
-                countries: Math.round(targetStats.countries * eased)
-            };
-
-            if (step >= steps) clearInterval(timer);
-        }, interval);
-
         // Rotate era words
         const eraTimer = setInterval(() => {
             currentEraIndex = (currentEraIndex + 1) % eraWords.length;
@@ -167,22 +149,21 @@
         // Intersection observer for scroll animations
         const observer = new IntersectionObserver(
             (entries) => {
-                entries.forEach(entry => {
+                entries.forEach((entry) => {
                     if (entry.isIntersecting) {
                         visibleSections.add(entry.target.id);
                         visibleSections = visibleSections;
                     }
                 });
             },
-            { threshold: 0.1 }
+            { threshold: 0.1 },
         );
 
-        document.querySelectorAll('.promo-section').forEach(section => {
+        document.querySelectorAll(".promo-section").forEach((section) => {
             observer.observe(section);
         });
 
         return () => {
-            clearInterval(timer);
             clearInterval(eraTimer);
             observer.disconnect();
         };
@@ -192,131 +173,192 @@
         {
             icon: "terminal",
             title: "Remote Development",
-            description: "Full Linux environment accessible from anywhere. Code, compile, and deploy without local setup.",
+            description:
+                "Full Linux environment accessible from anywhere. Code, compile, and deploy without local setup.",
             color: "#00ff88",
-            slug: "remote-development"
+            slug: "remote-development",
         },
         {
             icon: "connected",
             title: "Team Collaboration",
-            description: "Share your terminal session in real-time. Pair program, debug together, teach and learn.",
+            description:
+                "Share your terminal session in real-time. Pair program, debug together, teach and learn.",
             color: "#00d4ff",
-            slug: "pair-programming"
+            slug: "pair-programming",
         },
         {
             icon: "bolt",
             title: "Instant Demos",
-            description: "Spin up isolated environments for product demos, tutorials, or customer support in seconds.",
+            description:
+                "Spin up isolated environments for product demos, tutorials, or customer support in seconds.",
             color: "#ff6b6b",
-            slug: "technical-interviews"
+            slug: "technical-interviews",
         },
         {
             icon: "key",
             title: "Secure Access",
-            description: "Connect to your infrastructure through SSH with enterprise-grade security and audit trails.",
+            description:
+                "Connect to your infrastructure through SSH with enterprise-grade security and audit trails.",
             color: "#ffd93d",
-            slug: "universal-jump-host"
+            slug: "universal-jump-host",
         },
         {
             icon: "globe",
             title: "Education & Training",
-            description: "Perfect for coding bootcamps, workshops, and tutorials. Students get instant environments.",
+            description:
+                "Perfect for coding bootcamps, workshops, and tutorials. Students get instant environments.",
             color: "#8b5cf6",
-            slug: "education"
+            slug: "education",
         },
         {
             icon: "shield",
             title: "Security Research",
-            description: "Isolated sandboxes for malware analysis, penetration testing, and security audits.",
+            description:
+                "Isolated sandboxes for malware analysis, penetration testing, and security audits.",
             color: "#f97316",
-            slug: "security-research"
+            slug: "security-research",
         },
         {
             icon: "clock",
             title: "Session Recording",
-            description: "Record and replay terminal sessions for documentation, audits, or training materials.",
+            description:
+                "Record and replay terminal sessions for documentation, audits, or training materials.",
             color: "#ec4899",
-            slug: "session-recording"
+            slug: "session-recording",
         },
         {
             icon: "ai",
             title: "AI-Powered Workflows",
-            description: "Built-in AI tools for code generation, debugging assistance, and intelligent automation.",
+            description:
+                "Built-in AI tools for code generation, debugging assistance, and intelligent automation.",
             color: "#06b6d4",
-            slug: "ai-workflows"
-        }
+            slug: "ai-workflows",
+        },
     ];
 
     const features = [
-        { icon: "bolt", title: "Sub-second Launch", desc: "Terminals ready in under 500ms" },
-        { icon: "shield", title: "Isolated Containers", desc: "Every session is completely sandboxed" },
-        { icon: "globe", title: "Browser-based", desc: "No downloads, works everywhere" },
-        { icon: "clock", title: "Session Recording", desc: "Replay and share your work" },
-        { icon: "ai", title: "AI Tools Built-in", desc: "Claude, GPT, and more pre-installed" },
-        { icon: "link", title: "SSH Support", desc: "Connect with your favorite client" },
-        { icon: "key", title: "Secure by Default", desc: "End-to-end encryption" },
-        { icon: "connected", title: "Real-time Collab", desc: "Share sessions instantly" },
-        { icon: "terminal", title: "Multiple OS", desc: "Ubuntu, Debian, Alpine & more" },
-        { icon: "copy", title: "Port Forwarding", desc: "Expose your apps publicly" },
-        { icon: "snippet", title: "Snippets & Macros", desc: "Save and reuse commands" },
-        { icon: "chart", title: "Resource Monitoring", desc: "Track CPU, memory, network" }
+        {
+            icon: "bolt",
+            title: "Sub-second Launch",
+            desc: "Terminals ready in under 500ms",
+        },
+        {
+            icon: "shield",
+            title: "Isolated Containers",
+            desc: "Every session is completely sandboxed",
+        },
+        {
+            icon: "globe",
+            title: "Browser-based",
+            desc: "No downloads, works everywhere",
+        },
+        {
+            icon: "clock",
+            title: "Session Recording",
+            desc: "Replay and share your work",
+        },
+        {
+            icon: "ai",
+            title: "AI Tools Built-in",
+            desc: "Claude, GPT, and more pre-installed",
+        },
+        {
+            icon: "link",
+            title: "SSH Support",
+            desc: "Connect with your favorite client",
+        },
+        {
+            icon: "key",
+            title: "Secure by Default",
+            desc: "End-to-end encryption",
+        },
+        {
+            icon: "connected",
+            title: "Real-time Collab",
+            desc: "Share sessions instantly",
+        },
+        {
+            icon: "terminal",
+            title: "Multiple OS",
+            desc: "Ubuntu, Debian, Alpine & more",
+        },
+        {
+            icon: "copy",
+            title: "Port Forwarding",
+            desc: "Expose your apps publicly",
+        },
+        {
+            icon: "snippet",
+            title: "Snippets & Macros",
+            desc: "Save and reuse commands",
+        },
+        {
+            icon: "chart",
+            title: "Resource Monitoring",
+            desc: "Track CPU, memory, network",
+        },
     ];
 
     const moreFeatures = [
         {
             title: "Instant Environment Provisioning",
             desc: "No more waiting for VMs. Spin up fully-configured Linux environments in milliseconds, not minutes.",
-            icon: "bolt"
+            icon: "bolt",
         },
         {
             title: "Zero Configuration Required",
             desc: "Everything works out of the box. Pre-installed dev tools, languages, and utilities ready to use.",
-            icon: "check"
+            icon: "check",
         },
         {
             title: "Access From Any Device",
             desc: "Work from your laptop, tablet, or phone. Your terminal follows you everywhere with full functionality.",
-            icon: "globe"
+            icon: "globe",
         },
         {
             title: "Enterprise-Grade Security",
             desc: "Container isolation, encrypted connections, and audit trails. Your code never touches our servers.",
-            icon: "shield"
+            icon: "shield",
         },
         {
             title: "Seamless Team Onboarding",
             desc: "New developers productive in minutes. Share standardized environments with your entire team.",
-            icon: "connected"
+            icon: "connected",
         },
         {
             title: "Cost-Effective Scaling",
             desc: "Pay only for what you use. No idle VMs, no wasted resources. Scale from 1 to 1000 terminals instantly.",
-            icon: "chart"
-        }
+            icon: "chart",
+        },
     ];
 
     const testimonials = [
         {
             quote: "Finally, a terminal I can access from my iPad without any compromises.",
             author: "Sarah Chen",
-            role: "DevOps Lead, TechCorp"
+            role: "DevOps Lead, TechCorp",
         },
         {
             quote: "We use Rexec for all our customer demos. It's transformed our sales process.",
             author: "Marcus Johnson",
-            role: "Solutions Architect"
+            role: "Solutions Architect",
         },
         {
             quote: "The collaboration feature saved us hours of back-and-forth debugging.",
             author: "Elena Popov",
-            role: "Senior Developer"
-        }
+            role: "Senior Developer",
+        },
     ];
 </script>
 
 <div class="promo">
     <!-- Hero Section - Full Width -->
-    <section class="hero" class:loaded={heroLoaded} onmousemove={handleTerminalMouseMove} onmouseleave={handleTerminalMouseLeave}>
+    <section
+        class="hero"
+        class:loaded={heroLoaded}
+        onmousemove={handleTerminalMouseMove}
+        onmouseleave={handleTerminalMouseLeave}
+    >
         <div class="hero-bg">
             <div class="grid-lines"></div>
             <div class="glow glow-1"></div>
@@ -324,12 +366,14 @@
             <div class="glow glow-3"></div>
             <div class="particles">
                 {#each Array(20) as _, i}
-                    <div class="particle" style="--delay: {i * 0.5}s; --x: {Math.random() * 100}%; --duration: {5 + Math.random() * 10}s"></div>
+                    <div
+                        class="particle"
+                        style="--delay: {i * 0.5}s; --x: {Math.random() *
+                            100}%; --duration: {5 + Math.random() * 10}s"
+                    ></div>
                 {/each}
             </div>
         </div>
-
-
 
         <div class="hero-inner">
             <div class="hero-content">
@@ -341,21 +385,37 @@
                 <h1 class="animate-fade-up" style="--delay: 0.2s">
                     The Terminal
                     <span class="gradient-text">Reimagined</span>
-                    for the <span class="era-word" style="--era-color: {eraColors[currentEraIndex]}">{eraWords[currentEraIndex]}</span> Era
+                    for the
+                    <span
+                        class="era-word"
+                        style="--era-color: {eraColors[currentEraIndex]}"
+                        >{eraWords[currentEraIndex]}</span
+                    > Era
                 </h1>
 
-                <p class="hero-description animate-fade-up" style="--delay: 0.3s">
-                    Instant Linux environments in your browser. No setup. No downloads.
-                    Just powerful, isolated terminals ready when you are.
+                <p
+                    class="hero-description animate-fade-up"
+                    style="--delay: 0.3s"
+                >
+                    Instant Linux environments in your browser. No setup. No
+                    downloads. Just powerful, isolated terminals ready when you
+                    are.
                 </p>
 
                 <div class="hero-actions animate-fade-up" style="--delay: 0.4s">
-                    <button class="btn-hero btn-primary-hero" onclick={handleGuestClick}>
+                    <button
+                        class="btn-hero btn-primary-hero"
+                        onclick={handleGuestClick}
+                    >
                         <span class="btn-icon">▶</span>
                         Start Free Terminal
                         <span class="btn-shine"></span>
                     </button>
-                    <button class="btn-hero btn-secondary-hero" onclick={handleOAuthLogin} disabled={isOAuthLoading}>
+                    <button
+                        class="btn-hero btn-secondary-hero"
+                        onclick={handleOAuthLogin}
+                        disabled={isOAuthLoading}
+                    >
                         {#if isOAuthLoading}
                             <span class="spinner"></span>
                         {:else}
@@ -363,11 +423,13 @@
                         {/if}
                     </button>
                 </div>
-
-
             </div>
 
-            <div class="hero-terminal animate-fade-up" style="--delay: 0.6s" bind:this={terminalEl}>
+            <div
+                class="hero-terminal animate-fade-up"
+                style="--delay: 0.6s"
+                bind:this={terminalEl}
+            >
                 <div class="terminal-window">
                     <div class="terminal-header">
                         <div class="terminal-buttons">
@@ -383,27 +445,51 @@
                     <div class="terminal-body">
                         <div class="line" class:typed={typedLines.includes(0)}>
                             <span class="prompt">~/projects$</span>
-                            <span class="command">git clone https://github.com/my-app</span>
+                            <span class="command"
+                                >git clone https://github.com/my-app</span
+                            >
                         </div>
                         {#if typedLines.includes(0)}
-                            <div class="output animate-line">Cloning into 'my-app'...</div>
-                            <div class="output dim animate-line" style="--delay: 0.1s">remote: Enumerating objects: 1247, done.</div>
-                            <div class="output dim animate-line" style="--delay: 0.2s">remote: Total 1247 (delta 0), reused 0 (delta 0)</div>
-                            <div class="output success animate-line" style="--delay: 0.3s">✓ Clone complete</div>
+                            <div class="output animate-line">
+                                Cloning into 'my-app'...
+                            </div>
+                            <div
+                                class="output dim animate-line"
+                                style="--delay: 0.1s"
+                            >
+                                remote: Enumerating objects: 1247, done.
+                            </div>
+                            <div
+                                class="output dim animate-line"
+                                style="--delay: 0.2s"
+                            >
+                                remote: Total 1247 (delta 0), reused 0 (delta 0)
+                            </div>
+                            <div
+                                class="output success animate-line"
+                                style="--delay: 0.3s"
+                            >
+                                ✓ Clone complete
+                            </div>
                         {/if}
                         <div class="line" class:typed={typedLines.includes(1)}>
                             <span class="prompt">~/projects$</span>
-                            <span class="command">cd my-app && npm install</span>
+                            <span class="command">cd my-app && npm install</span
+                            >
                         </div>
                         {#if typedLines.includes(1)}
-                            <div class="output animate-line">added 847 packages in 12s</div>
+                            <div class="output animate-line">
+                                added 847 packages in 12s
+                            </div>
                         {/if}
                         <div class="line" class:typed={typedLines.includes(2)}>
                             <span class="prompt">~/projects/my-app$</span>
                             <span class="command">npm run dev</span>
                         </div>
                         {#if typedLines.includes(2)}
-                            <div class="output accent animate-line">▶ Server running at http://localhost:3000</div>
+                            <div class="output accent animate-line">
+                                ▶ Server running at http://localhost:3000
+                            </div>
                         {/if}
                         <div class="line">
                             <span class="prompt">~/projects/my-app$</span>
@@ -418,17 +504,30 @@
         <div class="scroll-indicator animate-fade-up" style="--delay: 1s">
             <span class="scroll-text">Scroll to explore</span>
             <div class="scroll-arrow">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 5v14M19 12l-7 7-7-7"/>
+                <svg
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                >
+                    <path d="M12 5v14M19 12l-7 7-7-7" />
                 </svg>
             </div>
         </div>
     </section>
 
     <!-- Problem/Solution Section -->
-    <section id="problem" class="promo-section problem-section" class:visible={visibleSections.has('problem')}>
+    <section
+        id="problem"
+        class="promo-section problem-section"
+        class:visible={visibleSections.has("problem")}
+    >
         <div class="section-content">
-            <h2 class="section-title">The Old Way vs <span class="accent">The Rexec Way</span></h2>
+            <h2 class="section-title">
+                The Old Way vs <span class="accent">The Rexec Way</span>
+            </h2>
 
             <div class="comparison">
                 <div
@@ -479,20 +578,39 @@
     </section>
 
     <!-- Use Cases Section -->
-    <section id="usecases" class="promo-section usecases-section" class:visible={visibleSections.has('usecases')}>
+    <section
+        id="usecases"
+        class="promo-section usecases-section"
+        class:visible={visibleSections.has("usecases")}
+    >
         <div class="section-content">
-            <h2 class="section-title">Built for <span class="accent">Every Workflow</span></h2>
-            <p class="section-subtitle">From solo developers to enterprise teams</p>
+            <h2 class="section-title">
+                Built for <span class="accent">Every Workflow</span>
+            </h2>
+            <p class="section-subtitle">
+                From solo developers to enterprise teams
+            </p>
 
             <div class="usecases-grid">
                 {#each useCases as useCase, i}
-                    <div class="usecase-card" style="--accent-color: {useCase.color}" style:animation-delay="{i * 100}ms">
-                        <div class="usecase-icon" style="background: {useCase.color}15; color: {useCase.color}">
+                    <div
+                        class="usecase-card"
+                        style="--accent-color: {useCase.color}"
+                        style:animation-delay="{i * 100}ms"
+                    >
+                        <div
+                            class="usecase-icon"
+                            style="background: {useCase.color}15; color: {useCase.color}"
+                        >
                             <StatusIcon status={useCase.icon} size={32} />
                         </div>
                         <h3>{useCase.title}</h3>
                         <p>{useCase.description}</p>
-                        <button class="usecase-link" onclick={() => navigateTo(`use-cases/${useCase.slug}`)}>
+                        <button
+                            class="usecase-link"
+                            onclick={() =>
+                                navigateTo(`use-cases/${useCase.slug}`)}
+                        >
                             Learn more →
                         </button>
                     </div>
@@ -502,9 +620,17 @@
     </section>
 
     <!-- Features Grid -->
-    <section id="features" class="promo-section features-section" class:visible={visibleSections.has('features')}>
+    <section
+        id="features"
+        class="promo-section features-section"
+        class:visible={visibleSections.has("features")}
+    >
         <div class="section-content">
-            <h2 class="section-title">Everything You Need, <span class="accent">Nothing You Don't</span></h2>
+            <h2 class="section-title">
+                Everything You Need, <span class="accent"
+                    >Nothing You Don't</span
+                >
+            </h2>
 
             <div class="features-grid">
                 {#each features as feature, i}
@@ -525,14 +651,23 @@
     </section>
 
     <!-- Why Choose Rexec Section -->
-    <section id="whychoose" class="promo-section whychoose-section" class:visible={visibleSections.has('whychoose')}>
+    <section
+        id="whychoose"
+        class="promo-section whychoose-section"
+        class:visible={visibleSections.has("whychoose")}
+    >
         <div class="section-content">
-            <h2 class="section-title">Why Choose <span class="accent">Rexec</span></h2>
+            <h2 class="section-title">
+                Why Choose <span class="accent">Rexec</span>
+            </h2>
             <p class="section-subtitle">Built by developers, for developers</p>
 
             <div class="whychoose-grid">
                 {#each moreFeatures as feature, i}
-                    <div class="whychoose-card" style:animation-delay="{i * 100}ms">
+                    <div
+                        class="whychoose-card"
+                        style:animation-delay="{i * 100}ms"
+                    >
                         <span class="whychoose-icon">
                             <StatusIcon status={feature.icon} size={32} />
                         </span>
@@ -547,19 +682,34 @@
     </section>
 
     <!-- Social Proof -->
-    <section id="testimonials" class="promo-section testimonials-section" class:visible={visibleSections.has('testimonials')}>
+    <section
+        id="testimonials"
+        class="promo-section testimonials-section"
+        class:visible={visibleSections.has("testimonials")}
+    >
         <div class="section-content">
-            <h2 class="section-title">Loved by <span class="accent">Developers</span></h2>
+            <h2 class="section-title">
+                Loved by <span class="accent">Developers</span>
+            </h2>
 
             <div class="testimonials-grid">
                 {#each testimonials as testimonial, i}
-                    <div class="testimonial-card" style:animation-delay="{i * 100}ms">
+                    <div
+                        class="testimonial-card"
+                        style:animation-delay="{i * 100}ms"
+                    >
                         <p class="testimonial-quote">"{testimonial.quote}"</p>
                         <div class="testimonial-author">
-                            <div class="author-avatar">{testimonial.author.charAt(0)}</div>
+                            <div class="author-avatar">
+                                {testimonial.author.charAt(0)}
+                            </div>
                             <div class="author-info">
-                                <span class="author-name">{testimonial.author}</span>
-                                <span class="author-role">{testimonial.role}</span>
+                                <span class="author-name"
+                                    >{testimonial.author}</span
+                                >
+                                <span class="author-role"
+                                    >{testimonial.role}</span
+                                >
                             </div>
                         </div>
                     </div>
@@ -575,22 +725,28 @@
             <p>Start with our free tier. No credit card required.</p>
 
             <div class="cta-actions">
-                <button class="btn-hero btn-primary-hero btn-large" onclick={handleGuestClick}>
+                <button
+                    class="btn-hero btn-primary-hero btn-large"
+                    onclick={handleGuestClick}
+                >
                     <span class="btn-icon">▶</span>
                     Launch Your First Terminal
                 </button>
             </div>
 
             <div class="cta-links">
-                <button class="cta-link" onclick={() => navigateTo('pricing')}>
+                <button class="cta-link" onclick={() => navigateTo("pricing")}>
                     View Pricing
                 </button>
                 <span class="link-dot"></span>
-                <button class="cta-link" onclick={() => navigateTo('guides')}>
+                <button class="cta-link" onclick={() => navigateTo("guides")}>
                     Read the Docs
                 </button>
                 <span class="link-dot"></span>
-                <button class="cta-link" onclick={() => navigateTo('use-cases')}>
+                <button
+                    class="cta-link"
+                    onclick={() => navigateTo("use-cases")}
+                >
                     Explore Use Cases
                 </button>
             </div>
@@ -601,17 +757,44 @@
     <footer class="promo-footer">
         <div class="footer-content">
             <div class="footer-brand">
-                <svg width="24" height="24" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect width="32" height="32" rx="8" fill="#00ff88"/>
-                    <path d="M8 10L14 16L8 22" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M16 22H24" stroke="#000" stroke-width="2.5" stroke-linecap="round"/>
+                <svg
+                    width="24"
+                    height="24"
+                    viewBox="0 0 32 32"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                >
+                    <rect width="32" height="32" rx="8" fill="#00ff88" />
+                    <path
+                        d="M8 10L14 16L8 22"
+                        stroke="#000"
+                        stroke-width="2.5"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    />
+                    <path
+                        d="M16 22H24"
+                        stroke="#000"
+                        stroke-width="2.5"
+                        stroke-linecap="round"
+                    />
                 </svg>
                 <span>Rexec</span>
             </div>
             <div class="footer-links">
-                <a href="https://pipeops.io" target="_blank" rel="noopener">PipeOps</a>
-                <a href="https://github.com/pipeops-dev" target="_blank" rel="noopener">GitHub</a>
-                <a href="https://twitter.com/pabordeaux" target="_blank" rel="noopener">Twitter</a>
+                <a href="https://pipeops.io" target="_blank" rel="noopener"
+                    >PipeOps</a
+                >
+                <a
+                    href="https://github.com/pipeops-dev"
+                    target="_blank"
+                    rel="noopener">GitHub</a
+                >
+                <a
+                    href="https://twitter.com/pabordeaux"
+                    target="_blank"
+                    rel="noopener">Twitter</a
+                >
             </div>
             <div class="footer-copyright">
                 © {new Date().getFullYear()} PipeOps. All rights reserved.
@@ -671,8 +854,12 @@
     }
 
     @keyframes gridMove {
-        0% { transform: translate(0, 0); }
-        100% { transform: translate(60px, 60px); }
+        0% {
+            transform: translate(0, 0);
+        }
+        100% {
+            transform: translate(60px, 60px);
+        }
     }
 
     .glow {
@@ -712,17 +899,31 @@
     }
 
     @keyframes glowPulse {
-        0%, 100% { opacity: 0.3; transform: scale(1); }
-        50% { opacity: 0.5; transform: scale(1.1); }
+        0%,
+        100% {
+            opacity: 0.3;
+            transform: scale(1);
+        }
+        50% {
+            opacity: 0.5;
+            transform: scale(1.1);
+        }
     }
 
     .glow-3 {
-        animation: glowPulse 8s ease-in-out infinite, glowFloat 15s ease-in-out infinite;
+        animation:
+            glowPulse 8s ease-in-out infinite,
+            glowFloat 15s ease-in-out infinite;
     }
 
     @keyframes glowFloat {
-        0%, 100% { transform: translate(-50%, -50%); }
-        50% { transform: translate(-40%, -60%); }
+        0%,
+        100% {
+            transform: translate(-50%, -50%);
+        }
+        50% {
+            transform: translate(-40%, -60%);
+        }
     }
 
     /* Particles */
@@ -746,18 +947,29 @@
     }
 
     @keyframes particleFloat {
-        0% { transform: translateY(0) scale(1); opacity: 0; }
-        10% { opacity: 0.6; }
-        90% { opacity: 0.6; }
-        100% { transform: translateY(-100vh) scale(0.5); opacity: 0; }
+        0% {
+            transform: translateY(0) scale(1);
+            opacity: 0;
+        }
+        10% {
+            opacity: 0.6;
+        }
+        90% {
+            opacity: 0.6;
+        }
+        100% {
+            transform: translateY(-100vh) scale(0.5);
+            opacity: 0;
+        }
     }
 
     /* Animation Classes */
     .animate-fade-up {
         opacity: 0;
         transform: translateY(30px);
-        transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
-                    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        transition:
+            opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+            transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
         transition-delay: var(--delay, 0s);
     }
 
@@ -773,8 +985,14 @@
     }
 
     @keyframes lineAppear {
-        from { opacity: 0; transform: translateX(-10px); }
-        to { opacity: 1; transform: translateX(0); }
+        from {
+            opacity: 0;
+            transform: translateX(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
     }
 
     .hero-content {
@@ -809,8 +1027,17 @@
     }
 
     @keyframes pulse {
-        0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 10px var(--accent); }
-        50% { opacity: 0.5; transform: scale(1.3); box-shadow: 0 0 20px var(--accent); }
+        0%,
+        100% {
+            opacity: 1;
+            transform: scale(1);
+            box-shadow: 0 0 10px var(--accent);
+        }
+        50% {
+            opacity: 0.5;
+            transform: scale(1.3);
+            box-shadow: 0 0 20px var(--accent);
+        }
     }
 
     .hero h1 {
@@ -822,7 +1049,12 @@
     }
 
     .gradient-text {
-        background: linear-gradient(135deg, var(--accent) 0%, #00d4ff 50%, #8b5cf6 100%);
+        background: linear-gradient(
+            135deg,
+            var(--accent) 0%,
+            #00d4ff 50%,
+            #8b5cf6 100%
+        );
         background-size: 200% 200%;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
@@ -838,13 +1070,24 @@
     }
 
     @keyframes eraFade {
-        0% { opacity: 0; transform: translateY(-10px); }
-        100% { opacity: 1; transform: translateY(0); }
+        0% {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        100% {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
     @keyframes gradientShift {
-        0%, 100% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
+        0%,
+        100% {
+            background-position: 0% 50%;
+        }
+        50% {
+            background-position: 100% 50%;
+        }
     }
 
     .hero-description {
@@ -895,13 +1138,23 @@
         left: -100%;
         width: 100%;
         height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+        background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.3),
+            transparent
+        );
         animation: shine 3s ease-in-out infinite;
     }
 
     @keyframes shine {
-        0% { left: -100%; }
-        50%, 100% { left: 100%; }
+        0% {
+            left: -100%;
+        }
+        50%,
+        100% {
+            left: 100%;
+        }
     }
 
     .btn-secondary-hero {
@@ -936,7 +1189,9 @@
     }
 
     @keyframes spin {
-        to { transform: rotate(360deg); }
+        to {
+            transform: rotate(360deg);
+        }
     }
 
     .hero-stats {
@@ -974,7 +1229,12 @@
     .stat-divider {
         width: 1px;
         height: 48px;
-        background: linear-gradient(180deg, transparent, var(--border), transparent);
+        background: linear-gradient(
+            180deg,
+            transparent,
+            var(--border),
+            transparent
+        );
     }
 
     /* Terminal Window */
@@ -985,7 +1245,9 @@
         z-index: 1;
         position: relative;
         transform-style: preserve-3d;
-        transition: transform 0.1s ease-out, box-shadow 0.1s ease-out;
+        transition:
+            transform 0.1s ease-out,
+            box-shadow 0.1s ease-out;
         will-change: transform;
         border-radius: 16px;
     }
@@ -1008,7 +1270,11 @@
         left: 5%;
         right: 5%;
         height: 60%;
-        background: linear-gradient(180deg, rgba(10, 10, 10, 0.3) 0%, transparent 100%);
+        background: linear-gradient(
+            180deg,
+            rgba(10, 10, 10, 0.3) 0%,
+            transparent 100%
+        );
         transform: scaleY(-1);
         opacity: 0.3;
         filter: blur(2px);
@@ -1039,9 +1305,15 @@
         transform: scale(1.2);
     }
 
-    .tb-red { background: #ff5f56; }
-    .tb-yellow { background: #ffbd2e; }
-    .tb-green { background: #27c93f; }
+    .tb-red {
+        background: #ff5f56;
+    }
+    .tb-yellow {
+        background: #ffbd2e;
+    }
+    .tb-green {
+        background: #27c93f;
+    }
 
     .terminal-title {
         flex: 1;
@@ -1109,8 +1381,13 @@
     }
 
     @keyframes blink {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0; }
+        0%,
+        100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0;
+        }
     }
 
     /* Scroll Indicator */
@@ -1137,8 +1414,13 @@
     }
 
     @keyframes scrollBounce {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(8px); }
+        0%,
+        100% {
+            transform: translateY(0);
+        }
+        50% {
+            transform: translateY(8px);
+        }
     }
 
     /* Sections */
@@ -1146,7 +1428,9 @@
         padding: 120px 24px;
         opacity: 0;
         transform: translateY(40px);
-        transition: opacity 0.6s, transform 0.6s;
+        transition:
+            opacity 0.6s,
+            transform 0.6s;
     }
 
     .promo-section.visible {
@@ -1179,7 +1463,11 @@
 
     /* Problem Section */
     .problem-section {
-        background: linear-gradient(180deg, transparent 0%, rgba(0, 255, 136, 0.02) 100%);
+        background: linear-gradient(
+            180deg,
+            transparent 0%,
+            rgba(0, 255, 136, 0.02) 100%
+        );
     }
 
     .comparison {
@@ -1201,7 +1489,9 @@
     /* 3D Tilt Card Effect */
     .tilt-card {
         transform-style: preserve-3d;
-        transition: transform 0.1s ease-out, box-shadow 0.3s ease;
+        transition:
+            transform 0.1s ease-out,
+            box-shadow 0.3s ease;
         cursor: pointer;
     }
 
@@ -1432,7 +1722,11 @@
 
     /* Why Choose Section */
     .whychoose-section {
-        background: linear-gradient(180deg, #050505 0%, rgba(0, 255, 136, 0.03) 100%);
+        background: linear-gradient(
+            180deg,
+            #050505 0%,
+            rgba(0, 255, 136, 0.03) 100%
+        );
     }
 
     .whychoose-grid {
@@ -1542,7 +1836,11 @@
     .cta-section {
         padding: 120px 24px;
         text-align: center;
-        background: linear-gradient(180deg, transparent 0%, rgba(0, 255, 136, 0.05) 100%);
+        background: linear-gradient(
+            180deg,
+            transparent 0%,
+            rgba(0, 255, 136, 0.05) 100%
+        );
     }
 
     .cta-content {
