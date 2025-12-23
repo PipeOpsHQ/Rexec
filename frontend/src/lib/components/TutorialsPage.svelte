@@ -23,6 +23,7 @@
     let isLoading = true;
     let selectedCategory = "";
     let selectedTutorial: Tutorial | null = null;
+    let playingId: string | null = null;
 
     // Admin state
     let showAdminModal = false;
@@ -101,31 +102,33 @@
         }
     }
 
-    function getEmbedUrl(url: string): string {
+    function getEmbedUrl(url: string, autoplay = false): string {
+        const params = autoplay ? "?autoplay=1&vq=hd2160" : "";
+
         // Handle YouTube URLs (supports various formats including shorts, live, etc.)
         const ytMatch = url.match(
             /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/,
         );
         if (ytMatch && ytMatch[1]) {
-            return `https://www.youtube.com/embed/${ytMatch[1]}`;
+            return `https://www.youtube.com/embed/${ytMatch[1]}${params}`;
         }
 
         // Convert Vimeo URLs
         if (url.includes("vimeo.com/")) {
             const videoId = url.split("vimeo.com/")[1]?.split("?")[0];
-            return `https://player.vimeo.com/video/${videoId}`;
+            return `https://player.vimeo.com/video/${videoId}${params}`;
         }
 
         // Screen Studio URLs
         if (url.includes("screen.studio/share/")) {
             const videoId = url.split("screen.studio/share/")[1]?.split("?")[0];
-            return `https://screen.studio/embed/${videoId}`;
+            return `https://screen.studio/embed/${videoId}${params}`;
         }
 
         // Loom URLs
         if (url.includes("loom.com/share/")) {
             const videoId = url.split("loom.com/share/")[1]?.split("?")[0];
-            return `https://www.loom.com/embed/${videoId}`;
+            return `https://www.loom.com/embed/${videoId}${params}`;
         }
         return url;
     }
@@ -399,32 +402,46 @@
                     class="tutorial-card"
                     class:unpublished={!tutorial.is_published}
                 >
-                    <button
-                        class="thumbnail"
-                        onclick={() => openTutorial(tutorial)}
-                    >
-                        {#if getThumbnail(tutorial)}
-                            <img
-                                src={getThumbnail(tutorial)}
-                                alt={tutorial.title}
-                            />
-                        {:else}
-                            <div class="placeholder-thumb">
-                                <StatusIcon status="video" size={32} />
-                            </div>
-                        {/if}
-                        <div class="play-overlay">
-                            <div class="play-button">
-                                <StatusIcon status="play" size={24} />
-                            </div>
+                    {#if playingId === tutorial.id}
+                        <div class="thumbnail video-active">
+                            <iframe
+                                src={getEmbedUrl(tutorial.video_url, true)}
+                                title={tutorial.title}
+                                frameborder="0"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowfullscreen
+                                style="width: 100%; height: 100%;"
+                            ></iframe>
                         </div>
-                        {#if tutorial.duration}
-                            <span class="duration">{tutorial.duration}</span>
-                        {/if}
-                        {#if !tutorial.is_published && $isAdmin}
-                            <span class="draft-badge">Draft</span>
-                        {/if}
-                    </button>
+                    {:else}
+                        <button
+                            class="thumbnail"
+                            onclick={() => (playingId = tutorial.id)}
+                        >
+                            {#if getThumbnail(tutorial)}
+                                <img
+                                    src={getThumbnail(tutorial)}
+                                    alt={tutorial.title}
+                                />
+                            {:else}
+                                <div class="placeholder-thumb">
+                                    <StatusIcon status="video" size={32} />
+                                </div>
+                            {/if}
+                            <div class="play-overlay">
+                                <div class="play-button">
+                                    <StatusIcon status="play" size={24} />
+                                </div>
+                            </div>
+                            {#if tutorial.duration}
+                                <span class="duration">{tutorial.duration}</span
+                                >
+                            {/if}
+                            {#if !tutorial.is_published && $isAdmin}
+                                <span class="draft-badge">Draft</span>
+                            {/if}
+                        </button>
+                    {/if}
                     <div class="tutorial-info">
                         <span class="category-tag">
                             <StatusIcon
@@ -435,7 +452,12 @@
                             {categoryLabels[tutorial.category] ||
                                 tutorial.category}
                         </span>
-                        <h3>{tutorial.title}</h3>
+                        <h3
+                            class="clickable-title"
+                            onclick={() => openTutorial(tutorial)}
+                        >
+                            {tutorial.title}
+                        </h3>
                         <p class="description">{tutorial.description}</p>
 
                         {#if $isAdmin}
@@ -900,7 +922,16 @@
         font-size: 16px;
         font-weight: 600;
         margin-bottom: 8px;
-        color: var(--text);
+        line-height: 1.4;
+    }
+
+    .tutorial-info h3.clickable-title {
+        cursor: pointer;
+        transition: color 0.2s;
+    }
+
+    .tutorial-info h3.clickable-title:hover {
+        color: var(--accent);
     }
 
     .tutorial-info .description {
