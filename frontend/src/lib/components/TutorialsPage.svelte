@@ -25,6 +25,14 @@
     let selectedTutorial: Tutorial | null = null;
     let playingId: string | null = null;
 
+    $: filteredTutorials = selectedCategory
+        ? tutorials.filter((t) => t.category === selectedCategory)
+        : tutorials;
+
+    $: visibleCategories = Object.keys(categories).filter(
+        (c) => categories[c].length > 0,
+    );
+
     // Admin state
     let showAdminModal = false;
     let editingTutorial: Tutorial | null = null;
@@ -88,6 +96,7 @@
             // Group by category
             categories = {};
             for (const t of tutorials) {
+                if (!t.id) continue;
                 const cat = t.category || "getting-started";
                 if (!categories[cat]) categories[cat] = [];
                 categories[cat].push(t);
@@ -410,7 +419,7 @@
                                 frameborder="0"
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                 allowfullscreen
-                                style="width: 100%; height: 100%;"
+                                style="width: 100%; height: 100%; position: relative; z-index: 10;"
                             ></iframe>
                         </div>
                     {:else}
