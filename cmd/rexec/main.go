@@ -43,8 +43,10 @@ type seoConfig struct {
 	OGTitle            string
 	OGDescription      string
 	OGType             string
+	OGImage            string
 	TwitterTitle       string
 	TwitterDescription string
+	TwitterImage       string
 }
 
 var (
@@ -103,6 +105,17 @@ func applySEO(baseHTML string, seo seoConfig, canonical string) string {
 	if seo.OGType != "" {
 		ogTypeSafe := safe(seo.OGType)
 		out = reMetaContent("property", "og:type").ReplaceAllString(out, "${1}"+ogTypeSafe+"${3}")
+	}
+	// Handle image overrides for og:image and twitter:image
+	if seo.OGImage != "" {
+		ogImageSafe := safe(seo.OGImage)
+		out = reMetaContent("property", "og:image").ReplaceAllString(out, "${1}"+ogImageSafe+"${3}")
+		out = reMetaContent("property", "og:image:alt").ReplaceAllString(out, "${1}"+ogTitleSafe+"${3}")
+	}
+	if seo.TwitterImage != "" {
+		twitterImageSafe := safe(seo.TwitterImage)
+		out = reMetaContent("name", "twitter:image").ReplaceAllString(out, "${1}"+twitterImageSafe+"${3}")
+		out = reMetaContent("name", "twitter:image:alt").ReplaceAllString(out, "${1}"+twitterTitleSafe+"${3}")
 	}
 	return out
 }
@@ -1184,14 +1197,35 @@ func runServer() {
 			id := c.Query("id")
 			if id != "" {
 				if tutorial, err := store.GetTutorialByID(c.Request.Context(), id); err == nil && tutorial.IsPublished {
+					// Determine the thumbnail image URL
+					thumbnail := tutorial.Thumbnail
+					if thumbnail == "" && tutorial.Type == "video" && tutorial.VideoURL != "" {
+						// Generate YouTube thumbnail if possible
+						ytMatch := regexp.MustCompile(`(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})`).FindStringSubmatch(tutorial.VideoURL)
+						if len(ytMatch) > 1 {
+							thumbnail = fmt.Sprintf("https://img.youtube.com/vi/%s/hqdefault.jpg", ytMatch[1])
+						}
+					}
+					// Fall back to default og-image if no thumbnail
+					if thumbnail == "" {
+						thumbnail = canonicalURL(c)
+						// Extract base URL (without path)
+						if idx := strings.Index(thumbnail, "/resources"); idx != -1 {
+							thumbnail = thumbnail[:idx] + "/og-image.png"
+						} else {
+							thumbnail = "/og-image.png"
+						}
+					}
 					customSEO := seoConfig{
 						Title:              fmt.Sprintf("%s | Rexec Resources", tutorial.Title),
 						Description:        tutorial.Description,
 						OGTitle:            tutorial.Title,
 						OGDescription:      tutorial.Description,
 						OGType:             "article",
+						OGImage:            thumbnail,
 						TwitterTitle:       tutorial.Title,
 						TwitterDescription: tutorial.Description,
+						TwitterImage:       thumbnail,
 					}
 					serveSEO(c, customSEO)
 					return
