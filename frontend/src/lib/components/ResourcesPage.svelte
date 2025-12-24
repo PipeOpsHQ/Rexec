@@ -3,6 +3,7 @@
     import { auth, isAdmin } from "$stores/auth";
     import StatusIcon from "./icons/StatusIcon.svelte";
     import { toast } from "$stores/toast";
+    import { buildCanonicalUrl, getAssetUrl } from "$utils/seo";
 
     interface Resource {
         id: string;
@@ -492,11 +493,74 @@
 </script>
 
 <svelte:head>
-    <title>Tutorials | Rexec - Terminal as a Service</title>
-    <meta
-        name="description"
-        content="Learn how to use Rexec with video tutorials covering terminals, agents, CLI tools, and more."
-    />
+    {#if selectedResource}
+        <title>{selectedResource.title} | Rexec Resources</title>
+        <meta name="description" content={selectedResource.description} />
+
+        <!-- Open Graph -->
+        <meta property="og:type" content="article" />
+        <meta property="og:title" content="{selectedResource.title} - Rexec" />
+        <meta
+            property="og:description"
+            content={selectedResource.description}
+        />
+        <meta
+            property="og:url"
+            content={buildCanonicalUrl(`/resources?id=${selectedResource.id}`)}
+        />
+        <meta property="og:image" content={getThumbnail(selectedResource)} />
+        <meta property="og:site_name" content="Rexec" />
+
+        <!-- Twitter Card -->
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="{selectedResource.title} - Rexec" />
+        <meta
+            name="twitter:description"
+            content={selectedResource.description}
+        />
+        <meta name="twitter:image" content={getThumbnail(selectedResource)} />
+
+        <!-- Canonical -->
+        <link
+            rel="canonical"
+            href={buildCanonicalUrl(`/resources?id=${selectedResource.id}`)}
+        />
+    {:else}
+        <title>Tutorials | Rexec - Terminal as a Service</title>
+        <meta
+            name="description"
+            content="Learn how to use Rexec with video tutorials covering terminals, agents, CLI tools, and more."
+        />
+
+        <!-- Open Graph -->
+        <meta property="og:type" content="website" />
+        <meta
+            property="og:title"
+            content="Resources - Rexec | Tutorials & Guides"
+        />
+        <meta
+            property="og:description"
+            content="Learn how to use Rexec with step-by-step video tutorials and comprehensive guides covering terminals, agents, CLI tools, and more."
+        />
+        <meta property="og:url" content={buildCanonicalUrl("/resources")} />
+        <meta property="og:image" content={getAssetUrl("/og-image.png")} />
+        <meta property="og:site_name" content="Rexec" />
+
+        <!-- Twitter Card -->
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta
+            name="twitter:title"
+            content="Resources - Rexec | Tutorials & Guides"
+        />
+        <meta
+            name="twitter:description"
+            content="Learn how to use Rexec with step-by-step video tutorials and comprehensive guides covering terminals, agents, CLI tools, and more."
+        />
+        <meta name="twitter:image" content={getAssetUrl("/og-image.png")} />
+
+        <!-- Canonical -->
+        <link rel="canonical" href={buildCanonicalUrl("/resources")} />
+    {/if}
 </svelte:head>
 
 <div class="tutorials-page">
