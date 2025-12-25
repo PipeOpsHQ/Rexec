@@ -154,6 +154,13 @@
         settingsContainer = null;
     }
 
+    function handleSettingsUpdated(event: CustomEvent<Container>) {
+        // Update the settings container with the new data
+        settingsContainer = event.detail;
+        // Also refresh the containers list
+        refreshContainers();
+    }
+
     // Reactive connected container IDs - direct subscription for proper reactivity
     $: connectedIds = $connectedContainerIds;
 
@@ -606,6 +613,7 @@
     container={settingsContainer}
     {isPaidUser}
     on:close={closeSettings}
+    on:updated={handleSettingsUpdated}
 />
 
 <div class="dashboard">

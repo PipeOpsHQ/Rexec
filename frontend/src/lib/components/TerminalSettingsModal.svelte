@@ -56,6 +56,18 @@
     // Check if terminal is MFA locked
     $: isMfaLocked = container?.mfa_locked || false;
 
+    // Debug: track container and mfa state changes
+    $: console.log(
+        "[MFA Debug] container:",
+        container?.id,
+        "db_id:",
+        container?.db_id,
+        "mfa_locked:",
+        container?.mfa_locked,
+        "isMfaLocked:",
+        isMfaLocked,
+    );
+
     async function handleMfaLock() {
         if (!container) return;
         if (!userHasMfa) {
@@ -63,20 +75,26 @@
             return;
         }
 
+        const terminalId = container.db_id || container.id;
+        console.log("[MFA Lock] Locking terminal:", terminalId);
+
         mfaLoading = true;
         try {
             const res = await fetch(
-                `/api/security/terminal/${container.db_id || container.id}/mfa-lock`,
+                `/api/security/terminal/${terminalId}/mfa-lock`,
                 {
                     method: "POST",
                     headers: {
                         Authorization: `Bearer ${$auth.token}`,
+                        "Content-Type": "application/json",
                     },
                 },
             );
 
+            const data = await res.json();
+            console.log("[MFA Lock] Response:", res.status, data);
+
             if (!res.ok) {
-                const data = await res.json();
                 toast.error(
                     data.message || data.error || "Failed to lock terminal",
                 );
@@ -84,12 +102,14 @@
             }
 
             toast.success("Terminal is now protected with MFA");
-            // Update local container state
+            // Update local state and dispatch update event
             if (container) {
-                container.mfa_locked = true;
+                const updatedContainer = { ...container, mfa_locked: true };
+                dispatch("updated", updatedContainer);
             }
-            containers.fetchContainers();
+            await containers.fetchContainers();
         } catch (err) {
+            console.error("[MFA Lock] Error:", err);
             toast.error("Failed to lock terminal");
         } finally {
             mfaLoading = false;
@@ -102,12 +122,15 @@
             return;
         }
 
+        const terminalId = container.db_id || container.id;
+        console.log("[MFA Unlock] Unlocking terminal:", terminalId);
+
         mfaLoading = true;
         mfaError = "";
 
         try {
             const res = await fetch(
-                `/api/security/terminal/${container.db_id || container.id}/mfa-unlock`,
+                `/api/security/terminal/${terminalId}/mfa-unlock`,
                 {
                     method: "POST",
                     headers: {
@@ -119,6 +142,7 @@
             );
 
             const data = await res.json();
+            console.log("[MFA Unlock] Response:", res.status, data);
 
             if (!res.ok) {
                 mfaError = data.error || "Invalid code";
@@ -126,13 +150,15 @@
             }
 
             toast.success("Terminal MFA lock removed");
-            // Update local container state
+            // Update local state and dispatch update event
             if (container) {
-                container.mfa_locked = false;
+                const updatedContainer = { ...container, mfa_locked: false };
+                dispatch("updated", updatedContainer);
             }
             mfaCode = "";
-            containers.fetchContainers();
+            await containers.fetchContainers();
         } catch (err) {
+            console.error("[MFA Unlock] Error:", err);
             mfaError = "Failed to verify code";
         } finally {
             mfaLoading = false;
