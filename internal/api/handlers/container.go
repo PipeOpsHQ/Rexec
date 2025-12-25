@@ -160,6 +160,7 @@ func (h *ContainerHandler) List(c *gin.Context) {
 			"created_at":   record.CreatedAt,
 			"last_used_at": record.LastUsedAt,
 			"idle_seconds": idleTime,
+			"mfa_locked":   record.MFALocked,
 			"resources": gin.H{
 				"memory_mb":  memoryMB,
 				"cpu_shares": cpuShares,
@@ -869,6 +870,7 @@ func (h *ContainerHandler) Get(c *gin.Context) {
 			"status":       found.Status, // Will be "creating" or "error"
 			"created_at":   found.CreatedAt,
 			"last_used_at": found.LastUsedAt,
+			"mfa_locked":   found.MFALocked,
 			"resources": gin.H{
 				"memory_mb":  memoryMB,
 				"cpu_shares": cpuShares,
@@ -890,6 +892,7 @@ func (h *ContainerHandler) Get(c *gin.Context) {
 			"status":       found.Status,
 			"created_at":   found.CreatedAt,
 			"last_used_at": found.LastUsedAt,
+			"mfa_locked":   found.MFALocked,
 			"resources": gin.H{
 				"memory_mb":  memoryMB,
 				"cpu_shares": cpuShares,
@@ -910,6 +913,7 @@ func (h *ContainerHandler) Get(c *gin.Context) {
 		"last_used_at": info.LastUsedAt,
 		"ip_address":   info.IPAddress,
 		"idle_seconds": time.Since(info.LastUsedAt).Seconds(),
+		"mfa_locked":   found.MFALocked,
 		"resources": gin.H{
 			"memory_mb":  memoryMB,
 			"cpu_shares": cpuShares,

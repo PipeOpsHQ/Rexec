@@ -29,6 +29,7 @@ CapAdd:
 ### Filesystem Security
 
 **Read-only Root Filesystem:**
+
 - `ReadonlyRootfs: true` - Root filesystem is mounted read-only
 - Writable directories use tmpfs mounts with size limits
 
@@ -42,6 +43,7 @@ CapAdd:
 | /root | rw,nosuid | 50MB |
 
 **User Data:**
+
 - `/home/user` uses a persistent Docker volume (not tmpfs)
 - Volume is isolated per-container
 
@@ -109,11 +111,49 @@ ulimit -a
 
 ## Security Scoring
 
-| Configuration | Score | Description |
-|---------------|-------|-------------|
-| Basic Docker | 6/10 | Default Docker isolation |
-| Current Rexec | 8/10 | Enhanced container security |
-| With gVisor | 9/10 | Kernel-level isolation |
+| Configuration | Score | Description                 |
+| ------------- | ----- | --------------------------- |
+| Basic Docker  | 6/10  | Default Docker isolation    |
+| Current Rexec | 8/10  | Enhanced container security |
+| With gVisor   | 9/10  | Kernel-level isolation      |
+
+## Terminal MFA Lock
+
+Rexec supports per-terminal MFA (Multi-Factor Authentication) protection. When enabled, accessing a terminal requires entering a valid TOTP code from your authenticator app.
+
+### Prerequisites
+
+- MFA must be enabled on your account first (Account Settings → Security → Enable MFA)
+- Set up your authenticator app (Google Authenticator, Authy, 1Password, etc.)
+
+### How It Works
+
+1. **Lock a Terminal**: Click "Lock with MFA" on any running terminal in your dashboard
+2. **Access Protection**: When trying to connect to an MFA-locked terminal, you'll be prompted for your 6-digit authenticator code
+3. **Unlock a Terminal**: Enter your MFA code to remove the lock and allow normal access
+
+### Use Cases
+
+- **Sensitive Workloads**: Protect terminals with production access or secrets
+- **Shared Accounts**: Add extra protection even if someone has your session
+- **Compliance**: Meet security requirements for privileged access
+
+### API Endpoints
+
+| Endpoint                                | Method | Description                           |
+| --------------------------------------- | ------ | ------------------------------------- |
+| `/api/security/terminal/:id/mfa-status` | GET    | Check MFA lock status                 |
+| `/api/security/terminal/:id/mfa-lock`   | POST   | Enable MFA protection                 |
+| `/api/security/terminal/:id/mfa-unlock` | POST   | Remove MFA protection (requires code) |
+| `/api/security/terminal/:id/mfa-verify` | POST   | Verify access without unlocking       |
+
+### Audit Logging
+
+All MFA lock/unlock actions are logged to the audit trail:
+
+- `terminal_mfa_locked` - Terminal was protected with MFA
+- `terminal_mfa_unlocked` - MFA protection was removed
+- `terminal_mfa_access_verified` - User verified MFA to access terminal
 
 ## Future Improvements
 

@@ -666,6 +666,12 @@ func runServer() {
 		api.POST("/security/unlock", securityHandler.Unlock)
 		api.POST("/security/single-session", securityHandler.SetSingleSessionMode)
 
+		// Terminal MFA lock (requires MFA to be enabled)
+		api.GET("/security/terminal/:id/mfa-status", securityHandler.GetTerminalMFAStatus)
+		api.POST("/security/terminal/:id/mfa-lock", securityHandler.LockTerminalWithMFA)
+		api.POST("/security/terminal/:id/mfa-unlock", securityHandler.UnlockTerminalWithMFA)
+		api.POST("/security/terminal/:id/mfa-verify", securityHandler.VerifyTerminalMFAAccess)
+
 		// Auth sessions
 		sessions := api.Group("/sessions")
 		{

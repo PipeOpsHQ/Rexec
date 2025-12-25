@@ -7,6 +7,7 @@
         creatingContainer,
         wsConnected,
         type Container,
+        refreshContainers,
     } from "$stores/containers";
     import { agents } from "$stores/agents";
     import { auth } from "$stores/auth";
@@ -22,6 +23,132 @@
     import TerminalSettingsModal from "./TerminalSettingsModal.svelte";
     import PlatformIcon from "./icons/PlatformIcon.svelte";
     import StatusIcon from "./icons/StatusIcon.svelte";
+
+    // MFA Lock state
+    let showMfaModal = false;
+    let mfaContainer: Container | null = null;
+    let mfaCode = "";
+    let mfaError = "";
+    let mfaLoading = false;
+    let mfaAction: "verify" | "unlock" = "verify"; // verify = access terminal, unlock = remove lock
+
+    // Check if user has MFA enabled
+    $: userHasMfa = $auth.user?.mfaEnabled || false;
+
+    async function handleMfaLock(container: Container) {
+        if (!userHasMfa) {
+            toast.error(
+                "Enable MFA in account settings first to use terminal MFA lock",
+            );
+            return;
+        }
+
+        try {
+            const res = await fetch(
+                `/api/security/terminal/${container.db_id || container.id}/mfa-lock`,
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${$auth.token}`,
+                    },
+                },
+            );
+
+            if (!res.ok) {
+                const data = await res.json();
+                if (data.error === "mfa_required") {
+                    toast.error("Enable MFA in account settings first");
+                } else {
+                    toast.error(
+                        data.message || data.error || "Failed to lock terminal",
+                    );
+                }
+                return;
+            }
+
+            toast.success("Terminal is now protected with MFA");
+            refreshContainers();
+        } catch (err) {
+            toast.error("Failed to lock terminal");
+        }
+    }
+
+    function openMfaUnlockModal(container: Container) {
+        mfaContainer = container;
+        mfaCode = "";
+        mfaError = "";
+        mfaAction = "unlock";
+        showMfaModal = true;
+    }
+
+    function openMfaVerifyModal(container: Container) {
+        mfaContainer = container;
+        mfaCode = "";
+        mfaError = "";
+        mfaAction = "verify";
+        showMfaModal = true;
+    }
+
+    function closeMfaModal() {
+        showMfaModal = false;
+        mfaContainer = null;
+        mfaCode = "";
+        mfaError = "";
+        mfaLoading = false;
+    }
+
+    async function handleMfaSubmit() {
+        if (!mfaContainer || mfaCode.length !== 6) {
+            mfaError = "Enter a valid 6-digit code";
+            return;
+        }
+
+        mfaLoading = true;
+        mfaError = "";
+
+        try {
+            const endpoint =
+                mfaAction === "unlock"
+                    ? `/api/security/terminal/${mfaContainer.db_id || mfaContainer.id}/mfa-unlock`
+                    : `/api/security/terminal/${mfaContainer.db_id || mfaContainer.id}/mfa-verify`;
+
+            const res = await fetch(endpoint, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${$auth.token}`,
+                },
+                body: JSON.stringify({ code: mfaCode }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                mfaError = data.error || "Invalid code";
+                mfaLoading = false;
+                return;
+            }
+
+            if (mfaAction === "unlock") {
+                toast.success("Terminal MFA lock removed");
+                refreshContainers();
+                closeMfaModal();
+            } else {
+                // Verified - now connect to terminal
+                toast.success("MFA verified");
+                const containerToConnect = mfaContainer;
+                closeMfaModal();
+                dispatch("connect", {
+                    id: containerToConnect.id,
+                    name: containerToConnect.name,
+                });
+            }
+        } catch (err) {
+            mfaError = "Failed to verify code";
+        } finally {
+            mfaLoading = false;
+        }
+    }
 
     let copiedCommand = ""; // To show 'Copied!' feedback
 
@@ -245,6 +372,11 @@
     let connectingIds: Set<string> = new Set();
 
     function handleConnect(container: Container) {
+        // Check if MFA locked first
+        if (container.mfa_locked) {
+            openMfaVerifyModal(container);
+            return;
+        }
         // Mark as connecting immediately
         connectingIds.add(container.id);
         connectingIds = new Set(connectingIds); // Trigger reactivity
@@ -403,6 +535,120 @@
     on:confirm={confirmDelete}
     on:cancel={cancelDelete}
 />
+
+<!-- MFA Verification Modal -->
+{#if showMfaModal && mfaContainer}
+    <div
+        class="modal-overlay"
+        onclick={(e) => e.target === e.currentTarget && closeMfaModal()}
+    >
+        <div class="mfa-modal">
+            <div class="mfa-modal-header">
+                <div class="mfa-modal-icon">
+                    <svg
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                    >
+                        <rect
+                            x="3"
+                            y="11"
+                            width="18"
+                            height="11"
+                            rx="2"
+                            ry="2"
+                        />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                </div>
+                <h3>
+                    {mfaAction === "unlock"
+                        ? "Remove MFA Lock"
+                        : "MFA Protected Terminal"}
+                </h3>
+                <button class="mfa-close-btn" onclick={closeMfaModal}>
+                    <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                    >
+                        <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="mfa-modal-body">
+                <p class="mfa-terminal-name">
+                    Terminal: <strong>{mfaContainer.name}</strong>
+                </p>
+                <p class="mfa-description">
+                    {#if mfaAction === "unlock"}
+                        Enter your authenticator code to remove MFA protection
+                        from this terminal.
+                    {:else}
+                        This terminal is protected with MFA. Enter your
+                        authenticator code to access it.
+                    {/if}
+                </p>
+                <div class="mfa-input-group">
+                    <input
+                        type="text"
+                        class="mfa-input"
+                        bind:value={mfaCode}
+                        placeholder="000000"
+                        maxlength="6"
+                        autocomplete="one-time-code"
+                        inputmode="numeric"
+                        pattern="[0-9]*"
+                        oninput={(e) => {
+                            const target = e.target as HTMLInputElement;
+                            target.value = target.value.replace(/\D/g, "");
+                            mfaCode = target.value;
+                            if (target.value.length === 6) {
+                                handleMfaSubmit();
+                            }
+                        }}
+                        onkeydown={(e) => {
+                            if (e.key === "Enter" && mfaCode.length === 6) {
+                                handleMfaSubmit();
+                            }
+                        }}
+                        disabled={mfaLoading}
+                    />
+                </div>
+                {#if mfaError}
+                    <p class="mfa-error">{mfaError}</p>
+                {/if}
+            </div>
+            <div class="mfa-modal-footer">
+                <button
+                    class="btn btn-secondary"
+                    onclick={closeMfaModal}
+                    disabled={mfaLoading}
+                >
+                    Cancel
+                </button>
+                <button
+                    class="btn btn-primary"
+                    onclick={handleMfaSubmit}
+                    disabled={mfaLoading || mfaCode.length !== 6}
+                >
+                    {#if mfaLoading}
+                        <span class="spinner-sm"></span>
+                        Verifying...
+                    {:else}
+                        {mfaAction === "unlock" ? "Remove Lock" : "Verify"}
+                    {/if}
+                </button>
+            </div>
+        </div>
+    </div>
+{/if}
 
 <TerminalSettingsModal
     bind:show={showSettingsModal}
@@ -734,6 +980,32 @@
                             ></span>
                             {container.status}
                         </span>
+                        {#if container.mfa_locked && !isAgent}
+                            <span
+                                class="mfa-lock-badge"
+                                title="MFA Protected - requires authenticator code to access"
+                            >
+                                <svg
+                                    width="14"
+                                    height="14"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                >
+                                    <rect
+                                        x="3"
+                                        y="11"
+                                        width="18"
+                                        height="11"
+                                        rx="2"
+                                        ry="2"
+                                    />
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                </svg>
+                                <span>MFA</span>
+                            </span>
+                        {/if}
                     </div>
 
                     <div class="container-meta">
@@ -1055,6 +1327,74 @@
                                     Delete
                                 </button>
                             </div>
+                            <!-- MFA Lock row for running containers -->
+                            {#if userHasMfa}
+                                <div class="action-row mfa-row">
+                                    {#if container.mfa_locked}
+                                        <button
+                                            class="btn btn-secondary btn-sm flex-1 mfa-unlock-btn"
+                                            onclick={() =>
+                                                openMfaUnlockModal(container)}
+                                            disabled={isContainerLoading(
+                                                container.id,
+                                            )}
+                                            title="Remove MFA protection from terminal"
+                                        >
+                                            <svg
+                                                class="icon"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                stroke-width="2"
+                                            >
+                                                <rect
+                                                    x="3"
+                                                    y="11"
+                                                    width="18"
+                                                    height="11"
+                                                    rx="2"
+                                                    ry="2"
+                                                />
+                                                <path
+                                                    d="M7 11V7a5 5 0 0 1 9.9-1"
+                                                />
+                                            </svg>
+                                            Unlock MFA
+                                        </button>
+                                    {:else}
+                                        <button
+                                            class="btn btn-secondary btn-sm flex-1 mfa-lock-btn"
+                                            onclick={() =>
+                                                handleMfaLock(container)}
+                                            disabled={isContainerLoading(
+                                                container.id,
+                                            )}
+                                            title="Protect terminal with MFA - requires authenticator code to access"
+                                        >
+                                            <svg
+                                                class="icon"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                stroke-width="2"
+                                            >
+                                                <rect
+                                                    x="3"
+                                                    y="11"
+                                                    width="18"
+                                                    height="11"
+                                                    rx="2"
+                                                    ry="2"
+                                                />
+                                                <path
+                                                    d="M7 11V7a5 5 0 0 1 10 0v4"
+                                                />
+                                            </svg>
+                                            Lock with MFA
+                                        </button>
+                                    {/if}
+                                </div>
+                            {/if}
                         {:else if container.status === "stopped"}
                             <div class="action-row">
                                 <button
@@ -2124,5 +2464,178 @@
             opacity: 1;
             transform: translateY(0);
         }
+    }
+
+    /* MFA Lock Badge */
+    .mfa-lock-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        background: rgba(251, 191, 36, 0.15);
+        border: 1px solid rgba(251, 191, 36, 0.3);
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 500;
+        color: #fbbf24;
+        margin-left: 8px;
+    }
+
+    .mfa-lock-badge svg {
+        width: 12px;
+        height: 12px;
+    }
+
+    /* MFA Action Buttons */
+    .mfa-row {
+        margin-top: 4px;
+    }
+
+    .mfa-lock-btn,
+    .mfa-unlock-btn {
+        border-color: rgba(251, 191, 36, 0.3) !important;
+        color: #fbbf24 !important;
+    }
+
+    .mfa-lock-btn:hover,
+    .mfa-unlock-btn:hover {
+        background: rgba(251, 191, 36, 0.1) !important;
+        border-color: rgba(251, 191, 36, 0.5) !important;
+    }
+
+    /* MFA Modal */
+    .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        animation: fadeIn 0.15s ease;
+    }
+
+    .mfa-modal {
+        background: var(--bg-secondary, #111);
+        border: 1px solid var(--border, #333);
+        border-radius: 12px;
+        width: 100%;
+        max-width: 400px;
+        margin: 16px;
+        animation: slideUp 0.2s ease;
+    }
+
+    .mfa-modal-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 20px;
+        border-bottom: 1px solid var(--border, #333);
+    }
+
+    .mfa-modal-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        background: rgba(251, 191, 36, 0.15);
+        border-radius: 8px;
+        color: #fbbf24;
+    }
+
+    .mfa-modal-header h3 {
+        flex: 1;
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text, #e5e5e5);
+    }
+
+    .mfa-close-btn {
+        background: none;
+        border: none;
+        padding: 4px;
+        cursor: pointer;
+        color: var(--text-muted, #888);
+        border-radius: 4px;
+        transition: all 0.15s ease;
+    }
+
+    .mfa-close-btn:hover {
+        background: var(--bg-tertiary, #222);
+        color: var(--text, #e5e5e5);
+    }
+
+    .mfa-modal-body {
+        padding: 20px;
+    }
+
+    .mfa-terminal-name {
+        margin: 0 0 12px 0;
+        font-size: 13px;
+        color: var(--text-secondary, #aaa);
+    }
+
+    .mfa-terminal-name strong {
+        color: var(--text, #e5e5e5);
+    }
+
+    .mfa-description {
+        margin: 0 0 20px 0;
+        font-size: 14px;
+        color: var(--text-secondary, #aaa);
+        line-height: 1.5;
+    }
+
+    .mfa-input-group {
+        margin-bottom: 12px;
+    }
+
+    .mfa-input {
+        width: 100%;
+        padding: 14px 16px;
+        font-size: 24px;
+        font-family: "JetBrains Mono", monospace;
+        text-align: center;
+        letter-spacing: 8px;
+        background: var(--bg-tertiary, #1a1a1a);
+        border: 1px solid var(--border, #333);
+        border-radius: 8px;
+        color: var(--text, #e5e5e5);
+        outline: none;
+        transition: border-color 0.15s ease;
+    }
+
+    .mfa-input:focus {
+        border-color: #fbbf24;
+    }
+
+    .mfa-input::placeholder {
+        letter-spacing: normal;
+        font-size: 16px;
+        color: var(--text-muted, #666);
+    }
+
+    .mfa-error {
+        margin: 0;
+        padding: 8px 12px;
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: 6px;
+        font-size: 13px;
+        color: #ef4444;
+    }
+
+    .mfa-modal-footer {
+        display: flex;
+        gap: 12px;
+        padding: 16px 20px;
+        border-top: 1px solid var(--border, #333);
+        justify-content: flex-end;
+    }
+
+    .mfa-modal-footer .btn {
+        min-width: 100px;
     }
 </style>

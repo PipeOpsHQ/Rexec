@@ -11,19 +11,25 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/rexec/rexec/internal/auth"
 	"github.com/rexec/rexec/internal/models"
 	"github.com/rexec/rexec/internal/storage"
 )
 
 // SecurityHandler handles server-enforced screen lock endpoints.
 type SecurityHandler struct {
-	store     *storage.PostgresStore
-	jwtSecret []byte
+	store      *storage.PostgresStore
+	jwtSecret  []byte
+	mfaService *auth.MFAService
 }
 
 // NewSecurityHandler creates a new SecurityHandler.
 func NewSecurityHandler(store *storage.PostgresStore, jwtSecret []byte) *SecurityHandler {
-	return &SecurityHandler{store: store, jwtSecret: jwtSecret}
+	return &SecurityHandler{
+		store:      store,
+		jwtSecret:  jwtSecret,
+		mfaService: auth.NewMFAService("Rexec"),
+	}
 }
 
 // GetScreenLock returns the current screen lock settings for the user.
@@ -367,5 +373,265 @@ func (h *SecurityHandler) SetSingleSessionMode(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"single_session_mode": req.Enabled,
 		"message":             "Single session mode updated successfully",
+	})
+}
+
+// LockTerminalWithMFA locks a terminal/container with MFA protection.
+// Requires MFA to be enabled for the user.
+// POST /api/security/terminal/:id/mfa-lock
+func (h *SecurityHandler) LockTerminalWithMFA(c *gin.Context) {
+	userID := c.GetString("userID")
+	containerID := c.Param("id")
+
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	if containerID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "container ID is required"})
+		return
+	}
+
+	// Check if user has MFA enabled
+	user, err := h.store.GetUserByID(c.Request.Context(), userID)
+	if err != nil || user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
+		return
+	}
+
+	if !user.MFAEnabled {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "mfa_required",
+			"message": "MFA must be enabled to use terminal MFA lock. Enable MFA in your account settings first.",
+		})
+		return
+	}
+
+	// Verify container ownership
+	container, err := h.store.GetContainerByID(c.Request.Context(), containerID)
+	if err != nil || container == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "container not found"})
+		return
+	}
+
+	if container.UserID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+		return
+	}
+
+	// Set MFA lock on the container
+	if err := h.store.SetContainerMFALock(c.Request.Context(), containerID, true); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to lock terminal"})
+		return
+	}
+
+	// Log the action
+	h.store.CreateAuditLog(c.Request.Context(), &models.AuditLog{
+		ID:        uuid.New().String(),
+		UserID:    &userID,
+		Action:    "terminal_mfa_locked",
+		IPAddress: c.ClientIP(),
+		UserAgent: c.Request.UserAgent(),
+		Details:   "Container: " + containerID,
+		CreatedAt: time.Now(),
+	})
+
+	c.JSON(http.StatusOK, gin.H{
+		"mfa_locked": true,
+		"message":    "Terminal is now protected with MFA. You will need to enter your MFA code to access it.",
+	})
+}
+
+// UnlockTerminalWithMFA unlocks a terminal/container by verifying MFA code.
+// POST /api/security/terminal/:id/mfa-unlock
+func (h *SecurityHandler) UnlockTerminalWithMFA(c *gin.Context) {
+	userID := c.GetString("userID")
+	containerID := c.Param("id")
+
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	if containerID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "container ID is required"})
+		return
+	}
+
+	var req struct {
+		Code string `json:"code" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "MFA code is required"})
+		return
+	}
+
+	// Verify container ownership
+	container, err := h.store.GetContainerByID(c.Request.Context(), containerID)
+	if err != nil || container == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "container not found"})
+		return
+	}
+
+	if container.UserID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+		return
+	}
+
+	if !container.MFALocked {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "terminal is not MFA locked"})
+		return
+	}
+
+	// Get user's MFA secret and validate the code
+	secret, err := h.store.GetUserMFASecret(c.Request.Context(), userID)
+	if err != nil || secret == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "MFA not configured"})
+		return
+	}
+
+	if !h.mfaService.Validate(req.Code, secret) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid MFA code"})
+		return
+	}
+
+	// Unlock the container
+	if err := h.store.SetContainerMFALock(c.Request.Context(), containerID, false); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to unlock terminal"})
+		return
+	}
+
+	// Log the action
+	h.store.CreateAuditLog(c.Request.Context(), &models.AuditLog{
+		ID:        uuid.New().String(),
+		UserID:    &userID,
+		Action:    "terminal_mfa_unlocked",
+		IPAddress: c.ClientIP(),
+		UserAgent: c.Request.UserAgent(),
+		Details:   "Container: " + containerID,
+		CreatedAt: time.Now(),
+	})
+
+	c.JSON(http.StatusOK, gin.H{
+		"mfa_locked": false,
+		"message":    "Terminal unlocked successfully.",
+	})
+}
+
+// GetTerminalMFAStatus returns the MFA lock status of a terminal.
+// GET /api/security/terminal/:id/mfa-status
+func (h *SecurityHandler) GetTerminalMFAStatus(c *gin.Context) {
+	userID := c.GetString("userID")
+	containerID := c.Param("id")
+
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	if containerID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "container ID is required"})
+		return
+	}
+
+	// Verify container ownership
+	container, err := h.store.GetContainerByID(c.Request.Context(), containerID)
+	if err != nil || container == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "container not found"})
+		return
+	}
+
+	if container.UserID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+		return
+	}
+
+	// Check if user has MFA enabled (required for this feature)
+	user, err := h.store.GetUserByID(c.Request.Context(), userID)
+	if err != nil || user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"mfa_locked":      container.MFALocked,
+		"mfa_enabled":     user.MFAEnabled,
+		"can_use_feature": user.MFAEnabled,
+	})
+}
+
+// VerifyTerminalMFAAccess verifies MFA code for accessing a locked terminal without permanently unlocking it.
+// This is used when connecting to a terminal via WebSocket - validates access but keeps the lock.
+// POST /api/security/terminal/:id/mfa-verify
+func (h *SecurityHandler) VerifyTerminalMFAAccess(c *gin.Context) {
+	userID := c.GetString("userID")
+	containerID := c.Param("id")
+
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	if containerID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "container ID is required"})
+		return
+	}
+
+	var req struct {
+		Code string `json:"code" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "MFA code is required"})
+		return
+	}
+
+	// Verify container ownership
+	container, err := h.store.GetContainerByID(c.Request.Context(), containerID)
+	if err != nil || container == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "container not found"})
+		return
+	}
+
+	if container.UserID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+		return
+	}
+
+	if !container.MFALocked {
+		// Not locked, access granted automatically
+		c.JSON(http.StatusOK, gin.H{
+			"verified": true,
+			"message":  "Terminal is not MFA locked.",
+		})
+		return
+	}
+
+	// Get user's MFA secret and validate the code
+	secret, err := h.store.GetUserMFASecret(c.Request.Context(), userID)
+	if err != nil || secret == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "MFA not configured"})
+		return
+	}
+
+	if !h.mfaService.Validate(req.Code, secret) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid MFA code"})
+		return
+	}
+
+	// Log the access verification
+	h.store.CreateAuditLog(c.Request.Context(), &models.AuditLog{
+		ID:        uuid.New().String(),
+		UserID:    &userID,
+		Action:    "terminal_mfa_access_verified",
+		IPAddress: c.ClientIP(),
+		UserAgent: c.Request.UserAgent(),
+		Details:   "Container: " + containerID,
+		CreatedAt: time.Now(),
+	})
+
+	c.JSON(http.StatusOK, gin.H{
+		"verified": true,
+		"message":  "MFA verified. You can now access the terminal.",
 	})
 }

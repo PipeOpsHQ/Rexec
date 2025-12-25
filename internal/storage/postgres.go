@@ -312,6 +312,12 @@ func (s *PostgresStore) migrate() error {
 			ALTER TABLE audit_logs ALTER COLUMN user_id DROP NOT NULL;
 		EXCEPTION WHEN OTHERS THEN NULL;
 		END $$`,
+		`DO $$ BEGIN
+			IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+				WHERE table_name='containers' AND column_name='mfa_locked') THEN
+				ALTER TABLE containers ADD COLUMN mfa_locked BOOLEAN DEFAULT false;
+			END IF;
+		END $$`,
 	}
 
 	for _, query := range addColumns {
@@ -1129,6 +1135,7 @@ type ContainerRecord struct {
 	MemoryMB   int64     `db:"memory_mb"`
 	CPUShares  int64     `db:"cpu_shares"`
 	DiskMB     int64     `db:"disk_mb"`
+	MFALocked  bool      `db:"mfa_locked"`
 	CreatedAt  time.Time `db:"created_at"`
 	LastUsedAt time.Time `db:"last_used_at"`
 }
@@ -1163,7 +1170,7 @@ func (s *PostgresStore) GetContainersByUserID(ctx context.Context, userID string
 	query := `
 		SELECT id, user_id, name, image, COALESCE(role, 'standard') as role, status, docker_id, volume_name,
 		       COALESCE(memory_mb, 512) as memory_mb, COALESCE(cpu_shares, 512) as cpu_shares, COALESCE(disk_mb, 2048) as disk_mb,
-		       created_at, last_used_at
+		       COALESCE(mfa_locked, false) as mfa_locked, created_at, last_used_at
 		FROM containers WHERE user_id = $1 AND deleted_at IS NULL
 		ORDER BY created_at DESC
 	`
@@ -1188,6 +1195,7 @@ func (s *PostgresStore) GetContainersByUserID(ctx context.Context, userID string
 			&c.MemoryMB,
 			&c.CPUShares,
 			&c.DiskMB,
+			&c.MFALocked,
 			&c.CreatedAt,
 			&c.LastUsedAt,
 		)
@@ -1205,7 +1213,7 @@ func (s *PostgresStore) GetContainerByID(ctx context.Context, id string) (*Conta
 	query := `
 		SELECT id, user_id, name, image, COALESCE(role, 'standard') as role, status, docker_id, volume_name,
 		       COALESCE(memory_mb, 512) as memory_mb, COALESCE(cpu_shares, 512) as cpu_shares, COALESCE(disk_mb, 2048) as disk_mb,
-		       created_at, last_used_at
+		       COALESCE(mfa_locked, false) as mfa_locked, created_at, last_used_at
 		FROM containers WHERE id = $1 AND deleted_at IS NULL
 	`
 	row := s.db.QueryRowContext(ctx, query, id)
@@ -1221,6 +1229,7 @@ func (s *PostgresStore) GetContainerByID(ctx context.Context, id string) (*Conta
 		&c.MemoryMB,
 		&c.CPUShares,
 		&c.DiskMB,
+		&c.MFALocked,
 		&c.CreatedAt,
 		&c.LastUsedAt,
 	)
@@ -1239,7 +1248,7 @@ func (s *PostgresStore) GetContainerByUserAndDockerID(ctx context.Context, userI
 	query := `
 		SELECT id, user_id, name, image, COALESCE(role, 'standard') as role, status, docker_id, volume_name,
 		       COALESCE(memory_mb, 512) as memory_mb, COALESCE(cpu_shares, 512) as cpu_shares, COALESCE(disk_mb, 2048) as disk_mb,
-		       created_at, last_used_at
+		       COALESCE(mfa_locked, false) as mfa_locked, created_at, last_used_at
 		FROM containers WHERE user_id = $1 AND docker_id = $2 AND deleted_at IS NULL
 	`
 	row := s.db.QueryRowContext(ctx, query, userID, dockerID)
@@ -1255,6 +1264,7 @@ func (s *PostgresStore) GetContainerByUserAndDockerID(ctx context.Context, userI
 		&c.MemoryMB,
 		&c.CPUShares,
 		&c.DiskMB,
+		&c.MFALocked,
 		&c.CreatedAt,
 		&c.LastUsedAt,
 	)
@@ -1273,7 +1283,7 @@ func (s *PostgresStore) GetContainerByDockerID(ctx context.Context, dockerID str
 	query := `
 		SELECT id, user_id, name, image, COALESCE(role, 'standard') as role, status, docker_id, volume_name,
 		       COALESCE(memory_mb, 512) as memory_mb, COALESCE(cpu_shares, 512) as cpu_shares, COALESCE(disk_mb, 2048) as disk_mb,
-		       created_at, last_used_at
+		       COALESCE(mfa_locked, false) as mfa_locked, created_at, last_used_at
 		FROM containers WHERE docker_id = $1 AND deleted_at IS NULL
 	`
 	row := s.db.QueryRowContext(ctx, query, dockerID)
@@ -1289,6 +1299,7 @@ func (s *PostgresStore) GetContainerByDockerID(ctx context.Context, dockerID str
 		&c.MemoryMB,
 		&c.CPUShares,
 		&c.DiskMB,
+		&c.MFALocked,
 		&c.CreatedAt,
 		&c.LastUsedAt,
 	)
@@ -1306,6 +1317,20 @@ func (s *PostgresStore) UpdateContainerStatus(ctx context.Context, id, status st
 	query := `UPDATE containers SET status = $2, last_used_at = $3 WHERE id = $1 AND deleted_at IS NULL`
 	_, err := s.db.ExecContext(ctx, query, id, status, time.Now())
 	return err
+}
+
+// SetContainerMFALock sets the MFA lock status for a container
+func (s *PostgresStore) SetContainerMFALock(ctx context.Context, id string, locked bool) error {
+	query := `UPDATE containers SET mfa_locked = $2 WHERE id = $1 AND deleted_at IS NULL`
+	result, err := s.db.ExecContext(ctx, query, id, locked)
+	if err != nil {
+		return err
+	}
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("container not found")
+	}
+	return nil
 }
 
 // UpdateContainerDockerID updates a container's Docker ID (only for non-deleted containers)
@@ -1385,7 +1410,7 @@ func (s *PostgresStore) GetAllContainers(ctx context.Context) ([]*ContainerRecor
 	query := `
 		SELECT id, user_id, name, image, COALESCE(role, 'standard') as role, status, docker_id, volume_name,
 		       COALESCE(memory_mb, 512) as memory_mb, COALESCE(cpu_shares, 512) as cpu_shares, COALESCE(disk_mb, 2048) as disk_mb,
-		       created_at, last_used_at
+		       COALESCE(mfa_locked, false) as mfa_locked, created_at, last_used_at
 		FROM containers WHERE deleted_at IS NULL
 	`
 	rows, err := s.db.QueryContext(ctx, query)
@@ -1409,6 +1434,7 @@ func (s *PostgresStore) GetAllContainers(ctx context.Context) ([]*ContainerRecor
 			&c.MemoryMB,
 			&c.CPUShares,
 			&c.DiskMB,
+			&c.MFALocked,
 			&c.CreatedAt,
 			&c.LastUsedAt,
 		)

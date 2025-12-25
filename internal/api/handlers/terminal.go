@@ -589,6 +589,19 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 		return
 	}
 
+	// Check if terminal is MFA locked (only for owners, not collab users)
+	// Collab users inherit the owner's MFA lock but need to verify through a different flow
+	if isOwner && dbContainer != nil && dbContainer.MFALocked {
+		c.JSON(http.StatusLocked, gin.H{
+			"error":           "terminal is MFA protected",
+			"code":            "mfa_required",
+			"container_id":    dbContainer.ID,
+			"hint":            "This terminal is protected with MFA. Enter your authenticator code to access it.",
+			"action_required": "mfa_verify",
+		})
+		return
+	}
+
 	// Upgrade to WebSocket with subprotocol support
 	// Client sends: Sec-WebSocket-Protocol: rexec.v1, rexec.token.<token>
 	// Server should respond with the accepted protocol version

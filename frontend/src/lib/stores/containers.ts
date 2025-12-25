@@ -44,6 +44,7 @@ export interface Container {
   resources?: ContainerResources;
   portForwards?: PortForward[]; // New field for port forwards
   session_type?: string; // Session type: container, agent, gpu, ssh, custom
+  mfa_locked?: boolean; // Whether terminal requires MFA to access
   // Agent-specific fields
   os?: string;
   arch?: string;
@@ -1271,3 +1272,8 @@ export const creatingContainer = derived(
   containers,
   ($containers) => $containers.creating,
 );
+
+// Refresh containers list (silent fetch)
+export function refreshContainers() {
+  containers.fetchContainers(true);
+}
