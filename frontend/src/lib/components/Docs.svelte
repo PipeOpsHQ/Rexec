@@ -122,7 +122,7 @@
             icon: "shield",
             title: "MFA Support",
             description:
-                "Two-factor authentication using TOTP for additional account security.",
+                "Two-factor authentication using TOTP. Lock individual terminals with MFA for extra protection.",
         },
         {
             icon: "server",

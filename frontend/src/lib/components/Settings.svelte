@@ -385,7 +385,9 @@
                 throw new Error(data.error || "Verification failed");
             }
 
-            toast.success("MFA Enabled Successfully");
+            toast.success(
+                "MFA Enabled! You can now lock terminals with MFA from your dashboard.",
+            );
             auth.fetchProfile(); // Refresh profile to update mfaEnabled status
             showMFAModal = false;
         } catch (e: any) {
@@ -1042,9 +1044,12 @@
                     <label>Two-Factor Authentication</label>
                     <span class="setting-description">
                         {#if $auth.user?.mfaEnabled}
-                            MFA is enabled
+                            MFA is enabled — you can now lock individual
+                            terminals with MFA from the dashboard
                         {:else}
-                            Add an extra layer of security
+                            Add an extra layer of security. Once enabled, you
+                            can also protect individual terminals with MFA
+                            locks.
                         {/if}
                     </span>
                 </div>
@@ -1621,6 +1626,13 @@
                         Two-factor authentication adds an extra layer of
                         security to your account. You'll need an authenticator
                         app like Google Authenticator or Authy.
+                    </p>
+                    <p
+                        class="modal-text"
+                        style="margin-top: 12px; color: var(--text-muted); font-size: 13px;"
+                    >
+                        <strong>Bonus:</strong> Once enabled, you can also lock individual
+                        terminals with MFA from your dashboard for extra protection.
                     </p>
                 {:else if mfaStep === "setup"}
                     <div class="qr-container">
