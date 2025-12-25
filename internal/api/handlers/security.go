@@ -376,20 +376,46 @@ func (h *SecurityHandler) SetSingleSessionMode(c *gin.Context) {
 	})
 }
 
+// resolveContainerForMFA tries to find a container by DB ID or Docker ID.
+// Returns the container record and the DB ID to use for MFA lock operations.
+func (h *SecurityHandler) resolveContainerForMFA(c *gin.Context, idOrDockerID, userID string) (*storage.ContainerRecord, string, error) {
+	ctx := c.Request.Context()
+
+	// Try DB ID first
+	record, err := h.store.GetContainerByID(ctx, idOrDockerID)
+	if err == nil && record != nil {
+		if record.UserID != userID {
+			return nil, "", nil // Not owned by this user
+		}
+		return record, record.ID, nil
+	}
+
+	// Try Docker ID as fallback
+	record, err = h.store.GetContainerByDockerID(ctx, idOrDockerID)
+	if err == nil && record != nil {
+		if record.UserID != userID {
+			return nil, "", nil // Not owned by this user
+		}
+		return record, record.ID, nil
+	}
+
+	return nil, "", err
+}
+
 // LockTerminalWithMFA locks a terminal/container with MFA protection.
 // Requires MFA to be enabled for the user.
 // POST /api/security/terminal/:id/mfa-lock
 func (h *SecurityHandler) LockTerminalWithMFA(c *gin.Context) {
 	userID := c.GetString("userID")
-	containerID := c.Param("id")
+	terminalID := c.Param("id")
 
 	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 
-	if containerID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "container ID is required"})
+	if terminalID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "terminal ID is required"})
 		return
 	}
 
@@ -408,20 +434,52 @@ func (h *SecurityHandler) LockTerminalWithMFA(c *gin.Context) {
 		return
 	}
 
-	// Verify container ownership
-	container, err := h.store.GetContainerByID(c.Request.Context(), containerID)
+	// Handle agent terminals (id starts with "agent:")
+	if strings.HasPrefix(terminalID, "agent:") {
+		agentID := strings.TrimPrefix(terminalID, "agent:")
+		agent, err := h.store.GetAgent(c.Request.Context(), agentID)
+		if err != nil || agent == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "agent not found"})
+			return
+		}
+		if agent.UserID != userID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+			return
+		}
+
+		// Set MFA lock on the agent
+		if err := h.store.SetAgentMFALock(c.Request.Context(), agentID, true); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to lock terminal"})
+			return
+		}
+
+		// Log the action
+		h.store.CreateAuditLog(c.Request.Context(), &models.AuditLog{
+			ID:        uuid.New().String(),
+			UserID:    &userID,
+			Action:    "terminal_mfa_locked",
+			IPAddress: c.ClientIP(),
+			UserAgent: c.Request.UserAgent(),
+			Details:   "Agent: " + agentID,
+			CreatedAt: time.Now(),
+		})
+
+		c.JSON(http.StatusOK, gin.H{
+			"mfa_locked": true,
+			"message":    "Agent terminal is now protected with MFA.",
+		})
+		return
+	}
+
+	// Regular container - try to resolve by DB ID or Docker ID
+	container, dbID, err := h.resolveContainerForMFA(c, terminalID, userID)
 	if err != nil || container == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "container not found"})
 		return
 	}
 
-	if container.UserID != userID {
-		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
-		return
-	}
-
-	// Set MFA lock on the container
-	if err := h.store.SetContainerMFALock(c.Request.Context(), containerID, true); err != nil {
+	// Set MFA lock on the container using the DB ID
+	if err := h.store.SetContainerMFALock(c.Request.Context(), dbID, true); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to lock terminal"})
 		return
 	}
@@ -433,7 +491,7 @@ func (h *SecurityHandler) LockTerminalWithMFA(c *gin.Context) {
 		Action:    "terminal_mfa_locked",
 		IPAddress: c.ClientIP(),
 		UserAgent: c.Request.UserAgent(),
-		Details:   "Container: " + containerID,
+		Details:   "Container: " + dbID,
 		CreatedAt: time.Now(),
 	})
 
@@ -447,15 +505,15 @@ func (h *SecurityHandler) LockTerminalWithMFA(c *gin.Context) {
 // POST /api/security/terminal/:id/mfa-unlock
 func (h *SecurityHandler) UnlockTerminalWithMFA(c *gin.Context) {
 	userID := c.GetString("userID")
-	containerID := c.Param("id")
+	terminalID := c.Param("id")
 
 	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 
-	if containerID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "container ID is required"})
+	if terminalID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "terminal ID is required"})
 		return
 	}
 
@@ -467,15 +525,60 @@ func (h *SecurityHandler) UnlockTerminalWithMFA(c *gin.Context) {
 		return
 	}
 
-	// Verify container ownership
-	container, err := h.store.GetContainerByID(c.Request.Context(), containerID)
-	if err != nil || container == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "container not found"})
+	// Get user's MFA secret first (needed for both agent and container cases)
+	secret, err := h.store.GetUserMFASecret(c.Request.Context(), userID)
+	if err != nil || secret == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "MFA not configured"})
 		return
 	}
 
-	if container.UserID != userID {
-		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+	// Handle agent terminals (id starts with "agent:")
+	if strings.HasPrefix(terminalID, "agent:") {
+		agentID := strings.TrimPrefix(terminalID, "agent:")
+		agent, err := h.store.GetAgent(c.Request.Context(), agentID)
+		if err != nil || agent == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "agent not found"})
+			return
+		}
+		if agent.UserID != userID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+			return
+		}
+
+		// Verify MFA code
+		if !h.mfaService.Validate(req.Code, secret) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid MFA code"})
+			return
+		}
+
+		// Remove MFA lock from the agent
+		if err := h.store.SetAgentMFALock(c.Request.Context(), agentID, false); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to unlock terminal"})
+			return
+		}
+
+		// Log the action
+		h.store.CreateAuditLog(c.Request.Context(), &models.AuditLog{
+			ID:        uuid.New().String(),
+			UserID:    &userID,
+			Action:    "terminal_mfa_unlocked",
+			IPAddress: c.ClientIP(),
+			UserAgent: c.Request.UserAgent(),
+			Details:   "Agent: " + agentID,
+			CreatedAt: time.Now(),
+		})
+
+		c.JSON(http.StatusOK, gin.H{
+			"mfa_locked": false,
+			"message":    "Agent terminal MFA lock removed.",
+		})
+		return
+	}
+
+	// Regular container - try to resolve by DB ID or Docker ID
+	container, dbID, err := h.resolveContainerForMFA(c, terminalID, userID)
+	if err != nil || container == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "container not found"})
 		return
 	}
 
@@ -484,20 +587,15 @@ func (h *SecurityHandler) UnlockTerminalWithMFA(c *gin.Context) {
 		return
 	}
 
-	// Get user's MFA secret and validate the code
-	secret, err := h.store.GetUserMFASecret(c.Request.Context(), userID)
-	if err != nil || secret == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "MFA not configured"})
-		return
-	}
-
+	// Verify MFA code (secret already fetched above)
 	if !h.mfaService.Validate(req.Code, secret) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid MFA code"})
 		return
 	}
 
 	// Unlock the container
-	if err := h.store.SetContainerMFALock(c.Request.Context(), containerID, false); err != nil {
+	// Remove MFA lock from the container using the DB ID
+	if err := h.store.SetContainerMFALock(c.Request.Context(), dbID, false); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to unlock terminal"})
 		return
 	}
@@ -509,7 +607,7 @@ func (h *SecurityHandler) UnlockTerminalWithMFA(c *gin.Context) {
 		Action:    "terminal_mfa_unlocked",
 		IPAddress: c.ClientIP(),
 		UserAgent: c.Request.UserAgent(),
-		Details:   "Container: " + containerID,
+		Details:   "Container: " + terminalID,
 		CreatedAt: time.Now(),
 	})
 
@@ -523,34 +621,50 @@ func (h *SecurityHandler) UnlockTerminalWithMFA(c *gin.Context) {
 // GET /api/security/terminal/:id/mfa-status
 func (h *SecurityHandler) GetTerminalMFAStatus(c *gin.Context) {
 	userID := c.GetString("userID")
-	containerID := c.Param("id")
+	terminalID := c.Param("id")
 
 	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 
-	if containerID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "container ID is required"})
+	if terminalID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "terminal ID is required"})
 		return
 	}
 
-	// Verify container ownership
-	container, err := h.store.GetContainerByID(c.Request.Context(), containerID)
-	if err != nil || container == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "container not found"})
-		return
-	}
-
-	if container.UserID != userID {
-		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
-		return
-	}
-
-	// Check if user has MFA enabled (required for this feature)
+	// Check if user has MFA enabled
 	user, err := h.store.GetUserByID(c.Request.Context(), userID)
 	if err != nil || user == nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
+		return
+	}
+
+	// Handle agent terminals (id starts with "agent:")
+	if strings.HasPrefix(terminalID, "agent:") {
+		agentID := strings.TrimPrefix(terminalID, "agent:")
+		agent, err := h.store.GetAgent(c.Request.Context(), agentID)
+		if err != nil || agent == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "agent not found"})
+			return
+		}
+		if agent.UserID != userID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"mfa_locked":      agent.MFALocked,
+			"mfa_enabled":     user.MFAEnabled,
+			"can_use_feature": user.MFAEnabled,
+		})
+		return
+	}
+
+	// Regular container - try to resolve by DB ID or Docker ID
+	container, _, err := h.resolveContainerForMFA(c, terminalID, userID)
+	if err != nil || container == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "container not found"})
 		return
 	}
 
@@ -566,15 +680,15 @@ func (h *SecurityHandler) GetTerminalMFAStatus(c *gin.Context) {
 // POST /api/security/terminal/:id/mfa-verify
 func (h *SecurityHandler) VerifyTerminalMFAAccess(c *gin.Context) {
 	userID := c.GetString("userID")
-	containerID := c.Param("id")
+	terminalID := c.Param("id")
 
 	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 
-	if containerID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "container ID is required"})
+	if terminalID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "terminal ID is required"})
 		return
 	}
 
@@ -586,20 +700,66 @@ func (h *SecurityHandler) VerifyTerminalMFAAccess(c *gin.Context) {
 		return
 	}
 
-	// Verify container ownership
-	container, err := h.store.GetContainerByID(c.Request.Context(), containerID)
+	// Get user's MFA secret
+	user, err := h.store.GetUserByID(c.Request.Context(), userID)
+	if err != nil || user == nil || !user.MFAEnabled {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "MFA not configured"})
+		return
+	}
+
+	// Handle agent terminals (id starts with "agent:")
+	if strings.HasPrefix(terminalID, "agent:") {
+		agentID := strings.TrimPrefix(terminalID, "agent:")
+		agent, err := h.store.GetAgent(c.Request.Context(), agentID)
+		if err != nil || agent == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "agent not found"})
+			return
+		}
+		if agent.UserID != userID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+			return
+		}
+
+		if !agent.MFALocked {
+			c.JSON(http.StatusOK, gin.H{
+				"verified": true,
+				"message":  "Terminal is not MFA locked.",
+			})
+			return
+		}
+
+		// Verify MFA code
+		if !h.mfaService.Validate(req.Code, user.MFASecret) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid MFA code"})
+			return
+		}
+
+		// Log the access verification
+		h.store.CreateAuditLog(c.Request.Context(), &models.AuditLog{
+			ID:        uuid.New().String(),
+			UserID:    &userID,
+			Action:    "terminal_mfa_access_verified",
+			IPAddress: c.ClientIP(),
+			UserAgent: c.Request.UserAgent(),
+			Details:   "Agent: " + agentID,
+			CreatedAt: time.Now(),
+		})
+
+		c.JSON(http.StatusOK, gin.H{
+			"verified": true,
+			"message":  "MFA verified. You may now access the terminal.",
+		})
+		return
+	}
+
+	// Regular container - try to resolve by DB ID or Docker ID
+	container, dbID, err := h.resolveContainerForMFA(c, terminalID, userID)
 	if err != nil || container == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "container not found"})
 		return
 	}
 
-	if container.UserID != userID {
-		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
-		return
-	}
-
 	if !container.MFALocked {
-		// Not locked, access granted automatically
 		c.JSON(http.StatusOK, gin.H{
 			"verified": true,
 			"message":  "Terminal is not MFA locked.",
@@ -607,14 +767,8 @@ func (h *SecurityHandler) VerifyTerminalMFAAccess(c *gin.Context) {
 		return
 	}
 
-	// Get user's MFA secret and validate the code
-	secret, err := h.store.GetUserMFASecret(c.Request.Context(), userID)
-	if err != nil || secret == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "MFA not configured"})
-		return
-	}
-
-	if !h.mfaService.Validate(req.Code, secret) {
+	// Verify MFA code
+	if !h.mfaService.Validate(req.Code, user.MFASecret) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid MFA code"})
 		return
 	}
@@ -626,7 +780,7 @@ func (h *SecurityHandler) VerifyTerminalMFAAccess(c *gin.Context) {
 		Action:    "terminal_mfa_access_verified",
 		IPAddress: c.ClientIP(),
 		UserAgent: c.Request.UserAgent(),
-		Details:   "Container: " + containerID,
+		Details:   "Container: " + dbID,
 		CreatedAt: time.Now(),
 	})
 

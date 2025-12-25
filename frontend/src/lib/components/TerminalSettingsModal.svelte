@@ -1734,13 +1734,6 @@
         align-items: center;
     }
 
-    .mfa-code-input {
-        width: 100px !important;
-        text-align: center;
-        font-family: monospace;
-        letter-spacing: 2px;
-    }
-
     .mfa-error {
         font-size: 11px;
         color: var(--error, #ef4444);
@@ -1748,15 +1741,19 @@
 
     .mfa-lock-btn,
     .mfa-unlock-btn {
-        display: flex;
+        display: inline-flex;
         align-items: center;
-        gap: 6px;
+        gap: 4px;
+        padding: 4px 10px !important;
+        font-size: 11px !important;
+        border-radius: 4px;
+        white-space: nowrap;
     }
 
     .mfa-lock-btn .icon,
     .mfa-unlock-btn .icon {
-        width: 14px;
-        height: 14px;
+        width: 12px;
+        height: 12px;
     }
 
     .mfa-lock-btn {
@@ -1771,9 +1768,19 @@
 
     .mfa-unlock-btn {
         border-color: rgba(251, 191, 36, 0.3) !important;
+        color: rgb(251, 191, 36) !important;
     }
 
     .mfa-unlock-btn:hover:not(:disabled) {
         background: rgba(251, 191, 36, 0.1) !important;
+    }
+
+    .mfa-code-input {
+        width: 80px !important;
+        padding: 4px 8px !important;
+        font-size: 12px !important;
+        text-align: center;
+        font-family: monospace;
+        letter-spacing: 2px;
     }
 </style>

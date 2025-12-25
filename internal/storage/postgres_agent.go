@@ -22,6 +22,7 @@ type Agent struct {
 	Distro      string                 `json:"distro,omitempty"`
 	Tags        []string               `json:"tags,omitempty"`
 	Status      string                 `json:"status"`
+	MFALocked   bool                   `json:"mfa_locked"`
 	ConnectedAt time.Time              `json:"connected_at,omitempty"`
 	LastPing    time.Time              `json:"last_ping,omitempty"`
 	CreatedAt   time.Time              `json:"created_at"`
@@ -45,11 +46,11 @@ func (s *PostgresStore) CreateAgentsTable(ctx context.Context) error {
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 	);
-	
+
 	CREATE INDEX IF NOT EXISTS idx_agents_user_id ON agents(user_id);
-	
+
 	-- Add distro column if it doesn't exist (migration)
-	DO $$ 
+	DO $$
 	BEGIN
 		IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'agents' AND column_name = 'distro') THEN
 			ALTER TABLE agents ADD COLUMN distro VARCHAR(100);
@@ -75,8 +76,9 @@ func (s *PostgresStore) CreateAgent(ctx context.Context, id, userID, name, descr
 // GetAgent retrieves an agent by ID
 func (s *PostgresStore) GetAgent(ctx context.Context, id string) (*Agent, error) {
 	query := `
-	SELECT id, user_id, name, COALESCE(description, ''), COALESCE(os, ''), COALESCE(arch, ''), 
-	       COALESCE(shell, ''), COALESCE(distro, ''), tags, created_at, updated_at, system_info
+	SELECT id, user_id, name, COALESCE(description, ''), COALESCE(os, ''), COALESCE(arch, ''),
+	       COALESCE(shell, ''), COALESCE(distro, ''), tags, COALESCE(mfa_locked, false),
+	       created_at, updated_at, system_info
 	FROM agents
 	WHERE id = $1
 	`
@@ -88,7 +90,7 @@ func (s *PostgresStore) GetAgent(ctx context.Context, id string) (*Agent, error)
 	err := s.db.QueryRowContext(ctx, query, id).Scan(
 		&agent.ID, &agent.UserID, &agent.Name, &agent.Description,
 		&agent.OS, &agent.Arch, &agent.Shell, &agent.Distro, &tags,
-		&agent.CreatedAt, &agent.UpdatedAt, &systemInfoJSON,
+		&agent.MFALocked, &agent.CreatedAt, &agent.UpdatedAt, &systemInfoJSON,
 	)
 
 	if err == sql.ErrNoRows {
@@ -106,10 +108,17 @@ func (s *PostgresStore) GetAgent(ctx context.Context, id string) (*Agent, error)
 	return &agent, nil
 }
 
+// SetAgentMFALock sets the MFA lock status for an agent
+func (s *PostgresStore) SetAgentMFALock(ctx context.Context, id string, locked bool) error {
+	query := `UPDATE agents SET mfa_locked = $2, updated_at = NOW() WHERE id = $1`
+	_, err := s.db.ExecContext(ctx, query, id, locked)
+	return err
+}
+
 // GetAgentsByUser retrieves all agents for a user
 func (s *PostgresStore) GetAgentsByUser(ctx context.Context, userID string) ([]*Agent, error) {
 	query := `
-	SELECT id, user_id, name, COALESCE(description, ''), COALESCE(os, ''), COALESCE(arch, ''), 
+	SELECT id, user_id, name, COALESCE(description, ''), COALESCE(os, ''), COALESCE(arch, ''),
 	       COALESCE(shell, ''), COALESCE(distro, ''), tags, created_at, updated_at, last_heartbeat, COALESCE(connected_instance_id, ''), system_info
 	FROM agents
 	WHERE user_id = $1
@@ -228,8 +237,8 @@ func (s *PostgresStore) DisconnectAgent(ctx context.Context, id string) error {
 // GetAgentConnectedInstance returns the instance ID an agent is connected to, if online
 func (s *PostgresStore) GetAgentConnectedInstance(ctx context.Context, id string) (string, error) {
 	query := `
-	SELECT connected_instance_id 
-	FROM agents 
+	SELECT connected_instance_id
+	FROM agents
 	WHERE id = $1 AND last_heartbeat > NOW() - INTERVAL '2 minutes'
 	`
 	var instanceID sql.NullString
@@ -246,7 +255,7 @@ func (s *PostgresStore) GetAgentConnectedInstance(ctx context.Context, id string
 // GetAllAgents retrieves all agents (admin only)
 func (s *PostgresStore) GetAllAgents(ctx context.Context) ([]*Agent, error) {
 	query := `
-	SELECT a.id, a.user_id, COALESCE(u.username, 'Unknown'), a.name, COALESCE(a.description, ''), COALESCE(a.os, ''), COALESCE(a.arch, ''), 
+	SELECT a.id, a.user_id, COALESCE(u.username, 'Unknown'), a.name, COALESCE(a.description, ''), COALESCE(a.os, ''), COALESCE(a.arch, ''),
 	       COALESCE(a.shell, ''), COALESCE(a.distro, ''), a.tags, a.created_at, a.updated_at, a.last_heartbeat, COALESCE(a.connected_instance_id, ''), a.system_info
 	FROM agents a
 	LEFT JOIN users u ON a.user_id = u.id

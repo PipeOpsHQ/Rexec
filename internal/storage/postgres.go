@@ -318,6 +318,12 @@ func (s *PostgresStore) migrate() error {
 				ALTER TABLE containers ADD COLUMN mfa_locked BOOLEAN DEFAULT false;
 			END IF;
 		END $$`,
+		`DO $$ BEGIN
+			IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+				WHERE table_name='agents' AND column_name='mfa_locked') THEN
+				ALTER TABLE agents ADD COLUMN mfa_locked BOOLEAN DEFAULT false;
+			END IF;
+		END $$`,
 	}
 
 	for _, query := range addColumns {
