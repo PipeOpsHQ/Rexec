@@ -939,7 +939,7 @@
                             ></span>
                             {container.status}
                         </span>
-                        {#if container.mfa_locked && !isAgent}
+                        {#if container.mfa_locked}
                             <span
                                 class="mfa-lock-badge"
                                 title="MFA Protected - requires authenticator code to access"
