@@ -101,6 +101,7 @@ type Container struct {
 	Status    string `json:"status"`
 	Role      string `json:"role"`
 	CreatedAt string `json:"created_at"`
+	MFALocked bool   `json:"mfa_locked"`
 }
 
 type Snippet struct {
@@ -116,7 +117,11 @@ type Snippet struct {
 // List item implementations
 func (c Container) Title() string { return c.Name }
 func (c Container) Description() string {
-	return fmt.Sprintf("%s • %s • %s", c.Image, c.Status, c.Role)
+	lockIcon := ""
+	if c.MFALocked {
+		lockIcon = "🔒 "
+	}
+	return fmt.Sprintf("%s%s • %s • %s", lockIcon, c.Image, c.Status, c.Role)
 }
 func (c Container) FilterValue() string { return c.Name }
 
@@ -133,6 +138,7 @@ const (
 	ViewSnippets
 	ViewTerminal
 	ViewCreate
+	ViewMFAPrompt
 )
 
 // Messages
@@ -141,6 +147,8 @@ type snippetsMsg []Snippet
 type errorMsg error
 type terminalOutputMsg string
 type tickMsg time.Time
+type mfaVerifiedMsg struct{ containerID string }
+type mfaFailedMsg struct{ err string }
 
 // Model
 type model struct {
@@ -167,6 +175,11 @@ type model struct {
 	terminalConn   *websocket.Conn
 	terminalOutput string
 	viewport       viewport.Model
+
+	// MFA
+	mfaInput       string
+	mfaContainerID string
+	mfaError       string
 }
 
 func initialModel() model {
@@ -244,17 +257,53 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "c":
 			return m, createTerminal(m.config)
 		case "enter":
+			if m.view == ViewMFAPrompt {
+				// Submit MFA code
+				if len(m.mfaInput) == 6 {
+					return m, verifyMFA(m.config, m.mfaContainerID, m.mfaInput)
+				}
+				m.mfaError = "Enter a 6-digit code"
+				return m, nil
+			}
 			if m.view == ViewTerminals && len(m.containers) > 0 {
 				idx := m.terminalList.Index()
 				if idx >= 0 && idx < len(m.containers) {
 					container := m.containers[idx]
+					if container.MFALocked {
+						m.view = ViewMFAPrompt
+						m.mfaContainerID = container.ID
+						m.mfaInput = ""
+						m.mfaError = ""
+						return m, nil
+					}
 					return m, connectToTerminal(m.config, container.ID)
 				}
 			}
-		case "1", "2", "3", "4", "5", "6", "7", "8", "9":
-			idx := int(msg.String()[0] - '1')
-			if idx < len(m.containers) {
-				return m, connectToTerminal(m.config, m.containers[idx].ID)
+		case "backspace":
+			if m.view == ViewMFAPrompt && len(m.mfaInput) > 0 {
+				m.mfaInput = m.mfaInput[:len(m.mfaInput)-1]
+				return m, nil
+			}
+		case "0", "1", "2", "3", "4", "5", "6", "7", "8", "9":
+			// MFA input takes priority
+			if m.view == ViewMFAPrompt && len(m.mfaInput) < 6 {
+				m.mfaInput += msg.String()
+				return m, nil
+			}
+			// Quick connect from dashboard (1-9 keys, not 0)
+			if m.view == ViewDashboard && msg.String() != "0" {
+				idx := int(msg.String()[0] - '1')
+				if idx < len(m.containers) {
+					container := m.containers[idx]
+					if container.MFALocked {
+						m.view = ViewMFAPrompt
+						m.mfaContainerID = container.ID
+						m.mfaInput = ""
+						m.mfaError = ""
+						return m, nil
+					}
+					return m, connectToTerminal(m.config, container.ID)
+				}
 			}
 		}
 
@@ -284,6 +333,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case errorMsg:
 		m.loading = false
 		m.err = msg
+
+	case mfaVerifiedMsg:
+		m.view = ViewDashboard
+		m.mfaInput = ""
+		m.mfaError = ""
+		return m, connectToTerminal(m.config, msg.containerID)
+
+	case mfaFailedMsg:
+		m.mfaError = msg.err
+		m.mfaInput = ""
 
 	case spinner.TickMsg:
 		var cmd tea.Cmd
@@ -326,6 +385,8 @@ func (m model) View() string {
 		s.WriteString(m.terminalList.View())
 	case ViewSnippets:
 		s.WriteString(m.snippetList.View())
+	case ViewMFAPrompt:
+		s.WriteString(m.renderMFAPrompt())
 	}
 
 	// Footer/Help
@@ -339,8 +400,8 @@ func (m model) renderHeader() string {
 	logo := `
   ██████╗ ███████╗██╗  ██╗███████╗ ██████╗
   ██╔══██╗██╔════╝╚██╗██╔╝██╔════╝██╔════╝
-  ██████╔╝█████╗   ╚███╔╝ █████╗  ██║     
-  ██╔══██╗██╔══╝   ██╔██╗ ██╔══╝  ██║     
+  ██████╔╝█████╗   ╚███╔╝ █████╗  ██║
+  ██╔══██╗██╔══╝   ██╔██╗ ██╔══╝  ██║
   ██║  ██║███████╗██╔╝ ██╗███████╗╚██████╗
   ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚══════╝ ╚═════╝`
 
@@ -438,6 +499,39 @@ func (m model) renderDashboard() string {
 	return s.String()
 }
 
+func (m model) renderMFAPrompt() string {
+	var s strings.Builder
+
+	s.WriteString("\n\n")
+	s.WriteString(titleStyle.Render("  🔒 MFA Required"))
+	s.WriteString("\n\n")
+	s.WriteString(dimStyle.Render("  This terminal is protected with MFA."))
+	s.WriteString("\n")
+	s.WriteString(dimStyle.Render("  Enter your 6-digit authenticator code:"))
+	s.WriteString("\n\n")
+
+	// Display input with masked/visible digits
+	codeDisplay := "  "
+	for i := 0; i < 6; i++ {
+		if i < len(m.mfaInput) {
+			codeDisplay += lipgloss.NewStyle().Foreground(primaryColor).Bold(true).Render(string(m.mfaInput[i])) + " "
+		} else {
+			codeDisplay += dimStyle.Render("_") + " "
+		}
+	}
+	s.WriteString(codeDisplay)
+	s.WriteString("\n\n")
+
+	if m.mfaError != "" {
+		s.WriteString(errorStyle.Render("  " + m.mfaError))
+		s.WriteString("\n")
+	}
+
+	s.WriteString(dimStyle.Render("  Press Enter to verify • Esc to cancel"))
+
+	return s.String()
+}
+
 func (m model) renderHelp() string {
 	var keys []string
 
@@ -458,6 +552,12 @@ func (m model) renderHelp() string {
 			"/ filter",
 			"esc back",
 			"q quit",
+		}
+	case ViewMFAPrompt:
+		keys = []string{
+			"0-9 enter code",
+			"enter verify",
+			"esc cancel",
 		}
 	}
 
@@ -528,6 +628,37 @@ func connectToTerminal(cfg *Config, containerID string) tea.Cmd {
 		cmd.Stderr = os.Stderr
 		cmd.Run()
 		return nil
+	}
+}
+
+func verifyMFA(cfg *Config, containerID, code string) tea.Cmd {
+	return func() tea.Msg {
+		body := map[string]interface{}{
+			"code": code,
+		}
+
+		data, err := apiRequest(cfg, "POST", "/api/security/terminal/"+containerID+"/mfa-verify", body)
+		if err != nil {
+			return mfaFailedMsg{err: "Failed to verify MFA"}
+		}
+
+		var resp struct {
+			Verified bool   `json:"verified"`
+			Error    string `json:"error"`
+		}
+		if err := json.Unmarshal(data, &resp); err != nil {
+			return mfaFailedMsg{err: "Invalid response"}
+		}
+
+		if resp.Error != "" {
+			return mfaFailedMsg{err: resp.Error}
+		}
+
+		if !resp.Verified {
+			return mfaFailedMsg{err: "Invalid MFA code"}
+		}
+
+		return mfaVerifiedMsg{containerID: containerID}
 	}
 }
 

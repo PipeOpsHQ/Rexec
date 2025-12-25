@@ -83,6 +83,7 @@ type AgentConnection struct {
 	Tags        []string  `json:"tags,omitempty"`
 	UserID      string    `json:"user_id"`
 	Status      string    `json:"status"`
+	MFALocked   bool      `json:"mfa_locked"`
 	CreatedAt   time.Time `json:"created_at"`
 	ConnectedAt time.Time `json:"connected_at"`
 	LastPing    time.Time `json:"last_ping"`
@@ -700,6 +701,7 @@ func (h *AgentHandler) HandleAgentWebSocket(c *gin.Context) {
 		Distro:            c.GetHeader("X-Agent-Distro"),
 		UserID:            userID,
 		Status:            "online",
+		MFALocked:         agent.MFALocked,
 		CreatedAt:         agent.CreatedAt,
 		ConnectedAt:       time.Now(),
 		LastPing:          time.Now(),
@@ -1375,6 +1377,7 @@ func (h *AgentHandler) GetOnlineAgentsForUser(userID string) []gin.H {
 			"shell":        agent.Shell,
 			"distro":       agent.Distro,
 			"description":  agent.Description,
+			"mfa_locked":   agent.MFALocked,
 		}
 
 		// Calculate idle time only if we have a last ping
@@ -1485,6 +1488,7 @@ func (h *AgentHandler) buildAgentData(agent *AgentConnection) gin.H {
 		"arch":         agent.Arch,
 		"shell":        agent.Shell,
 		"distro":       agent.Distro,
+		"mfa_locked":   agent.MFALocked,
 	}
 
 	resources := gin.H{
