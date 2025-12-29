@@ -221,7 +221,7 @@ func (g *Gateway) TeaHandler(sess ssh.Session) (tea.Model, []tea.ProgramOption) 
 	fingerprint, _ := ctx.Value(ctxKeyFingerprint).(string)
 
 	// Get terminal size
-	pty, _, _ := sess.Pty()
+	pty, winCh, _ := sess.Pty()
 	width := pty.Window.Width
 	height := pty.Window.Height
 
@@ -246,9 +246,23 @@ func (g *Gateway) TeaHandler(sess ssh.Session) (tea.Model, []tea.ProgramOption) 
 		Height:      height,
 	})
 
+	// Pass SSH session I/O to the model for terminal bridging
+	model.SessionStdin = sess
+	model.SessionStdout = sess
+
+	// Handle window size changes
+	go func() {
+		for win := range winCh {
+			// Window resize events could be forwarded to the bridge if active
+			_ = win
+		}
+	}()
+
 	return model, []tea.ProgramOption{
 		tea.WithAltScreen(),
 		tea.WithMouseCellMotion(),
+		tea.WithInput(sess),
+		tea.WithOutput(sess),
 	}
 }
 

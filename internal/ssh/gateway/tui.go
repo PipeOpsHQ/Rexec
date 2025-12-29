@@ -1,7 +1,9 @@
 package gateway
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -80,6 +82,7 @@ const (
 	ViewSnippets
 	ViewLinkAccount
 	ViewTerminal
+	ViewConnecting
 )
 
 // ModelConfig holds configuration for the TUI model
@@ -123,6 +126,18 @@ type Model struct {
 	// Link account
 	linkInput textinput.Model
 	linkError string
+
+	// Terminal connection
+	activeTerminal  *Terminal
+	activeAgent     *Agent
+	terminalBridge  *TerminalBridge
+	bridgeCtxCancel context.CancelFunc
+	connectionError string
+	terminalOutput  string
+
+	// SSH session I/O (set by the gateway)
+	SessionStdin  io.Reader
+	SessionStdout io.Writer
 
 	// UI state
 	loading bool
@@ -174,6 +189,9 @@ type snippetsMsg []Snippet
 type errMsg struct{ err error }
 type linkSuccessMsg struct{}
 type linkFailMsg struct{ err string }
+type terminalConnectedMsg struct{ bridge *TerminalBridge }
+type terminalDisconnectedMsg struct{ err error }
+type terminalOutputMsg struct{ data string }
 
 // NewModel creates a new TUI model
 func NewModel(cfg ModelConfig) Model {
@@ -339,6 +357,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case linkFailMsg:
 		m.linkError = msg.err
+
+	case terminalConnectedMsg:
+		m.terminalBridge = msg.bridge
+		m.view = ViewTerminal
+		m.connectionError = ""
+		// Start the bridge in a goroutine and return when it's done
+		return m, m.runTerminalBridge()
+
+	case terminalDisconnectedMsg:
+		m.terminalBridge = nil
+		m.view = ViewDashboard
+		if msg.err != nil {
+			m.connectionError = msg.err.Error()
+		}
+		m.activeTerminal = nil
+		m.activeAgent = nil
+
+	case terminalOutputMsg:
+		m.terminalOutput += msg.data
 	}
 
 	// Update sub-models based on view
@@ -470,8 +507,10 @@ func (m Model) handleTerminalListKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "enter":
 		if item, ok := m.terminalList.SelectedItem().(Terminal); ok {
-			// TODO: Connect to terminal
-			_ = item
+			m.activeTerminal = &item
+			m.view = ViewConnecting
+			m.connectionError = ""
+			return m, m.connectToTerminal(item.ID)
 		}
 	case "r":
 		if m.apiClient != nil {
@@ -482,12 +521,37 @@ func (m Model) handleTerminalListKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m Model) connectToTerminal(containerID string) tea.Cmd {
+	return func() tea.Msg {
+		if m.SessionStdin == nil || m.SessionStdout == nil {
+			return terminalDisconnectedMsg{err: fmt.Errorf("SSH session I/O not available")}
+		}
+
+		bridge, err := NewTerminalBridge(BridgeConfig{
+			APIURL:      m.config.APIURL,
+			Token:       m.config.Token,
+			ContainerID: containerID,
+			Cols:        m.width,
+			Rows:        m.height,
+			Stdin:       m.SessionStdin,
+			Stdout:      m.SessionStdout,
+		})
+		if err != nil {
+			return terminalDisconnectedMsg{err: err}
+		}
+
+		return terminalConnectedMsg{bridge: bridge}
+	}
+}
+
 func (m Model) handleAgentListKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "enter":
 		if item, ok := m.agentList.SelectedItem().(Agent); ok {
-			// TODO: Connect to agent
-			_ = item
+			m.activeAgent = &item
+			m.view = ViewConnecting
+			m.connectionError = ""
+			return m, m.connectToAgent(item.ID)
 		}
 	case "r":
 		if m.apiClient != nil {
@@ -495,6 +559,28 @@ func (m Model) handleAgentListKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 	return m, nil
+}
+
+func (m Model) connectToAgent(agentID string) tea.Cmd {
+	return func() tea.Msg {
+		if m.SessionStdin == nil || m.SessionStdout == nil {
+			return terminalDisconnectedMsg{err: fmt.Errorf("SSH session I/O not available")}
+		}
+
+		bridge, err := NewAgentBridge(BridgeConfig{
+			APIURL: m.config.APIURL,
+			Token:  m.config.Token,
+			Cols:   m.width,
+			Rows:   m.height,
+			Stdin:  m.SessionStdin,
+			Stdout: m.SessionStdout,
+		}, agentID)
+		if err != nil {
+			return terminalDisconnectedMsg{err: err}
+		}
+
+		return terminalConnectedMsg{bridge: bridge.TerminalBridge}
+	}
 }
 
 func (m Model) handleSnippetListKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -527,6 +613,11 @@ func (m Model) handleLinkAccountKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // View implements tea.Model
 func (m Model) View() string {
+	// Terminal view is special - don't render TUI chrome
+	if m.view == ViewTerminal {
+		return "" // Terminal bridge takes over the session directly
+	}
+
 	var b strings.Builder
 
 	// Header
@@ -545,6 +636,14 @@ func (m Model) View() string {
 		b.WriteString(m.renderSnippetList())
 	case ViewLinkAccount:
 		b.WriteString(m.renderLinkAccount())
+	case ViewConnecting:
+		b.WriteString(m.renderConnecting())
+	}
+
+	// Show connection error if any
+	if m.connectionError != "" {
+		b.WriteString("\n")
+		b.WriteString(errorStyle.Render("Connection error: " + m.connectionError))
 	}
 
 	// Footer
@@ -552,6 +651,39 @@ func (m Model) View() string {
 	b.WriteString(m.renderHelp())
 
 	return b.String()
+}
+
+func (m Model) renderConnecting() string {
+	var b strings.Builder
+	b.WriteString("\n")
+	b.WriteString(m.spinner.View())
+
+	if m.activeTerminal != nil {
+		b.WriteString(fmt.Sprintf(" Connecting to terminal %s...", m.activeTerminal.Name))
+	} else if m.activeAgent != nil {
+		b.WriteString(fmt.Sprintf(" Connecting to agent %s...", m.activeAgent.Name))
+	} else {
+		b.WriteString(" Connecting...")
+	}
+
+	b.WriteString("\n\n")
+	b.WriteString(dimStyle.Render("Press Ctrl+] to return to dashboard"))
+
+	return b.String()
+}
+
+func (m Model) runTerminalBridge() tea.Cmd {
+	return func() tea.Msg {
+		if m.terminalBridge == nil {
+			return terminalDisconnectedMsg{err: fmt.Errorf("no bridge available")}
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		err := m.terminalBridge.Start(ctx)
+		return terminalDisconnectedMsg{err: err}
+	}
 }
 
 func (m Model) renderHeader() string {
@@ -689,6 +821,10 @@ func (m Model) renderHelp() string {
 		keys = []string{"↑/↓ navigate", "enter select", "r refresh", "esc back", "q quit"}
 	case ViewLinkAccount:
 		keys = []string{"enter submit", "esc cancel"}
+	case ViewConnecting:
+		keys = []string{"Ctrl+] cancel"}
+	case ViewTerminal:
+		keys = []string{"Ctrl+] return to dashboard"}
 	}
 
 	help := strings.Join(keys, " • ")

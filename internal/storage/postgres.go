@@ -1118,6 +1118,79 @@ func (s *PostgresStore) DeleteSSHKey(ctx context.Context, id string) error {
 	return err
 }
 
+// UpdateSSHKeyLastUsed updates the last_used_at timestamp for an SSH key
+func (s *PostgresStore) UpdateSSHKeyLastUsed(ctx context.Context, id string) error {
+	query := `UPDATE ssh_keys SET last_used_at = NOW() WHERE id = $1`
+	_, err := s.db.ExecContext(ctx, query, id)
+	return err
+}
+
+// GetUserByUsername retrieves a user by their username
+func (s *PostgresStore) GetUserByUsername(ctx context.Context, username string) (*models.User, error) {
+	var user models.User
+	var pipeopsID sql.NullString
+	var mfaEnabled bool
+	var mfaSecret string
+	var screenLockHash string
+	var screenLockEnabled bool
+	var lockAfterMinutes int
+	var lockRequiredSince sql.NullTime
+	var allowedIPs string
+	var firstName, lastName sql.NullString
+
+	query := `
+		SELECT id, email, username, tier, COALESCE(is_admin, false),
+		       COALESCE(pipeops_id, ''), COALESCE(mfa_enabled, false), COALESCE(mfa_secret, ''),
+		       COALESCE(screen_lock_hash, ''), COALESCE(screen_lock_enabled, false), COALESCE(lock_after_minutes, 5),
+		       lock_required_since,
+		       COALESCE(allowed_ips, ''), COALESCE(first_name, ''), COALESCE(last_name, ''), created_at, updated_at
+		FROM users WHERE username = $1
+	`
+	row := s.db.QueryRowContext(ctx, query, username)
+	err := row.Scan(
+		&user.ID,
+		&user.Email,
+		&user.Username,
+		&user.Tier,
+		&user.IsAdmin,
+		&pipeopsID,
+		&mfaEnabled,
+		&mfaSecret,
+		&screenLockHash,
+		&screenLockEnabled,
+		&lockAfterMinutes,
+		&lockRequiredSince,
+		&allowedIPs,
+		&firstName,
+		&lastName,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("user not found")
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	user.PipeOpsID = pipeopsID.String
+	user.MFAEnabled = mfaEnabled
+	user.MFASecret = mfaSecret
+	user.ScreenLockHash = screenLockHash
+	user.ScreenLockEnabled = screenLockEnabled
+	user.LockAfterMinutes = lockAfterMinutes
+	if lockRequiredSince.Valid {
+		user.LockRequiredSince = &lockRequiredSince.Time
+	}
+	user.FirstName = firstName.String
+	user.LastName = lastName.String
+	if allowedIPs != "" {
+		user.AllowedIPs = strings.Split(allowedIPs, ",")
+	}
+
+	return &user, nil
+}
+
 // TouchSSHKey updates the last_used_at timestamp
 func (s *PostgresStore) TouchSSHKey(ctx context.Context, id string) error {
 	query := `UPDATE ssh_keys SET last_used_at = $2 WHERE id = $1`

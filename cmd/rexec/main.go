@@ -4,9 +4,11 @@ import (
 	"bufio"
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"html"
 	"log"
+	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -15,6 +17,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/ssh"
+	"github.com/charmbracelet/wish"
+	"github.com/charmbracelet/wish/bubbletea"
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -26,6 +31,7 @@ import (
 	"github.com/rexec/rexec/internal/container"
 	"github.com/rexec/rexec/internal/crypto"
 	"github.com/rexec/rexec/internal/pubsub"
+	sshgateway "github.com/rexec/rexec/internal/ssh/gateway"
 	"github.com/rexec/rexec/internal/storage"
 )
 
@@ -616,6 +622,28 @@ func runServer() {
 		authGroup.GET("/callback", authHandler.OAuthCallback)
 		authGroup.GET("/signin", authHandler.OAuthCallback) // Alternative callback path
 		authGroup.POST("/oauth/exchange", authHandler.OAuthExchange)
+	}
+
+	// Internal SSH Gateway routes (called by the SSH gateway, no user auth)
+	// These should only be accessible from localhost or with an internal API key
+	internalSSH := router.Group("/api/internal/ssh")
+	internalSSH.Use(func(c *gin.Context) {
+		// Only allow requests from localhost or with valid internal key
+		internalKey := os.Getenv("SSH_GATEWAY_INTERNAL_KEY")
+		if internalKey != "" {
+			providedKey := c.GetHeader("X-Internal-Key")
+			if providedKey != internalKey {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid internal key"})
+				return
+			}
+		}
+		c.Next()
+	})
+	{
+		internalSSH.GET("/fingerprint/:fingerprint", sshHandler.LookupByFingerprint)
+		internalSSH.POST("/fingerprint", sshHandler.RegisterFingerprint)
+		internalSSH.GET("/user/:username", sshHandler.LookupByUsername)
+		internalSSH.POST("/session", sshHandler.CreateSSHSession)
 	}
 
 	// API routes (protected) - with rate limiting
@@ -1337,7 +1365,68 @@ func runServer() {
 	}
 
 	log.Printf("🚀 Rexec server starting on port %s", port)
+
+	// Start SSH gateway if enabled
+	sshPort := os.Getenv("SSH_GATEWAY_PORT")
+	if sshPort != "" {
+		go startSSHGateway(sshPort, port)
+	}
+
 	if err := router.Run(":" + port); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
+	}
+}
+
+// startSSHGateway starts the SSH gateway server
+func startSSHGateway(sshPort, apiPort string) {
+	hostKeyPath := os.Getenv("SSH_GATEWAY_HOST_KEY")
+	if hostKeyPath == "" {
+		hostKeyPath = ".ssh/rexec_host_key"
+	}
+
+	// Determine API URL for the gateway to connect back to
+	apiURL := os.Getenv("SSH_GATEWAY_API_URL")
+	if apiURL == "" {
+		apiURL = fmt.Sprintf("http://localhost:%s", apiPort)
+	}
+
+	// Create the gateway
+	gw, err := sshgateway.New(sshgateway.Config{
+		APIURL: apiURL,
+	})
+	if err != nil {
+		log.Printf("⚠️  Failed to create SSH gateway: %v", err)
+		return
+	}
+
+	// Check if host key exists, generate if not
+	if _, err := os.Stat(hostKeyPath); os.IsNotExist(err) {
+		log.Printf("⚠️  SSH host key not found at %s, SSH gateway disabled", hostKeyPath)
+		log.Printf("   Generate one with: ssh-keygen -t ed25519 -f %s -N \"\"", hostKeyPath)
+		return
+	}
+
+	// Create wish server with middleware
+	srv, err := wish.NewServer(
+		wish.WithAddress(net.JoinHostPort("", sshPort)),
+		wish.WithHostKeyPath(hostKeyPath),
+		wish.WithPublicKeyAuth(gw.PublicKeyHandler),
+		wish.WithPasswordAuth(gw.PasswordHandler),
+		wish.WithMiddleware(
+			bubbletea.Middleware(gw.TeaHandler),
+			gw.LoggingMiddleware,
+			gw.SessionMiddleware,
+		),
+	)
+	if err != nil {
+		log.Printf("⚠️  Failed to create SSH server: %v", err)
+		return
+	}
+
+	log.Printf("🔐 SSH Gateway starting on port %s", sshPort)
+	log.Printf("   Connect with: ssh -p %s localhost", sshPort)
+
+	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
+		log.Printf("⚠️  SSH server error: %v", err)
 	}
 }

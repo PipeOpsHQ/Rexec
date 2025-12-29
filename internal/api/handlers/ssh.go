@@ -20,6 +20,9 @@ import (
 	"github.com/rexec/rexec/internal/storage"
 )
 
+// Alias for storage types used in SSH gateway
+type SSHKeyRecord = storage.SSHKeyRecord
+
 // SSHHandler handles SSH key management API endpoints
 type SSHHandler struct {
 	store            *storage.PostgresStore
@@ -949,4 +952,184 @@ func (h *SSHHandler) DeleteRemoteHost(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Remote host deleted"})
+}
+
+// =============================================================================
+// Internal SSH Gateway Endpoints
+// =============================================================================
+
+// SSHFingerprintResponse represents a user lookup by SSH fingerprint
+type SSHFingerprintResponse struct {
+	UserID   string `json:"user_id"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	Token    string `json:"token,omitempty"`
+}
+
+// LookupByFingerprint looks up a user by their SSH key fingerprint
+// This is an internal endpoint used by the SSH gateway
+// GET /api/internal/ssh/fingerprint/:fingerprint
+func (h *SSHHandler) LookupByFingerprint(c *gin.Context) {
+	fingerprint := c.Param("fingerprint")
+	if fingerprint == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "fingerprint required"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+	defer cancel()
+
+	// Look up SSH key by fingerprint
+	key, err := h.store.GetSSHKeyByFingerprint(ctx, fingerprint)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "fingerprint not found"})
+		return
+	}
+
+	// Get user info
+	user, err := h.store.GetUserByID(ctx, key.UserID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+
+	// Update last used timestamp
+	_ = h.store.UpdateSSHKeyLastUsed(ctx, key.ID)
+
+	c.JSON(http.StatusOK, SSHFingerprintResponse{
+		UserID:   user.ID,
+		Username: user.Username,
+		Email:    user.Email,
+	})
+}
+
+// RegisterFingerprint registers a new SSH fingerprint for a user
+// This is used when linking an SSH key to an account via the SSH gateway
+// POST /api/internal/ssh/fingerprint
+func (h *SSHHandler) RegisterFingerprint(c *gin.Context) {
+	var req struct {
+		Fingerprint string `json:"fingerprint" binding:"required"`
+		UserID      string `json:"user_id" binding:"required"`
+		PublicKey   string `json:"public_key,omitempty"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+	defer cancel()
+
+	// Check if fingerprint already exists
+	existing, _ := h.store.GetSSHKeyByFingerprint(ctx, req.Fingerprint)
+	if existing != nil {
+		// Update to point to new user if different
+		if existing.UserID != req.UserID {
+			// For security, don't allow reassigning fingerprints
+			c.JSON(http.StatusConflict, gin.H{"error": "fingerprint already registered to another user"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "fingerprint already registered"})
+		return
+	}
+
+	// Create new SSH key entry
+	sshKey := &storage.SSHKeyRecord{
+		ID:          uuid.New().String(),
+		UserID:      req.UserID,
+		Name:        "SSH Gateway Key",
+		PublicKey:   req.PublicKey,
+		Fingerprint: req.Fingerprint,
+		CreatedAt:   time.Now(),
+	}
+
+	if err := h.store.CreateSSHKey(ctx, sshKey); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to register fingerprint"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "fingerprint registered",
+		"id":      sshKey.ID,
+	})
+}
+
+// LookupByUsername looks up a user by username for SSH gateway auth
+// GET /api/internal/ssh/user/:username
+func (h *SSHHandler) LookupByUsername(c *gin.Context) {
+	username := c.Param("username")
+	if username == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "username required"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+	defer cancel()
+
+	// Look up user by username or email
+	user, _, err := h.store.GetUserByEmail(ctx, username)
+	if err != nil {
+		// Try by username if email lookup fails
+		user, err = h.store.GetUserByUsername(ctx, username)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"id":       user.ID,
+		"username": user.Username,
+		"email":    user.Email,
+		"tier":     user.Tier,
+	})
+}
+
+// CreateSSHSession creates an API session for an SSH gateway connection
+// POST /api/internal/ssh/session
+func (h *SSHHandler) CreateSSHSession(c *gin.Context) {
+	var req struct {
+		UserID      string `json:"user_id" binding:"required"`
+		Fingerprint string `json:"fingerprint"`
+		RemoteAddr  string `json:"remote_addr"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+	defer cancel()
+
+	// Get user to verify they exist
+	user, err := h.store.GetUserByID(ctx, req.UserID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+
+	// Create a user session for this SSH connection
+	session := &models.UserSession{
+		ID:         uuid.New().String(),
+		UserID:     user.ID,
+		CreatedAt:  time.Now(),
+		LastSeenAt: time.Now(),
+		IPAddress:  req.RemoteAddr,
+		UserAgent:  "SSH Gateway",
+	}
+
+	if err := h.store.CreateUserSession(ctx, session); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create session"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"session_id": session.ID,
+		"user_id":    user.ID,
+		"username":   user.Username,
+		"email":      user.Email,
+		"created_at": session.CreatedAt,
+	})
 }
