@@ -424,12 +424,25 @@ func (s *PostgresStore) migrate() error {
 		share_token VARCHAR(64) UNIQUE,
 		is_public BOOLEAN DEFAULT false,
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-		expires_at TIMESTAMP WITH TIME ZONE
+		expires_at TIMESTAMP WITH TIME ZONE,
+		storage_type VARCHAR(20) DEFAULT 'database',
+		storage_url TEXT
 	);
 
 	-- Add data column if missing (for existing installations)
 	DO $$ BEGIN
 		ALTER TABLE terminal_recordings ADD COLUMN IF NOT EXISTS data BYTEA;
+	EXCEPTION WHEN duplicate_column THEN NULL;
+	END $$;
+
+	-- Add storage columns for R2/CDN support (for existing installations)
+	DO $$ BEGIN
+		ALTER TABLE terminal_recordings ADD COLUMN IF NOT EXISTS storage_type VARCHAR(20) DEFAULT 'database';
+	EXCEPTION WHEN duplicate_column THEN NULL;
+	END $$;
+
+	DO $$ BEGIN
+		ALTER TABLE terminal_recordings ADD COLUMN IF NOT EXISTS storage_url TEXT;
 	EXCEPTION WHEN duplicate_column THEN NULL;
 	END $$;
 
@@ -1471,18 +1484,25 @@ type RecordingRecord struct {
 	Title       string     `db:"title"`
 	Duration    int64      `db:"duration_ms"` // Duration in milliseconds
 	Size        int64      `db:"size_bytes"`  // Size of recording data
-	Data        []byte     `db:"data"`        // Recording data (gzipped asciicast)
+	Data        []byte     `db:"data"`        // Recording data (gzipped asciicast) - only if StorageType='database'
 	ShareToken  string     `db:"share_token"` // Public share link token
 	IsPublic    bool       `db:"is_public"`   // Whether publicly accessible
 	CreatedAt   time.Time  `db:"created_at"`
-	ExpiresAt   *time.Time `db:"expires_at"` // Optional expiration
+	ExpiresAt   *time.Time `db:"expires_at"`   // Optional expiration
+	StorageType string     `db:"storage_type"` // 'database', 'r2', 's3'
+	StorageURL  string     `db:"storage_url"`  // CDN URL for R2/S3 storage
 }
 
 // CreateRecording creates a new recording record
 func (s *PostgresStore) CreateRecording(ctx context.Context, rec *RecordingRecord) error {
+	// Default storage type if not set
+	if rec.StorageType == "" {
+		rec.StorageType = "database"
+	}
+
 	query := `
-		INSERT INTO terminal_recordings (id, user_id, container_id, title, duration_ms, size_bytes, data, share_token, is_public, created_at, expires_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		INSERT INTO terminal_recordings (id, user_id, container_id, title, duration_ms, size_bytes, data, share_token, is_public, created_at, expires_at, storage_type, storage_url)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 	`
 	_, err := s.db.ExecContext(ctx, query,
 		rec.ID,
@@ -1496,6 +1516,8 @@ func (s *PostgresStore) CreateRecording(ctx context.Context, rec *RecordingRecor
 		rec.IsPublic,
 		rec.CreatedAt,
 		rec.ExpiresAt,
+		rec.StorageType,
+		rec.StorageURL,
 	)
 	return err
 }
@@ -1503,7 +1525,7 @@ func (s *PostgresStore) CreateRecording(ctx context.Context, rec *RecordingRecor
 // GetRecordingsByUserID retrieves all recordings for a user
 func (s *PostgresStore) GetRecordingsByUserID(ctx context.Context, userID string) ([]*RecordingRecord, error) {
 	query := `
-		SELECT id, user_id, container_id, title, duration_ms, size_bytes, share_token, is_public, created_at, expires_at
+		SELECT id, user_id, container_id, title, duration_ms, size_bytes, share_token, is_public, created_at, expires_at, COALESCE(storage_type, 'database'), COALESCE(storage_url, '')
 		FROM terminal_recordings WHERE user_id = $1
 		ORDER BY created_at DESC
 	`
@@ -1527,6 +1549,8 @@ func (s *PostgresStore) GetRecordingsByUserID(ctx context.Context, userID string
 			&r.IsPublic,
 			&r.CreatedAt,
 			&r.ExpiresAt,
+			&r.StorageType,
+			&r.StorageURL,
 		)
 		if err != nil {
 			return nil, err
@@ -1540,7 +1564,7 @@ func (s *PostgresStore) GetRecordingsByUserID(ctx context.Context, userID string
 func (s *PostgresStore) GetRecordingByID(ctx context.Context, id string) (*RecordingRecord, error) {
 	var r RecordingRecord
 	query := `
-		SELECT id, user_id, container_id, title, duration_ms, size_bytes, share_token, is_public, created_at, expires_at
+		SELECT id, user_id, container_id, title, duration_ms, size_bytes, share_token, is_public, created_at, expires_at, COALESCE(storage_type, 'database'), COALESCE(storage_url, '')
 		FROM terminal_recordings WHERE id = $1
 	`
 	row := s.db.QueryRowContext(ctx, query, id)
@@ -1555,6 +1579,8 @@ func (s *PostgresStore) GetRecordingByID(ctx context.Context, id string) (*Recor
 		&r.IsPublic,
 		&r.CreatedAt,
 		&r.ExpiresAt,
+		&r.StorageType,
+		&r.StorageURL,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -1569,7 +1595,7 @@ func (s *PostgresStore) GetRecordingByID(ctx context.Context, id string) (*Recor
 func (s *PostgresStore) GetRecordingByShareToken(ctx context.Context, token string) (*RecordingRecord, error) {
 	var r RecordingRecord
 	query := `
-		SELECT id, user_id, container_id, title, duration_ms, size_bytes, share_token, is_public, created_at, expires_at
+		SELECT id, user_id, container_id, title, duration_ms, size_bytes, share_token, is_public, created_at, expires_at, COALESCE(storage_type, 'database'), COALESCE(storage_url, '')
 		FROM terminal_recordings
 		WHERE share_token = $1 AND is_public = true AND (expires_at IS NULL OR expires_at > NOW())
 	`
@@ -1585,6 +1611,8 @@ func (s *PostgresStore) GetRecordingByShareToken(ctx context.Context, token stri
 		&r.IsPublic,
 		&r.CreatedAt,
 		&r.ExpiresAt,
+		&r.StorageType,
+		&r.StorageURL,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
