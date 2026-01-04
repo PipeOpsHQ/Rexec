@@ -572,6 +572,7 @@ func runServer() {
 			path == "/admin" ||
 			path == "/billing" ||
 			path == "/docs" ||
+			strings.HasPrefix(path, "/docs/") ||
 			path == "/agents" {
 			// HTML pages and SPA routes - no caching to ensure fresh content
 			c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
@@ -923,6 +924,10 @@ func runServer() {
 		cliDocsSEO := seoConfig{
 			Title:       "CLI Documentation | Rexec",
 			Description: "Install and use the rexec CLI/TUI to manage terminals, snippets, and agents from your local shell.",
+		}
+		embedDocsSEO := seoConfig{
+			Title:       "Embeddable Terminal Widget | Rexec",
+			Description: "Add a cloud terminal to any website with a single script tag. Like Google Cloud Shell for your docs and tutorials.",
 		}
 		guidesSEO := seoConfig{
 			Title:        "Rexec Product Guide - Instant Terminal Architecture",
@@ -1314,6 +1319,10 @@ func runServer() {
 
 		router.GET("/docs/cli", func(c *gin.Context) {
 			serveSEO(c, cliDocsSEO)
+		})
+
+		router.GET("/docs/embed", func(c *gin.Context) {
+			serveSEO(c, embedDocsSEO)
 		})
 
 		// Account routes
