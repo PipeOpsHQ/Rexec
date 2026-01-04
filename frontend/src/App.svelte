@@ -111,6 +111,7 @@
         | "marketplacePage"
         | "agentDocs"
         | "cliDocs"
+        | "embedDocs"
         | "docs"
         | "cliLogin"
         | "account"
@@ -143,6 +144,7 @@
         marketplacePage: () => import("$components/MarketplacePage.svelte"),
         agentDocs: () => import("$components/AgentDocs.svelte"),
         cliDocs: () => import("$components/CLIDocs.svelte"),
+        embedDocs: () => import("$components/EmbedDocs.svelte"),
         docs: () => import("$components/Docs.svelte"),
         cliLogin: () => import("$components/CLILogin.svelte"),
         account: () => import("$components/Account.svelte"),
@@ -220,6 +222,7 @@
         | "billing"
         | "agent-docs"
         | "cli-docs"
+        | "embed-docs"
         | "cli-login"
         | "account"
         | "account-settings"
@@ -339,6 +342,13 @@
                 "Connect your own servers to Rexec with the agent. Bring your own server (BYOS) for terminal access anywhere.",
             keywords:
                 "agent, BYOS, bring your own server, remote terminal, rexec-agent",
+        },
+        "embed-docs": {
+            title: "Embeddable Terminal Widget - Rexec",
+            description:
+                "Add a cloud terminal to any website with a single script tag. Like Google Cloud Shell for your docs and tutorials.",
+            keywords:
+                "embed, widget, terminal, cloud shell, javascript, documentation, interactive",
         },
         marketplace: {
             title: "Marketplace - Rexec",
@@ -869,6 +879,12 @@
             return;
         }
 
+        // Check for /docs/embed route
+        if (path === "/docs/embed" || path === "/embed") {
+            currentView = "embed-docs";
+            return;
+        }
+
         // Check for /docs route (main documentation page)
         if (path === "/docs") {
             currentView = "docs";
@@ -1072,6 +1088,8 @@
             "/docs",
             "/docs/agent",
             "/docs/cli",
+            "/docs/embed",
+            "/embed",
             "/account",
             "/account/settings",
             "/account/ssh",
@@ -1431,6 +1449,8 @@
             currentView = "agent-docs";
         } else if (path === "/docs/cli") {
             currentView = "cli-docs";
+        } else if (path === "/docs/embed" || path === "/embed") {
+            currentView = "embed-docs";
         } else if (path === "/docs") {
             currentView = "docs";
         } else if (path.startsWith("/account")) {
@@ -1552,6 +1572,9 @@
                 break;
             case "cli-docs":
                 preloadComponent("cliDocs");
+                break;
+            case "embed-docs":
+                preloadComponent("embedDocs");
                 break;
             case "docs":
                 preloadComponent("docs");
@@ -1800,6 +1823,17 @@
                 {:else}
                     <div class="view-loading">Loading...</div>
                 {/if}
+            {:else if currentView === "embed-docs"}
+                {#if lazyComponents.embedDocs}
+                    <svelte:component
+                        this={lazyComponents.embedDocs}
+                        onback={() => {
+                            window.history.back();
+                        }}
+                    />
+                {:else}
+                    <div class="view-loading">Loading...</div>
+                {/if}
             {:else if currentView === "docs"}
                 {#if lazyComponents.docs}
                     <svelte:component
@@ -1812,6 +1846,9 @@
                             } else if (view === "docs/agent") {
                                 currentView = "agent-docs";
                                 window.history.pushState({}, "", "/docs/agent");
+                            } else if (view === "docs/embed") {
+                                currentView = "embed-docs";
+                                window.history.pushState({}, "", "/docs/embed");
                             }
                         }}
                     />

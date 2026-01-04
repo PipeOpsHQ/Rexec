@@ -164,6 +164,12 @@
             icon: "agent",
         },
         {
+            title: "Embed Widget",
+            description: "Add a cloud terminal to any website",
+            href: "/docs/embed",
+            icon: "code",
+        },
+        {
             title: "Use Cases",
             description: "Explore what you can build with Rexec",
             href: "/use-cases",
