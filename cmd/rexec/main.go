@@ -1126,22 +1126,21 @@ func runServer() {
 		router.StaticFile("/apple-touch-icon-precomposed.png", filepath.Join(webDir, "favicon.svg"))
 
 		// Embed widget - serve CDN bundle for embeddable terminal widget
+		// Use individual StaticFile routes with a group for CORS headers
 		embedDir := filepath.Join(webDir, "embed")
 		if _, err := os.Stat(embedDir); err == nil {
-			router.Static("/embed", embedDir)
-			// Serve with proper CORS headers for CDN usage
-			router.GET("/embed/rexec.min.js", func(c *gin.Context) {
+			embedGroup := router.Group("/embed")
+			embedGroup.Use(func(c *gin.Context) {
+				// CORS headers for CDN usage
 				c.Header("Access-Control-Allow-Origin", "*")
 				c.Header("Access-Control-Allow-Methods", "GET, OPTIONS")
 				c.Header("Cache-Control", "public, max-age=86400") // 24 hour cache
-				c.File(filepath.Join(embedDir, "rexec.min.js"))
+				c.Next()
 			})
-			router.GET("/embed/rexec.esm.js", func(c *gin.Context) {
-				c.Header("Access-Control-Allow-Origin", "*")
-				c.Header("Access-Control-Allow-Methods", "GET, OPTIONS")
-				c.Header("Cache-Control", "public, max-age=86400")
-				c.File(filepath.Join(embedDir, "rexec.esm.js"))
-			})
+			embedGroup.StaticFile("/rexec.min.js", filepath.Join(embedDir, "rexec.min.js"))
+			embedGroup.StaticFile("/rexec.esm.js", filepath.Join(embedDir, "rexec.esm.js"))
+			embedGroup.StaticFile("/rexec.min.js.map", filepath.Join(embedDir, "rexec.min.js.map"))
+			embedGroup.StaticFile("/rexec.esm.js.map", filepath.Join(embedDir, "rexec.esm.js.map"))
 		}
 
 		// Install scripts - served with correct content type for curl | bash
