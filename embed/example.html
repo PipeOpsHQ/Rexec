@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rexec Embed Widget - Example</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #58a6ff, #3fb950);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            color: #8b949e;
+            font-size: 1rem;
+        }
+
+        .examples {
+            display: grid;
+            gap: 30px;
+        }
+
+        .example {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .example-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .example-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .example-badge {
+            background: #238636;
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .terminal-container {
+            height: 400px;
+            background: #0d1117;
+        }
+
+        .code-block {
+            background: #0d1117;
+            border-top: 1px solid #30363d;
+            padding: 15px 20px;
+            overflow-x: auto;
+        }
+
+        .code-block pre {
+            margin: 0;
+            font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+
+        .code-block .comment {
+            color: #8b949e;
+        }
+
+        .code-block .keyword {
+            color: #ff7b72;
+        }
+
+        .code-block .string {
+            color: #a5d6ff;
+        }
+
+        .code-block .function {
+            color: #d2a8ff;
+        }
+
+        .code-block .property {
+            color: #79c0ff;
+        }
+
+        .config-section {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .config-section h2 {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .config-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .config-item label {
+            font-size: 0.875rem;
+            color: #8b949e;
+        }
+
+        .config-item input,
+        .config-item select {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: #c9d1d9;
+            font-size: 0.875rem;
+        }
+
+        .config-item input:focus,
+        .config-item select:focus {
+            outline: none;
+            border-color: #58a6ff;
+        }
+
+        .btn {
+            background: #238636;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background: #2ea043;
+        }
+
+        .btn:disabled {
+            background: #21262d;
+            color: #484f58;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #21262d;
+            border: 1px solid #30363d;
+        }
+
+        .btn-secondary:hover {
+            background: #30363d;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #30363d;
+            color: #8b949e;
+            font-size: 0.875rem;
+        }
+
+        footer a {
+            color: #58a6ff;
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .config-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .terminal-container {
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Rexec Embed Widget</h1>
+            <p class="subtitle">Embed cloud terminals anywhere with a single line of code</p>
+        </header>
+
+        <!-- Configuration Section -->
+        <div class="config-section">
+            <h2>Configuration</h2>
+            <div class="config-grid">
+                <div class="config-item">
+                    <label for="token">API Token</label>
+                    <input type="password" id="token" placeholder="Enter your API token">
+                </div>
+                <div class="config-item">
+                    <label for="connection-type">Connection Type</label>
+                    <select id="connection-type">
+                        <option value="shareCode">Join via Share Code</option>
+                        <option value="container">Connect to Container</option>
+                        <option value="role">Create New Container</option>
+                    </select>
+                </div>
+                <div class="config-item" id="share-code-input">
+                    <label for="share-code">Share Code</label>
+                    <input type="text" id="share-code" placeholder="e.g., abc123">
+                </div>
+                <div class="config-item" id="container-id-input" style="display: none;">
+                    <label for="container-id">Container ID</label>
+                    <input type="text" id="container-id" placeholder="e.g., container-uuid">
+                </div>
+                <div class="config-item" id="role-input" style="display: none;">
+                    <label for="role">Environment</label>
+                    <select id="role">
+                        <option value="ubuntu">Ubuntu</option>
+                        <option value="debian">Debian</option>
+                        <option value="alpine">Alpine</option>
+                        <option value="node">Node.js</option>
+                        <option value="python">Python</option>
+                        <option value="go">Go</option>
+                        <option value="rust">Rust</option>
+                    </select>
+                </div>
+                <div class="config-item">
+                    <label for="theme">Theme</label>
+                    <select id="theme">
+                        <option value="dark">Dark</option>
+                        <option value="light">Light</option>
+                    </select>
+                </div>
+            </div>
+            <div style="margin-top: 20px; display: flex; gap: 10px;">
+                <button class="btn" onclick="startTerminal()">Start Terminal</button>
+                <button class="btn btn-secondary" onclick="destroyTerminal()">Destroy</button>
+            </div>
+        </div>
+
+        <!-- Live Demo -->
+        <div class="examples">
+            <div class="example">
+                <div class="example-header">
+                    <span class="example-title">Live Demo</span>
+                    <span class="example-badge" id="status-badge">Disconnected</span>
+                </div>
+                <div class="terminal-container" id="terminal-demo"></div>
+            </div>
+        </div>
+
+        <!-- Code Examples -->
+        <div class="examples" style="margin-top: 30px;">
+            <!-- Example 1: Basic Usage -->
+            <div class="example">
+                <div class="example-header">
+                    <span class="example-title">Basic Usage - Join via Share Code</span>
+                </div>
+                <div class="code-block">
+                    <pre><span class="comment">&lt;!-- Include the embed script --&gt;</span>
+<span class="keyword">&lt;script</span> <span class="property">src</span>=<span class="string">"https://rexec.dev/embed/rexec.min.js"</span><span class="keyword">&gt;&lt;/script&gt;</span>
+
+<span class="comment">&lt;!-- Create a container element --&gt;</span>
+<span class="keyword">&lt;div</span> <span class="property">id</span>=<span class="string">"terminal"</span> <span class="property">style</span>=<span class="string">"height: 400px;"</span><span class="keyword">&gt;&lt;/div&gt;</span>
+
+<span class="keyword">&lt;script&gt;</span>
+  <span class="comment">// Embed the terminal</span>
+  <span class="keyword">const</span> term = <span class="function">Rexec.embed</span>(<span class="string">'#terminal'</span>, {
+    <span class="property">shareCode</span>: <span class="string">'abc123'</span>,
+    <span class="property">theme</span>: <span class="string">'dark'</span>
+  });
+<span class="keyword">&lt;/script&gt;</span></pre>
+                </div>
+            </div>
+
+            <!-- Example 2: Authenticated Connection -->
+            <div class="example">
+                <div class="example-header">
+                    <span class="example-title">Authenticated Connection</span>
+                </div>
+                <div class="code-block">
+                    <pre><span class="keyword">const</span> term = <span class="function">Rexec.embed</span>(<span class="string">'#terminal'</span>, {
+  <span class="property">token</span>: <span class="string">'your-api-token'</span>,
+  <span class="property">container</span>: <span class="string">'container-id'</span>,
+  <span class="property">theme</span>: <span class="string">'dark'</span>,
+  <span class="property">fontSize</span>: <span class="string">14</span>,
+  <span class="property">cursorBlink</span>: <span class="keyword">true</span>,
+
+  <span class="comment">// Event callbacks</span>
+  <span class="property">onReady</span>: (terminal) => {
+    <span class="function">console.log</span>(<span class="string">'Terminal connected!'</span>);
+  },
+  <span class="property">onError</span>: (error) => {
+    <span class="function">console.error</span>(<span class="string">'Error:'</span>, error.message);
+  }
+});</pre>
+                </div>
+            </div>
+
+            <!-- Example 3: Create New Container -->
+            <div class="example">
+                <div class="example-header">
+                    <span class="example-title">Create New Container</span>
+                </div>
+                <div class="code-block">
+                    <pre><span class="keyword">const</span> term = <span class="function">Rexec.embed</span>(<span class="string">'#terminal'</span>, {
+  <span class="property">token</span>: <span class="string">'your-api-token'</span>,
+  <span class="property">role</span>: <span class="string">'ubuntu'</span>,  <span class="comment">// or 'node', 'python', 'go', etc.</span>
+  <span class="property">initialCommand</span>: <span class="string">'echo "Welcome to Rexec!"'</span>,
+
+  <span class="property">onReady</span>: (terminal) => {
+    <span class="comment">// Terminal is ready, container was created</span>
+    <span class="function">console.log</span>(<span class="string">'Container:'</span>, terminal.session.containerId);
+  }
+});</pre>
+                </div>
+            </div>
+
+            <!-- Example 4: Full API -->
+            <div class="example">
+                <div class="example-header">
+                    <span class="example-title">Full API Usage</span>
+                </div>
+                <div class="code-block">
+                    <pre><span class="keyword">const</span> term = <span class="function">Rexec.embed</span>(<span class="string">'#terminal'</span>, {
+  <span class="property">shareCode</span>: <span class="string">'abc123'</span>,
+  <span class="property">theme</span>: <span class="string">'dark'</span>,
+  <span class="property">fontSize</span>: <span class="string">14</span>,
+  <span class="property">scrollback</span>: <span class="string">5000</span>,
+  <span class="property">autoReconnect</span>: <span class="keyword">true</span>,
+  <span class="property">showStatus</span>: <span class="keyword">true</span>,
+});
+
+<span class="comment">// Write to terminal</span>
+term.<span class="function">write</span>(<span class="string">'echo "Hello, World!"'</span>);
+term.<span class="function">writeln</span>(<span class="string">'ls -la'</span>);
+
+<span class="comment">// Terminal controls</span>
+term.<span class="function">clear</span>();
+term.<span class="function">fit</span>();
+term.<span class="function">focus</span>();
+term.<span class="function">setFontSize</span>(<span class="string">16</span>);
+term.<span class="function">setTheme</span>(<span class="string">'light'</span>);
+
+<span class="comment">// Get terminal info</span>
+<span class="keyword">const</span> dims = term.<span class="function">getDimensions</span>();  <span class="comment">// { cols, rows }</span>
+<span class="keyword">const</span> state = term.<span class="property">state</span>;  <span class="comment">// 'connected', 'disconnected', etc.</span>
+<span class="keyword">const</span> stats = term.<span class="property">stats</span>;  <span class="comment">// CPU, memory, disk usage</span>
+
+<span class="comment">// Event listeners</span>
+term.<span class="function">on</span>(<span class="string">'data'</span>, (data) => <span class="function">console.log</span>(<span class="string">'Output:'</span>, data));
+term.<span class="function">on</span>(<span class="string">'resize'</span>, (cols, rows) => <span class="function">console.log</span>(<span class="string">`Resized to ${cols}x${rows}`</span>));
+term.<span class="function">on</span>(<span class="string">'disconnect'</span>, (reason) => <span class="function">console.log</span>(<span class="string">'Disconnected:'</span>, reason));
+
+<span class="comment">// Connection control</span>
+<span class="keyword">await</span> term.<span class="function">reconnect</span>();
+term.<span class="function">disconnect</span>();
+term.<span class="function">destroy</span>();  <span class="comment">// Cleanup</span></pre>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>Powered by <a href="https://rexec.dev" target="_blank">Rexec</a> - Terminal as a Service</p>
+        </footer>
+    </div>
+
+    <!-- Include the embed script (use local for development) -->
+    <script src="./dist/rexec.min.js"></script>
+    <script>
+        let terminal = null;
+
+        // Update UI based on connection type
+        document.getElementById('connection-type').addEventListener('change', function() {
+            const type = this.value;
+            document.getElementById('share-code-input').style.display = type === 'shareCode' ? 'flex' : 'none';
+            document.getElementById('container-id-input').style.display = type === 'container' ? 'flex' : 'none';
+            document.getElementById('role-input').style.display = type === 'role' ? 'flex' : 'none';
+        });
+
+        function updateStatus(state) {
+            const badge = document.getElementById('status-badge');
+            badge.textContent = state.charAt(0).toUpperCase() + state.slice(1);
+
+            const colors = {
+                'idle': '#484f58',
+                'connecting': '#d29922',
+                'connected': '#238636',
+                'reconnecting': '#d29922',
+                'disconnected': '#484f58',
+                'error': '#da3633'
+            };
+            badge.style.background = colors[state] || '#484f58';
+        }
+
+        function startTerminal() {
+            // Destroy existing terminal
+            if (terminal) {
+                terminal.destroy();
+            }
+
+            const config = {
+                theme: document.getElementById('theme').value,
+                showStatus: true,
+                autoReconnect: true,
+                onStateChange: updateStatus,
+                onReady: (term) => {
+                    console.log('Terminal ready!', term.session);
+                },
+                onError: (error) => {
+                    console.error('Terminal error:', error);
+                    alert('Error: ' + error.message);
+                },
+                onData: (data) => {
+                    // console.log('Data received:', data.length, 'bytes');
+                }
+            };
+
+            // Get token if provided
+            const token = document.getElementById('token').value;
+            if (token) {
+                config.token = token;
+            }
+
+            // Get connection type specific config
+            const connectionType = document.getElementById('connection-type').value;
+
+            switch (connectionType) {
+                case 'shareCode':
+                    config.shareCode = document.getElementById('share-code').value;
+                    if (!config.shareCode) {
+                        alert('Please enter a share code');
+                        return;
+                    }
+                    break;
+                case 'container':
+                    config.container = document.getElementById('container-id').value;
+                    if (!config.container) {
+                        alert('Please enter a container ID');
+                        return;
+                    }
+                    if (!token) {
+                        alert('API token required for container connection');
+                        return;
+                    }
+                    break;
+                case 'role':
+                    config.role = document.getElementById('role').value;
+                    if (!token) {
+                        alert('API token required for creating containers');
+                        return;
+                    }
+                    break;
+            }
+
+            // Create terminal
+            terminal = Rexec.embed('#terminal-demo', config);
+        }
+
+        function destroyTerminal() {
+            if (terminal) {
+                terminal.destroy();
+                terminal = null;
+                updateStatus('idle');
+            }
+        }
+
+        // Initialize
+        updateStatus('idle');
+    </script>
+</body>
+</html>

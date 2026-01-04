@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Shell - Powered by Rexec</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --gcloud-blue: #4285f4;
+            --gcloud-dark: #202124;
+            --gcloud-surface: #292a2d;
+            --gcloud-border: #3c4043;
+            --gcloud-text: #e8eaed;
+            --gcloud-text-secondary: #9aa0a6;
+            --gcloud-green: #34a853;
+            --gcloud-yellow: #fbbc04;
+            --gcloud-red: #ea4335;
+        }
+
+        body {
+            font-family: 'Google Sans', system-ui, -apple-system, sans-serif;
+            background: var(--gcloud-dark);
+            color: var(--gcloud-text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Google Cloud-style header */
+        .header {
+            background: var(--gcloud-surface);
+            border-bottom: 1px solid var(--gcloud-border);
+            padding: 0 16px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .header-logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-logo svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        .header-logo span {
+            font-weight: 500;
+            font-size: 18px;
+            color: var(--gcloud-text);
+        }
+
+        .header-divider {
+            width: 1px;
+            height: 24px;
+            background: var(--gcloud-border);
+        }
+
+        .header-title {
+            font-size: 14px;
+            color: var(--gcloud-text-secondary);
+        }
+
+        .header-actions {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-btn {
+            background: transparent;
+            border: none;
+            color: var(--gcloud-text-secondary);
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .header-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--gcloud-text);
+        }
+
+        .header-btn svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* Connection status */
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--gcloud-text-secondary);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--gcloud-text-secondary);
+        }
+
+        .status-dot.connected {
+            background: var(--gcloud-green);
+        }
+
+        .status-dot.connecting {
+            background: var(--gcloud-yellow);
+            animation: pulse 1s infinite;
+        }
+
+        .status-dot.disconnected {
+            background: var(--gcloud-red);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Toolbar */
+        .toolbar {
+            background: var(--gcloud-surface);
+            border-bottom: 1px solid var(--gcloud-border);
+            padding: 4px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+
+        .toolbar-btn {
+            background: transparent;
+            border: 1px solid var(--gcloud-border);
+            color: var(--gcloud-text);
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .toolbar-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--gcloud-text-secondary);
+        }
+
+        .toolbar-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .toolbar-divider {
+            width: 1px;
+            height: 20px;
+            background: var(--gcloud-border);
+            margin: 0 4px;
+        }
+
+        .toolbar-info {
+            margin-left: auto;
+            color: var(--gcloud-text-secondary);
+            font-size: 12px;
+        }
+
+        /* Terminal container */
+        .terminal-wrapper {
+            flex: 1;
+            background: #0d1117;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #cloud-shell {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Welcome overlay */
+        .welcome-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .welcome-card {
+            background: var(--gcloud-surface);
+            border: 1px solid var(--gcloud-border);
+            border-radius: 8px;
+            padding: 32px;
+            max-width: 480px;
+            text-align: center;
+        }
+
+        .welcome-icon {
+            width: 64px;
+            height: 64px;
+            background: var(--gcloud-blue);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+        }
+
+        .welcome-icon svg {
+            width: 32px;
+            height: 32px;
+            color: white;
+        }
+
+        .welcome-title {
+            font-size: 24px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .welcome-subtitle {
+            color: var(--gcloud-text-secondary);
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+
+        .welcome-input {
+            width: 100%;
+            background: var(--gcloud-dark);
+            border: 1px solid var(--gcloud-border);
+            border-radius: 4px;
+            padding: 12px 16px;
+            color: var(--gcloud-text);
+            font-family: inherit;
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+
+        .welcome-input:focus {
+            outline: none;
+            border-color: var(--gcloud-blue);
+        }
+
+        .welcome-btn {
+            background: var(--gcloud-blue);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 12px 24px;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.2s;
+        }
+
+        .welcome-btn:hover {
+            background: #3367d6;
+        }
+
+        .welcome-btn:disabled {
+            background: var(--gcloud-border);
+            cursor: not-allowed;
+        }
+
+        .welcome-footer {
+            margin-top: 16px;
+            font-size: 12px;
+            color: var(--gcloud-text-secondary);
+        }
+
+        .welcome-footer a {
+            color: var(--gcloud-blue);
+            text-decoration: none;
+        }
+
+        .welcome-footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Hidden by default */
+        .hidden {
+            display: none !important;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header-title {
+                display: none;
+            }
+
+            .toolbar-btn span {
+                display: none;
+            }
+
+            .welcome-card {
+                margin: 16px;
+                padding: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Google Cloud-style header -->
+    <header class="header">
+        <div class="header-logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="3" y1="9" x2="21" y2="9"></line>
+                <line x1="9" y1="21" x2="9" y2="9"></line>
+            </svg>
+            <span>Cloud Shell</span>
+        </div>
+        <div class="header-divider"></div>
+        <span class="header-title">Interactive shell environment</span>
+        <div class="header-actions">
+            <div class="status-indicator" id="status">
+                <span class="status-dot" id="status-dot"></span>
+                <span id="status-text">Disconnected</span>
+            </div>
+            <button class="header-btn" title="Settings" onclick="toggleSettings()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path>
+                </svg>
+            </button>
+            <button class="header-btn" title="Fullscreen" onclick="toggleFullscreen()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"></path>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+        <button class="toolbar-btn" onclick="reconnect()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+            <span>Reconnect</span>
+        </button>
+        <button class="toolbar-btn" onclick="clearTerminal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+            <span>Clear</span>
+        </button>
+        <div class="toolbar-divider"></div>
+        <button class="toolbar-btn" onclick="copySelection()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            <span>Copy</span>
+        </button>
+        <div class="toolbar-info" id="session-info"></div>
+    </div>
+
+    <!-- Terminal container -->
+    <div class="terminal-wrapper">
+        <div id="cloud-shell"></div>
+
+        <!-- Welcome overlay -->
+        <div class="welcome-overlay" id="welcome-overlay">
+            <div class="welcome-card">
+                <div class="welcome-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="4 17 10 11 4 5"></polyline>
+                        <line x1="12" y1="19" x2="20" y2="19"></line>
+                    </svg>
+                </div>
+                <h2 class="welcome-title">Cloud Shell</h2>
+                <p class="welcome-subtitle">
+                    Get access to a fully configured Linux environment directly in your browser.
+                    Enter your session code to connect.
+                </p>
+                <input
+                    type="text"
+                    class="welcome-input"
+                    id="session-code"
+                    placeholder="Enter share code (e.g., abc123)"
+                    autocomplete="off"
+                >
+                <button class="welcome-btn" id="connect-btn" onclick="connectShell()">
+                    Activate Cloud Shell
+                </button>
+                <p class="welcome-footer">
+                    Powered by <a href="https://rexec.dev" target="_blank">Rexec</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load Rexec embed widget -->
+    <script src="https://rexec.dev/embed/rexec.min.js"></script>
+
+    <script>
+        let terminal = null;
+        let sessionCode = null;
+
+        // Get share code from URL if present
+        const urlParams = new URLSearchParams(window.location.search);
+        const codeFromUrl = urlParams.get('code') || urlParams.get('share');
+        if (codeFromUrl) {
+            document.getElementById('session-code').value = codeFromUrl;
+        }
+
+        // Update status indicator
+        function updateStatus(state) {
+            const dot = document.getElementById('status-dot');
+            const text = document.getElementById('status-text');
+
+            dot.className = 'status-dot ' + state;
+
+            const stateLabels = {
+                'idle': 'Disconnected',
+                'connecting': 'Connecting...',
+                'connected': 'Connected',
+                'reconnecting': 'Reconnecting...',
+                'disconnected': 'Disconnected',
+                'error': 'Error'
+            };
+            text.textContent = stateLabels[state] || state;
+        }
+
+        // Connect to shell
+        function connectShell() {
+            const input = document.getElementById('session-code');
+            const code = input.value.trim();
+
+            if (!code) {
+                input.focus();
+                return;
+            }
+
+            sessionCode = code;
+
+            // Hide welcome overlay
+            document.getElementById('welcome-overlay').classList.add('hidden');
+
+            // Update session info
+            document.getElementById('session-info').textContent = `Session: ${code}`;
+
+            // Create terminal
+            terminal = Rexec.embed('#cloud-shell', {
+                shareCode: code,
+                theme: 'dark',
+                fontSize: 14,
+                showStatus: false,
+                autoReconnect: true,
+
+                onStateChange: function(state) {
+                    updateStatus(state);
+                },
+
+                onReady: function(term) {
+                    console.log('Cloud Shell ready!');
+                    term.focus();
+                },
+
+                onError: function(error) {
+                    console.error('Cloud Shell error:', error);
+                    if (error.code === 'JOIN_FAILED') {
+                        // Show welcome overlay again on join failure
+                        document.getElementById('welcome-overlay').classList.remove('hidden');
+                        alert('Failed to join session: ' + error.message);
+                    }
+                },
+
+                onDisconnect: function(reason) {
+                    console.log('Disconnected:', reason);
+                }
+            });
+        }
+
+        // Reconnect
+        function reconnect() {
+            if (terminal) {
+                terminal.reconnect();
+            } else if (sessionCode) {
+                connectShell();
+            }
+        }
+
+        // Clear terminal
+        function clearTerminal() {
+            if (terminal) {
+                terminal.clear();
+            }
+        }
+
+        // Copy selection
+        async function copySelection() {
+            if (terminal) {
+                const success = await terminal.copySelection();
+                if (success) {
+                    console.log('Copied to clipboard');
+                }
+            }
+        }
+
+        // Toggle fullscreen
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // Toggle settings (placeholder)
+        function toggleSettings() {
+            alert('Settings panel coming soon!\n\nCurrent features:\n- Font size: 14px\n- Theme: Dark\n- Auto-reconnect: Enabled');
+        }
+
+        // Auto-connect if code is in URL
+        if (codeFromUrl) {
+            connectShell();
+        }
+
+        // Handle Enter key in input
+        document.getElementById('session-code').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                connectShell();
+            }
+        });
+
+        // Initialize status
+        updateStatus('idle');
+    </script>
+</body>
+</html>
