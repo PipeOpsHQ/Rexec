@@ -1306,6 +1306,7 @@
         currentView !== "marketplace" &&
         currentView !== "agent-docs" &&
         currentView !== "cli-docs" &&
+        currentView !== "embed-docs" &&
         currentView !== "docs" &&
         currentView !== "account" &&
         currentView !== "join" &&
