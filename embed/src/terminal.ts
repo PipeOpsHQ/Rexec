@@ -408,6 +408,7 @@ export class RexecTerminal implements RexecTerminalInstance {
         .rexec-embed .terminal-wrapper {
           width: 100%;
           height: 100%;
+          position: relative;
         }
         .rexec-embed .xterm {
           padding: 8px;
@@ -433,6 +434,7 @@ export class RexecTerminal implements RexecTerminalInstance {
           font-size: 14px;
           text-align: center;
           z-index: 10;
+          pointer-events: none;
         }
         .rexec-embed .status-overlay .spinner {
           width: 24px;
@@ -454,6 +456,11 @@ export class RexecTerminal implements RexecTerminalInstance {
     const wrapper = document.createElement("div");
     wrapper.className = "terminal-wrapper";
     this.container.appendChild(wrapper);
+
+    // Add click handler to focus terminal
+    this.container.addEventListener("click", () => {
+      this.terminal?.focus();
+    });
   }
 
   /**
@@ -695,6 +702,9 @@ export class RexecTerminal implements RexecTerminalInstance {
       // Send initial resize
       const dims = this.getDimensions();
       this.ws?.sendResize(dims.cols, dims.rows);
+
+      // Focus terminal so user can type immediately
+      this.terminal?.focus();
 
       // Send initial command if configured
       if (this.config.initialCommand) {
