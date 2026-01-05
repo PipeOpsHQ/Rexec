@@ -88,15 +88,19 @@ export class RexecApiClient {
   }
 
   /**
-   * Create a new container with the specified role
+   * Create a new container with the specified image and optional role
    */
   async createContainer(
-    role: string,
     image: string = "ubuntu",
+    role?: string,
   ): Promise<{ data?: CreateContainerResponse; error?: string }> {
+    const body: { image: string; role?: string } = { image };
+    if (role) {
+      body.role = role;
+    }
     return this.request<CreateContainerResponse>("/api/containers", {
       method: "POST",
-      body: JSON.stringify({ image, role }),
+      body: JSON.stringify(body),
     });
   }
 

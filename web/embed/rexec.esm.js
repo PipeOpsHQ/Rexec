@@ -8465,12 +8465,13 @@ class ke {
     }
   }
   /**
-   * Create a new container with the specified role
+   * Create a new container with the specified image and optional role
    */
-  async createContainer(k, O = "ubuntu") {
-    return this.request("/api/containers", {
+  async createContainer(k = "ubuntu", O) {
+    const z = { image: k };
+    return O && (z.role = O), this.request("/api/containers", {
       method: "POST",
-      body: JSON.stringify({ image: O, role: k })
+      body: JSON.stringify(z)
     });
   }
   /**
@@ -9131,8 +9132,8 @@ class Ue {
         else if (this.config.role || this.config.image) {
           this.showStatus("Creating container...");
           const { data: z, error: U } = await this.api.createContainer(
-            this.config.role || "default",
-            this.config.image || "ubuntu"
+            this.config.image || "ubuntu",
+            this.config.role
           );
           if (U || !z)
             throw this.createError(

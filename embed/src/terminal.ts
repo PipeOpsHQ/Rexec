@@ -681,8 +681,8 @@ export class RexecTerminal implements RexecTerminalInstance {
         this.showStatus("Creating container...");
         const { data: createData, error: createError } =
           await this.api.createContainer(
-            this.config.role || "default",
             this.config.image || "ubuntu",
+            this.config.role,
           );
         if (createError || !createData) {
           throw this.createError(
