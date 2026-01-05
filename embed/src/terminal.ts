@@ -392,7 +392,7 @@ export class RexecTerminal implements RexecTerminalInstance {
   private async init(): Promise<void> {
     this.setupContainer();
     this.createTerminal();
-    this.setupResizeObserver();
+    // Note: setupResizeObserver is now called in createTerminal after terminal.open()
     await this.connect();
   }
 
@@ -636,20 +636,14 @@ export class RexecTerminal implements RexecTerminalInstance {
       }
     }
 
-    // Initial fit - run multiple times to ensure proper sizing
+    // Initial fit - wait for container to have dimensions
     requestAnimationFrame(() => {
-      console.log("[Rexec SDK] Running initial fit");
-      this.fit();
-      // Run fit again after a short delay to handle dynamic container sizing
-      setTimeout(() => {
-        console.log("[Rexec SDK] Running delayed fit");
-        this.fit();
-      }, 100);
-      setTimeout(() => {
-        console.log("[Rexec SDK] Running second delayed fit");
-        this.fit();
-      }, 500);
+      console.log("[Rexec SDK] Running initial fit sequence");
+      this.waitForDimensionsAndFit();
     });
+
+    // Also set up resize observer early to catch container sizing
+    this.setupResizeObserver();
 
     // Write a test message to verify terminal works
     this.terminal.write(
@@ -705,13 +699,79 @@ export class RexecTerminal implements RexecTerminalInstance {
     if (!this.config.fitToContainer) return;
 
     let resizeTimeout: ReturnType<typeof setTimeout> | null = null;
+    let hasInitialFit = false;
 
-    this.resizeObserver = new ResizeObserver(() => {
+    this.resizeObserver = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+
+      const { width, height } = entry.contentRect;
+      console.log("[Rexec SDK] ResizeObserver triggered:", width, "x", height);
+
+      // If container now has dimensions and we haven't done initial fit, do it now
+      if (width > 0 && height > 0 && !hasInitialFit) {
+        hasInitialFit = true;
+        console.log("[Rexec SDK] Container has dimensions, doing initial fit");
+        // Use setTimeout to ensure DOM is fully laid out
+        setTimeout(() => this.fit(), 0);
+        setTimeout(() => this.fit(), 100);
+        return;
+      }
+
+      // Debounce subsequent resize events
       if (resizeTimeout) clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(() => this.fit(), 50);
     });
 
     this.resizeObserver.observe(this.container);
+
+    // Also observe the terminal wrapper for size changes
+    const wrapper = this.container.querySelector(".terminal-wrapper");
+    if (wrapper) {
+      this.resizeObserver.observe(wrapper);
+    }
+  }
+
+  /**
+   * Wait for container to have dimensions, then fit
+   */
+  private waitForDimensionsAndFit(): void {
+    const checkDimensions = () => {
+      const rect = this.container.getBoundingClientRect();
+      console.log(
+        "[Rexec SDK] Checking dimensions:",
+        rect.width,
+        "x",
+        rect.height,
+      );
+
+      if (rect.width > 0 && rect.height > 0) {
+        console.log("[Rexec SDK] Container ready, fitting terminal");
+        this.fit();
+        return true;
+      }
+      return false;
+    };
+
+    // Try immediately
+    if (checkDimensions()) return;
+
+    // If not ready, poll until ready (up to 2 seconds)
+    let attempts = 0;
+    const maxAttempts = 20;
+    const interval = setInterval(() => {
+      attempts++;
+      if (checkDimensions() || attempts >= maxAttempts) {
+        clearInterval(interval);
+        if (attempts >= maxAttempts) {
+          console.warn(
+            "[Rexec SDK] Container never got dimensions after",
+            maxAttempts,
+            "attempts",
+          );
+        }
+      }
+    }, 100);
   }
 
   /**

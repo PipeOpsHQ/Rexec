@@ -1,13 +1,13 @@
 var qe = Object.defineProperty;
-var Ke = (te, D, O) => D in te ? qe(te, D, { enumerable: !0, configurable: !0, writable: !0, value: O }) : te[D] = O;
-var se = (te, D, O) => Ke(te, typeof D != "symbol" ? D + "" : D, O);
+var Ke = (te, A, B) => A in te ? qe(te, A, { enumerable: !0, configurable: !0, writable: !0, value: B }) : te[A] = B;
+var se = (te, A, B) => Ke(te, typeof A != "symbol" ? A + "" : A, B);
 var ye = { exports: {} }, Pe;
 function Ve() {
-  return Pe || (Pe = 1, (function(te, D) {
-    (function(O, W) {
-      te.exports = W();
+  return Pe || (Pe = 1, (function(te, A) {
+    (function(B, F) {
+      te.exports = F();
     })(globalThis, (() => (() => {
-      var O = { 4567: function(T, t, a) {
+      var B = { 4567: function(T, t, a) {
         var h = this && this.__decorate || function(i, s, d, p) {
           var _, m = arguments.length, u = m < 3 ? s : p === null ? p = Object.getOwnPropertyDescriptor(s, d) : p;
           if (typeof Reflect == "object" && typeof Reflect.decorate == "function") u = Reflect.decorate(i, s, d, p);
@@ -421,7 +421,7 @@ WARNING: This link could potentially be dangerous`)) {
         };
       }, 3236: (T, t, a) => {
         Object.defineProperty(t, "__esModule", { value: !0 }), t.Terminal = void 0;
-        const h = a(3614), c = a(3656), n = a(3551), l = a(9042), f = a(3730), g = a(1680), o = a(3107), e = a(5744), r = a(2950), i = a(1296), s = a(428), d = a(4269), p = a(5114), _ = a(8934), m = a(3230), u = a(9312), v = a(4725), S = a(6731), y = a(8055), b = a(8969), w = a(8460), L = a(844), M = a(6114), P = a(8437), I = a(2584), B = a(7399), C = a(5941), x = a(9074), R = a(2585), A = a(5435), F = a(4567), z = a(779);
+        const h = a(3614), c = a(3656), n = a(3551), l = a(9042), f = a(3730), g = a(1680), o = a(3107), e = a(5744), r = a(2950), i = a(1296), s = a(428), d = a(4269), p = a(5114), _ = a(8934), m = a(3230), u = a(9312), v = a(4725), S = a(6731), y = a(8055), b = a(8969), w = a(8460), L = a(844), M = a(6114), P = a(8437), I = a(2584), O = a(7399), C = a(5941), x = a(9074), R = a(2585), D = a(5435), H = a(4567), z = a(779);
         class K extends b.CoreTerminal {
           get onFocus() {
             return this._onFocus.event;
@@ -439,36 +439,36 @@ WARNING: This link could potentially be dangerous`)) {
             return this._onWillOpen.event;
           }
           constructor(k = {}) {
-            super(k), this.browser = M, this._keyDownHandled = !1, this._keyDownSeen = !1, this._keyPressHandled = !1, this._unprocessedDeadKey = !1, this._accessibilityManager = this.register(new L.MutableDisposable()), this._onCursorMove = this.register(new w.EventEmitter()), this.onCursorMove = this._onCursorMove.event, this._onKey = this.register(new w.EventEmitter()), this.onKey = this._onKey.event, this._onRender = this.register(new w.EventEmitter()), this.onRender = this._onRender.event, this._onSelectionChange = this.register(new w.EventEmitter()), this.onSelectionChange = this._onSelectionChange.event, this._onTitleChange = this.register(new w.EventEmitter()), this.onTitleChange = this._onTitleChange.event, this._onBell = this.register(new w.EventEmitter()), this.onBell = this._onBell.event, this._onFocus = this.register(new w.EventEmitter()), this._onBlur = this.register(new w.EventEmitter()), this._onA11yCharEmitter = this.register(new w.EventEmitter()), this._onA11yTabEmitter = this.register(new w.EventEmitter()), this._onWillOpen = this.register(new w.EventEmitter()), this._setup(), this._decorationService = this._instantiationService.createInstance(x.DecorationService), this._instantiationService.setService(R.IDecorationService, this._decorationService), this._linkProviderService = this._instantiationService.createInstance(z.LinkProviderService), this._instantiationService.setService(v.ILinkProviderService, this._linkProviderService), this._linkProviderService.registerLinkProvider(this._instantiationService.createInstance(f.OscLinkProvider)), this.register(this._inputHandler.onRequestBell((() => this._onBell.fire()))), this.register(this._inputHandler.onRequestRefreshRows(((E, H) => this.refresh(E, H)))), this.register(this._inputHandler.onRequestSendFocus((() => this._reportFocus()))), this.register(this._inputHandler.onRequestReset((() => this.reset()))), this.register(this._inputHandler.onRequestWindowsOptionsReport(((E) => this._reportWindowsOptions(E)))), this.register(this._inputHandler.onColor(((E) => this._handleColorEvent(E)))), this.register((0, w.forwardEvent)(this._inputHandler.onCursorMove, this._onCursorMove)), this.register((0, w.forwardEvent)(this._inputHandler.onTitleChange, this._onTitleChange)), this.register((0, w.forwardEvent)(this._inputHandler.onA11yChar, this._onA11yCharEmitter)), this.register((0, w.forwardEvent)(this._inputHandler.onA11yTab, this._onA11yTabEmitter)), this.register(this._bufferService.onResize(((E) => this._afterResize(E.cols, E.rows)))), this.register((0, L.toDisposable)((() => {
-              var E, H;
-              this._customKeyEventHandler = void 0, (H = (E = this.element) == null ? void 0 : E.parentNode) == null || H.removeChild(this.element);
+            super(k), this.browser = M, this._keyDownHandled = !1, this._keyDownSeen = !1, this._keyPressHandled = !1, this._unprocessedDeadKey = !1, this._accessibilityManager = this.register(new L.MutableDisposable()), this._onCursorMove = this.register(new w.EventEmitter()), this.onCursorMove = this._onCursorMove.event, this._onKey = this.register(new w.EventEmitter()), this.onKey = this._onKey.event, this._onRender = this.register(new w.EventEmitter()), this.onRender = this._onRender.event, this._onSelectionChange = this.register(new w.EventEmitter()), this.onSelectionChange = this._onSelectionChange.event, this._onTitleChange = this.register(new w.EventEmitter()), this.onTitleChange = this._onTitleChange.event, this._onBell = this.register(new w.EventEmitter()), this.onBell = this._onBell.event, this._onFocus = this.register(new w.EventEmitter()), this._onBlur = this.register(new w.EventEmitter()), this._onA11yCharEmitter = this.register(new w.EventEmitter()), this._onA11yTabEmitter = this.register(new w.EventEmitter()), this._onWillOpen = this.register(new w.EventEmitter()), this._setup(), this._decorationService = this._instantiationService.createInstance(x.DecorationService), this._instantiationService.setService(R.IDecorationService, this._decorationService), this._linkProviderService = this._instantiationService.createInstance(z.LinkProviderService), this._instantiationService.setService(v.ILinkProviderService, this._linkProviderService), this._linkProviderService.registerLinkProvider(this._instantiationService.createInstance(f.OscLinkProvider)), this.register(this._inputHandler.onRequestBell((() => this._onBell.fire()))), this.register(this._inputHandler.onRequestRefreshRows(((E, W) => this.refresh(E, W)))), this.register(this._inputHandler.onRequestSendFocus((() => this._reportFocus()))), this.register(this._inputHandler.onRequestReset((() => this.reset()))), this.register(this._inputHandler.onRequestWindowsOptionsReport(((E) => this._reportWindowsOptions(E)))), this.register(this._inputHandler.onColor(((E) => this._handleColorEvent(E)))), this.register((0, w.forwardEvent)(this._inputHandler.onCursorMove, this._onCursorMove)), this.register((0, w.forwardEvent)(this._inputHandler.onTitleChange, this._onTitleChange)), this.register((0, w.forwardEvent)(this._inputHandler.onA11yChar, this._onA11yCharEmitter)), this.register((0, w.forwardEvent)(this._inputHandler.onA11yTab, this._onA11yTabEmitter)), this.register(this._bufferService.onResize(((E) => this._afterResize(E.cols, E.rows)))), this.register((0, L.toDisposable)((() => {
+              var E, W;
+              this._customKeyEventHandler = void 0, (W = (E = this.element) == null ? void 0 : E.parentNode) == null || W.removeChild(this.element);
             })));
           }
           _handleColorEvent(k) {
             if (this._themeService) for (const E of k) {
-              let H, $ = "";
+              let W, U = "";
               switch (E.index) {
                 case 256:
-                  H = "foreground", $ = "10";
+                  W = "foreground", U = "10";
                   break;
                 case 257:
-                  H = "background", $ = "11";
+                  W = "background", U = "11";
                   break;
                 case 258:
-                  H = "cursor", $ = "12";
+                  W = "cursor", U = "12";
                   break;
                 default:
-                  H = "ansi", $ = "4;" + E.index;
+                  W = "ansi", U = "4;" + E.index;
               }
               switch (E.type) {
                 case 0:
-                  const j = y.color.toColorRGB(H === "ansi" ? this._themeService.colors.ansi[E.index] : this._themeService.colors[H]);
-                  this.coreService.triggerDataEvent(`${I.C0.ESC}]${$};${(0, C.toRgbString)(j)}${I.C1_ESCAPED.ST}`);
+                  const j = y.color.toColorRGB(W === "ansi" ? this._themeService.colors.ansi[E.index] : this._themeService.colors[W]);
+                  this.coreService.triggerDataEvent(`${I.C0.ESC}]${U};${(0, C.toRgbString)(j)}${I.C1_ESCAPED.ST}`);
                   break;
                 case 1:
-                  if (H === "ansi") this._themeService.modifyColors(((N) => N.ansi[E.index] = y.channels.toColor(...E.color)));
+                  if (W === "ansi") this._themeService.modifyColors(((N) => N.ansi[E.index] = y.channels.toColor(...E.color)));
                   else {
-                    const N = H;
+                    const N = W;
                     this._themeService.modifyColors(((J) => J[N] = y.channels.toColor(...E.color)));
                   }
                   break;
@@ -487,7 +487,7 @@ WARNING: This link could potentially be dangerous`)) {
             this.textarea && this.textarea.focus({ preventScroll: !0 });
           }
           _handleScreenReaderModeOptionChange(k) {
-            k ? !this._accessibilityManager.value && this._renderService && (this._accessibilityManager.value = this._instantiationService.createInstance(F.AccessibilityManager, this)) : this._accessibilityManager.clear();
+            k ? !this._accessibilityManager.value && this._renderService && (this._accessibilityManager.value = this._instantiationService.createInstance(H.AccessibilityManager, this)) : this._accessibilityManager.clear();
           }
           _handleTextAreaFocus(k) {
             this.coreService.decPrivateModes.sendFocus && this.coreService.triggerDataEvent(I.C0.ESC + "[I"), this.element.classList.add("focus"), this._showCursor(), this._onFocus.fire();
@@ -503,8 +503,8 @@ WARNING: This link could potentially be dangerous`)) {
             if (!this.textarea || !this.buffer.isCursorInViewport || this._compositionHelper.isComposing || !this._renderService) return;
             const k = this.buffer.ybase + this.buffer.y, E = this.buffer.lines.get(k);
             if (!E) return;
-            const H = Math.min(this.buffer.x, this.cols - 1), $ = this._renderService.dimensions.css.cell.height, j = E.getWidth(H), N = this._renderService.dimensions.css.cell.width * j, J = this.buffer.y * this._renderService.dimensions.css.cell.height, X = H * this._renderService.dimensions.css.cell.width;
-            this.textarea.style.left = X + "px", this.textarea.style.top = J + "px", this.textarea.style.width = N + "px", this.textarea.style.height = $ + "px", this.textarea.style.lineHeight = $ + "px", this.textarea.style.zIndex = "-5";
+            const W = Math.min(this.buffer.x, this.cols - 1), U = this._renderService.dimensions.css.cell.height, j = E.getWidth(W), N = this._renderService.dimensions.css.cell.width * j, J = this.buffer.y * this._renderService.dimensions.css.cell.height, X = W * this._renderService.dimensions.css.cell.width;
+            this.textarea.style.left = X + "px", this.textarea.style.top = J + "px", this.textarea.style.width = N + "px", this.textarea.style.height = U + "px", this.textarea.style.lineHeight = U + "px", this.textarea.style.zIndex = "-5";
           }
           _initGlobal() {
             this._bindKeys(), this.register((0, c.addDisposableDomListener)(this.element, "copy", ((E) => {
@@ -523,12 +523,12 @@ WARNING: This link could potentially be dangerous`)) {
             this.register((0, c.addDisposableDomListener)(this.textarea, "keyup", ((k) => this._keyUp(k)), !0)), this.register((0, c.addDisposableDomListener)(this.textarea, "keydown", ((k) => this._keyDown(k)), !0)), this.register((0, c.addDisposableDomListener)(this.textarea, "keypress", ((k) => this._keyPress(k)), !0)), this.register((0, c.addDisposableDomListener)(this.textarea, "compositionstart", (() => this._compositionHelper.compositionstart()))), this.register((0, c.addDisposableDomListener)(this.textarea, "compositionupdate", ((k) => this._compositionHelper.compositionupdate(k)))), this.register((0, c.addDisposableDomListener)(this.textarea, "compositionend", (() => this._compositionHelper.compositionend()))), this.register((0, c.addDisposableDomListener)(this.textarea, "input", ((k) => this._inputEvent(k)), !0)), this.register(this.onRender((() => this._compositionHelper.updateCompositionElements())));
           }
           open(k) {
-            var H, $, j;
+            var W, U, j;
             if (!k) throw new Error("Terminal requires a parent element.");
-            if (k.isConnected || this._logService.debug("Terminal.open was called on an element that was not attached to the DOM"), ((H = this.element) == null ? void 0 : H.ownerDocument.defaultView) && this._coreBrowserService) return void (this.element.ownerDocument.defaultView !== this._coreBrowserService.window && (this._coreBrowserService.window = this.element.ownerDocument.defaultView));
+            if (k.isConnected || this._logService.debug("Terminal.open was called on an element that was not attached to the DOM"), ((W = this.element) == null ? void 0 : W.ownerDocument.defaultView) && this._coreBrowserService) return void (this.element.ownerDocument.defaultView !== this._coreBrowserService.window && (this._coreBrowserService.window = this.element.ownerDocument.defaultView));
             this._document = k.ownerDocument, this.options.documentOverride && this.options.documentOverride instanceof Document && (this._document = this.optionsService.rawOptions.documentOverride), this.element = this._document.createElement("div"), this.element.dir = "ltr", this.element.classList.add("terminal"), this.element.classList.add("xterm"), k.appendChild(this.element);
             const E = this._document.createDocumentFragment();
-            this._viewportElement = this._document.createElement("div"), this._viewportElement.classList.add("xterm-viewport"), E.appendChild(this._viewportElement), this._viewportScrollArea = this._document.createElement("div"), this._viewportScrollArea.classList.add("xterm-scroll-area"), this._viewportElement.appendChild(this._viewportScrollArea), this.screenElement = this._document.createElement("div"), this.screenElement.classList.add("xterm-screen"), this.register((0, c.addDisposableDomListener)(this.screenElement, "mousemove", ((N) => this.updateCursorStyle(N)))), this._helperContainer = this._document.createElement("div"), this._helperContainer.classList.add("xterm-helpers"), this.screenElement.appendChild(this._helperContainer), E.appendChild(this.screenElement), this.textarea = this._document.createElement("textarea"), this.textarea.classList.add("xterm-helper-textarea"), this.textarea.setAttribute("aria-label", l.promptLabel), M.isChromeOS || this.textarea.setAttribute("aria-multiline", "false"), this.textarea.setAttribute("autocorrect", "off"), this.textarea.setAttribute("autocapitalize", "off"), this.textarea.setAttribute("spellcheck", "false"), this.textarea.tabIndex = 0, this._coreBrowserService = this.register(this._instantiationService.createInstance(p.CoreBrowserService, this.textarea, ($ = k.ownerDocument.defaultView) != null ? $ : window, ((j = this._document) != null ? j : typeof window != "undefined") ? window.document : null)), this._instantiationService.setService(v.ICoreBrowserService, this._coreBrowserService), this.register((0, c.addDisposableDomListener)(this.textarea, "focus", ((N) => this._handleTextAreaFocus(N)))), this.register((0, c.addDisposableDomListener)(this.textarea, "blur", (() => this._handleTextAreaBlur()))), this._helperContainer.appendChild(this.textarea), this._charSizeService = this._instantiationService.createInstance(s.CharSizeService, this._document, this._helperContainer), this._instantiationService.setService(v.ICharSizeService, this._charSizeService), this._themeService = this._instantiationService.createInstance(S.ThemeService), this._instantiationService.setService(v.IThemeService, this._themeService), this._characterJoinerService = this._instantiationService.createInstance(d.CharacterJoinerService), this._instantiationService.setService(v.ICharacterJoinerService, this._characterJoinerService), this._renderService = this.register(this._instantiationService.createInstance(m.RenderService, this.rows, this.screenElement)), this._instantiationService.setService(v.IRenderService, this._renderService), this.register(this._renderService.onRenderedViewportChange(((N) => this._onRender.fire(N)))), this.onResize(((N) => this._renderService.resize(N.cols, N.rows))), this._compositionView = this._document.createElement("div"), this._compositionView.classList.add("composition-view"), this._compositionHelper = this._instantiationService.createInstance(r.CompositionHelper, this.textarea, this._compositionView), this._helperContainer.appendChild(this._compositionView), this._mouseService = this._instantiationService.createInstance(_.MouseService), this._instantiationService.setService(v.IMouseService, this._mouseService), this.linkifier = this.register(this._instantiationService.createInstance(n.Linkifier, this.screenElement)), this.element.appendChild(E);
+            this._viewportElement = this._document.createElement("div"), this._viewportElement.classList.add("xterm-viewport"), E.appendChild(this._viewportElement), this._viewportScrollArea = this._document.createElement("div"), this._viewportScrollArea.classList.add("xterm-scroll-area"), this._viewportElement.appendChild(this._viewportScrollArea), this.screenElement = this._document.createElement("div"), this.screenElement.classList.add("xterm-screen"), this.register((0, c.addDisposableDomListener)(this.screenElement, "mousemove", ((N) => this.updateCursorStyle(N)))), this._helperContainer = this._document.createElement("div"), this._helperContainer.classList.add("xterm-helpers"), this.screenElement.appendChild(this._helperContainer), E.appendChild(this.screenElement), this.textarea = this._document.createElement("textarea"), this.textarea.classList.add("xterm-helper-textarea"), this.textarea.setAttribute("aria-label", l.promptLabel), M.isChromeOS || this.textarea.setAttribute("aria-multiline", "false"), this.textarea.setAttribute("autocorrect", "off"), this.textarea.setAttribute("autocapitalize", "off"), this.textarea.setAttribute("spellcheck", "false"), this.textarea.tabIndex = 0, this._coreBrowserService = this.register(this._instantiationService.createInstance(p.CoreBrowserService, this.textarea, (U = k.ownerDocument.defaultView) != null ? U : window, ((j = this._document) != null ? j : typeof window != "undefined") ? window.document : null)), this._instantiationService.setService(v.ICoreBrowserService, this._coreBrowserService), this.register((0, c.addDisposableDomListener)(this.textarea, "focus", ((N) => this._handleTextAreaFocus(N)))), this.register((0, c.addDisposableDomListener)(this.textarea, "blur", (() => this._handleTextAreaBlur()))), this._helperContainer.appendChild(this.textarea), this._charSizeService = this._instantiationService.createInstance(s.CharSizeService, this._document, this._helperContainer), this._instantiationService.setService(v.ICharSizeService, this._charSizeService), this._themeService = this._instantiationService.createInstance(S.ThemeService), this._instantiationService.setService(v.IThemeService, this._themeService), this._characterJoinerService = this._instantiationService.createInstance(d.CharacterJoinerService), this._instantiationService.setService(v.ICharacterJoinerService, this._characterJoinerService), this._renderService = this.register(this._instantiationService.createInstance(m.RenderService, this.rows, this.screenElement)), this._instantiationService.setService(v.IRenderService, this._renderService), this.register(this._renderService.onRenderedViewportChange(((N) => this._onRender.fire(N)))), this.onResize(((N) => this._renderService.resize(N.cols, N.rows))), this._compositionView = this._document.createElement("div"), this._compositionView.classList.add("composition-view"), this._compositionHelper = this._instantiationService.createInstance(r.CompositionHelper, this.textarea, this._compositionView), this._helperContainer.appendChild(this._compositionView), this._mouseService = this._instantiationService.createInstance(_.MouseService), this._instantiationService.setService(v.IMouseService, this._mouseService), this.linkifier = this.register(this._instantiationService.createInstance(n.Linkifier, this.screenElement)), this.element.appendChild(E);
             try {
               this._onWillOpen.fire(this.element);
             } catch (N) {
@@ -539,7 +539,7 @@ WARNING: This link could potentially be dangerous`)) {
               this.textarea.value = N, this.textarea.focus(), this.textarea.select();
             }))), this.register(this._onScroll.event(((N) => {
               this.viewport.syncScrollArea(), this._selectionService.refresh();
-            }))), this.register((0, c.addDisposableDomListener)(this._viewportElement, "scroll", (() => this._selectionService.refresh()))), this.register(this._instantiationService.createInstance(o.BufferDecorationRenderer, this.screenElement)), this.register((0, c.addDisposableDomListener)(this.element, "mousedown", ((N) => this._selectionService.handleMouseDown(N)))), this.coreMouseService.areMouseEventsActive ? (this._selectionService.disable(), this.element.classList.add("enable-mouse-events")) : this._selectionService.enable(), this.options.screenReaderMode && (this._accessibilityManager.value = this._instantiationService.createInstance(F.AccessibilityManager, this)), this.register(this.optionsService.onSpecificOptionChange("screenReaderMode", ((N) => this._handleScreenReaderModeOptionChange(N)))), this.options.overviewRulerWidth && (this._overviewRulerRenderer = this.register(this._instantiationService.createInstance(e.OverviewRulerRenderer, this._viewportElement, this.screenElement))), this.optionsService.onSpecificOptionChange("overviewRulerWidth", ((N) => {
+            }))), this.register((0, c.addDisposableDomListener)(this._viewportElement, "scroll", (() => this._selectionService.refresh()))), this.register(this._instantiationService.createInstance(o.BufferDecorationRenderer, this.screenElement)), this.register((0, c.addDisposableDomListener)(this.element, "mousedown", ((N) => this._selectionService.handleMouseDown(N)))), this.coreMouseService.areMouseEventsActive ? (this._selectionService.disable(), this.element.classList.add("enable-mouse-events")) : this._selectionService.enable(), this.options.screenReaderMode && (this._accessibilityManager.value = this._instantiationService.createInstance(H.AccessibilityManager, this)), this.register(this.optionsService.onSpecificOptionChange("screenReaderMode", ((N) => this._handleScreenReaderModeOptionChange(N)))), this.options.overviewRulerWidth && (this._overviewRulerRenderer = this.register(this._instantiationService.createInstance(e.OverviewRulerRenderer, this._viewportElement, this.screenElement))), this.optionsService.onSpecificOptionChange("overviewRulerWidth", ((N) => {
               !this._overviewRulerRenderer && N && this._viewportElement && this.screenElement && (this._overviewRulerRenderer = this.register(this._instantiationService.createInstance(e.OverviewRulerRenderer, this._viewportElement, this.screenElement)));
             })), this._charSizeService.measure(), this.refresh(0, this.rows - 1), this._initGlobal(), this.bindMouse();
           }
@@ -548,7 +548,7 @@ WARNING: This link could potentially be dangerous`)) {
           }
           bindMouse() {
             const k = this, E = this.element;
-            function H(N) {
+            function W(N) {
               const J = k._mouseService.getMouseReportCoords(N, k.screenElement);
               if (!J) return !1;
               let X, ne;
@@ -571,17 +571,17 @@ WARNING: This link could potentially be dangerous`)) {
               }
               return !(ne === void 0 || X === void 0 || X > 4) && k.coreMouseService.triggerMouseEvent({ col: J.col, row: J.row, x: J.x, y: J.y, button: X, action: ne, ctrl: N.ctrlKey, alt: N.altKey, shift: N.shiftKey });
             }
-            const $ = { mouseup: null, wheel: null, mousedrag: null, mousemove: null }, j = { mouseup: (N) => (H(N), N.buttons || (this._document.removeEventListener("mouseup", $.mouseup), $.mousedrag && this._document.removeEventListener("mousemove", $.mousedrag)), this.cancel(N)), wheel: (N) => (H(N), this.cancel(N, !0)), mousedrag: (N) => {
-              N.buttons && H(N);
+            const U = { mouseup: null, wheel: null, mousedrag: null, mousemove: null }, j = { mouseup: (N) => (W(N), N.buttons || (this._document.removeEventListener("mouseup", U.mouseup), U.mousedrag && this._document.removeEventListener("mousemove", U.mousedrag)), this.cancel(N)), wheel: (N) => (W(N), this.cancel(N, !0)), mousedrag: (N) => {
+              N.buttons && W(N);
             }, mousemove: (N) => {
-              N.buttons || H(N);
+              N.buttons || W(N);
             } };
             this.register(this.coreMouseService.onProtocolChange(((N) => {
-              N ? (this.optionsService.rawOptions.logLevel === "debug" && this._logService.debug("Binding to mouse events:", this.coreMouseService.explainEvents(N)), this.element.classList.add("enable-mouse-events"), this._selectionService.disable()) : (this._logService.debug("Unbinding from mouse events."), this.element.classList.remove("enable-mouse-events"), this._selectionService.enable()), 8 & N ? $.mousemove || (E.addEventListener("mousemove", j.mousemove), $.mousemove = j.mousemove) : (E.removeEventListener("mousemove", $.mousemove), $.mousemove = null), 16 & N ? $.wheel || (E.addEventListener("wheel", j.wheel, { passive: !1 }), $.wheel = j.wheel) : (E.removeEventListener("wheel", $.wheel), $.wheel = null), 2 & N ? $.mouseup || ($.mouseup = j.mouseup) : (this._document.removeEventListener("mouseup", $.mouseup), $.mouseup = null), 4 & N ? $.mousedrag || ($.mousedrag = j.mousedrag) : (this._document.removeEventListener("mousemove", $.mousedrag), $.mousedrag = null);
+              N ? (this.optionsService.rawOptions.logLevel === "debug" && this._logService.debug("Binding to mouse events:", this.coreMouseService.explainEvents(N)), this.element.classList.add("enable-mouse-events"), this._selectionService.disable()) : (this._logService.debug("Unbinding from mouse events."), this.element.classList.remove("enable-mouse-events"), this._selectionService.enable()), 8 & N ? U.mousemove || (E.addEventListener("mousemove", j.mousemove), U.mousemove = j.mousemove) : (E.removeEventListener("mousemove", U.mousemove), U.mousemove = null), 16 & N ? U.wheel || (E.addEventListener("wheel", j.wheel, { passive: !1 }), U.wheel = j.wheel) : (E.removeEventListener("wheel", U.wheel), U.wheel = null), 2 & N ? U.mouseup || (U.mouseup = j.mouseup) : (this._document.removeEventListener("mouseup", U.mouseup), U.mouseup = null), 4 & N ? U.mousedrag || (U.mousedrag = j.mousedrag) : (this._document.removeEventListener("mousemove", U.mousedrag), U.mousedrag = null);
             }))), this.coreMouseService.activeProtocol = this.coreMouseService.activeProtocol, this.register((0, c.addDisposableDomListener)(E, "mousedown", ((N) => {
-              if (N.preventDefault(), this.focus(), this.coreMouseService.areMouseEventsActive && !this._selectionService.shouldForceSelection(N)) return H(N), $.mouseup && this._document.addEventListener("mouseup", $.mouseup), $.mousedrag && this._document.addEventListener("mousemove", $.mousedrag), this.cancel(N);
+              if (N.preventDefault(), this.focus(), this.coreMouseService.areMouseEventsActive && !this._selectionService.shouldForceSelection(N)) return W(N), U.mouseup && this._document.addEventListener("mouseup", U.mouseup), U.mousedrag && this._document.addEventListener("mousemove", U.mousedrag), this.cancel(N);
             }))), this.register((0, c.addDisposableDomListener)(E, "wheel", ((N) => {
-              if (!$.wheel) {
+              if (!U.wheel) {
                 if (this._customWheelEventHandler && this._customWheelEventHandler(N) === !1) return !1;
                 if (!this.buffer.hasScrollback) {
                   const J = this.viewport.getLinesScrolled(N);
@@ -600,8 +600,8 @@ WARNING: This link could potentially be dangerous`)) {
             }), { passive: !1 }));
           }
           refresh(k, E) {
-            var H;
-            (H = this._renderService) == null || H.refreshRows(k, E);
+            var W;
+            (W = this._renderService) == null || W.refreshRows(k, E);
           }
           updateCursorStyle(k) {
             var E;
@@ -610,9 +610,9 @@ WARNING: This link could potentially be dangerous`)) {
           _showCursor() {
             this.coreService.isCursorInitialized || (this.coreService.isCursorInitialized = !0, this.refresh(this.buffer.y, this.buffer.y));
           }
-          scrollLines(k, E, H = 0) {
-            var $;
-            H === 1 ? (super.scrollLines(k, E, H), this.refresh(0, this.rows - 1)) : ($ = this.viewport) == null || $.scrollLines(k);
+          scrollLines(k, E, W = 0) {
+            var U;
+            W === 1 ? (super.scrollLines(k, E, W), this.refresh(0, this.rows - 1)) : (U = this.viewport) == null || U.scrollLines(k);
           }
           paste(k) {
             (0, h.paste)(k, this.textarea, this.coreService, this.optionsService);
@@ -647,8 +647,8 @@ WARNING: This link could potentially be dangerous`)) {
           hasSelection() {
             return !!this._selectionService && this._selectionService.hasSelection;
           }
-          select(k, E, H) {
-            this._selectionService.setSelection(k, E, H);
+          select(k, E, W) {
+            this._selectionService.setSelection(k, E, W);
           }
           getSelection() {
             return this._selectionService ? this._selectionService.selectionText : "";
@@ -665,24 +665,24 @@ WARNING: This link could potentially be dangerous`)) {
             (k = this._selectionService) == null || k.selectAll();
           }
           selectLines(k, E) {
-            var H;
-            (H = this._selectionService) == null || H.selectLines(k, E);
+            var W;
+            (W = this._selectionService) == null || W.selectLines(k, E);
           }
           _keyDown(k) {
             if (this._keyDownHandled = !1, this._keyDownSeen = !0, this._customKeyEventHandler && this._customKeyEventHandler(k) === !1) return !1;
             const E = this.browser.isMac && this.options.macOptionIsMeta && k.altKey;
             if (!E && !this._compositionHelper.keydown(k)) return this.options.scrollOnUserInput && this.buffer.ybase !== this.buffer.ydisp && this.scrollToBottom(), !1;
             E || k.key !== "Dead" && k.key !== "AltGraph" || (this._unprocessedDeadKey = !0);
-            const H = (0, B.evaluateKeyboardEvent)(k, this.coreService.decPrivateModes.applicationCursorKeys, this.browser.isMac, this.options.macOptionIsMeta);
-            if (this.updateCursorStyle(k), H.type === 3 || H.type === 2) {
-              const $ = this.rows - 1;
-              return this.scrollLines(H.type === 2 ? -$ : $), this.cancel(k, !0);
+            const W = (0, O.evaluateKeyboardEvent)(k, this.coreService.decPrivateModes.applicationCursorKeys, this.browser.isMac, this.options.macOptionIsMeta);
+            if (this.updateCursorStyle(k), W.type === 3 || W.type === 2) {
+              const U = this.rows - 1;
+              return this.scrollLines(W.type === 2 ? -U : U), this.cancel(k, !0);
             }
-            return H.type === 1 && this.selectAll(), !!this._isThirdLevelShift(this.browser, k) || (H.cancel && this.cancel(k, !0), !H.key || !!(k.key && !k.ctrlKey && !k.altKey && !k.metaKey && k.key.length === 1 && k.key.charCodeAt(0) >= 65 && k.key.charCodeAt(0) <= 90) || (this._unprocessedDeadKey ? (this._unprocessedDeadKey = !1, !0) : (H.key !== I.C0.ETX && H.key !== I.C0.CR || (this.textarea.value = ""), this._onKey.fire({ key: H.key, domEvent: k }), this._showCursor(), this.coreService.triggerDataEvent(H.key, !0), !this.optionsService.rawOptions.screenReaderMode || k.altKey || k.ctrlKey ? this.cancel(k, !0) : void (this._keyDownHandled = !0))));
+            return W.type === 1 && this.selectAll(), !!this._isThirdLevelShift(this.browser, k) || (W.cancel && this.cancel(k, !0), !W.key || !!(k.key && !k.ctrlKey && !k.altKey && !k.metaKey && k.key.length === 1 && k.key.charCodeAt(0) >= 65 && k.key.charCodeAt(0) <= 90) || (this._unprocessedDeadKey ? (this._unprocessedDeadKey = !1, !0) : (W.key !== I.C0.ETX && W.key !== I.C0.CR || (this.textarea.value = ""), this._onKey.fire({ key: W.key, domEvent: k }), this._showCursor(), this.coreService.triggerDataEvent(W.key, !0), !this.optionsService.rawOptions.screenReaderMode || k.altKey || k.ctrlKey ? this.cancel(k, !0) : void (this._keyDownHandled = !0))));
           }
           _isThirdLevelShift(k, E) {
-            const H = k.isMac && !this.options.macOptionIsMeta && E.altKey && !E.ctrlKey && !E.metaKey || k.isWindows && E.altKey && E.ctrlKey && !E.metaKey || k.isWindows && E.getModifierState("AltGraph");
-            return E.type === "keypress" ? H : H && (!E.keyCode || E.keyCode > 47);
+            const W = k.isMac && !this.options.macOptionIsMeta && E.altKey && !E.ctrlKey && !E.metaKey || k.isWindows && E.altKey && E.ctrlKey && !E.metaKey || k.isWindows && E.getModifierState("AltGraph");
+            return E.type === "keypress" ? W : W && (!E.keyCode || E.keyCode > 47);
           }
           _keyUp(k) {
             this._keyDownSeen = !1, this._customKeyEventHandler && this._customKeyEventHandler(k) === !1 || ((function(E) {
@@ -713,8 +713,8 @@ WARNING: This link could potentially be dangerous`)) {
             k !== this.cols || E !== this.rows ? super.resize(k, E) : this._charSizeService && !this._charSizeService.hasValidSize && this._charSizeService.measure();
           }
           _afterResize(k, E) {
-            var H, $;
-            (H = this._charSizeService) == null || H.measure(), ($ = this.viewport) == null || $.syncScrollArea(!0);
+            var W, U;
+            (W = this._charSizeService) == null || W.measure(), (U = this.viewport) == null || U.syncScrollArea(!0);
           }
           clear() {
             var k;
@@ -725,10 +725,10 @@ WARNING: This link could potentially be dangerous`)) {
             }
           }
           reset() {
-            var E, H;
+            var E, W;
             this.options.rows = this.rows, this.options.cols = this.cols;
             const k = this._customKeyEventHandler;
-            this._setup(), super.reset(), (E = this._selectionService) == null || E.reset(), this._decorationService.reset(), (H = this.viewport) == null || H.reset(), this._customKeyEventHandler = k, this.refresh(0, this.rows - 1);
+            this._setup(), super.reset(), (E = this._selectionService) == null || E.reset(), this._decorationService.reset(), (W = this.viewport) == null || W.reset(), this._customKeyEventHandler = k, this.refresh(0, this.rows - 1);
           }
           clearTextureAtlas() {
             var k;
@@ -740,13 +740,13 @@ WARNING: This link could potentially be dangerous`)) {
           }
           _reportWindowsOptions(k) {
             if (this._renderService) switch (k) {
-              case A.WindowsOptionsReportType.GET_WIN_SIZE_PIXELS:
-                const E = this._renderService.dimensions.css.canvas.width.toFixed(0), H = this._renderService.dimensions.css.canvas.height.toFixed(0);
-                this.coreService.triggerDataEvent(`${I.C0.ESC}[4;${H};${E}t`);
+              case D.WindowsOptionsReportType.GET_WIN_SIZE_PIXELS:
+                const E = this._renderService.dimensions.css.canvas.width.toFixed(0), W = this._renderService.dimensions.css.canvas.height.toFixed(0);
+                this.coreService.triggerDataEvent(`${I.C0.ESC}[4;${W};${E}t`);
                 break;
-              case A.WindowsOptionsReportType.GET_CELL_SIZE_PIXELS:
-                const $ = this._renderService.dimensions.css.cell.width.toFixed(0), j = this._renderService.dimensions.css.cell.height.toFixed(0);
-                this.coreService.triggerDataEvent(`${I.C0.ESC}[6;${j};${$}t`);
+              case D.WindowsOptionsReportType.GET_CELL_SIZE_PIXELS:
+                const U = this._renderService.dimensions.css.cell.width.toFixed(0), j = this._renderService.dimensions.css.cell.height.toFixed(0);
+                this.coreService.triggerDataEvent(`${I.C0.ESC}[6;${j};${U}t`);
             }
           }
           cancel(k, E) {
@@ -1192,9 +1192,9 @@ WARNING: This link could potentially be dangerous`)) {
           })(d, p, 0, r, i, s) + c(p, r, i, s) + (function(u, v, S, y, b, w) {
             let L;
             L = c(v, y, b, w).length > 0 ? y - n(y, b) : v;
-            const M = y, P = (function(I, B, C, x, R, A) {
-              let F;
-              return F = c(C, x, R, A).length > 0 ? x - n(x, R) : B, I < C && F <= x || I >= C && F < x ? "C" : "D";
+            const M = y, P = (function(I, O, C, x, R, D) {
+              let H;
+              return H = c(C, x, R, D).length > 0 ? x - n(x, R) : O, I < C && H <= x || I >= C && H < x ? "C" : "D";
             })(u, v, S, y, b, w);
             return o(f(u, L, S, M, P === "C", b).length, g(P, w));
           })(d, p, e, r, i, s);
@@ -1208,10 +1208,10 @@ WARNING: This link could potentially be dangerous`)) {
         };
       }, 1296: function(T, t, a) {
         var h = this && this.__decorate || function(w, L, M, P) {
-          var I, B = arguments.length, C = B < 3 ? L : P === null ? P = Object.getOwnPropertyDescriptor(L, M) : P;
+          var I, O = arguments.length, C = O < 3 ? L : P === null ? P = Object.getOwnPropertyDescriptor(L, M) : P;
           if (typeof Reflect == "object" && typeof Reflect.decorate == "function") C = Reflect.decorate(w, L, M, P);
-          else for (var x = w.length - 1; x >= 0; x--) (I = w[x]) && (C = (B < 3 ? I(C) : B > 3 ? I(L, M, C) : I(L, M)) || C);
-          return B > 3 && C && Object.defineProperty(L, M, C), C;
+          else for (var x = w.length - 1; x >= 0; x--) (I = w[x]) && (C = (O < 3 ? I(C) : O > 3 ? I(L, M, C) : I(L, M)) || C);
+          return O > 3 && C && Object.defineProperty(L, M, C), C;
         }, c = this && this.__param || function(w, L) {
           return function(M, P) {
             L(M, P, w);
@@ -1220,8 +1220,8 @@ WARNING: This link could potentially be dangerous`)) {
         Object.defineProperty(t, "__esModule", { value: !0 }), t.DomRenderer = void 0;
         const n = a(3787), l = a(2550), f = a(2223), g = a(6171), o = a(6052), e = a(4725), r = a(8055), i = a(8460), s = a(844), d = a(2585), p = "xterm-dom-renderer-owner-", _ = "xterm-rows", m = "xterm-fg-", u = "xterm-bg-", v = "xterm-focus", S = "xterm-selection";
         let y = 1, b = t.DomRenderer = class extends s.Disposable {
-          constructor(w, L, M, P, I, B, C, x, R, A, F, z, K) {
-            super(), this._terminal = w, this._document = L, this._element = M, this._screenElement = P, this._viewportElement = I, this._helperContainer = B, this._linkifier2 = C, this._charSizeService = R, this._optionsService = A, this._bufferService = F, this._coreBrowserService = z, this._themeService = K, this._terminalClass = y++, this._rowElements = [], this._selectionRenderModel = (0, o.createSelectionRenderModel)(), this.onRequestRedraw = this.register(new i.EventEmitter()).event, this._rowContainer = this._document.createElement("div"), this._rowContainer.classList.add(_), this._rowContainer.style.lineHeight = "normal", this._rowContainer.setAttribute("aria-hidden", "true"), this._refreshRowElements(this._bufferService.cols, this._bufferService.rows), this._selectionContainer = this._document.createElement("div"), this._selectionContainer.classList.add(S), this._selectionContainer.setAttribute("aria-hidden", "true"), this.dimensions = (0, g.createRenderDimensions)(), this._updateDimensions(), this.register(this._optionsService.onOptionChange((() => this._handleOptionsChanged()))), this.register(this._themeService.onChangeColors(((q) => this._injectCss(q)))), this._injectCss(this._themeService.colors), this._rowFactory = x.createInstance(n.DomRendererRowFactory, document), this._element.classList.add(p + this._terminalClass), this._screenElement.appendChild(this._rowContainer), this._screenElement.appendChild(this._selectionContainer), this.register(this._linkifier2.onShowLinkUnderline(((q) => this._handleLinkHover(q)))), this.register(this._linkifier2.onHideLinkUnderline(((q) => this._handleLinkLeave(q)))), this.register((0, s.toDisposable)((() => {
+          constructor(w, L, M, P, I, O, C, x, R, D, H, z, K) {
+            super(), this._terminal = w, this._document = L, this._element = M, this._screenElement = P, this._viewportElement = I, this._helperContainer = O, this._linkifier2 = C, this._charSizeService = R, this._optionsService = D, this._bufferService = H, this._coreBrowserService = z, this._themeService = K, this._terminalClass = y++, this._rowElements = [], this._selectionRenderModel = (0, o.createSelectionRenderModel)(), this.onRequestRedraw = this.register(new i.EventEmitter()).event, this._rowContainer = this._document.createElement("div"), this._rowContainer.classList.add(_), this._rowContainer.style.lineHeight = "normal", this._rowContainer.setAttribute("aria-hidden", "true"), this._refreshRowElements(this._bufferService.cols, this._bufferService.rows), this._selectionContainer = this._document.createElement("div"), this._selectionContainer.classList.add(S), this._selectionContainer.setAttribute("aria-hidden", "true"), this.dimensions = (0, g.createRenderDimensions)(), this._updateDimensions(), this.register(this._optionsService.onOptionChange((() => this._handleOptionsChanged()))), this.register(this._themeService.onChangeColors(((q) => this._injectCss(q)))), this._injectCss(this._themeService.colors), this._rowFactory = x.createInstance(n.DomRendererRowFactory, document), this._element.classList.add(p + this._terminalClass), this._screenElement.appendChild(this._rowContainer), this._screenElement.appendChild(this._selectionContainer), this.register(this._linkifier2.onShowLinkUnderline(((q) => this._handleLinkHover(q)))), this.register(this._linkifier2.onHideLinkUnderline(((q) => this._handleLinkLeave(q)))), this.register((0, s.toDisposable)((() => {
               this._element.classList.remove(p + this._terminalClass), this._rowContainer.remove(), this._selectionContainer.remove(), this._widthCache.dispose(), this._themeStyleElement.remove(), this._dimensionsStyleElement.remove();
             }))), this._widthCache = new l.WidthCache(this._document, this._helperContainer), this._widthCache.setFont(this._optionsService.rawOptions.fontFamily, this._optionsService.rawOptions.fontSize, this._optionsService.rawOptions.fontWeight, this._optionsService.rawOptions.fontWeightBold), this._setDefaultSpacing();
           }
@@ -1239,7 +1239,7 @@ WARNING: This link could potentially be dangerous`)) {
             L += `${this._terminalSelector} .${_} .xterm-dim { color: ${r.color.multiplyOpacity(w.foreground, 0.5).css};}`, L += `${this._terminalSelector} span:not(.xterm-bold) { font-weight: ${this._optionsService.rawOptions.fontWeight};}${this._terminalSelector} span.xterm-bold { font-weight: ${this._optionsService.rawOptions.fontWeightBold};}${this._terminalSelector} span.xterm-italic { font-style: italic;}`;
             const M = `blink_underline_${this._terminalClass}`, P = `blink_bar_${this._terminalClass}`, I = `blink_block_${this._terminalClass}`;
             L += `@keyframes ${M} { 50% {  border-bottom-style: hidden; }}`, L += `@keyframes ${P} { 50% {  box-shadow: none; }}`, L += `@keyframes ${I} { 0% {  background-color: ${w.cursor.css};  color: ${w.cursorAccent.css}; } 50% {  background-color: inherit;  color: ${w.cursor.css}; }}`, L += `${this._terminalSelector} .${_}.${v} .xterm-cursor.xterm-cursor-blink.xterm-cursor-underline { animation: ${M} 1s step-end infinite;}${this._terminalSelector} .${_}.${v} .xterm-cursor.xterm-cursor-blink.xterm-cursor-bar { animation: ${P} 1s step-end infinite;}${this._terminalSelector} .${_}.${v} .xterm-cursor.xterm-cursor-blink.xterm-cursor-block { animation: ${I} 1s step-end infinite;}${this._terminalSelector} .${_} .xterm-cursor.xterm-cursor-block { background-color: ${w.cursor.css}; color: ${w.cursorAccent.css};}${this._terminalSelector} .${_} .xterm-cursor.xterm-cursor-block:not(.xterm-cursor-blink) { background-color: ${w.cursor.css} !important; color: ${w.cursorAccent.css} !important;}${this._terminalSelector} .${_} .xterm-cursor.xterm-cursor-outline { outline: 1px solid ${w.cursor.css}; outline-offset: -1px;}${this._terminalSelector} .${_} .xterm-cursor.xterm-cursor-bar { box-shadow: ${this._optionsService.rawOptions.cursorWidth}px 0 0 ${w.cursor.css} inset;}${this._terminalSelector} .${_} .xterm-cursor.xterm-cursor-underline { border-bottom: 1px ${w.cursor.css}; border-bottom-style: solid; height: calc(100% - 1px);}`, L += `${this._terminalSelector} .${S} { position: absolute; top: 0; left: 0; z-index: 1; pointer-events: none;}${this._terminalSelector}.focus .${S} div { position: absolute; background-color: ${w.selectionBackgroundOpaque.css};}${this._terminalSelector} .${S} div { position: absolute; background-color: ${w.selectionInactiveBackgroundOpaque.css};}`;
-            for (const [B, C] of w.ansi.entries()) L += `${this._terminalSelector} .${m}${B} { color: ${C.css}; }${this._terminalSelector} .${m}${B}.xterm-dim { color: ${r.color.multiplyOpacity(C, 0.5).css}; }${this._terminalSelector} .${u}${B} { background-color: ${C.css}; }`;
+            for (const [O, C] of w.ansi.entries()) L += `${this._terminalSelector} .${m}${O} { color: ${C.css}; }${this._terminalSelector} .${m}${O}.xterm-dim { color: ${r.color.multiplyOpacity(C, 0.5).css}; }${this._terminalSelector} .${u}${O} { background-color: ${C.css}; }`;
             L += `${this._terminalSelector} .${m}${f.INVERTED_DEFAULT_COLOR} { color: ${r.color.opaque(w.background).css}; }${this._terminalSelector} .${m}${f.INVERTED_DEFAULT_COLOR}.xterm-dim { color: ${r.color.multiplyOpacity(r.color.opaque(w.background), 0.5).css}; }${this._terminalSelector} .${u}${f.INVERTED_DEFAULT_COLOR} { background-color: ${w.foreground.css}; }`, this._themeStyleElement.textContent = L;
           }
           _setDefaultSpacing() {
@@ -1271,17 +1271,17 @@ WARNING: This link could potentially be dangerous`)) {
           handleSelectionChanged(w, L, M) {
             if (this._selectionContainer.replaceChildren(), this._rowFactory.handleSelectionChanged(w, L, M), this.renderRows(0, this._bufferService.rows - 1), !w || !L) return;
             this._selectionRenderModel.update(this._terminal, w, L, M);
-            const P = this._selectionRenderModel.viewportStartRow, I = this._selectionRenderModel.viewportEndRow, B = this._selectionRenderModel.viewportCappedStartRow, C = this._selectionRenderModel.viewportCappedEndRow;
-            if (B >= this._bufferService.rows || C < 0) return;
+            const P = this._selectionRenderModel.viewportStartRow, I = this._selectionRenderModel.viewportEndRow, O = this._selectionRenderModel.viewportCappedStartRow, C = this._selectionRenderModel.viewportCappedEndRow;
+            if (O >= this._bufferService.rows || C < 0) return;
             const x = this._document.createDocumentFragment();
             if (M) {
               const R = w[0] > L[0];
-              x.appendChild(this._createSelectionElement(B, R ? L[0] : w[0], R ? w[0] : L[0], C - B + 1));
+              x.appendChild(this._createSelectionElement(O, R ? L[0] : w[0], R ? w[0] : L[0], C - O + 1));
             } else {
-              const R = P === B ? w[0] : 0, A = B === I ? L[0] : this._bufferService.cols;
-              x.appendChild(this._createSelectionElement(B, R, A));
-              const F = C - B - 1;
-              if (x.appendChild(this._createSelectionElement(B + 1, 0, this._bufferService.cols, F)), B !== C) {
+              const R = P === O ? w[0] : 0, D = O === I ? L[0] : this._bufferService.cols;
+              x.appendChild(this._createSelectionElement(O, R, D));
+              const H = C - O - 1;
+              if (x.appendChild(this._createSelectionElement(O + 1, 0, this._bufferService.cols, H)), O !== C) {
                 const z = I === C ? L[0] : this._bufferService.cols;
                 x.appendChild(this._createSelectionElement(C, 0, z));
               }
@@ -1289,9 +1289,9 @@ WARNING: This link could potentially be dangerous`)) {
             this._selectionContainer.appendChild(x);
           }
           _createSelectionElement(w, L, M, P = 1) {
-            const I = this._document.createElement("div"), B = L * this.dimensions.css.cell.width;
+            const I = this._document.createElement("div"), O = L * this.dimensions.css.cell.width;
             let C = this.dimensions.css.cell.width * (M - L);
-            return B + C > this.dimensions.css.canvas.width && (C = this.dimensions.css.canvas.width - B), I.style.height = P * this.dimensions.css.cell.height + "px", I.style.top = w * this.dimensions.css.cell.height + "px", I.style.left = `${B}px`, I.style.width = `${C}px`, I;
+            return O + C > this.dimensions.css.canvas.width && (C = this.dimensions.css.canvas.width - O), I.style.height = P * this.dimensions.css.cell.height + "px", I.style.top = w * this.dimensions.css.cell.height + "px", I.style.left = `${O}px`, I.style.width = `${C}px`, I;
           }
           handleCursorMove() {
           }
@@ -1302,11 +1302,11 @@ WARNING: This link could potentially be dangerous`)) {
             for (const w of this._rowElements) w.replaceChildren();
           }
           renderRows(w, L) {
-            const M = this._bufferService.buffer, P = M.ybase + M.y, I = Math.min(M.x, this._bufferService.cols - 1), B = this._optionsService.rawOptions.cursorBlink, C = this._optionsService.rawOptions.cursorStyle, x = this._optionsService.rawOptions.cursorInactiveStyle;
+            const M = this._bufferService.buffer, P = M.ybase + M.y, I = Math.min(M.x, this._bufferService.cols - 1), O = this._optionsService.rawOptions.cursorBlink, C = this._optionsService.rawOptions.cursorStyle, x = this._optionsService.rawOptions.cursorInactiveStyle;
             for (let R = w; R <= L; R++) {
-              const A = R + M.ydisp, F = this._rowElements[R], z = M.lines.get(A);
-              if (!F || !z) break;
-              F.replaceChildren(...this._rowFactory.createRow(z, A, A === P, C, x, I, B, this.dimensions.css.cell.width, this._widthCache, -1, -1));
+              const D = R + M.ydisp, H = this._rowElements[R], z = M.lines.get(D);
+              if (!H || !z) break;
+              H.replaceChildren(...this._rowFactory.createRow(z, D, D === P, C, x, I, O, this.dimensions.css.cell.width, this._widthCache, -1, -1));
             }
           }
           get _terminalSelector() {
@@ -1318,15 +1318,15 @@ WARNING: This link could potentially be dangerous`)) {
           _handleLinkLeave(w) {
             this._setCellUnderline(w.x1, w.x2, w.y1, w.y2, w.cols, !1);
           }
-          _setCellUnderline(w, L, M, P, I, B) {
+          _setCellUnderline(w, L, M, P, I, O) {
             M < 0 && (w = 0), P < 0 && (L = 0);
             const C = this._bufferService.rows - 1;
             M = Math.max(Math.min(M, C), 0), P = Math.max(Math.min(P, C), 0), I = Math.min(I, this._bufferService.cols);
-            const x = this._bufferService.buffer, R = x.ybase + x.y, A = Math.min(x.x, I - 1), F = this._optionsService.rawOptions.cursorBlink, z = this._optionsService.rawOptions.cursorStyle, K = this._optionsService.rawOptions.cursorInactiveStyle;
+            const x = this._bufferService.buffer, R = x.ybase + x.y, D = Math.min(x.x, I - 1), H = this._optionsService.rawOptions.cursorBlink, z = this._optionsService.rawOptions.cursorStyle, K = this._optionsService.rawOptions.cursorInactiveStyle;
             for (let q = M; q <= P; ++q) {
-              const k = q + x.ydisp, E = this._rowElements[q], H = x.lines.get(k);
-              if (!E || !H) break;
-              E.replaceChildren(...this._rowFactory.createRow(H, k, k === R, z, K, A, F, this.dimensions.css.cell.width, this._widthCache, B ? q === M ? w : 0 : -1, B ? (q === P ? L : I) - 1 : -1));
+              const k = q + x.ydisp, E = this._rowElements[q], W = x.lines.get(k);
+              if (!E || !W) break;
+              E.replaceChildren(...this._rowFactory.createRow(W, k, k === R, z, K, D, H, this.dimensions.css.cell.width, this._widthCache, O ? q === M ? w : 0 : -1, O ? (q === P ? L : I) - 1 : -1));
             }
           }
         };
@@ -1352,19 +1352,19 @@ WARNING: This link could potentially be dangerous`)) {
             this._selectionStart = _, this._selectionEnd = m, this._columnSelectMode = u;
           }
           createRow(_, m, u, v, S, y, b, w, L, M, P) {
-            const I = [], B = this._characterJoinerService.getJoinedCharacters(m), C = this._themeService.colors;
+            const I = [], O = this._characterJoinerService.getJoinedCharacters(m), C = this._themeService.colors;
             let x, R = _.getNoBgTrimmedLength();
             u && R < y + 1 && (R = y + 1);
-            let A = 0, F = "", z = 0, K = 0, q = 0, k = !1, E = 0, H = !1, $ = 0;
+            let D = 0, H = "", z = 0, K = 0, q = 0, k = !1, E = 0, W = !1, U = 0;
             const j = [], N = M !== -1 && P !== -1;
             for (let J = 0; J < R; J++) {
               _.loadCell(J, this._workCell);
               let X = this._workCell.getWidth();
               if (X === 0) continue;
               let ne = !1, le = J, Y = this._workCell;
-              if (B.length > 0 && J === B[0][0]) {
+              if (O.length > 0 && J === O[0][0]) {
                 ne = !0;
-                const Z = B.shift();
+                const Z = O.shift();
                 Y = new r.JoinedCellData(this._workCell, _.translateToString(!0, Z[0], Z[1]), Z[1] - Z[0]), le = Z[1] - 1, X = Y.getWidth();
               }
               const _e = this._isCellInSelection(J, m), ge = u && J === y, re = N && J >= M && J <= P;
@@ -1373,14 +1373,14 @@ WARNING: This link could potentially be dangerous`)) {
                 Q = !0;
               }));
               let ee = Y.getChars() || l.WHITESPACE_CELL_CHAR;
-              if (ee === " " && (Y.isUnderline() || Y.isOverline()) && (ee = " "), $ = X * w - L.get(ee, Y.isBold(), Y.isItalic()), x) {
-                if (A && (_e && H || !_e && !H && Y.bg === z) && (_e && H && C.selectionForeground || Y.fg === K) && Y.extended.ext === q && re === k && $ === E && !ge && !ne && !Q) {
-                  Y.isInvisible() ? F += l.WHITESPACE_CELL_CHAR : F += ee, A++;
+              if (ee === " " && (Y.isUnderline() || Y.isOverline()) && (ee = " "), U = X * w - L.get(ee, Y.isBold(), Y.isItalic()), x) {
+                if (D && (_e && W || !_e && !W && Y.bg === z) && (_e && W && C.selectionForeground || Y.fg === K) && Y.extended.ext === q && re === k && U === E && !ge && !ne && !Q) {
+                  Y.isInvisible() ? H += l.WHITESPACE_CELL_CHAR : H += ee, D++;
                   continue;
                 }
-                A && (x.textContent = F), x = this._document.createElement("span"), A = 0, F = "";
+                D && (x.textContent = H), x = this._document.createElement("span"), D = 0, H = "";
               } else x = this._document.createElement("span");
-              if (z = Y.bg, K = Y.fg, q = Y.extended.ext, k = re, E = $, H = _e, ne && y >= J && y <= le && (y = J), !this._coreService.isCursorHidden && ge && this._coreService.isCursorInitialized) {
+              if (z = Y.bg, K = Y.fg, q = Y.extended.ext, k = re, E = U, W = _e, ne && y >= J && y <= le && (y = J), !this._coreService.isCursorHidden && ge && this._coreService.isCursorInitialized) {
                 if (j.push("xterm-cursor"), this._coreBrowserService.isFocused) b && j.push("xterm-cursor-blink"), j.push(v === "bar" ? "xterm-cursor-bar" : v === "underline" ? "xterm-cursor-underline" : "xterm-cursor-block");
                 else if (S) switch (S) {
                   case "outline":
@@ -1396,12 +1396,12 @@ WARNING: This link could potentially be dangerous`)) {
                     j.push("xterm-cursor-underline");
                 }
               }
-              if (Y.isBold() && j.push("xterm-bold"), Y.isItalic() && j.push("xterm-italic"), Y.isDim() && j.push("xterm-dim"), F = Y.isInvisible() ? l.WHITESPACE_CELL_CHAR : Y.getChars() || l.WHITESPACE_CELL_CHAR, Y.isUnderline() && (j.push(`xterm-underline-${Y.extended.underlineStyle}`), F === " " && (F = " "), !Y.isUnderlineColorDefault())) if (Y.isUnderlineColorRGB()) x.style.textDecorationColor = `rgb(${s.AttributeData.toColorRGB(Y.getUnderlineColor()).join(",")})`;
+              if (Y.isBold() && j.push("xterm-bold"), Y.isItalic() && j.push("xterm-italic"), Y.isDim() && j.push("xterm-dim"), H = Y.isInvisible() ? l.WHITESPACE_CELL_CHAR : Y.getChars() || l.WHITESPACE_CELL_CHAR, Y.isUnderline() && (j.push(`xterm-underline-${Y.extended.underlineStyle}`), H === " " && (H = " "), !Y.isUnderlineColorDefault())) if (Y.isUnderlineColorRGB()) x.style.textDecorationColor = `rgb(${s.AttributeData.toColorRGB(Y.getUnderlineColor()).join(",")})`;
               else {
                 let Z = Y.getUnderlineColor();
                 this._optionsService.rawOptions.drawBoldTextInBrightColors && Y.isBold() && Z < 8 && (Z += 8), x.style.textDecorationColor = C.ansi[Z].css;
               }
-              Y.isOverline() && (j.push("xterm-overline"), F === " " && (F = " ")), Y.isStrikethrough() && j.push("xterm-strikethrough"), re && (x.style.textDecoration = "underline");
+              Y.isOverline() && (j.push("xterm-overline"), H === " " && (H = " ")), Y.isStrikethrough() && j.push("xterm-strikethrough"), re && (x.style.textDecoration = "underline");
               let V = Y.getFgColor(), ie = Y.getFgColorMode(), he = Y.getBgColor(), ae = Y.getBgColorMode();
               const fe = !!Y.isInverse();
               if (fe) {
@@ -1436,9 +1436,9 @@ WARNING: This link could potentially be dangerous`)) {
                 default:
                   this._applyMinimumContrast(x, ce, C.foreground, Y, de, ue) || fe && j.push(`xterm-fg-${n.INVERTED_DEFAULT_COLOR}`);
               }
-              j.length && (x.className = j.join(" "), j.length = 0), ge || ne || Q ? x.textContent = F : A++, $ !== this.defaultSpacing && (x.style.letterSpacing = `${$}px`), I.push(x), J = le;
+              j.length && (x.className = j.join(" "), j.length = 0), ge || ne || Q ? x.textContent = H : D++, U !== this.defaultSpacing && (x.style.letterSpacing = `${U}px`), I.push(x), J = le;
             }
-            return x && A && (x.textContent = F), I;
+            return x && D && (x.textContent = H), I;
           }
           _applyMinimumContrast(_, m, u, v, S, y) {
             if (this._optionsService.rawOptions.minimumContrastRatio === 1 || (0, i.treatGlyphAsBackgroundColor)(v.getCode())) return !1;
@@ -2167,18 +2167,18 @@ WARNING: This link could potentially be dangerous`)) {
             const L = b.translateBufferLineToString(u[1], !1);
             let M = this._convertViewportColToCharacterIndex(w, u[0]), P = M;
             const I = u[0] - M;
-            let B = 0, C = 0, x = 0, R = 0;
+            let O = 0, C = 0, x = 0, R = 0;
             if (L.charAt(M) === " ") {
               for (; M > 0 && L.charAt(M - 1) === " "; ) M--;
               for (; P < L.length && L.charAt(P + 1) === " "; ) P++;
             } else {
               let z = u[0], K = u[0];
-              w.getWidth(z) === 0 && (B++, z--), w.getWidth(K) === 2 && (C++, K++);
+              w.getWidth(z) === 0 && (O++, z--), w.getWidth(K) === 2 && (C++, K++);
               const q = w.getString(K).length;
               for (q > 1 && (R += q - 1, P += q - 1); z > 0 && M > 0 && !this._isCharWordSeparator(w.loadCell(z - 1, this._workCell)); ) {
                 w.loadCell(z - 1, this._workCell);
                 const k = this._workCell.getChars().length;
-                this._workCell.getWidth() === 0 ? (B++, z--) : k > 1 && (x += k - 1, M -= k - 1), M--, z--;
+                this._workCell.getWidth() === 0 ? (O++, z--) : k > 1 && (x += k - 1, M -= k - 1), M--, z--;
               }
               for (; K < w.length && P + 1 < L.length && !this._isCharWordSeparator(w.loadCell(K + 1, this._workCell)); ) {
                 w.loadCell(K + 1, this._workCell);
@@ -2187,26 +2187,26 @@ WARNING: This link could potentially be dangerous`)) {
               }
             }
             P++;
-            let A = M + I - B + x, F = Math.min(this._bufferService.cols, P - M + B + C - x - R);
+            let D = M + I - O + x, H = Math.min(this._bufferService.cols, P - M + O + C - x - R);
             if (v || L.slice(M, P).trim() !== "") {
-              if (S && A === 0 && w.getCodePoint(0) !== 32) {
+              if (S && D === 0 && w.getCodePoint(0) !== 32) {
                 const z = b.lines.get(u[1] - 1);
                 if (z && w.isWrapped && z.getCodePoint(this._bufferService.cols - 1) !== 32) {
                   const K = this._getWordAt([this._bufferService.cols - 1, u[1] - 1], !1, !0, !1);
                   if (K) {
                     const q = this._bufferService.cols - K.start;
-                    A -= q, F += q;
+                    D -= q, H += q;
                   }
                 }
               }
-              if (y && A + F === this._bufferService.cols && w.getCodePoint(this._bufferService.cols - 1) !== 32) {
+              if (y && D + H === this._bufferService.cols && w.getCodePoint(this._bufferService.cols - 1) !== 32) {
                 const z = b.lines.get(u[1] + 1);
                 if (z != null && z.isWrapped && z.getCodePoint(0) !== 32) {
                   const K = this._getWordAt([0, u[1] + 1], !1, !1, !0);
-                  K && (F += K.length);
+                  K && (H += K.length);
                 }
               }
-              return { start: A, length: F };
+              return { start: D, length: H };
             }
           }
           _selectWordAt(u, v) {
@@ -2632,21 +2632,21 @@ WARNING: This link could potentially be dangerous`)) {
           return h(void 0), a(((c) => h(c)));
         };
       }, 5435: function(T, t, a) {
-        var h = this && this.__decorate || function(B, C, x, R) {
-          var A, F = arguments.length, z = F < 3 ? C : R === null ? R = Object.getOwnPropertyDescriptor(C, x) : R;
-          if (typeof Reflect == "object" && typeof Reflect.decorate == "function") z = Reflect.decorate(B, C, x, R);
-          else for (var K = B.length - 1; K >= 0; K--) (A = B[K]) && (z = (F < 3 ? A(z) : F > 3 ? A(C, x, z) : A(C, x)) || z);
-          return F > 3 && z && Object.defineProperty(C, x, z), z;
-        }, c = this && this.__param || function(B, C) {
+        var h = this && this.__decorate || function(O, C, x, R) {
+          var D, H = arguments.length, z = H < 3 ? C : R === null ? R = Object.getOwnPropertyDescriptor(C, x) : R;
+          if (typeof Reflect == "object" && typeof Reflect.decorate == "function") z = Reflect.decorate(O, C, x, R);
+          else for (var K = O.length - 1; K >= 0; K--) (D = O[K]) && (z = (H < 3 ? D(z) : H > 3 ? D(C, x, z) : D(C, x)) || z);
+          return H > 3 && z && Object.defineProperty(C, x, z), z;
+        }, c = this && this.__param || function(O, C) {
           return function(x, R) {
-            C(x, R, B);
+            C(x, R, O);
           };
         };
         Object.defineProperty(t, "__esModule", { value: !0 }), t.InputHandler = t.WindowsOptionsReportType = void 0;
         const n = a(2584), l = a(7116), f = a(2015), g = a(844), o = a(482), e = a(8437), r = a(8460), i = a(643), s = a(511), d = a(3734), p = a(2585), _ = a(1480), m = a(6242), u = a(6351), v = a(5941), S = { "(": 0, ")": 1, "*": 2, "+": 3, "-": 1, ".": 2 }, y = 131072;
-        function b(B, C) {
-          if (B > 24) return C.setWinLines || !1;
-          switch (B) {
+        function b(O, C) {
+          if (O > 24) return C.setWinLines || !1;
+          switch (O) {
             case 1:
               return !!C.restoreWin;
             case 2:
@@ -2695,31 +2695,31 @@ WARNING: This link could potentially be dangerous`)) {
           return !1;
         }
         var w;
-        (function(B) {
-          B[B.GET_WIN_SIZE_PIXELS = 0] = "GET_WIN_SIZE_PIXELS", B[B.GET_CELL_SIZE_PIXELS = 1] = "GET_CELL_SIZE_PIXELS";
+        (function(O) {
+          O[O.GET_WIN_SIZE_PIXELS = 0] = "GET_WIN_SIZE_PIXELS", O[O.GET_CELL_SIZE_PIXELS = 1] = "GET_CELL_SIZE_PIXELS";
         })(w || (t.WindowsOptionsReportType = w = {}));
         let L = 0;
         class M extends g.Disposable {
           getAttrData() {
             return this._curAttrData;
           }
-          constructor(C, x, R, A, F, z, K, q, k = new f.EscapeSequenceParser()) {
-            super(), this._bufferService = C, this._charsetService = x, this._coreService = R, this._logService = A, this._optionsService = F, this._oscLinkService = z, this._coreMouseService = K, this._unicodeService = q, this._parser = k, this._parseBuffer = new Uint32Array(4096), this._stringDecoder = new o.StringToUtf32(), this._utf8Decoder = new o.Utf8ToUtf32(), this._workCell = new s.CellData(), this._windowTitle = "", this._iconName = "", this._windowTitleStack = [], this._iconNameStack = [], this._curAttrData = e.DEFAULT_ATTR_DATA.clone(), this._eraseAttrDataInternal = e.DEFAULT_ATTR_DATA.clone(), this._onRequestBell = this.register(new r.EventEmitter()), this.onRequestBell = this._onRequestBell.event, this._onRequestRefreshRows = this.register(new r.EventEmitter()), this.onRequestRefreshRows = this._onRequestRefreshRows.event, this._onRequestReset = this.register(new r.EventEmitter()), this.onRequestReset = this._onRequestReset.event, this._onRequestSendFocus = this.register(new r.EventEmitter()), this.onRequestSendFocus = this._onRequestSendFocus.event, this._onRequestSyncScrollBar = this.register(new r.EventEmitter()), this.onRequestSyncScrollBar = this._onRequestSyncScrollBar.event, this._onRequestWindowsOptionsReport = this.register(new r.EventEmitter()), this.onRequestWindowsOptionsReport = this._onRequestWindowsOptionsReport.event, this._onA11yChar = this.register(new r.EventEmitter()), this.onA11yChar = this._onA11yChar.event, this._onA11yTab = this.register(new r.EventEmitter()), this.onA11yTab = this._onA11yTab.event, this._onCursorMove = this.register(new r.EventEmitter()), this.onCursorMove = this._onCursorMove.event, this._onLineFeed = this.register(new r.EventEmitter()), this.onLineFeed = this._onLineFeed.event, this._onScroll = this.register(new r.EventEmitter()), this.onScroll = this._onScroll.event, this._onTitleChange = this.register(new r.EventEmitter()), this.onTitleChange = this._onTitleChange.event, this._onColor = this.register(new r.EventEmitter()), this.onColor = this._onColor.event, this._parseStack = { paused: !1, cursorStartX: 0, cursorStartY: 0, decodedLength: 0, position: 0 }, this._specialColors = [256, 257, 258], this.register(this._parser), this._dirtyRowTracker = new P(this._bufferService), this._activeBuffer = this._bufferService.buffer, this.register(this._bufferService.buffers.onBufferActivate(((E) => this._activeBuffer = E.activeBuffer))), this._parser.setCsiHandlerFallback(((E, H) => {
-              this._logService.debug("Unknown CSI code: ", { identifier: this._parser.identToString(E), params: H.toArray() });
+          constructor(C, x, R, D, H, z, K, q, k = new f.EscapeSequenceParser()) {
+            super(), this._bufferService = C, this._charsetService = x, this._coreService = R, this._logService = D, this._optionsService = H, this._oscLinkService = z, this._coreMouseService = K, this._unicodeService = q, this._parser = k, this._parseBuffer = new Uint32Array(4096), this._stringDecoder = new o.StringToUtf32(), this._utf8Decoder = new o.Utf8ToUtf32(), this._workCell = new s.CellData(), this._windowTitle = "", this._iconName = "", this._windowTitleStack = [], this._iconNameStack = [], this._curAttrData = e.DEFAULT_ATTR_DATA.clone(), this._eraseAttrDataInternal = e.DEFAULT_ATTR_DATA.clone(), this._onRequestBell = this.register(new r.EventEmitter()), this.onRequestBell = this._onRequestBell.event, this._onRequestRefreshRows = this.register(new r.EventEmitter()), this.onRequestRefreshRows = this._onRequestRefreshRows.event, this._onRequestReset = this.register(new r.EventEmitter()), this.onRequestReset = this._onRequestReset.event, this._onRequestSendFocus = this.register(new r.EventEmitter()), this.onRequestSendFocus = this._onRequestSendFocus.event, this._onRequestSyncScrollBar = this.register(new r.EventEmitter()), this.onRequestSyncScrollBar = this._onRequestSyncScrollBar.event, this._onRequestWindowsOptionsReport = this.register(new r.EventEmitter()), this.onRequestWindowsOptionsReport = this._onRequestWindowsOptionsReport.event, this._onA11yChar = this.register(new r.EventEmitter()), this.onA11yChar = this._onA11yChar.event, this._onA11yTab = this.register(new r.EventEmitter()), this.onA11yTab = this._onA11yTab.event, this._onCursorMove = this.register(new r.EventEmitter()), this.onCursorMove = this._onCursorMove.event, this._onLineFeed = this.register(new r.EventEmitter()), this.onLineFeed = this._onLineFeed.event, this._onScroll = this.register(new r.EventEmitter()), this.onScroll = this._onScroll.event, this._onTitleChange = this.register(new r.EventEmitter()), this.onTitleChange = this._onTitleChange.event, this._onColor = this.register(new r.EventEmitter()), this.onColor = this._onColor.event, this._parseStack = { paused: !1, cursorStartX: 0, cursorStartY: 0, decodedLength: 0, position: 0 }, this._specialColors = [256, 257, 258], this.register(this._parser), this._dirtyRowTracker = new P(this._bufferService), this._activeBuffer = this._bufferService.buffer, this.register(this._bufferService.buffers.onBufferActivate(((E) => this._activeBuffer = E.activeBuffer))), this._parser.setCsiHandlerFallback(((E, W) => {
+              this._logService.debug("Unknown CSI code: ", { identifier: this._parser.identToString(E), params: W.toArray() });
             })), this._parser.setEscHandlerFallback(((E) => {
               this._logService.debug("Unknown ESC code: ", { identifier: this._parser.identToString(E) });
             })), this._parser.setExecuteHandlerFallback(((E) => {
               this._logService.debug("Unknown EXECUTE code: ", { code: E });
-            })), this._parser.setOscHandlerFallback(((E, H, $) => {
-              this._logService.debug("Unknown OSC code: ", { identifier: E, action: H, data: $ });
-            })), this._parser.setDcsHandlerFallback(((E, H, $) => {
-              H === "HOOK" && ($ = $.toArray()), this._logService.debug("Unknown DCS code: ", { identifier: this._parser.identToString(E), action: H, payload: $ });
-            })), this._parser.setPrintHandler(((E, H, $) => this.print(E, H, $))), this._parser.registerCsiHandler({ final: "@" }, ((E) => this.insertChars(E))), this._parser.registerCsiHandler({ intermediates: " ", final: "@" }, ((E) => this.scrollLeft(E))), this._parser.registerCsiHandler({ final: "A" }, ((E) => this.cursorUp(E))), this._parser.registerCsiHandler({ intermediates: " ", final: "A" }, ((E) => this.scrollRight(E))), this._parser.registerCsiHandler({ final: "B" }, ((E) => this.cursorDown(E))), this._parser.registerCsiHandler({ final: "C" }, ((E) => this.cursorForward(E))), this._parser.registerCsiHandler({ final: "D" }, ((E) => this.cursorBackward(E))), this._parser.registerCsiHandler({ final: "E" }, ((E) => this.cursorNextLine(E))), this._parser.registerCsiHandler({ final: "F" }, ((E) => this.cursorPrecedingLine(E))), this._parser.registerCsiHandler({ final: "G" }, ((E) => this.cursorCharAbsolute(E))), this._parser.registerCsiHandler({ final: "H" }, ((E) => this.cursorPosition(E))), this._parser.registerCsiHandler({ final: "I" }, ((E) => this.cursorForwardTab(E))), this._parser.registerCsiHandler({ final: "J" }, ((E) => this.eraseInDisplay(E, !1))), this._parser.registerCsiHandler({ prefix: "?", final: "J" }, ((E) => this.eraseInDisplay(E, !0))), this._parser.registerCsiHandler({ final: "K" }, ((E) => this.eraseInLine(E, !1))), this._parser.registerCsiHandler({ prefix: "?", final: "K" }, ((E) => this.eraseInLine(E, !0))), this._parser.registerCsiHandler({ final: "L" }, ((E) => this.insertLines(E))), this._parser.registerCsiHandler({ final: "M" }, ((E) => this.deleteLines(E))), this._parser.registerCsiHandler({ final: "P" }, ((E) => this.deleteChars(E))), this._parser.registerCsiHandler({ final: "S" }, ((E) => this.scrollUp(E))), this._parser.registerCsiHandler({ final: "T" }, ((E) => this.scrollDown(E))), this._parser.registerCsiHandler({ final: "X" }, ((E) => this.eraseChars(E))), this._parser.registerCsiHandler({ final: "Z" }, ((E) => this.cursorBackwardTab(E))), this._parser.registerCsiHandler({ final: "`" }, ((E) => this.charPosAbsolute(E))), this._parser.registerCsiHandler({ final: "a" }, ((E) => this.hPositionRelative(E))), this._parser.registerCsiHandler({ final: "b" }, ((E) => this.repeatPrecedingCharacter(E))), this._parser.registerCsiHandler({ final: "c" }, ((E) => this.sendDeviceAttributesPrimary(E))), this._parser.registerCsiHandler({ prefix: ">", final: "c" }, ((E) => this.sendDeviceAttributesSecondary(E))), this._parser.registerCsiHandler({ final: "d" }, ((E) => this.linePosAbsolute(E))), this._parser.registerCsiHandler({ final: "e" }, ((E) => this.vPositionRelative(E))), this._parser.registerCsiHandler({ final: "f" }, ((E) => this.hVPosition(E))), this._parser.registerCsiHandler({ final: "g" }, ((E) => this.tabClear(E))), this._parser.registerCsiHandler({ final: "h" }, ((E) => this.setMode(E))), this._parser.registerCsiHandler({ prefix: "?", final: "h" }, ((E) => this.setModePrivate(E))), this._parser.registerCsiHandler({ final: "l" }, ((E) => this.resetMode(E))), this._parser.registerCsiHandler({ prefix: "?", final: "l" }, ((E) => this.resetModePrivate(E))), this._parser.registerCsiHandler({ final: "m" }, ((E) => this.charAttributes(E))), this._parser.registerCsiHandler({ final: "n" }, ((E) => this.deviceStatus(E))), this._parser.registerCsiHandler({ prefix: "?", final: "n" }, ((E) => this.deviceStatusPrivate(E))), this._parser.registerCsiHandler({ intermediates: "!", final: "p" }, ((E) => this.softReset(E))), this._parser.registerCsiHandler({ intermediates: " ", final: "q" }, ((E) => this.setCursorStyle(E))), this._parser.registerCsiHandler({ final: "r" }, ((E) => this.setScrollRegion(E))), this._parser.registerCsiHandler({ final: "s" }, ((E) => this.saveCursor(E))), this._parser.registerCsiHandler({ final: "t" }, ((E) => this.windowOptions(E))), this._parser.registerCsiHandler({ final: "u" }, ((E) => this.restoreCursor(E))), this._parser.registerCsiHandler({ intermediates: "'", final: "}" }, ((E) => this.insertColumns(E))), this._parser.registerCsiHandler({ intermediates: "'", final: "~" }, ((E) => this.deleteColumns(E))), this._parser.registerCsiHandler({ intermediates: '"', final: "q" }, ((E) => this.selectProtected(E))), this._parser.registerCsiHandler({ intermediates: "$", final: "p" }, ((E) => this.requestMode(E, !0))), this._parser.registerCsiHandler({ prefix: "?", intermediates: "$", final: "p" }, ((E) => this.requestMode(E, !1))), this._parser.setExecuteHandler(n.C0.BEL, (() => this.bell())), this._parser.setExecuteHandler(n.C0.LF, (() => this.lineFeed())), this._parser.setExecuteHandler(n.C0.VT, (() => this.lineFeed())), this._parser.setExecuteHandler(n.C0.FF, (() => this.lineFeed())), this._parser.setExecuteHandler(n.C0.CR, (() => this.carriageReturn())), this._parser.setExecuteHandler(n.C0.BS, (() => this.backspace())), this._parser.setExecuteHandler(n.C0.HT, (() => this.tab())), this._parser.setExecuteHandler(n.C0.SO, (() => this.shiftOut())), this._parser.setExecuteHandler(n.C0.SI, (() => this.shiftIn())), this._parser.setExecuteHandler(n.C1.IND, (() => this.index())), this._parser.setExecuteHandler(n.C1.NEL, (() => this.nextLine())), this._parser.setExecuteHandler(n.C1.HTS, (() => this.tabSet())), this._parser.registerOscHandler(0, new m.OscHandler(((E) => (this.setTitle(E), this.setIconName(E), !0)))), this._parser.registerOscHandler(1, new m.OscHandler(((E) => this.setIconName(E)))), this._parser.registerOscHandler(2, new m.OscHandler(((E) => this.setTitle(E)))), this._parser.registerOscHandler(4, new m.OscHandler(((E) => this.setOrReportIndexedColor(E)))), this._parser.registerOscHandler(8, new m.OscHandler(((E) => this.setHyperlink(E)))), this._parser.registerOscHandler(10, new m.OscHandler(((E) => this.setOrReportFgColor(E)))), this._parser.registerOscHandler(11, new m.OscHandler(((E) => this.setOrReportBgColor(E)))), this._parser.registerOscHandler(12, new m.OscHandler(((E) => this.setOrReportCursorColor(E)))), this._parser.registerOscHandler(104, new m.OscHandler(((E) => this.restoreIndexedColor(E)))), this._parser.registerOscHandler(110, new m.OscHandler(((E) => this.restoreFgColor(E)))), this._parser.registerOscHandler(111, new m.OscHandler(((E) => this.restoreBgColor(E)))), this._parser.registerOscHandler(112, new m.OscHandler(((E) => this.restoreCursorColor(E)))), this._parser.registerEscHandler({ final: "7" }, (() => this.saveCursor())), this._parser.registerEscHandler({ final: "8" }, (() => this.restoreCursor())), this._parser.registerEscHandler({ final: "D" }, (() => this.index())), this._parser.registerEscHandler({ final: "E" }, (() => this.nextLine())), this._parser.registerEscHandler({ final: "H" }, (() => this.tabSet())), this._parser.registerEscHandler({ final: "M" }, (() => this.reverseIndex())), this._parser.registerEscHandler({ final: "=" }, (() => this.keypadApplicationMode())), this._parser.registerEscHandler({ final: ">" }, (() => this.keypadNumericMode())), this._parser.registerEscHandler({ final: "c" }, (() => this.fullReset())), this._parser.registerEscHandler({ final: "n" }, (() => this.setgLevel(2))), this._parser.registerEscHandler({ final: "o" }, (() => this.setgLevel(3))), this._parser.registerEscHandler({ final: "|" }, (() => this.setgLevel(3))), this._parser.registerEscHandler({ final: "}" }, (() => this.setgLevel(2))), this._parser.registerEscHandler({ final: "~" }, (() => this.setgLevel(1))), this._parser.registerEscHandler({ intermediates: "%", final: "@" }, (() => this.selectDefaultCharset())), this._parser.registerEscHandler({ intermediates: "%", final: "G" }, (() => this.selectDefaultCharset()));
+            })), this._parser.setOscHandlerFallback(((E, W, U) => {
+              this._logService.debug("Unknown OSC code: ", { identifier: E, action: W, data: U });
+            })), this._parser.setDcsHandlerFallback(((E, W, U) => {
+              W === "HOOK" && (U = U.toArray()), this._logService.debug("Unknown DCS code: ", { identifier: this._parser.identToString(E), action: W, payload: U });
+            })), this._parser.setPrintHandler(((E, W, U) => this.print(E, W, U))), this._parser.registerCsiHandler({ final: "@" }, ((E) => this.insertChars(E))), this._parser.registerCsiHandler({ intermediates: " ", final: "@" }, ((E) => this.scrollLeft(E))), this._parser.registerCsiHandler({ final: "A" }, ((E) => this.cursorUp(E))), this._parser.registerCsiHandler({ intermediates: " ", final: "A" }, ((E) => this.scrollRight(E))), this._parser.registerCsiHandler({ final: "B" }, ((E) => this.cursorDown(E))), this._parser.registerCsiHandler({ final: "C" }, ((E) => this.cursorForward(E))), this._parser.registerCsiHandler({ final: "D" }, ((E) => this.cursorBackward(E))), this._parser.registerCsiHandler({ final: "E" }, ((E) => this.cursorNextLine(E))), this._parser.registerCsiHandler({ final: "F" }, ((E) => this.cursorPrecedingLine(E))), this._parser.registerCsiHandler({ final: "G" }, ((E) => this.cursorCharAbsolute(E))), this._parser.registerCsiHandler({ final: "H" }, ((E) => this.cursorPosition(E))), this._parser.registerCsiHandler({ final: "I" }, ((E) => this.cursorForwardTab(E))), this._parser.registerCsiHandler({ final: "J" }, ((E) => this.eraseInDisplay(E, !1))), this._parser.registerCsiHandler({ prefix: "?", final: "J" }, ((E) => this.eraseInDisplay(E, !0))), this._parser.registerCsiHandler({ final: "K" }, ((E) => this.eraseInLine(E, !1))), this._parser.registerCsiHandler({ prefix: "?", final: "K" }, ((E) => this.eraseInLine(E, !0))), this._parser.registerCsiHandler({ final: "L" }, ((E) => this.insertLines(E))), this._parser.registerCsiHandler({ final: "M" }, ((E) => this.deleteLines(E))), this._parser.registerCsiHandler({ final: "P" }, ((E) => this.deleteChars(E))), this._parser.registerCsiHandler({ final: "S" }, ((E) => this.scrollUp(E))), this._parser.registerCsiHandler({ final: "T" }, ((E) => this.scrollDown(E))), this._parser.registerCsiHandler({ final: "X" }, ((E) => this.eraseChars(E))), this._parser.registerCsiHandler({ final: "Z" }, ((E) => this.cursorBackwardTab(E))), this._parser.registerCsiHandler({ final: "`" }, ((E) => this.charPosAbsolute(E))), this._parser.registerCsiHandler({ final: "a" }, ((E) => this.hPositionRelative(E))), this._parser.registerCsiHandler({ final: "b" }, ((E) => this.repeatPrecedingCharacter(E))), this._parser.registerCsiHandler({ final: "c" }, ((E) => this.sendDeviceAttributesPrimary(E))), this._parser.registerCsiHandler({ prefix: ">", final: "c" }, ((E) => this.sendDeviceAttributesSecondary(E))), this._parser.registerCsiHandler({ final: "d" }, ((E) => this.linePosAbsolute(E))), this._parser.registerCsiHandler({ final: "e" }, ((E) => this.vPositionRelative(E))), this._parser.registerCsiHandler({ final: "f" }, ((E) => this.hVPosition(E))), this._parser.registerCsiHandler({ final: "g" }, ((E) => this.tabClear(E))), this._parser.registerCsiHandler({ final: "h" }, ((E) => this.setMode(E))), this._parser.registerCsiHandler({ prefix: "?", final: "h" }, ((E) => this.setModePrivate(E))), this._parser.registerCsiHandler({ final: "l" }, ((E) => this.resetMode(E))), this._parser.registerCsiHandler({ prefix: "?", final: "l" }, ((E) => this.resetModePrivate(E))), this._parser.registerCsiHandler({ final: "m" }, ((E) => this.charAttributes(E))), this._parser.registerCsiHandler({ final: "n" }, ((E) => this.deviceStatus(E))), this._parser.registerCsiHandler({ prefix: "?", final: "n" }, ((E) => this.deviceStatusPrivate(E))), this._parser.registerCsiHandler({ intermediates: "!", final: "p" }, ((E) => this.softReset(E))), this._parser.registerCsiHandler({ intermediates: " ", final: "q" }, ((E) => this.setCursorStyle(E))), this._parser.registerCsiHandler({ final: "r" }, ((E) => this.setScrollRegion(E))), this._parser.registerCsiHandler({ final: "s" }, ((E) => this.saveCursor(E))), this._parser.registerCsiHandler({ final: "t" }, ((E) => this.windowOptions(E))), this._parser.registerCsiHandler({ final: "u" }, ((E) => this.restoreCursor(E))), this._parser.registerCsiHandler({ intermediates: "'", final: "}" }, ((E) => this.insertColumns(E))), this._parser.registerCsiHandler({ intermediates: "'", final: "~" }, ((E) => this.deleteColumns(E))), this._parser.registerCsiHandler({ intermediates: '"', final: "q" }, ((E) => this.selectProtected(E))), this._parser.registerCsiHandler({ intermediates: "$", final: "p" }, ((E) => this.requestMode(E, !0))), this._parser.registerCsiHandler({ prefix: "?", intermediates: "$", final: "p" }, ((E) => this.requestMode(E, !1))), this._parser.setExecuteHandler(n.C0.BEL, (() => this.bell())), this._parser.setExecuteHandler(n.C0.LF, (() => this.lineFeed())), this._parser.setExecuteHandler(n.C0.VT, (() => this.lineFeed())), this._parser.setExecuteHandler(n.C0.FF, (() => this.lineFeed())), this._parser.setExecuteHandler(n.C0.CR, (() => this.carriageReturn())), this._parser.setExecuteHandler(n.C0.BS, (() => this.backspace())), this._parser.setExecuteHandler(n.C0.HT, (() => this.tab())), this._parser.setExecuteHandler(n.C0.SO, (() => this.shiftOut())), this._parser.setExecuteHandler(n.C0.SI, (() => this.shiftIn())), this._parser.setExecuteHandler(n.C1.IND, (() => this.index())), this._parser.setExecuteHandler(n.C1.NEL, (() => this.nextLine())), this._parser.setExecuteHandler(n.C1.HTS, (() => this.tabSet())), this._parser.registerOscHandler(0, new m.OscHandler(((E) => (this.setTitle(E), this.setIconName(E), !0)))), this._parser.registerOscHandler(1, new m.OscHandler(((E) => this.setIconName(E)))), this._parser.registerOscHandler(2, new m.OscHandler(((E) => this.setTitle(E)))), this._parser.registerOscHandler(4, new m.OscHandler(((E) => this.setOrReportIndexedColor(E)))), this._parser.registerOscHandler(8, new m.OscHandler(((E) => this.setHyperlink(E)))), this._parser.registerOscHandler(10, new m.OscHandler(((E) => this.setOrReportFgColor(E)))), this._parser.registerOscHandler(11, new m.OscHandler(((E) => this.setOrReportBgColor(E)))), this._parser.registerOscHandler(12, new m.OscHandler(((E) => this.setOrReportCursorColor(E)))), this._parser.registerOscHandler(104, new m.OscHandler(((E) => this.restoreIndexedColor(E)))), this._parser.registerOscHandler(110, new m.OscHandler(((E) => this.restoreFgColor(E)))), this._parser.registerOscHandler(111, new m.OscHandler(((E) => this.restoreBgColor(E)))), this._parser.registerOscHandler(112, new m.OscHandler(((E) => this.restoreCursorColor(E)))), this._parser.registerEscHandler({ final: "7" }, (() => this.saveCursor())), this._parser.registerEscHandler({ final: "8" }, (() => this.restoreCursor())), this._parser.registerEscHandler({ final: "D" }, (() => this.index())), this._parser.registerEscHandler({ final: "E" }, (() => this.nextLine())), this._parser.registerEscHandler({ final: "H" }, (() => this.tabSet())), this._parser.registerEscHandler({ final: "M" }, (() => this.reverseIndex())), this._parser.registerEscHandler({ final: "=" }, (() => this.keypadApplicationMode())), this._parser.registerEscHandler({ final: ">" }, (() => this.keypadNumericMode())), this._parser.registerEscHandler({ final: "c" }, (() => this.fullReset())), this._parser.registerEscHandler({ final: "n" }, (() => this.setgLevel(2))), this._parser.registerEscHandler({ final: "o" }, (() => this.setgLevel(3))), this._parser.registerEscHandler({ final: "|" }, (() => this.setgLevel(3))), this._parser.registerEscHandler({ final: "}" }, (() => this.setgLevel(2))), this._parser.registerEscHandler({ final: "~" }, (() => this.setgLevel(1))), this._parser.registerEscHandler({ intermediates: "%", final: "@" }, (() => this.selectDefaultCharset())), this._parser.registerEscHandler({ intermediates: "%", final: "G" }, (() => this.selectDefaultCharset()));
             for (const E in l.CHARSETS) this._parser.registerEscHandler({ intermediates: "(", final: E }, (() => this.selectCharset("(" + E))), this._parser.registerEscHandler({ intermediates: ")", final: E }, (() => this.selectCharset(")" + E))), this._parser.registerEscHandler({ intermediates: "*", final: E }, (() => this.selectCharset("*" + E))), this._parser.registerEscHandler({ intermediates: "+", final: E }, (() => this.selectCharset("+" + E))), this._parser.registerEscHandler({ intermediates: "-", final: E }, (() => this.selectCharset("-" + E))), this._parser.registerEscHandler({ intermediates: ".", final: E }, (() => this.selectCharset("." + E))), this._parser.registerEscHandler({ intermediates: "/", final: E }, (() => this.selectCharset("/" + E)));
-            this._parser.registerEscHandler({ intermediates: "#", final: "8" }, (() => this.screenAlignmentPattern())), this._parser.setErrorHandler(((E) => (this._logService.error("Parsing error: ", E), E))), this._parser.registerDcsHandler({ intermediates: "$", final: "q" }, new u.DcsHandler(((E, H) => this.requestStatusString(E, H))));
+            this._parser.registerEscHandler({ intermediates: "#", final: "8" }, (() => this.screenAlignmentPattern())), this._parser.setErrorHandler(((E) => (this._logService.error("Parsing error: ", E), E))), this._parser.registerDcsHandler({ intermediates: "$", final: "q" }, new u.DcsHandler(((E, W) => this.requestStatusString(E, W))));
           }
-          _preserveStack(C, x, R, A) {
-            this._parseStack.paused = !0, this._parseStack.cursorStartX = C, this._parseStack.cursorStartY = x, this._parseStack.decodedLength = R, this._parseStack.position = A;
+          _preserveStack(C, x, R, D) {
+            this._parseStack.paused = !0, this._parseStack.cursorStartX = C, this._parseStack.cursorStartY = x, this._parseStack.decodedLength = R, this._parseStack.position = D;
           }
           _logSlowResolvingAsync(C) {
             this._logService.logLevel <= p.LogLevelEnum.WARN && Promise.race([C, new Promise(((x, R) => setTimeout((() => R("#SLOW_TIMEOUT")), 5e3)))]).catch(((x) => {
@@ -2731,52 +2731,52 @@ WARNING: This link could potentially be dangerous`)) {
             return this._curAttrData.extended.urlId;
           }
           parse(C, x) {
-            let R, A = this._activeBuffer.x, F = this._activeBuffer.y, z = 0;
+            let R, D = this._activeBuffer.x, H = this._activeBuffer.y, z = 0;
             const K = this._parseStack.paused;
             if (K) {
               if (R = this._parser.parse(this._parseBuffer, this._parseStack.decodedLength, x)) return this._logSlowResolvingAsync(R), R;
-              A = this._parseStack.cursorStartX, F = this._parseStack.cursorStartY, this._parseStack.paused = !1, C.length > y && (z = this._parseStack.position + y);
+              D = this._parseStack.cursorStartX, H = this._parseStack.cursorStartY, this._parseStack.paused = !1, C.length > y && (z = this._parseStack.position + y);
             }
             if (this._logService.logLevel <= p.LogLevelEnum.DEBUG && this._logService.debug("parsing data" + (typeof C == "string" ? ` "${C}"` : ` "${Array.prototype.map.call(C, ((E) => String.fromCharCode(E))).join("")}"`), typeof C == "string" ? C.split("").map(((E) => E.charCodeAt(0))) : C), this._parseBuffer.length < C.length && this._parseBuffer.length < y && (this._parseBuffer = new Uint32Array(Math.min(C.length, y))), K || this._dirtyRowTracker.clearRange(), C.length > y) for (let E = z; E < C.length; E += y) {
-              const H = E + y < C.length ? E + y : C.length, $ = typeof C == "string" ? this._stringDecoder.decode(C.substring(E, H), this._parseBuffer) : this._utf8Decoder.decode(C.subarray(E, H), this._parseBuffer);
-              if (R = this._parser.parse(this._parseBuffer, $)) return this._preserveStack(A, F, $, E), this._logSlowResolvingAsync(R), R;
+              const W = E + y < C.length ? E + y : C.length, U = typeof C == "string" ? this._stringDecoder.decode(C.substring(E, W), this._parseBuffer) : this._utf8Decoder.decode(C.subarray(E, W), this._parseBuffer);
+              if (R = this._parser.parse(this._parseBuffer, U)) return this._preserveStack(D, H, U, E), this._logSlowResolvingAsync(R), R;
             }
             else if (!K) {
               const E = typeof C == "string" ? this._stringDecoder.decode(C, this._parseBuffer) : this._utf8Decoder.decode(C, this._parseBuffer);
-              if (R = this._parser.parse(this._parseBuffer, E)) return this._preserveStack(A, F, E, 0), this._logSlowResolvingAsync(R), R;
+              if (R = this._parser.parse(this._parseBuffer, E)) return this._preserveStack(D, H, E, 0), this._logSlowResolvingAsync(R), R;
             }
-            this._activeBuffer.x === A && this._activeBuffer.y === F || this._onCursorMove.fire();
+            this._activeBuffer.x === D && this._activeBuffer.y === H || this._onCursorMove.fire();
             const q = this._dirtyRowTracker.end + (this._bufferService.buffer.ybase - this._bufferService.buffer.ydisp), k = this._dirtyRowTracker.start + (this._bufferService.buffer.ybase - this._bufferService.buffer.ydisp);
             k < this._bufferService.rows && this._onRequestRefreshRows.fire(Math.min(k, this._bufferService.rows - 1), Math.min(q, this._bufferService.rows - 1));
           }
           print(C, x, R) {
-            let A, F;
-            const z = this._charsetService.charset, K = this._optionsService.rawOptions.screenReaderMode, q = this._bufferService.cols, k = this._coreService.decPrivateModes.wraparound, E = this._coreService.modes.insertMode, H = this._curAttrData;
-            let $ = this._activeBuffer.lines.get(this._activeBuffer.ybase + this._activeBuffer.y);
-            this._dirtyRowTracker.markDirty(this._activeBuffer.y), this._activeBuffer.x && R - x > 0 && $.getWidth(this._activeBuffer.x - 1) === 2 && $.setCellFromCodepoint(this._activeBuffer.x - 1, 0, 1, H);
+            let D, H;
+            const z = this._charsetService.charset, K = this._optionsService.rawOptions.screenReaderMode, q = this._bufferService.cols, k = this._coreService.decPrivateModes.wraparound, E = this._coreService.modes.insertMode, W = this._curAttrData;
+            let U = this._activeBuffer.lines.get(this._activeBuffer.ybase + this._activeBuffer.y);
+            this._dirtyRowTracker.markDirty(this._activeBuffer.y), this._activeBuffer.x && R - x > 0 && U.getWidth(this._activeBuffer.x - 1) === 2 && U.setCellFromCodepoint(this._activeBuffer.x - 1, 0, 1, W);
             let j = this._parser.precedingJoinState;
             for (let N = x; N < R; ++N) {
-              if (A = C[N], A < 127 && z) {
-                const le = z[String.fromCharCode(A)];
-                le && (A = le.charCodeAt(0));
+              if (D = C[N], D < 127 && z) {
+                const le = z[String.fromCharCode(D)];
+                le && (D = le.charCodeAt(0));
               }
-              const J = this._unicodeService.charProperties(A, j);
-              F = _.UnicodeService.extractWidth(J);
+              const J = this._unicodeService.charProperties(D, j);
+              H = _.UnicodeService.extractWidth(J);
               const X = _.UnicodeService.extractShouldJoin(J), ne = X ? _.UnicodeService.extractWidth(j) : 0;
-              if (j = J, K && this._onA11yChar.fire((0, o.stringFromCodePoint)(A)), this._getCurrentLinkId() && this._oscLinkService.addLineToLink(this._getCurrentLinkId(), this._activeBuffer.ybase + this._activeBuffer.y), this._activeBuffer.x + F - ne > q) {
+              if (j = J, K && this._onA11yChar.fire((0, o.stringFromCodePoint)(D)), this._getCurrentLinkId() && this._oscLinkService.addLineToLink(this._getCurrentLinkId(), this._activeBuffer.ybase + this._activeBuffer.y), this._activeBuffer.x + H - ne > q) {
                 if (k) {
-                  const le = $;
+                  const le = U;
                   let Y = this._activeBuffer.x - ne;
-                  for (this._activeBuffer.x = ne, this._activeBuffer.y++, this._activeBuffer.y === this._activeBuffer.scrollBottom + 1 ? (this._activeBuffer.y--, this._bufferService.scroll(this._eraseAttrData(), !0)) : (this._activeBuffer.y >= this._bufferService.rows && (this._activeBuffer.y = this._bufferService.rows - 1), this._activeBuffer.lines.get(this._activeBuffer.ybase + this._activeBuffer.y).isWrapped = !0), $ = this._activeBuffer.lines.get(this._activeBuffer.ybase + this._activeBuffer.y), ne > 0 && $ instanceof e.BufferLine && $.copyCellsFrom(le, Y, 0, ne, !1); Y < q; ) le.setCellFromCodepoint(Y++, 0, 1, H);
-                } else if (this._activeBuffer.x = q - 1, F === 2) continue;
+                  for (this._activeBuffer.x = ne, this._activeBuffer.y++, this._activeBuffer.y === this._activeBuffer.scrollBottom + 1 ? (this._activeBuffer.y--, this._bufferService.scroll(this._eraseAttrData(), !0)) : (this._activeBuffer.y >= this._bufferService.rows && (this._activeBuffer.y = this._bufferService.rows - 1), this._activeBuffer.lines.get(this._activeBuffer.ybase + this._activeBuffer.y).isWrapped = !0), U = this._activeBuffer.lines.get(this._activeBuffer.ybase + this._activeBuffer.y), ne > 0 && U instanceof e.BufferLine && U.copyCellsFrom(le, Y, 0, ne, !1); Y < q; ) le.setCellFromCodepoint(Y++, 0, 1, W);
+                } else if (this._activeBuffer.x = q - 1, H === 2) continue;
               }
               if (X && this._activeBuffer.x) {
-                const le = $.getWidth(this._activeBuffer.x - 1) ? 1 : 2;
-                $.addCodepointToCell(this._activeBuffer.x - le, A, F);
-                for (let Y = F - ne; --Y >= 0; ) $.setCellFromCodepoint(this._activeBuffer.x++, 0, 0, H);
-              } else if (E && ($.insertCells(this._activeBuffer.x, F - ne, this._activeBuffer.getNullCell(H)), $.getWidth(q - 1) === 2 && $.setCellFromCodepoint(q - 1, i.NULL_CELL_CODE, i.NULL_CELL_WIDTH, H)), $.setCellFromCodepoint(this._activeBuffer.x++, A, F, H), F > 0) for (; --F; ) $.setCellFromCodepoint(this._activeBuffer.x++, 0, 0, H);
+                const le = U.getWidth(this._activeBuffer.x - 1) ? 1 : 2;
+                U.addCodepointToCell(this._activeBuffer.x - le, D, H);
+                for (let Y = H - ne; --Y >= 0; ) U.setCellFromCodepoint(this._activeBuffer.x++, 0, 0, W);
+              } else if (E && (U.insertCells(this._activeBuffer.x, H - ne, this._activeBuffer.getNullCell(W)), U.getWidth(q - 1) === 2 && U.setCellFromCodepoint(q - 1, i.NULL_CELL_CODE, i.NULL_CELL_WIDTH, W)), U.setCellFromCodepoint(this._activeBuffer.x++, D, H, W), H > 0) for (; --H; ) U.setCellFromCodepoint(this._activeBuffer.x++, 0, 0, W);
             }
-            this._parser.precedingJoinState = j, this._activeBuffer.x < q && R - x > 0 && $.getWidth(this._activeBuffer.x) === 0 && !$.hasContent(this._activeBuffer.x) && $.setCellFromCodepoint(this._activeBuffer.x, 0, 1, H), this._dirtyRowTracker.markDirty(this._activeBuffer.y);
+            this._parser.precedingJoinState = j, this._activeBuffer.x < q && R - x > 0 && U.getWidth(this._activeBuffer.x) === 0 && !U.hasContent(this._activeBuffer.x) && U.setCellFromCodepoint(this._activeBuffer.x, 0, 1, W), this._dirtyRowTracker.markDirty(this._activeBuffer.y);
           }
           registerCsiHandler(C, x) {
             return C.final !== "t" || C.prefix || C.intermediates ? this._parser.registerCsiHandler(C, x) : this._parser.registerCsiHandler(C, ((R) => !b(R.params[0], this._optionsService.rawOptions.windowOptions) || x(R)));
@@ -2891,9 +2891,9 @@ WARNING: This link could potentially be dangerous`)) {
             const x = C.params[0];
             return x === 1 && (this._curAttrData.bg |= 536870912), x !== 2 && x !== 0 || (this._curAttrData.bg &= -536870913), !0;
           }
-          _eraseInBufferLine(C, x, R, A = !1, F = !1) {
+          _eraseInBufferLine(C, x, R, D = !1, H = !1) {
             const z = this._activeBuffer.lines.get(this._activeBuffer.ybase + C);
-            z.replaceCells(x, R, this._activeBuffer.getNullCell(this._eraseAttrData()), F), A && (z.isWrapped = !1);
+            z.replaceCells(x, R, this._activeBuffer.getNullCell(this._eraseAttrData()), H), D && (z.isWrapped = !1);
           }
           _resetBufferLine(C, x = !1) {
             const R = this._activeBuffer.lines.get(this._activeBuffer.ybase + C);
@@ -2915,8 +2915,8 @@ WARNING: This link could potentially be dangerous`)) {
                 this._dirtyRowTracker.markDirty(0);
                 break;
               case 3:
-                const A = this._activeBuffer.lines.length - this._bufferService.rows;
-                A > 0 && (this._activeBuffer.lines.trimStart(A), this._activeBuffer.ybase = Math.max(this._activeBuffer.ybase - A, 0), this._activeBuffer.ydisp = Math.max(this._activeBuffer.ydisp - A, 0), this._onScroll.fire(0));
+                const D = this._activeBuffer.lines.length - this._bufferService.rows;
+                D > 0 && (this._activeBuffer.lines.trimStart(D), this._activeBuffer.ybase = Math.max(this._activeBuffer.ybase - D, 0), this._activeBuffer.ydisp = Math.max(this._activeBuffer.ydisp - D, 0), this._onScroll.fire(0));
             }
             return !0;
           }
@@ -2937,8 +2937,8 @@ WARNING: This link could potentially be dangerous`)) {
             this._restrictCursor();
             let x = C.params[0] || 1;
             if (this._activeBuffer.y > this._activeBuffer.scrollBottom || this._activeBuffer.y < this._activeBuffer.scrollTop) return !0;
-            const R = this._activeBuffer.ybase + this._activeBuffer.y, A = this._bufferService.rows - 1 - this._activeBuffer.scrollBottom, F = this._bufferService.rows - 1 + this._activeBuffer.ybase - A + 1;
-            for (; x--; ) this._activeBuffer.lines.splice(F - 1, 1), this._activeBuffer.lines.splice(R, 0, this._activeBuffer.getBlankLine(this._eraseAttrData()));
+            const R = this._activeBuffer.ybase + this._activeBuffer.y, D = this._bufferService.rows - 1 - this._activeBuffer.scrollBottom, H = this._bufferService.rows - 1 + this._activeBuffer.ybase - D + 1;
+            for (; x--; ) this._activeBuffer.lines.splice(H - 1, 1), this._activeBuffer.lines.splice(R, 0, this._activeBuffer.getBlankLine(this._eraseAttrData()));
             return this._dirtyRowTracker.markRangeDirty(this._activeBuffer.y, this._activeBuffer.scrollBottom), this._activeBuffer.x = 0, !0;
           }
           deleteLines(C) {
@@ -2946,8 +2946,8 @@ WARNING: This link could potentially be dangerous`)) {
             let x = C.params[0] || 1;
             if (this._activeBuffer.y > this._activeBuffer.scrollBottom || this._activeBuffer.y < this._activeBuffer.scrollTop) return !0;
             const R = this._activeBuffer.ybase + this._activeBuffer.y;
-            let A;
-            for (A = this._bufferService.rows - 1 - this._activeBuffer.scrollBottom, A = this._bufferService.rows - 1 + this._activeBuffer.ybase - A; x--; ) this._activeBuffer.lines.splice(R, 1), this._activeBuffer.lines.splice(A, 0, this._activeBuffer.getBlankLine(this._eraseAttrData()));
+            let D;
+            for (D = this._bufferService.rows - 1 - this._activeBuffer.scrollBottom, D = this._bufferService.rows - 1 + this._activeBuffer.ybase - D; x--; ) this._activeBuffer.lines.splice(R, 1), this._activeBuffer.lines.splice(D, 0, this._activeBuffer.getBlankLine(this._eraseAttrData()));
             return this._dirtyRowTracker.markRangeDirty(this._activeBuffer.y, this._activeBuffer.scrollBottom), this._activeBuffer.x = 0, !0;
           }
           insertChars(C) {
@@ -2974,8 +2974,8 @@ WARNING: This link could potentially be dangerous`)) {
             if (this._activeBuffer.y > this._activeBuffer.scrollBottom || this._activeBuffer.y < this._activeBuffer.scrollTop) return !0;
             const x = C.params[0] || 1;
             for (let R = this._activeBuffer.scrollTop; R <= this._activeBuffer.scrollBottom; ++R) {
-              const A = this._activeBuffer.lines.get(this._activeBuffer.ybase + R);
-              A.deleteCells(0, x, this._activeBuffer.getNullCell(this._eraseAttrData())), A.isWrapped = !1;
+              const D = this._activeBuffer.lines.get(this._activeBuffer.ybase + R);
+              D.deleteCells(0, x, this._activeBuffer.getNullCell(this._eraseAttrData())), D.isWrapped = !1;
             }
             return this._dirtyRowTracker.markRangeDirty(this._activeBuffer.scrollTop, this._activeBuffer.scrollBottom), !0;
           }
@@ -2983,8 +2983,8 @@ WARNING: This link could potentially be dangerous`)) {
             if (this._activeBuffer.y > this._activeBuffer.scrollBottom || this._activeBuffer.y < this._activeBuffer.scrollTop) return !0;
             const x = C.params[0] || 1;
             for (let R = this._activeBuffer.scrollTop; R <= this._activeBuffer.scrollBottom; ++R) {
-              const A = this._activeBuffer.lines.get(this._activeBuffer.ybase + R);
-              A.insertCells(0, x, this._activeBuffer.getNullCell(this._eraseAttrData())), A.isWrapped = !1;
+              const D = this._activeBuffer.lines.get(this._activeBuffer.ybase + R);
+              D.insertCells(0, x, this._activeBuffer.getNullCell(this._eraseAttrData())), D.isWrapped = !1;
             }
             return this._dirtyRowTracker.markRangeDirty(this._activeBuffer.scrollTop, this._activeBuffer.scrollBottom), !0;
           }
@@ -2992,8 +2992,8 @@ WARNING: This link could potentially be dangerous`)) {
             if (this._activeBuffer.y > this._activeBuffer.scrollBottom || this._activeBuffer.y < this._activeBuffer.scrollTop) return !0;
             const x = C.params[0] || 1;
             for (let R = this._activeBuffer.scrollTop; R <= this._activeBuffer.scrollBottom; ++R) {
-              const A = this._activeBuffer.lines.get(this._activeBuffer.ybase + R);
-              A.insertCells(this._activeBuffer.x, x, this._activeBuffer.getNullCell(this._eraseAttrData())), A.isWrapped = !1;
+              const D = this._activeBuffer.lines.get(this._activeBuffer.ybase + R);
+              D.insertCells(this._activeBuffer.x, x, this._activeBuffer.getNullCell(this._eraseAttrData())), D.isWrapped = !1;
             }
             return this._dirtyRowTracker.markRangeDirty(this._activeBuffer.scrollTop, this._activeBuffer.scrollBottom), !0;
           }
@@ -3001,8 +3001,8 @@ WARNING: This link could potentially be dangerous`)) {
             if (this._activeBuffer.y > this._activeBuffer.scrollBottom || this._activeBuffer.y < this._activeBuffer.scrollTop) return !0;
             const x = C.params[0] || 1;
             for (let R = this._activeBuffer.scrollTop; R <= this._activeBuffer.scrollBottom; ++R) {
-              const A = this._activeBuffer.lines.get(this._activeBuffer.ybase + R);
-              A.deleteCells(this._activeBuffer.x, x, this._activeBuffer.getNullCell(this._eraseAttrData())), A.isWrapped = !1;
+              const D = this._activeBuffer.lines.get(this._activeBuffer.ybase + R);
+              D.deleteCells(this._activeBuffer.x, x, this._activeBuffer.getNullCell(this._eraseAttrData())), D.isWrapped = !1;
             }
             return this._dirtyRowTracker.markRangeDirty(this._activeBuffer.scrollTop, this._activeBuffer.scrollBottom), !0;
           }
@@ -3014,11 +3014,11 @@ WARNING: This link could potentially be dangerous`)) {
           repeatPrecedingCharacter(C) {
             const x = this._parser.precedingJoinState;
             if (!x) return !0;
-            const R = C.params[0] || 1, A = _.UnicodeService.extractWidth(x), F = this._activeBuffer.x - A, z = this._activeBuffer.lines.get(this._activeBuffer.ybase + this._activeBuffer.y).getString(F), K = new Uint32Array(z.length * R);
+            const R = C.params[0] || 1, D = _.UnicodeService.extractWidth(x), H = this._activeBuffer.x - D, z = this._activeBuffer.lines.get(this._activeBuffer.ybase + this._activeBuffer.y).getString(H), K = new Uint32Array(z.length * R);
             let q = 0;
             for (let E = 0; E < z.length; ) {
-              const H = z.codePointAt(E) || 0;
-              K[q++] = H, E += H > 65535 ? 2 : 1;
+              const W = z.codePointAt(E) || 0;
+              K[q++] = W, E += W > 65535 ? 2 : 1;
             }
             let k = q;
             for (let E = 1; E < R; ++E) K.copyWithin(k, 0, q), k += q;
@@ -3182,38 +3182,38 @@ WARNING: This link could potentially be dangerous`)) {
             return !0;
           }
           requestMode(C, x) {
-            const R = this._coreService.decPrivateModes, { activeProtocol: A, activeEncoding: F } = this._coreMouseService, z = this._coreService, { buffers: K, cols: q } = this._bufferService, { active: k, alt: E } = K, H = this._optionsService.rawOptions, $ = (X) => X ? 1 : 2, j = C.params[0];
-            return N = j, J = x ? j === 2 ? 4 : j === 4 ? $(z.modes.insertMode) : j === 12 ? 3 : j === 20 ? $(H.convertEol) : 0 : j === 1 ? $(R.applicationCursorKeys) : j === 3 ? H.windowOptions.setWinLines ? q === 80 ? 2 : q === 132 ? 1 : 0 : 0 : j === 6 ? $(R.origin) : j === 7 ? $(R.wraparound) : j === 8 ? 3 : j === 9 ? $(A === "X10") : j === 12 ? $(H.cursorBlink) : j === 25 ? $(!z.isCursorHidden) : j === 45 ? $(R.reverseWraparound) : j === 66 ? $(R.applicationKeypad) : j === 67 ? 4 : j === 1e3 ? $(A === "VT200") : j === 1002 ? $(A === "DRAG") : j === 1003 ? $(A === "ANY") : j === 1004 ? $(R.sendFocus) : j === 1005 ? 4 : j === 1006 ? $(F === "SGR") : j === 1015 ? 4 : j === 1016 ? $(F === "SGR_PIXELS") : j === 1048 ? 1 : j === 47 || j === 1047 || j === 1049 ? $(k === E) : j === 2004 ? $(R.bracketedPasteMode) : 0, z.triggerDataEvent(`${n.C0.ESC}[${x ? "" : "?"}${N};${J}$y`), !0;
+            const R = this._coreService.decPrivateModes, { activeProtocol: D, activeEncoding: H } = this._coreMouseService, z = this._coreService, { buffers: K, cols: q } = this._bufferService, { active: k, alt: E } = K, W = this._optionsService.rawOptions, U = (X) => X ? 1 : 2, j = C.params[0];
+            return N = j, J = x ? j === 2 ? 4 : j === 4 ? U(z.modes.insertMode) : j === 12 ? 3 : j === 20 ? U(W.convertEol) : 0 : j === 1 ? U(R.applicationCursorKeys) : j === 3 ? W.windowOptions.setWinLines ? q === 80 ? 2 : q === 132 ? 1 : 0 : 0 : j === 6 ? U(R.origin) : j === 7 ? U(R.wraparound) : j === 8 ? 3 : j === 9 ? U(D === "X10") : j === 12 ? U(W.cursorBlink) : j === 25 ? U(!z.isCursorHidden) : j === 45 ? U(R.reverseWraparound) : j === 66 ? U(R.applicationKeypad) : j === 67 ? 4 : j === 1e3 ? U(D === "VT200") : j === 1002 ? U(D === "DRAG") : j === 1003 ? U(D === "ANY") : j === 1004 ? U(R.sendFocus) : j === 1005 ? 4 : j === 1006 ? U(H === "SGR") : j === 1015 ? 4 : j === 1016 ? U(H === "SGR_PIXELS") : j === 1048 ? 1 : j === 47 || j === 1047 || j === 1049 ? U(k === E) : j === 2004 ? U(R.bracketedPasteMode) : 0, z.triggerDataEvent(`${n.C0.ESC}[${x ? "" : "?"}${N};${J}$y`), !0;
             var N, J;
           }
-          _updateAttrColor(C, x, R, A, F) {
-            return x === 2 ? (C |= 50331648, C &= -16777216, C |= d.AttributeData.fromColorRGB([R, A, F])) : x === 5 && (C &= -50331904, C |= 33554432 | 255 & R), C;
+          _updateAttrColor(C, x, R, D, H) {
+            return x === 2 ? (C |= 50331648, C &= -16777216, C |= d.AttributeData.fromColorRGB([R, D, H])) : x === 5 && (C &= -50331904, C |= 33554432 | 255 & R), C;
           }
           _extractColor(C, x, R) {
-            const A = [0, 0, -1, 0, 0, 0];
-            let F = 0, z = 0;
+            const D = [0, 0, -1, 0, 0, 0];
+            let H = 0, z = 0;
             do {
-              if (A[z + F] = C.params[x + z], C.hasSubParams(x + z)) {
+              if (D[z + H] = C.params[x + z], C.hasSubParams(x + z)) {
                 const K = C.getSubParams(x + z);
                 let q = 0;
                 do
-                  A[1] === 5 && (F = 1), A[z + q + 1 + F] = K[q];
-                while (++q < K.length && q + z + 1 + F < A.length);
+                  D[1] === 5 && (H = 1), D[z + q + 1 + H] = K[q];
+                while (++q < K.length && q + z + 1 + H < D.length);
                 break;
               }
-              if (A[1] === 5 && z + F >= 2 || A[1] === 2 && z + F >= 5) break;
-              A[1] && (F = 1);
-            } while (++z + x < C.length && z + F < A.length);
-            for (let K = 2; K < A.length; ++K) A[K] === -1 && (A[K] = 0);
-            switch (A[0]) {
+              if (D[1] === 5 && z + H >= 2 || D[1] === 2 && z + H >= 5) break;
+              D[1] && (H = 1);
+            } while (++z + x < C.length && z + H < D.length);
+            for (let K = 2; K < D.length; ++K) D[K] === -1 && (D[K] = 0);
+            switch (D[0]) {
               case 38:
-                R.fg = this._updateAttrColor(R.fg, A[1], A[3], A[4], A[5]);
+                R.fg = this._updateAttrColor(R.fg, D[1], D[3], D[4], D[5]);
                 break;
               case 48:
-                R.bg = this._updateAttrColor(R.bg, A[1], A[3], A[4], A[5]);
+                R.bg = this._updateAttrColor(R.bg, D[1], D[3], D[4], D[5]);
                 break;
               case 58:
-                R.extended = R.extended.clone(), R.extended.underlineColor = this._updateAttrColor(R.extended.underlineColor, A[1], A[3], A[4], A[5]);
+                R.extended = R.extended.clone(), R.extended.underlineColor = this._updateAttrColor(R.extended.underlineColor, D[1], D[3], D[4], D[5]);
             }
             return z;
           }
@@ -3227,8 +3227,8 @@ WARNING: This link could potentially be dangerous`)) {
             if (C.length === 1 && C.params[0] === 0) return this._processSGR0(this._curAttrData), !0;
             const x = C.length;
             let R;
-            const A = this._curAttrData;
-            for (let F = 0; F < x; F++) R = C.params[F], R >= 30 && R <= 37 ? (A.fg &= -50331904, A.fg |= 16777216 | R - 30) : R >= 40 && R <= 47 ? (A.bg &= -50331904, A.bg |= 16777216 | R - 40) : R >= 90 && R <= 97 ? (A.fg &= -50331904, A.fg |= 16777224 | R - 90) : R >= 100 && R <= 107 ? (A.bg &= -50331904, A.bg |= 16777224 | R - 100) : R === 0 ? this._processSGR0(A) : R === 1 ? A.fg |= 134217728 : R === 3 ? A.bg |= 67108864 : R === 4 ? (A.fg |= 268435456, this._processUnderline(C.hasSubParams(F) ? C.getSubParams(F)[0] : 1, A)) : R === 5 ? A.fg |= 536870912 : R === 7 ? A.fg |= 67108864 : R === 8 ? A.fg |= 1073741824 : R === 9 ? A.fg |= 2147483648 : R === 2 ? A.bg |= 134217728 : R === 21 ? this._processUnderline(2, A) : R === 22 ? (A.fg &= -134217729, A.bg &= -134217729) : R === 23 ? A.bg &= -67108865 : R === 24 ? (A.fg &= -268435457, this._processUnderline(0, A)) : R === 25 ? A.fg &= -536870913 : R === 27 ? A.fg &= -67108865 : R === 28 ? A.fg &= -1073741825 : R === 29 ? A.fg &= 2147483647 : R === 39 ? (A.fg &= -67108864, A.fg |= 16777215 & e.DEFAULT_ATTR_DATA.fg) : R === 49 ? (A.bg &= -67108864, A.bg |= 16777215 & e.DEFAULT_ATTR_DATA.bg) : R === 38 || R === 48 || R === 58 ? F += this._extractColor(C, F, A) : R === 53 ? A.bg |= 1073741824 : R === 55 ? A.bg &= -1073741825 : R === 59 ? (A.extended = A.extended.clone(), A.extended.underlineColor = -1, A.updateExtended()) : R === 100 ? (A.fg &= -67108864, A.fg |= 16777215 & e.DEFAULT_ATTR_DATA.fg, A.bg &= -67108864, A.bg |= 16777215 & e.DEFAULT_ATTR_DATA.bg) : this._logService.debug("Unknown SGR attribute: %d.", R);
+            const D = this._curAttrData;
+            for (let H = 0; H < x; H++) R = C.params[H], R >= 30 && R <= 37 ? (D.fg &= -50331904, D.fg |= 16777216 | R - 30) : R >= 40 && R <= 47 ? (D.bg &= -50331904, D.bg |= 16777216 | R - 40) : R >= 90 && R <= 97 ? (D.fg &= -50331904, D.fg |= 16777224 | R - 90) : R >= 100 && R <= 107 ? (D.bg &= -50331904, D.bg |= 16777224 | R - 100) : R === 0 ? this._processSGR0(D) : R === 1 ? D.fg |= 134217728 : R === 3 ? D.bg |= 67108864 : R === 4 ? (D.fg |= 268435456, this._processUnderline(C.hasSubParams(H) ? C.getSubParams(H)[0] : 1, D)) : R === 5 ? D.fg |= 536870912 : R === 7 ? D.fg |= 67108864 : R === 8 ? D.fg |= 1073741824 : R === 9 ? D.fg |= 2147483648 : R === 2 ? D.bg |= 134217728 : R === 21 ? this._processUnderline(2, D) : R === 22 ? (D.fg &= -134217729, D.bg &= -134217729) : R === 23 ? D.bg &= -67108865 : R === 24 ? (D.fg &= -268435457, this._processUnderline(0, D)) : R === 25 ? D.fg &= -536870913 : R === 27 ? D.fg &= -67108865 : R === 28 ? D.fg &= -1073741825 : R === 29 ? D.fg &= 2147483647 : R === 39 ? (D.fg &= -67108864, D.fg |= 16777215 & e.DEFAULT_ATTR_DATA.fg) : R === 49 ? (D.bg &= -67108864, D.bg |= 16777215 & e.DEFAULT_ATTR_DATA.bg) : R === 38 || R === 48 || R === 58 ? H += this._extractColor(C, H, D) : R === 53 ? D.bg |= 1073741824 : R === 55 ? D.bg &= -1073741825 : R === 59 ? (D.extended = D.extended.clone(), D.extended.underlineColor = -1, D.updateExtended()) : R === 100 ? (D.fg &= -67108864, D.fg |= 16777215 & e.DEFAULT_ATTR_DATA.fg, D.bg &= -67108864, D.bg |= 16777215 & e.DEFAULT_ATTR_DATA.bg) : this._logService.debug("Unknown SGR attribute: %d.", R);
             return !0;
           }
           deviceStatus(C) {
@@ -3311,12 +3311,12 @@ WARNING: This link could potentially be dangerous`)) {
           setOrReportIndexedColor(C) {
             const x = [], R = C.split(";");
             for (; R.length > 1; ) {
-              const A = R.shift(), F = R.shift();
-              if (/^\d+$/.exec(A)) {
-                const z = parseInt(A);
-                if (I(z)) if (F === "?") x.push({ type: 0, index: z });
+              const D = R.shift(), H = R.shift();
+              if (/^\d+$/.exec(D)) {
+                const z = parseInt(D);
+                if (I(z)) if (H === "?") x.push({ type: 0, index: z });
                 else {
-                  const K = (0, v.parseColor)(F);
+                  const K = (0, v.parseColor)(H);
                   K && x.push({ type: 1, index: z, color: K });
                 }
               }
@@ -3330,19 +3330,19 @@ WARNING: This link could potentially be dangerous`)) {
           _createHyperlink(C, x) {
             this._getCurrentLinkId() && this._finishHyperlink();
             const R = C.split(":");
-            let A;
-            const F = R.findIndex(((z) => z.startsWith("id=")));
-            return F !== -1 && (A = R[F].slice(3) || void 0), this._curAttrData.extended = this._curAttrData.extended.clone(), this._curAttrData.extended.urlId = this._oscLinkService.registerLink({ id: A, uri: x }), this._curAttrData.updateExtended(), !0;
+            let D;
+            const H = R.findIndex(((z) => z.startsWith("id=")));
+            return H !== -1 && (D = R[H].slice(3) || void 0), this._curAttrData.extended = this._curAttrData.extended.clone(), this._curAttrData.extended.urlId = this._oscLinkService.registerLink({ id: D, uri: x }), this._curAttrData.updateExtended(), !0;
           }
           _finishHyperlink() {
             return this._curAttrData.extended = this._curAttrData.extended.clone(), this._curAttrData.extended.urlId = 0, this._curAttrData.updateExtended(), !0;
           }
           _setOrReportSpecialColor(C, x) {
             const R = C.split(";");
-            for (let A = 0; A < R.length && !(x >= this._specialColors.length); ++A, ++x) if (R[A] === "?") this._onColor.fire([{ type: 0, index: this._specialColors[x] }]);
+            for (let D = 0; D < R.length && !(x >= this._specialColors.length); ++D, ++x) if (R[D] === "?") this._onColor.fire([{ type: 0, index: this._specialColors[x] }]);
             else {
-              const F = (0, v.parseColor)(R[A]);
-              F && this._onColor.fire([{ type: 1, index: this._specialColors[x], color: F }]);
+              const H = (0, v.parseColor)(R[D]);
+              H && this._onColor.fire([{ type: 1, index: this._specialColors[x], color: H }]);
             }
             return !0;
           }
@@ -3358,9 +3358,9 @@ WARNING: This link could potentially be dangerous`)) {
           restoreIndexedColor(C) {
             if (!C) return this._onColor.fire([{ type: 2 }]), !0;
             const x = [], R = C.split(";");
-            for (let A = 0; A < R.length; ++A) if (/^\d+$/.exec(R[A])) {
-              const F = parseInt(R[A]);
-              I(F) && x.push({ type: 2, index: F });
+            for (let D = 0; D < R.length; ++D) if (/^\d+$/.exec(R[D])) {
+              const H = parseInt(R[D]);
+              I(H) && x.push({ type: 2, index: H });
             }
             return x.length && this._onColor.fire(x), !0;
           }
@@ -3417,14 +3417,14 @@ WARNING: This link could potentially be dangerous`)) {
             const C = new s.CellData();
             C.content = 4194373, C.fg = this._curAttrData.fg, C.bg = this._curAttrData.bg, this._setCursor(0, 0);
             for (let x = 0; x < this._bufferService.rows; ++x) {
-              const R = this._activeBuffer.ybase + this._activeBuffer.y + x, A = this._activeBuffer.lines.get(R);
-              A && (A.fill(C), A.isWrapped = !1);
+              const R = this._activeBuffer.ybase + this._activeBuffer.y + x, D = this._activeBuffer.lines.get(R);
+              D && (D.fill(C), D.isWrapped = !1);
             }
             return this._dirtyRowTracker.markAllDirty(), this._setCursor(0, 0), !0;
           }
           requestStatusString(C, x) {
-            const R = this._bufferService.buffer, A = this._optionsService.rawOptions;
-            return ((F) => (this._coreService.triggerDataEvent(`${n.C0.ESC}${F}${n.C0.ESC}\\`), !0))(C === '"q' ? `P1$r${this._curAttrData.isProtected() ? 1 : 0}"q` : C === '"p' ? 'P1$r61;1"p' : C === "r" ? `P1$r${R.scrollTop + 1};${R.scrollBottom + 1}r` : C === "m" ? "P1$r0m" : C === " q" ? `P1$r${{ block: 2, underline: 4, bar: 6 }[A.cursorStyle] - (A.cursorBlink ? 1 : 0)} q` : "P0$r");
+            const R = this._bufferService.buffer, D = this._optionsService.rawOptions;
+            return ((H) => (this._coreService.triggerDataEvent(`${n.C0.ESC}${H}${n.C0.ESC}\\`), !0))(C === '"q' ? `P1$r${this._curAttrData.isProtected() ? 1 : 0}"q` : C === '"p' ? 'P1$r61;1"p' : C === "r" ? `P1$r${R.scrollTop + 1};${R.scrollBottom + 1}r` : C === "m" ? "P1$r0m" : C === " q" ? `P1$r${{ block: 2, underline: 4, bar: 6 }[D.cursorStyle] - (D.cursorBlink ? 1 : 0)} q` : "P0$r");
           }
           markRangeDirty(C, x) {
             this._dirtyRowTracker.markRangeDirty(C, x);
@@ -3432,24 +3432,24 @@ WARNING: This link could potentially be dangerous`)) {
         }
         t.InputHandler = M;
         let P = class {
-          constructor(B) {
-            this._bufferService = B, this.clearRange();
+          constructor(O) {
+            this._bufferService = O, this.clearRange();
           }
           clearRange() {
             this.start = this._bufferService.buffer.y, this.end = this._bufferService.buffer.y;
           }
-          markDirty(B) {
-            B < this.start ? this.start = B : B > this.end && (this.end = B);
+          markDirty(O) {
+            O < this.start ? this.start = O : O > this.end && (this.end = O);
           }
-          markRangeDirty(B, C) {
-            B > C && (L = B, B = C, C = L), B < this.start && (this.start = B), C > this.end && (this.end = C);
+          markRangeDirty(O, C) {
+            O > C && (L = O, O = C, C = L), O < this.start && (this.start = O), C > this.end && (this.end = C);
           }
           markAllDirty() {
             this.markRangeDirty(0, this._bufferService.rows - 1);
           }
         };
-        function I(B) {
-          return 0 <= B && B < 256;
+        function I(O) {
+          return 0 <= O && O < 256;
         }
         P = h([c(0, p.IBufferService)], P);
       }, 844: (T, t) => {
@@ -3928,20 +3928,20 @@ WARNING: This link could potentially be dangerous`)) {
               L = this.ybase === 0 && this.y !== this.lines.length - 1 ? Math.max(0, this.y - this.lines.maxLength + w) : Math.max(0, this.lines.length - this.lines.maxLength + w);
               const M = [];
               for (let R = 0; R < w; R++) {
-                const A = this.getBlankLine(l.DEFAULT_ATTR_DATA, !0);
-                M.push(A);
+                const D = this.getBlankLine(l.DEFAULT_ATTR_DATA, !0);
+                M.push(D);
               }
               M.length > 0 && (p.push({ start: m + v.length + _, newLines: M }), _ += M.length), v.push(...M);
               let P = b.length - 1, I = b[P];
               I === 0 && (P--, I = b[P]);
-              let B = v.length - w - 1, C = y;
-              for (; B >= 0; ) {
+              let O = v.length - w - 1, C = y;
+              for (; O >= 0; ) {
                 const R = Math.min(C, I);
                 if (v[P] === void 0) break;
-                if (v[P].copyCellsFrom(v[B], C - R, I - R, R, !0), I -= R, I === 0 && (P--, I = b[P]), C -= R, C === 0) {
-                  B--;
-                  const A = Math.max(B, 0);
-                  C = (0, f.getWrappedLineTrimmedLength)(v, A, this._cols);
+                if (v[P].copyCellsFrom(v[O], C - R, I - R, R, !0), I -= R, I === 0 && (P--, I = b[P]), C -= R, C === 0) {
+                  O--;
+                  const D = Math.max(O, 0);
+                  C = (0, f.getWrappedLineTrimmedLength)(v, D, this._cols);
                 }
               }
               for (let R = 0; R < v.length; R++) b[R] < i && v[R].setCell(b[R], d);
@@ -5875,18 +5875,18 @@ WARNING: This link could potentially be dangerous`)) {
           }
         }
         t.UnicodeService = n;
-      } }, W = {};
-      function U(T) {
-        var t = W[T];
+      } }, F = {};
+      function $(T) {
+        var t = F[T];
         if (t !== void 0) return t.exports;
-        var a = W[T] = { exports: {} };
-        return O[T].call(a.exports, a, a.exports, U), a.exports;
+        var a = F[T] = { exports: {} };
+        return B[T].call(a.exports, a, a.exports, $), a.exports;
       }
       var G = {};
       return (() => {
         var T = G;
         Object.defineProperty(T, "__esModule", { value: !0 }), T.Terminal = void 0;
-        const t = U(9042), a = U(3236), h = U(844), c = U(5741), n = U(8285), l = U(7975), f = U(7090), g = ["cols", "rows"];
+        const t = $(9042), a = $(3236), h = $(844), c = $(5741), n = $(8285), l = $(7975), f = $(7090), g = ["cols", "rows"];
         class o extends h.Disposable {
           constructor(r) {
             super(), this._core = this.register(new a.Terminal(r)), this._addonManager = this.register(new c.AddonManager()), this._publicOptions = { ...this._core.options };
@@ -6106,44 +6106,44 @@ WARNING: This link could potentially be dangerous`)) {
 }
 var Ge = Ve(), Ee = { exports: {} }, Ie;
 function Xe() {
-  return Ie || (Ie = 1, (function(te, D) {
-    (function(O, W) {
-      te.exports = W();
+  return Ie || (Ie = 1, (function(te, A) {
+    (function(B, F) {
+      te.exports = F();
     })(self, (() => (() => {
-      var O = {};
+      var B = {};
       return (() => {
-        var W = O;
-        Object.defineProperty(W, "__esModule", { value: !0 }), W.FitAddon = void 0, W.FitAddon = class {
-          activate(U) {
-            this._terminal = U;
+        var F = B;
+        Object.defineProperty(F, "__esModule", { value: !0 }), F.FitAddon = void 0, F.FitAddon = class {
+          activate($) {
+            this._terminal = $;
           }
           dispose() {
           }
           fit() {
-            const U = this.proposeDimensions();
-            if (!U || !this._terminal || isNaN(U.cols) || isNaN(U.rows)) return;
+            const $ = this.proposeDimensions();
+            if (!$ || !this._terminal || isNaN($.cols) || isNaN($.rows)) return;
             const G = this._terminal._core;
-            this._terminal.rows === U.rows && this._terminal.cols === U.cols || (G._renderService.clear(), this._terminal.resize(U.cols, U.rows));
+            this._terminal.rows === $.rows && this._terminal.cols === $.cols || (G._renderService.clear(), this._terminal.resize($.cols, $.rows));
           }
           proposeDimensions() {
             if (!this._terminal || !this._terminal.element || !this._terminal.element.parentElement) return;
-            const U = this._terminal._core, G = U._renderService.dimensions;
+            const $ = this._terminal._core, G = $._renderService.dimensions;
             if (G.css.cell.width === 0 || G.css.cell.height === 0) return;
-            const T = this._terminal.options.scrollback === 0 ? 0 : U.viewport.scrollBarWidth, t = window.getComputedStyle(this._terminal.element.parentElement), a = parseInt(t.getPropertyValue("height")), h = Math.max(0, parseInt(t.getPropertyValue("width"))), c = window.getComputedStyle(this._terminal.element), n = a - (parseInt(c.getPropertyValue("padding-top")) + parseInt(c.getPropertyValue("padding-bottom"))), l = h - (parseInt(c.getPropertyValue("padding-right")) + parseInt(c.getPropertyValue("padding-left"))) - T;
+            const T = this._terminal.options.scrollback === 0 ? 0 : $.viewport.scrollBarWidth, t = window.getComputedStyle(this._terminal.element.parentElement), a = parseInt(t.getPropertyValue("height")), h = Math.max(0, parseInt(t.getPropertyValue("width"))), c = window.getComputedStyle(this._terminal.element), n = a - (parseInt(c.getPropertyValue("padding-top")) + parseInt(c.getPropertyValue("padding-bottom"))), l = h - (parseInt(c.getPropertyValue("padding-right")) + parseInt(c.getPropertyValue("padding-left"))) - T;
             return { cols: Math.max(2, Math.floor(l / G.css.cell.width)), rows: Math.max(1, Math.floor(n / G.css.cell.height)) };
           }
         };
-      })(), O;
+      })(), B;
     })()));
   })(Ee)), Ee.exports;
 }
 var Ye = Xe(), xe = { exports: {} }, Fe;
 function Je() {
-  return Fe || (Fe = 1, (function(te, D) {
-    (function(O, W) {
-      te.exports = W();
+  return Fe || (Fe = 1, (function(te, A) {
+    (function(B, F) {
+      te.exports = F();
     })(self, (() => (() => {
-      var O = { 6: (T, t) => {
+      var B = { 6: (T, t) => {
         function a(c) {
           try {
             const n = new URL(c), l = n.password && n.username ? `${n.protocol}//${n.username}:${n.password}@${n.host}` : n.username ? `${n.protocol}//${n.username}@${n.host}` : `${n.protocol}//${n.host}`;
@@ -6218,18 +6218,18 @@ function Je() {
           }
         }
         t.LinkComputer = h;
-      } }, W = {};
-      function U(T) {
-        var t = W[T];
+      } }, F = {};
+      function $(T) {
+        var t = F[T];
         if (t !== void 0) return t.exports;
-        var a = W[T] = { exports: {} };
-        return O[T](a, a.exports, U), a.exports;
+        var a = F[T] = { exports: {} };
+        return B[T](a, a.exports, $), a.exports;
       }
       var G = {};
       return (() => {
         var T = G;
         Object.defineProperty(T, "__esModule", { value: !0 }), T.WebLinksAddon = void 0;
-        const t = U(6), a = /(https?|HTTPS?):[/]{2}[^\s"'!*(){}|\\\^<>`]*[^\s"':,.!?{}|\\\^~\[\]`()<>]/;
+        const t = $(6), a = /(https?|HTTPS?):[/]{2}[^\s"'!*(){}|\\\^<>`]*[^\s"':,.!?{}|\\\^~\[\]`()<>]/;
         function h(c, n) {
           const l = window.open();
           if (l) {
@@ -6260,11 +6260,11 @@ function Je() {
 }
 var Ze = Je(), Ce = { exports: {} }, Qe = Ce.exports, He;
 function et() {
-  return He || (He = 1, (function(te, D) {
-    (function(O, W) {
-      te.exports = W();
+  return He || (He = 1, (function(te, A) {
+    (function(B, F) {
+      te.exports = F();
     })(Qe, (() => (() => {
-      var O = { 433: (T, t, a) => {
+      var B = { 433: (T, t, a) => {
         Object.defineProperty(t, "__esModule", { value: !0 }), t.UnicodeV11 = void 0;
         const h = a(938), c = [[768, 879], [1155, 1161], [1425, 1469], [1471, 1471], [1473, 1474], [1476, 1477], [1479, 1479], [1536, 1541], [1552, 1562], [1564, 1564], [1611, 1631], [1648, 1648], [1750, 1757], [1759, 1764], [1767, 1768], [1770, 1773], [1807, 1807], [1809, 1809], [1840, 1866], [1958, 1968], [2027, 2035], [2045, 2045], [2070, 2073], [2075, 2083], [2085, 2087], [2089, 2093], [2137, 2139], [2259, 2306], [2362, 2362], [2364, 2364], [2369, 2376], [2381, 2381], [2385, 2391], [2402, 2403], [2433, 2433], [2492, 2492], [2497, 2500], [2509, 2509], [2530, 2531], [2558, 2558], [2561, 2562], [2620, 2620], [2625, 2626], [2631, 2632], [2635, 2637], [2641, 2641], [2672, 2673], [2677, 2677], [2689, 2690], [2748, 2748], [2753, 2757], [2759, 2760], [2765, 2765], [2786, 2787], [2810, 2815], [2817, 2817], [2876, 2876], [2879, 2879], [2881, 2884], [2893, 2893], [2902, 2902], [2914, 2915], [2946, 2946], [3008, 3008], [3021, 3021], [3072, 3072], [3076, 3076], [3134, 3136], [3142, 3144], [3146, 3149], [3157, 3158], [3170, 3171], [3201, 3201], [3260, 3260], [3263, 3263], [3270, 3270], [3276, 3277], [3298, 3299], [3328, 3329], [3387, 3388], [3393, 3396], [3405, 3405], [3426, 3427], [3530, 3530], [3538, 3540], [3542, 3542], [3633, 3633], [3636, 3642], [3655, 3662], [3761, 3761], [3764, 3772], [3784, 3789], [3864, 3865], [3893, 3893], [3895, 3895], [3897, 3897], [3953, 3966], [3968, 3972], [3974, 3975], [3981, 3991], [3993, 4028], [4038, 4038], [4141, 4144], [4146, 4151], [4153, 4154], [4157, 4158], [4184, 4185], [4190, 4192], [4209, 4212], [4226, 4226], [4229, 4230], [4237, 4237], [4253, 4253], [4448, 4607], [4957, 4959], [5906, 5908], [5938, 5940], [5970, 5971], [6002, 6003], [6068, 6069], [6071, 6077], [6086, 6086], [6089, 6099], [6109, 6109], [6155, 6158], [6277, 6278], [6313, 6313], [6432, 6434], [6439, 6440], [6450, 6450], [6457, 6459], [6679, 6680], [6683, 6683], [6742, 6742], [6744, 6750], [6752, 6752], [6754, 6754], [6757, 6764], [6771, 6780], [6783, 6783], [6832, 6846], [6912, 6915], [6964, 6964], [6966, 6970], [6972, 6972], [6978, 6978], [7019, 7027], [7040, 7041], [7074, 7077], [7080, 7081], [7083, 7085], [7142, 7142], [7144, 7145], [7149, 7149], [7151, 7153], [7212, 7219], [7222, 7223], [7376, 7378], [7380, 7392], [7394, 7400], [7405, 7405], [7412, 7412], [7416, 7417], [7616, 7673], [7675, 7679], [8203, 8207], [8234, 8238], [8288, 8292], [8294, 8303], [8400, 8432], [11503, 11505], [11647, 11647], [11744, 11775], [12330, 12333], [12441, 12442], [42607, 42610], [42612, 42621], [42654, 42655], [42736, 42737], [43010, 43010], [43014, 43014], [43019, 43019], [43045, 43046], [43204, 43205], [43232, 43249], [43263, 43263], [43302, 43309], [43335, 43345], [43392, 43394], [43443, 43443], [43446, 43449], [43452, 43453], [43493, 43493], [43561, 43566], [43569, 43570], [43573, 43574], [43587, 43587], [43596, 43596], [43644, 43644], [43696, 43696], [43698, 43700], [43703, 43704], [43710, 43711], [43713, 43713], [43756, 43757], [43766, 43766], [44005, 44005], [44008, 44008], [44013, 44013], [64286, 64286], [65024, 65039], [65056, 65071], [65279, 65279], [65529, 65531]], n = [[66045, 66045], [66272, 66272], [66422, 66426], [68097, 68099], [68101, 68102], [68108, 68111], [68152, 68154], [68159, 68159], [68325, 68326], [68900, 68903], [69446, 69456], [69633, 69633], [69688, 69702], [69759, 69761], [69811, 69814], [69817, 69818], [69821, 69821], [69837, 69837], [69888, 69890], [69927, 69931], [69933, 69940], [70003, 70003], [70016, 70017], [70070, 70078], [70089, 70092], [70191, 70193], [70196, 70196], [70198, 70199], [70206, 70206], [70367, 70367], [70371, 70378], [70400, 70401], [70459, 70460], [70464, 70464], [70502, 70508], [70512, 70516], [70712, 70719], [70722, 70724], [70726, 70726], [70750, 70750], [70835, 70840], [70842, 70842], [70847, 70848], [70850, 70851], [71090, 71093], [71100, 71101], [71103, 71104], [71132, 71133], [71219, 71226], [71229, 71229], [71231, 71232], [71339, 71339], [71341, 71341], [71344, 71349], [71351, 71351], [71453, 71455], [71458, 71461], [71463, 71467], [71727, 71735], [71737, 71738], [72148, 72151], [72154, 72155], [72160, 72160], [72193, 72202], [72243, 72248], [72251, 72254], [72263, 72263], [72273, 72278], [72281, 72283], [72330, 72342], [72344, 72345], [72752, 72758], [72760, 72765], [72767, 72767], [72850, 72871], [72874, 72880], [72882, 72883], [72885, 72886], [73009, 73014], [73018, 73018], [73020, 73021], [73023, 73029], [73031, 73031], [73104, 73105], [73109, 73109], [73111, 73111], [73459, 73460], [78896, 78904], [92912, 92916], [92976, 92982], [94031, 94031], [94095, 94098], [113821, 113822], [113824, 113827], [119143, 119145], [119155, 119170], [119173, 119179], [119210, 119213], [119362, 119364], [121344, 121398], [121403, 121452], [121461, 121461], [121476, 121476], [121499, 121503], [121505, 121519], [122880, 122886], [122888, 122904], [122907, 122913], [122915, 122916], [122918, 122922], [123184, 123190], [123628, 123631], [125136, 125142], [125252, 125258], [917505, 917505], [917536, 917631], [917760, 917999]], l = [[4352, 4447], [8986, 8987], [9001, 9002], [9193, 9196], [9200, 9200], [9203, 9203], [9725, 9726], [9748, 9749], [9800, 9811], [9855, 9855], [9875, 9875], [9889, 9889], [9898, 9899], [9917, 9918], [9924, 9925], [9934, 9934], [9940, 9940], [9962, 9962], [9970, 9971], [9973, 9973], [9978, 9978], [9981, 9981], [9989, 9989], [9994, 9995], [10024, 10024], [10060, 10060], [10062, 10062], [10067, 10069], [10071, 10071], [10133, 10135], [10160, 10160], [10175, 10175], [11035, 11036], [11088, 11088], [11093, 11093], [11904, 11929], [11931, 12019], [12032, 12245], [12272, 12283], [12288, 12329], [12334, 12350], [12353, 12438], [12443, 12543], [12549, 12591], [12593, 12686], [12688, 12730], [12736, 12771], [12784, 12830], [12832, 12871], [12880, 19903], [19968, 42124], [42128, 42182], [43360, 43388], [44032, 55203], [63744, 64255], [65040, 65049], [65072, 65106], [65108, 65126], [65128, 65131], [65281, 65376], [65504, 65510]], f = [[94176, 94179], [94208, 100343], [100352, 101106], [110592, 110878], [110928, 110930], [110948, 110951], [110960, 111355], [126980, 126980], [127183, 127183], [127374, 127374], [127377, 127386], [127488, 127490], [127504, 127547], [127552, 127560], [127568, 127569], [127584, 127589], [127744, 127776], [127789, 127797], [127799, 127868], [127870, 127891], [127904, 127946], [127951, 127955], [127968, 127984], [127988, 127988], [127992, 128062], [128064, 128064], [128066, 128252], [128255, 128317], [128331, 128334], [128336, 128359], [128378, 128378], [128405, 128406], [128420, 128420], [128507, 128591], [128640, 128709], [128716, 128716], [128720, 128722], [128725, 128725], [128747, 128748], [128756, 128762], [128992, 129003], [129293, 129393], [129395, 129398], [129402, 129442], [129445, 129450], [129454, 129482], [129485, 129535], [129648, 129651], [129656, 129658], [129664, 129666], [129680, 129685], [131072, 196605], [196608, 262141]];
         let g;
@@ -6419,18 +6419,18 @@ function et() {
           }
         }
         t.UnicodeService = n;
-      } }, W = {};
-      function U(T) {
-        var t = W[T];
+      } }, F = {};
+      function $(T) {
+        var t = F[T];
         if (t !== void 0) return t.exports;
-        var a = W[T] = { exports: {} };
-        return O[T](a, a.exports, U), a.exports;
+        var a = F[T] = { exports: {} };
+        return B[T](a, a.exports, $), a.exports;
       }
       var G = {};
       return (() => {
         var T = G;
         Object.defineProperty(T, "__esModule", { value: !0 }), T.Unicode11Addon = void 0;
-        const t = U(433);
+        const t = $(433);
         T.Unicode11Addon = class {
           activate(a) {
             a.unicode.register(new t.UnicodeV11());
@@ -6444,11 +6444,11 @@ function et() {
 }
 var tt = et(), Le = { exports: {} }, We;
 function it() {
-  return We || (We = 1, (function(te, D) {
-    (function(O, W) {
-      te.exports = W();
+  return We || (We = 1, (function(te, A) {
+    (function(B, F) {
+      te.exports = F();
     })(self, (() => (() => {
-      var O = { 965: (T, t, a) => {
+      var B = { 965: (T, t, a) => {
         Object.defineProperty(t, "__esModule", { value: !0 }), t.GlyphRenderer = void 0;
         const h = a(374), c = a(509), n = a(855), l = a(859), f = a(381), g = 11, o = g * Float32Array.BYTES_PER_ELEMENT;
         let e, r = 0, i = 0, s = 0;
@@ -6478,7 +6478,7 @@ void main() {
   v_texcoord = a_texcoord + a_unitquad * a_texsize;
 }`, (function(P) {
               let I = "";
-              for (let B = 1; B < P; B++) I += ` else if (v_texpage == ${B}) { outColor = texture(u_texture[${B}], v_texcoord); }`;
+              for (let O = 1; O < P; O++) I += ` else if (v_texpage == ${O}) { outColor = texture(u_texture[${O}], v_texcoord); }`;
               return `#version 300 es
 precision lowp float;
 
@@ -6623,12 +6623,12 @@ void main() {
           }
           updateBackgrounds(u) {
             const v = this._terminal, S = this._vertices;
-            let y, b, w, L, M, P, I, B, C, x, R, A = 1;
+            let y, b, w, L, M, P, I, O, C, x, R, D = 1;
             for (y = 0; y < v.rows; y++) {
-              for (w = -1, L = 0, M = 0, P = !1, b = 0; b < v.cols; b++) I = (y * v.cols + b) * n.RENDER_MODEL_INDICIES_PER_CELL, B = u.cells[I + n.RENDER_MODEL_BG_OFFSET], C = u.cells[I + n.RENDER_MODEL_FG_OFFSET], x = !!(67108864 & C), (B !== L || C !== M && (P || x)) && ((L !== 0 || P && M !== 0) && (R = 8 * A++, this._updateRectangle(S, R, M, L, w, b, y)), w = b, L = B, M = C, P = x);
-              (L !== 0 || P && M !== 0) && (R = 8 * A++, this._updateRectangle(S, R, M, L, w, v.cols, y));
+              for (w = -1, L = 0, M = 0, P = !1, b = 0; b < v.cols; b++) I = (y * v.cols + b) * n.RENDER_MODEL_INDICIES_PER_CELL, O = u.cells[I + n.RENDER_MODEL_BG_OFFSET], C = u.cells[I + n.RENDER_MODEL_FG_OFFSET], x = !!(67108864 & C), (O !== L || C !== M && (P || x)) && ((L !== 0 || P && M !== 0) && (R = 8 * D++, this._updateRectangle(S, R, M, L, w, b, y)), w = b, L = O, M = C, P = x);
+              (L !== 0 || P && M !== 0) && (R = 8 * D++, this._updateRectangle(S, R, M, L, w, v.cols, y));
             }
-            S.count = A;
+            S.count = D;
           }
           updateCursor(u) {
             const v = this._verticesCursor, S = u.cursor;
@@ -6691,22 +6691,22 @@ void main() {
         Object.defineProperty(t, "__esModule", { value: !0 }), t.JoinedCellData = t.WebglRenderer = void 0;
         const h = a(820), c = a(274), n = a(627), l = a(457), f = a(56), g = a(374), o = a(345), e = a(859), r = a(147), i = a(782), s = a(855), d = a(965), p = a(742), _ = a(310), m = a(733);
         class u extends e.Disposable {
-          constructor(b, w, L, M, P, I, B, C, x) {
-            super(), this._terminal = b, this._characterJoinerService = w, this._charSizeService = L, this._coreBrowserService = M, this._coreService = P, this._decorationService = I, this._optionsService = B, this._themeService = C, this._cursorBlinkStateManager = new e.MutableDisposable(), this._charAtlasDisposable = this.register(new e.MutableDisposable()), this._observerDisposable = this.register(new e.MutableDisposable()), this._model = new _.RenderModel(), this._workCell = new i.CellData(), this._workCell2 = new i.CellData(), this._rectangleRenderer = this.register(new e.MutableDisposable()), this._glyphRenderer = this.register(new e.MutableDisposable()), this._onChangeTextureAtlas = this.register(new o.EventEmitter()), this.onChangeTextureAtlas = this._onChangeTextureAtlas.event, this._onAddTextureAtlasCanvas = this.register(new o.EventEmitter()), this.onAddTextureAtlasCanvas = this._onAddTextureAtlasCanvas.event, this._onRemoveTextureAtlasCanvas = this.register(new o.EventEmitter()), this.onRemoveTextureAtlasCanvas = this._onRemoveTextureAtlasCanvas.event, this._onRequestRedraw = this.register(new o.EventEmitter()), this.onRequestRedraw = this._onRequestRedraw.event, this._onContextLoss = this.register(new o.EventEmitter()), this.onContextLoss = this._onContextLoss.event, this.register(this._themeService.onChangeColors((() => this._handleColorChange()))), this._cellColorResolver = new c.CellColorResolver(this._terminal, this._optionsService, this._model.selection, this._decorationService, this._coreBrowserService, this._themeService), this._core = this._terminal._core, this._renderLayers = [new m.LinkRenderLayer(this._core.screenElement, 2, this._terminal, this._core.linkifier, this._coreBrowserService, B, this._themeService)], this.dimensions = (0, g.createRenderDimensions)(), this._devicePixelRatio = this._coreBrowserService.dpr, this._updateDimensions(), this._updateCursorBlink(), this.register(B.onOptionChange((() => this._handleOptionsChanged()))), this._canvas = this._coreBrowserService.mainDocument.createElement("canvas");
+          constructor(b, w, L, M, P, I, O, C, x) {
+            super(), this._terminal = b, this._characterJoinerService = w, this._charSizeService = L, this._coreBrowserService = M, this._coreService = P, this._decorationService = I, this._optionsService = O, this._themeService = C, this._cursorBlinkStateManager = new e.MutableDisposable(), this._charAtlasDisposable = this.register(new e.MutableDisposable()), this._observerDisposable = this.register(new e.MutableDisposable()), this._model = new _.RenderModel(), this._workCell = new i.CellData(), this._workCell2 = new i.CellData(), this._rectangleRenderer = this.register(new e.MutableDisposable()), this._glyphRenderer = this.register(new e.MutableDisposable()), this._onChangeTextureAtlas = this.register(new o.EventEmitter()), this.onChangeTextureAtlas = this._onChangeTextureAtlas.event, this._onAddTextureAtlasCanvas = this.register(new o.EventEmitter()), this.onAddTextureAtlasCanvas = this._onAddTextureAtlasCanvas.event, this._onRemoveTextureAtlasCanvas = this.register(new o.EventEmitter()), this.onRemoveTextureAtlasCanvas = this._onRemoveTextureAtlasCanvas.event, this._onRequestRedraw = this.register(new o.EventEmitter()), this.onRequestRedraw = this._onRequestRedraw.event, this._onContextLoss = this.register(new o.EventEmitter()), this.onContextLoss = this._onContextLoss.event, this.register(this._themeService.onChangeColors((() => this._handleColorChange()))), this._cellColorResolver = new c.CellColorResolver(this._terminal, this._optionsService, this._model.selection, this._decorationService, this._coreBrowserService, this._themeService), this._core = this._terminal._core, this._renderLayers = [new m.LinkRenderLayer(this._core.screenElement, 2, this._terminal, this._core.linkifier, this._coreBrowserService, O, this._themeService)], this.dimensions = (0, g.createRenderDimensions)(), this._devicePixelRatio = this._coreBrowserService.dpr, this._updateDimensions(), this._updateCursorBlink(), this.register(O.onOptionChange((() => this._handleOptionsChanged()))), this._canvas = this._coreBrowserService.mainDocument.createElement("canvas");
             const R = { antialias: !1, depth: !1, preserveDrawingBuffer: x };
             if (this._gl = this._canvas.getContext("webgl2", R), !this._gl) throw new Error("WebGL2 not supported " + this._gl);
-            this.register((0, h.addDisposableDomListener)(this._canvas, "webglcontextlost", ((A) => {
-              console.log("webglcontextlost event received"), A.preventDefault(), this._contextRestorationTimeout = setTimeout((() => {
-                this._contextRestorationTimeout = void 0, console.warn("webgl context not restored; firing onContextLoss"), this._onContextLoss.fire(A);
+            this.register((0, h.addDisposableDomListener)(this._canvas, "webglcontextlost", ((D) => {
+              console.log("webglcontextlost event received"), D.preventDefault(), this._contextRestorationTimeout = setTimeout((() => {
+                this._contextRestorationTimeout = void 0, console.warn("webgl context not restored; firing onContextLoss"), this._onContextLoss.fire(D);
               }), 3e3);
-            }))), this.register((0, h.addDisposableDomListener)(this._canvas, "webglcontextrestored", ((A) => {
+            }))), this.register((0, h.addDisposableDomListener)(this._canvas, "webglcontextrestored", ((D) => {
               console.warn("webglcontextrestored event received"), clearTimeout(this._contextRestorationTimeout), this._contextRestorationTimeout = void 0, (0, n.removeTerminalFromCache)(this._terminal), this._initializeWebGLState(), this._requestRedrawViewport();
-            }))), this._observerDisposable.value = (0, f.observeDevicePixelDimensions)(this._canvas, this._coreBrowserService.window, ((A, F) => this._setCanvasDevicePixelDimensions(A, F))), this.register(this._coreBrowserService.onWindowChange(((A) => {
-              this._observerDisposable.value = (0, f.observeDevicePixelDimensions)(this._canvas, A, ((F, z) => this._setCanvasDevicePixelDimensions(F, z)));
+            }))), this._observerDisposable.value = (0, f.observeDevicePixelDimensions)(this._canvas, this._coreBrowserService.window, ((D, H) => this._setCanvasDevicePixelDimensions(D, H))), this.register(this._coreBrowserService.onWindowChange(((D) => {
+              this._observerDisposable.value = (0, f.observeDevicePixelDimensions)(this._canvas, D, ((H, z) => this._setCanvasDevicePixelDimensions(H, z)));
             }))), this._core.screenElement.appendChild(this._canvas), [this._rectangleRenderer.value, this._glyphRenderer.value] = this._initializeWebGLState(), this._isAttached = this._coreBrowserService.window.document.body.contains(this._core.screenElement), this.register((0, e.toDisposable)((() => {
-              var A;
-              for (const F of this._renderLayers) F.dispose();
-              (A = this._canvas.parentElement) == null || A.removeChild(this._canvas), (0, n.removeTerminalFromCache)(this._terminal);
+              var D;
+              for (const H of this._renderLayers) H.dispose();
+              (D = this._canvas.parentElement) == null || D.removeChild(this._canvas), (0, n.removeTerminalFromCache)(this._terminal);
             })));
           }
           get textureAtlas() {
@@ -6722,7 +6722,7 @@ void main() {
           handleResize(b, w) {
             var L, M, P, I;
             this._updateDimensions(), this._model.resize(this._terminal.cols, this._terminal.rows);
-            for (const B of this._renderLayers) B.resize(this._terminal, this.dimensions);
+            for (const O of this._renderLayers) O.resize(this._terminal, this.dimensions);
             this._canvas.width = this.dimensions.device.canvas.width, this._canvas.height = this.dimensions.device.canvas.height, this._canvas.style.width = `${this.dimensions.css.canvas.width}px`, this._canvas.style.height = `${this.dimensions.css.canvas.height}px`, this._core.screenElement.style.width = `${this.dimensions.css.canvas.width}px`, this._core.screenElement.style.height = `${this.dimensions.css.canvas.height}px`, (L = this._rectangleRenderer.value) == null || L.setDimensions(this.dimensions), (M = this._rectangleRenderer.value) == null || M.handleResize(), (P = this._glyphRenderer.value) == null || P.setDimensions(this.dimensions), (I = this._glyphRenderer.value) == null || I.handleResize(), this._refreshCharAtlas(), this._clearModel(!1);
           }
           handleCharSizeChanged() {
@@ -6794,14 +6794,14 @@ void main() {
           }
           _updateModel(b, w) {
             const L = this._core;
-            let M, P, I, B, C, x, R, A, F, z, K, q, k, E, H = this._workCell;
+            let M, P, I, O, C, x, R, D, H, z, K, q, k, E, W = this._workCell;
             b = S(b, L.rows - 1, 0), w = S(w, L.rows - 1, 0);
-            const $ = this._terminal.buffer.active.baseY + this._terminal.buffer.active.cursorY, j = $ - L.buffer.ydisp, N = Math.min(this._terminal.buffer.active.cursorX, L.cols - 1);
+            const U = this._terminal.buffer.active.baseY + this._terminal.buffer.active.cursorY, j = U - L.buffer.ydisp, N = Math.min(this._terminal.buffer.active.cursorX, L.cols - 1);
             let J = -1;
             const X = this._coreService.isCursorInitialized && !this._coreService.isCursorHidden && (!this._cursorBlinkStateManager.value || this._cursorBlinkStateManager.value.isCursorVisible);
             this._model.cursor = void 0;
             let ne = !1;
-            for (P = b; P <= w; P++) for (I = P + L.buffer.ydisp, B = L.buffer.lines.get(I), this._model.lineLengths[P] = 0, C = this._characterJoinerService.getJoinedCharacters(I), k = 0; k < L.cols; k++) if (M = this._cellColorResolver.result.bg, B.loadCell(k, H), k === 0 && (M = this._cellColorResolver.result.bg), x = !1, R = k, C.length > 0 && k === C[0][0] && (x = !0, A = C.shift(), H = new v(H, B.translateToString(!0, A[0], A[1]), A[1] - A[0]), R = A[1] - 1), F = H.getChars(), z = H.getCode(), q = (P * L.cols + k) * _.RENDER_MODEL_INDICIES_PER_CELL, this._cellColorResolver.resolve(H, k, I, this.dimensions.device.cell.width), X && I === $ && (k === N && (this._model.cursor = { x: N, y: j, width: H.getWidth(), style: this._coreBrowserService.isFocused ? L.options.cursorStyle || "block" : L.options.cursorInactiveStyle, cursorWidth: L.options.cursorWidth, dpr: this._devicePixelRatio }, J = N + H.getWidth() - 1), k >= N && k <= J && (this._coreBrowserService.isFocused && (L.options.cursorStyle || "block") === "block" || this._coreBrowserService.isFocused === !1 && L.options.cursorInactiveStyle === "block") && (this._cellColorResolver.result.fg = 50331648 | this._themeService.colors.cursorAccent.rgba >> 8 & 16777215, this._cellColorResolver.result.bg = 50331648 | this._themeService.colors.cursor.rgba >> 8 & 16777215)), z !== s.NULL_CELL_CODE && (this._model.lineLengths[P] = k + 1), (this._model.cells[q] !== z || this._model.cells[q + _.RENDER_MODEL_BG_OFFSET] !== this._cellColorResolver.result.bg || this._model.cells[q + _.RENDER_MODEL_FG_OFFSET] !== this._cellColorResolver.result.fg || this._model.cells[q + _.RENDER_MODEL_EXT_OFFSET] !== this._cellColorResolver.result.ext) && (ne = !0, F.length > 1 && (z |= _.COMBINED_CHAR_BIT_MASK), this._model.cells[q] = z, this._model.cells[q + _.RENDER_MODEL_BG_OFFSET] = this._cellColorResolver.result.bg, this._model.cells[q + _.RENDER_MODEL_FG_OFFSET] = this._cellColorResolver.result.fg, this._model.cells[q + _.RENDER_MODEL_EXT_OFFSET] = this._cellColorResolver.result.ext, K = H.getWidth(), this._glyphRenderer.value.updateCell(k, P, z, this._cellColorResolver.result.bg, this._cellColorResolver.result.fg, this._cellColorResolver.result.ext, F, K, M), x)) for (H = this._workCell, k++; k < R; k++) E = (P * L.cols + k) * _.RENDER_MODEL_INDICIES_PER_CELL, this._glyphRenderer.value.updateCell(k, P, s.NULL_CELL_CODE, 0, 0, 0, s.NULL_CELL_CHAR, 0, 0), this._model.cells[E] = s.NULL_CELL_CODE, this._model.cells[E + _.RENDER_MODEL_BG_OFFSET] = this._cellColorResolver.result.bg, this._model.cells[E + _.RENDER_MODEL_FG_OFFSET] = this._cellColorResolver.result.fg, this._model.cells[E + _.RENDER_MODEL_EXT_OFFSET] = this._cellColorResolver.result.ext;
+            for (P = b; P <= w; P++) for (I = P + L.buffer.ydisp, O = L.buffer.lines.get(I), this._model.lineLengths[P] = 0, C = this._characterJoinerService.getJoinedCharacters(I), k = 0; k < L.cols; k++) if (M = this._cellColorResolver.result.bg, O.loadCell(k, W), k === 0 && (M = this._cellColorResolver.result.bg), x = !1, R = k, C.length > 0 && k === C[0][0] && (x = !0, D = C.shift(), W = new v(W, O.translateToString(!0, D[0], D[1]), D[1] - D[0]), R = D[1] - 1), H = W.getChars(), z = W.getCode(), q = (P * L.cols + k) * _.RENDER_MODEL_INDICIES_PER_CELL, this._cellColorResolver.resolve(W, k, I, this.dimensions.device.cell.width), X && I === U && (k === N && (this._model.cursor = { x: N, y: j, width: W.getWidth(), style: this._coreBrowserService.isFocused ? L.options.cursorStyle || "block" : L.options.cursorInactiveStyle, cursorWidth: L.options.cursorWidth, dpr: this._devicePixelRatio }, J = N + W.getWidth() - 1), k >= N && k <= J && (this._coreBrowserService.isFocused && (L.options.cursorStyle || "block") === "block" || this._coreBrowserService.isFocused === !1 && L.options.cursorInactiveStyle === "block") && (this._cellColorResolver.result.fg = 50331648 | this._themeService.colors.cursorAccent.rgba >> 8 & 16777215, this._cellColorResolver.result.bg = 50331648 | this._themeService.colors.cursor.rgba >> 8 & 16777215)), z !== s.NULL_CELL_CODE && (this._model.lineLengths[P] = k + 1), (this._model.cells[q] !== z || this._model.cells[q + _.RENDER_MODEL_BG_OFFSET] !== this._cellColorResolver.result.bg || this._model.cells[q + _.RENDER_MODEL_FG_OFFSET] !== this._cellColorResolver.result.fg || this._model.cells[q + _.RENDER_MODEL_EXT_OFFSET] !== this._cellColorResolver.result.ext) && (ne = !0, H.length > 1 && (z |= _.COMBINED_CHAR_BIT_MASK), this._model.cells[q] = z, this._model.cells[q + _.RENDER_MODEL_BG_OFFSET] = this._cellColorResolver.result.bg, this._model.cells[q + _.RENDER_MODEL_FG_OFFSET] = this._cellColorResolver.result.fg, this._model.cells[q + _.RENDER_MODEL_EXT_OFFSET] = this._cellColorResolver.result.ext, K = W.getWidth(), this._glyphRenderer.value.updateCell(k, P, z, this._cellColorResolver.result.bg, this._cellColorResolver.result.fg, this._cellColorResolver.result.ext, H, K, M), x)) for (W = this._workCell, k++; k < R; k++) E = (P * L.cols + k) * _.RENDER_MODEL_INDICIES_PER_CELL, this._glyphRenderer.value.updateCell(k, P, s.NULL_CELL_CODE, 0, 0, 0, s.NULL_CELL_CHAR, 0, 0), this._model.cells[E] = s.NULL_CELL_CODE, this._model.cells[E + _.RENDER_MODEL_BG_OFFSET] = this._cellColorResolver.result.bg, this._model.cells[E + _.RENDER_MODEL_FG_OFFSET] = this._cellColorResolver.result.fg, this._model.cells[E + _.RENDER_MODEL_EXT_OFFSET] = this._cellColorResolver.result.ext;
             ne && this._rectangleRenderer.value.updateBackgrounds(this._model), this._rectangleRenderer.value.updateCursor(this._model);
           }
           _updateDimensions() {
@@ -7129,65 +7129,65 @@ void main() {
           const m = t.blockElementDefinitions[e];
           if (m) return (function(y, b, w, L, M, P) {
             for (let I = 0; I < b.length; I++) {
-              const B = b[I], C = M / 8, x = P / 8;
-              y.fillRect(w + B.x * C, L + B.y * x, B.w * C, B.h * x);
+              const O = b[I], C = M / 8, x = P / 8;
+              y.fillRect(w + O.x * C, L + O.y * x, O.w * C, O.h * x);
             }
           })(o, m, r, i, s, d), !0;
           const u = c[e];
           if (u) return (function(y, b, w, L, M, P) {
             let I = n.get(b);
             I || (I = /* @__PURE__ */ new Map(), n.set(b, I));
-            const B = y.fillStyle;
-            if (typeof B != "string") throw new Error(`Unexpected fillStyle type "${B}"`);
-            let C = I.get(B);
+            const O = y.fillStyle;
+            if (typeof O != "string") throw new Error(`Unexpected fillStyle type "${O}"`);
+            let C = I.get(O);
             if (!C) {
-              const x = b[0].length, R = b.length, A = y.canvas.ownerDocument.createElement("canvas");
-              A.width = x, A.height = R;
-              const F = (0, h.throwIfFalsy)(A.getContext("2d")), z = new ImageData(x, R);
+              const x = b[0].length, R = b.length, D = y.canvas.ownerDocument.createElement("canvas");
+              D.width = x, D.height = R;
+              const H = (0, h.throwIfFalsy)(D.getContext("2d")), z = new ImageData(x, R);
               let K, q, k, E;
-              if (B.startsWith("#")) K = parseInt(B.slice(1, 3), 16), q = parseInt(B.slice(3, 5), 16), k = parseInt(B.slice(5, 7), 16), E = B.length > 7 && parseInt(B.slice(7, 9), 16) || 1;
+              if (O.startsWith("#")) K = parseInt(O.slice(1, 3), 16), q = parseInt(O.slice(3, 5), 16), k = parseInt(O.slice(5, 7), 16), E = O.length > 7 && parseInt(O.slice(7, 9), 16) || 1;
               else {
-                if (!B.startsWith("rgba")) throw new Error(`Unexpected fillStyle color format "${B}" when drawing pattern glyph`);
-                [K, q, k, E] = B.substring(5, B.length - 1).split(",").map(((H) => parseFloat(H)));
+                if (!O.startsWith("rgba")) throw new Error(`Unexpected fillStyle color format "${O}" when drawing pattern glyph`);
+                [K, q, k, E] = O.substring(5, O.length - 1).split(",").map(((W) => parseFloat(W)));
               }
-              for (let H = 0; H < R; H++) for (let $ = 0; $ < x; $++) z.data[4 * (H * x + $)] = K, z.data[4 * (H * x + $) + 1] = q, z.data[4 * (H * x + $) + 2] = k, z.data[4 * (H * x + $) + 3] = b[H][$] * (255 * E);
-              F.putImageData(z, 0, 0), C = (0, h.throwIfFalsy)(y.createPattern(A, null)), I.set(B, C);
+              for (let W = 0; W < R; W++) for (let U = 0; U < x; U++) z.data[4 * (W * x + U)] = K, z.data[4 * (W * x + U) + 1] = q, z.data[4 * (W * x + U) + 2] = k, z.data[4 * (W * x + U) + 3] = b[W][U] * (255 * E);
+              H.putImageData(z, 0, 0), C = (0, h.throwIfFalsy)(y.createPattern(D, null)), I.set(O, C);
             }
             y.fillStyle = C, y.fillRect(w, L, M, P);
           })(o, u, r, i, s, d), !0;
           const v = t.boxDrawingDefinitions[e];
           if (v) return (function(y, b, w, L, M, P, I) {
             y.strokeStyle = y.fillStyle;
-            for (const [B, C] of Object.entries(b)) {
+            for (const [O, C] of Object.entries(b)) {
               let x;
-              y.beginPath(), y.lineWidth = I * Number.parseInt(B), x = typeof C == "function" ? C(0.15, 0.15 / P * M) : C;
+              y.beginPath(), y.lineWidth = I * Number.parseInt(O), x = typeof C == "function" ? C(0.15, 0.15 / P * M) : C;
               for (const R of x.split(" ")) {
-                const A = R[0], F = f[A];
-                if (!F) {
-                  console.error(`Could not find drawing instructions for "${A}"`);
+                const D = R[0], H = f[D];
+                if (!H) {
+                  console.error(`Could not find drawing instructions for "${D}"`);
                   continue;
                 }
                 const z = R.substring(1).split(",");
-                z[0] && z[1] && F(y, g(z, M, P, w, L, !0, I));
+                z[0] && z[1] && H(y, g(z, M, P, w, L, !0, I));
               }
               y.stroke(), y.closePath();
             }
           })(o, v, r, i, s, d, _), !0;
           const S = t.powerlineDefinitions[e];
-          return !!S && ((function(y, b, w, L, M, P, I, B) {
-            var R, A;
+          return !!S && ((function(y, b, w, L, M, P, I, O) {
+            var R, D;
             const C = new Path2D();
             C.rect(w, L, M, P), y.clip(C), y.beginPath();
             const x = I / 12;
-            y.lineWidth = B * x;
-            for (const F of b.d.split(" ")) {
-              const z = F[0], K = f[z];
+            y.lineWidth = O * x;
+            for (const H of b.d.split(" ")) {
+              const z = H[0], K = f[z];
               if (!K) {
                 console.error(`Could not find drawing instructions for "${z}"`);
                 continue;
               }
-              const q = F.substring(1).split(",");
-              q[0] && q[1] && K(y, g(q, M, P, w, L, !1, B, ((R = b.leftPadding) != null ? R : 0) * (x / 2), ((A = b.rightPadding) != null ? A : 0) * (x / 2)));
+              const q = H.substring(1).split(",");
+              q[0] && q[1] && K(y, g(q, M, P, w, L, !1, O, ((R = b.leftPadding) != null ? R : 0) * (x / 2), ((D = b.rightPadding) != null ? D : 0) * (x / 2)));
             }
             b.type === 1 ? (y.strokeStyle = y.fillStyle, y.stroke()) : y.fill(), y.closePath();
           })(o, S, r, i, s, d, p, _), !0);
@@ -7306,11 +7306,11 @@ void main() {
           }
           _createNewPage() {
             if (d.maxAtlasPages && this._pages.length >= Math.max(4, d.maxAtlasPages)) {
-              const S = this._pages.filter(((I) => 2 * I.canvas.width <= (d.maxTextureSize || 4096))).sort(((I, B) => B.canvas.width !== I.canvas.width ? B.canvas.width - I.canvas.width : B.percentageUsed - I.percentageUsed));
+              const S = this._pages.filter(((I) => 2 * I.canvas.width <= (d.maxTextureSize || 4096))).sort(((I, O) => O.canvas.width !== I.canvas.width ? O.canvas.width - I.canvas.width : O.percentageUsed - I.percentageUsed));
               let y = -1, b = 0;
               for (let I = 0; I < S.length; I++) if (S[I].canvas.width !== b) y = I, b = S[I].canvas.width;
               else if (I - y == 3) break;
-              const w = S.slice(y, y + 4), L = w.map(((I) => I.glyphs[0].texturePage)).sort(((I, B) => I > B ? 1 : -1)), M = this.pages.length - w.length, P = this._mergePages(w, M);
+              const w = S.slice(y, y + 4), L = w.map(((I) => I.glyphs[0].texturePage)).sort(((I, O) => I > O ? 1 : -1)), M = this.pages.length - w.length, P = this._mergePages(w, M);
               P.version++;
               for (let I = L.length - 1; I >= 0; I--) this._deletePage(L[I]);
               this.pages.push(P), this._requestClearModel = !0, this._onAddTextureAtlasCanvas.fire(P.canvas);
@@ -7323,7 +7323,7 @@ void main() {
             for (const [w, L] of v.entries()) {
               const M = w * L.canvas.width % y, P = Math.floor(w / 2) * L.canvas.height;
               b.ctx.drawImage(L.canvas, M, P);
-              for (const B of L.glyphs) B.texturePage = S, B.sizeClipSpace.x = B.size.x / y, B.sizeClipSpace.y = B.size.y / y, B.texturePosition.x += M, B.texturePosition.y += P, B.texturePositionClipSpace.x = B.texturePosition.x / y, B.texturePositionClipSpace.y = B.texturePosition.y / y;
+              for (const O of L.glyphs) O.texturePage = S, O.sizeClipSpace.x = O.size.x / y, O.sizeClipSpace.y = O.size.y / y, O.texturePosition.x += M, O.texturePosition.y += P, O.texturePositionClipSpace.x = O.texturePosition.x / y, O.texturePositionClipSpace.y = O.texturePosition.y / y;
               this._onRemoveTextureAtlasCanvas.fire(L.canvas);
               const I = this._activePages.indexOf(L);
               I !== -1 && this._activePages.splice(I, 1);
@@ -7368,8 +7368,8 @@ void main() {
             }
             return w;
           }
-          _getForegroundColor(v, S, y, b, w, L, M, P, I, B) {
-            const C = this._getMinimumContrastColor(v, S, y, b, w, L, M, I, P, B);
+          _getForegroundColor(v, S, y, b, w, L, M, P, I, O) {
+            const C = this._getMinimumContrastColor(v, S, y, b, w, L, M, I, P, O);
             if (C) return C;
             let x;
             switch (w) {
@@ -7408,13 +7408,13 @@ void main() {
                 return y ? this._config.colors.background.rgba : this._config.colors.foreground.rgba;
             }
           }
-          _getMinimumContrastColor(v, S, y, b, w, L, M, P, I, B) {
-            if (this._config.minimumContrastRatio === 1 || B) return;
+          _getMinimumContrastColor(v, S, y, b, w, L, M, P, I, O) {
+            if (this._config.minimumContrastRatio === 1 || O) return;
             const C = this._getContrastCache(I), x = C.getColor(v, b);
             if (x !== void 0) return x || void 0;
-            const R = this._resolveBackgroundRgba(S, y, M), A = this._resolveForegroundRgba(w, L, M, P), F = l.rgba.ensureContrastRatio(R, A, this._config.minimumContrastRatio / (I ? 2 : 1));
-            if (!F) return void C.setColor(v, b, null);
-            const z = l.channels.toColor(F >> 24 & 255, F >> 16 & 255, F >> 8 & 255);
+            const R = this._resolveBackgroundRgba(S, y, M), D = this._resolveForegroundRgba(w, L, M, P), H = l.rgba.ensureContrastRatio(R, D, this._config.minimumContrastRatio / (I ? 2 : 1));
+            if (!H) return void C.setColor(v, b, null);
+            const z = l.channels.toColor(H >> 24 & 255, H >> 16 & 255, H >> 8 & 255);
             return C.setColor(v, b, z), z;
           }
           _getContrastCache(v) {
@@ -7425,19 +7425,19 @@ void main() {
             this._tmpCanvas.width < M && (this._tmpCanvas.width = M);
             const P = Math.min(this._config.deviceCellHeight + 8, this._textureSize);
             if (this._tmpCanvas.height < P && (this._tmpCanvas.height = P), this._tmpCtx.save(), this._workAttributeData.fg = y, this._workAttributeData.bg = S, this._workAttributeData.extended.ext = b, this._workAttributeData.isInvisible()) return i;
-            const I = !!this._workAttributeData.isBold(), B = !!this._workAttributeData.isInverse(), C = !!this._workAttributeData.isDim(), x = !!this._workAttributeData.isItalic(), R = !!this._workAttributeData.isUnderline(), A = !!this._workAttributeData.isStrikethrough(), F = !!this._workAttributeData.isOverline();
+            const I = !!this._workAttributeData.isBold(), O = !!this._workAttributeData.isInverse(), C = !!this._workAttributeData.isDim(), x = !!this._workAttributeData.isItalic(), R = !!this._workAttributeData.isUnderline(), D = !!this._workAttributeData.isStrikethrough(), H = !!this._workAttributeData.isOverline();
             let z = this._workAttributeData.getFgColor(), K = this._workAttributeData.getFgColorMode(), q = this._workAttributeData.getBgColor(), k = this._workAttributeData.getBgColorMode();
-            if (B) {
+            if (O) {
               const V = z;
               z = q, q = V;
               const ie = K;
               K = k, k = ie;
             }
-            const E = this._getBackgroundColor(k, q, B, C);
+            const E = this._getBackgroundColor(k, q, O, C);
             this._tmpCtx.globalCompositeOperation = "copy", this._tmpCtx.fillStyle = E.css, this._tmpCtx.fillRect(0, 0, this._tmpCanvas.width, this._tmpCanvas.height), this._tmpCtx.globalCompositeOperation = "source-over";
-            const H = I ? this._config.fontWeightBold : this._config.fontWeight, $ = x ? "italic" : "";
-            this._tmpCtx.font = `${$} ${H} ${this._config.fontSize * this._config.devicePixelRatio}px ${this._config.fontFamily}`, this._tmpCtx.textBaseline = h.TEXT_BASELINE;
-            const j = L.length === 1 && (0, n.isPowerlineGlyph)(L.charCodeAt(0)), N = L.length === 1 && (0, n.isRestrictedPowerlineGlyph)(L.charCodeAt(0)), J = this._getForegroundColor(S, k, q, y, K, z, B, C, I, (0, n.treatGlyphAsBackgroundColor)(L.charCodeAt(0)));
+            const W = I ? this._config.fontWeightBold : this._config.fontWeight, U = x ? "italic" : "";
+            this._tmpCtx.font = `${U} ${W} ${this._config.fontSize * this._config.devicePixelRatio}px ${this._config.fontFamily}`, this._tmpCtx.textBaseline = h.TEXT_BASELINE;
+            const j = L.length === 1 && (0, n.isPowerlineGlyph)(L.charCodeAt(0)), N = L.length === 1 && (0, n.isRestrictedPowerlineGlyph)(L.charCodeAt(0)), J = this._getForegroundColor(S, k, q, y, K, z, O, C, I, (0, n.treatGlyphAsBackgroundColor)(L.charCodeAt(0)));
             this._tmpCtx.fillStyle = J.css;
             const X = N ? 0 : 4;
             let ne = !1;
@@ -7490,7 +7490,7 @@ void main() {
                 }
               }
             }
-            if (F) {
+            if (H) {
               const V = Math.max(1, Math.floor(this._config.fontSize * this._config.devicePixelRatio / 15)), ie = V % 2 == 1 ? 0.5 : 0;
               this._tmpCtx.lineWidth = V, this._tmpCtx.strokeStyle = this._tmpCtx.fillStyle, this._tmpCtx.beginPath(), this._tmpCtx.moveTo(X, X + ie), this._tmpCtx.lineTo(X + this._config.deviceCharWidth * le, X + ie), this._tmpCtx.stroke();
             }
@@ -7498,7 +7498,7 @@ void main() {
               let V = _(this._tmpCtx.getImageData(X, X, this._config.deviceCellWidth, this._config.deviceCellHeight), E, J, Y);
               if (V) for (let ie = 1; ie <= 5 && (this._tmpCtx.save(), this._tmpCtx.fillStyle = E.css, this._tmpCtx.fillRect(0, 0, this._tmpCanvas.width, this._tmpCanvas.height), this._tmpCtx.restore(), this._tmpCtx.fillText(L, X, X + this._config.deviceCharHeight - ie), V = _(this._tmpCtx.getImageData(X, X, this._config.deviceCellWidth, this._config.deviceCellHeight), E, J, Y), V); ie++) ;
             }
-            if (A) {
+            if (D) {
               const V = Math.max(1, Math.floor(this._config.fontSize * this._config.devicePixelRatio / 10)), ie = this._tmpCtx.lineWidth % 2 == 1 ? 0.5 : 0;
               this._tmpCtx.lineWidth = V, this._tmpCtx.strokeStyle = this._tmpCtx.fillStyle, this._tmpCtx.beginPath(), this._tmpCtx.moveTo(X, X + Math.floor(this._config.deviceCharHeight / 2) - ie), this._tmpCtx.lineTo(X + this._config.deviceCharWidth * le, X + Math.floor(this._config.deviceCharHeight / 2) - ie), this._tmpCtx.stroke();
             }
@@ -7546,44 +7546,44 @@ void main() {
             S.top = 0;
             const M = b ? this._config.deviceCellHeight : this._tmpCanvas.height, P = b ? this._config.deviceCellWidth : y;
             let I = !1;
-            for (let B = 0; B < M; B++) {
+            for (let O = 0; O < M; O++) {
               for (let C = 0; C < P; C++) {
-                const x = B * this._tmpCanvas.width * 4 + 4 * C + 3;
+                const x = O * this._tmpCanvas.width * 4 + 4 * C + 3;
                 if (v.data[x] !== 0) {
-                  S.top = B, I = !0;
+                  S.top = O, I = !0;
                   break;
                 }
               }
               if (I) break;
             }
             S.left = 0, I = !1;
-            for (let B = 0; B < L + P; B++) {
+            for (let O = 0; O < L + P; O++) {
               for (let C = 0; C < M; C++) {
-                const x = C * this._tmpCanvas.width * 4 + 4 * B + 3;
+                const x = C * this._tmpCanvas.width * 4 + 4 * O + 3;
                 if (v.data[x] !== 0) {
-                  S.left = B, I = !0;
+                  S.left = O, I = !0;
                   break;
                 }
               }
               if (I) break;
             }
             S.right = P, I = !1;
-            for (let B = L + P - 1; B >= L; B--) {
+            for (let O = L + P - 1; O >= L; O--) {
               for (let C = 0; C < M; C++) {
-                const x = C * this._tmpCanvas.width * 4 + 4 * B + 3;
+                const x = C * this._tmpCanvas.width * 4 + 4 * O + 3;
                 if (v.data[x] !== 0) {
-                  S.right = B, I = !0;
+                  S.right = O, I = !0;
                   break;
                 }
               }
               if (I) break;
             }
             S.bottom = M, I = !1;
-            for (let B = M - 1; B >= 0; B--) {
+            for (let O = M - 1; O >= 0; O--) {
               for (let C = 0; C < P; C++) {
-                const x = B * this._tmpCanvas.width * 4 + 4 * C + 3;
+                const x = O * this._tmpCanvas.width * 4 + 4 * C + 3;
                 if (v.data[x] !== 0) {
-                  S.bottom = B, I = !0;
+                  S.bottom = O, I = !0;
                   break;
                 }
               }
@@ -7612,9 +7612,9 @@ void main() {
           }
         }
         function _(u, v, S, y) {
-          const b = v.rgba >>> 24, w = v.rgba >>> 16 & 255, L = v.rgba >>> 8 & 255, M = S.rgba >>> 24, P = S.rgba >>> 16 & 255, I = S.rgba >>> 8 & 255, B = Math.floor((Math.abs(b - M) + Math.abs(w - P) + Math.abs(L - I)) / 12);
+          const b = v.rgba >>> 24, w = v.rgba >>> 16 & 255, L = v.rgba >>> 8 & 255, M = S.rgba >>> 24, P = S.rgba >>> 16 & 255, I = S.rgba >>> 8 & 255, O = Math.floor((Math.abs(b - M) + Math.abs(w - P) + Math.abs(L - I)) / 12);
           let C = !0;
-          for (let x = 0; x < u.data.length; x += 4) u.data[x] === b && u.data[x + 1] === w && u.data[x + 2] === L || y && Math.abs(u.data[x] - b) + Math.abs(u.data[x + 1] - w) + Math.abs(u.data[x + 2] - L) < B ? u.data[x + 3] = 0 : C = !1;
+          for (let x = 0; x < u.data.length; x += 4) u.data[x] === b && u.data[x + 1] === w && u.data[x + 2] === L || y && Math.abs(u.data[x] - b) + Math.abs(u.data[x + 1] - w) + Math.abs(u.data[x + 2] - L) < O ? u.data[x + 3] = 0 : C = !1;
           return C;
         }
         function m(u, v, S) {
@@ -8323,18 +8323,18 @@ void main() {
         t.IBufferService = (0, h.createDecorator)("BufferService"), t.ICoreMouseService = (0, h.createDecorator)("CoreMouseService"), t.ICoreService = (0, h.createDecorator)("CoreService"), t.ICharsetService = (0, h.createDecorator)("CharsetService"), t.IInstantiationService = (0, h.createDecorator)("InstantiationService"), (function(n) {
           n[n.TRACE = 0] = "TRACE", n[n.DEBUG = 1] = "DEBUG", n[n.INFO = 2] = "INFO", n[n.WARN = 3] = "WARN", n[n.ERROR = 4] = "ERROR", n[n.OFF = 5] = "OFF";
         })(c || (t.LogLevelEnum = c = {})), t.ILogService = (0, h.createDecorator)("LogService"), t.IOptionsService = (0, h.createDecorator)("OptionsService"), t.IOscLinkService = (0, h.createDecorator)("OscLinkService"), t.IUnicodeService = (0, h.createDecorator)("UnicodeService"), t.IDecorationService = (0, h.createDecorator)("DecorationService");
-      } }, W = {};
-      function U(T) {
-        var t = W[T];
+      } }, F = {};
+      function $(T) {
+        var t = F[T];
         if (t !== void 0) return t.exports;
-        var a = W[T] = { exports: {} };
-        return O[T].call(a.exports, a, a.exports, U), a.exports;
+        var a = F[T] = { exports: {} };
+        return B[T].call(a.exports, a, a.exports, $), a.exports;
       }
       var G = {};
       return (() => {
         var T = G;
         Object.defineProperty(T, "__esModule", { value: !0 }), T.WebglAddon = void 0;
-        const t = U(345), a = U(859), h = U(399), c = U(666), n = U(776);
+        const t = $(345), a = $(859), h = $(399), c = $(666), n = $(776);
         class l extends a.Disposable {
           constructor(g) {
             if (h.isSafari && (0, h.getSafariVersion)() < 16) {
@@ -8368,7 +8368,7 @@ void main() {
   })(Le)), Le.exports;
 }
 var st = it();
-const Ae = {
+const De = {
   background: "#0d1117",
   foreground: "#c9d1d9",
   cursor: "#58a6ff",
@@ -8392,7 +8392,7 @@ const Ae = {
   brightMagenta: "#d2a8ff",
   brightCyan: "#56d4dd",
   brightWhite: "#f0f6fc"
-}, De = {
+}, Ae = {
   background: "#ffffff",
   foreground: "#24292f",
   cursor: "#0969da",
@@ -8418,160 +8418,160 @@ const Ae = {
   brightWhite: "#8c959f"
 };
 function Re(te) {
-  return typeof te == "string" ? te === "light" ? De : Ae : te;
+  return typeof te == "string" ? te === "light" ? Ae : De : te;
 }
 const rt = "rexec.v1", nt = "rexec.token.";
 class ke {
-  constructor(D = "https://rexec.dev", O) {
+  constructor(A = "https://rexec.dev", B) {
     se(this, "baseUrl");
     se(this, "token");
-    this.baseUrl = D.replace(/\/$/, ""), this.token = O || null;
+    this.baseUrl = A.replace(/\/$/, ""), this.token = B || null;
   }
   /**
    * Set the authentication token
    */
-  setToken(D) {
-    this.token = D;
+  setToken(A) {
+    this.token = A;
   }
   /**
    * Get default headers for API requests
    */
   getHeaders() {
-    const D = new Headers({
+    const A = new Headers({
       "Content-Type": "application/json"
     });
-    return this.token && D.set("Authorization", `Bearer ${this.token}`), D;
+    return this.token && A.set("Authorization", `Bearer ${this.token}`), A;
   }
   /**
    * Make an API request
    */
-  async request(D, O = {}) {
-    const W = `${this.baseUrl}${D}`;
+  async request(A, B = {}) {
+    const F = `${this.baseUrl}${A}`;
     try {
-      const U = await fetch(W, {
-        ...O,
+      const $ = await fetch(F, {
+        ...B,
         headers: this.getHeaders()
-      }), G = U.headers.get("content-type");
+      }), G = $.headers.get("content-type");
       let T, t;
       if (G != null && G.includes("application/json")) {
-        const a = await U.json();
-        U.ok ? T = a : t = a.error || a.message || `Request failed: ${U.status}`;
-      } else U.ok || (t = `Request failed: ${U.status}`);
+        const a = await $.json();
+        $.ok ? T = a : t = a.error || a.message || `Request failed: ${$.status}`;
+      } else $.ok || (t = `Request failed: ${$.status}`);
       return { data: T, error: t };
-    } catch (U) {
+    } catch ($) {
       return {
-        error: U instanceof Error ? U.message : "Network error"
+        error: $ instanceof Error ? $.message : "Network error"
       };
     }
   }
   /**
    * Create a new container with the specified image and optional role
    */
-  async createContainer(D = "ubuntu", O) {
-    const W = { image: D };
-    return O && (W.role = O), console.log("[Rexec SDK] createContainer called with:", { image: D, role: O }), console.log("[Rexec SDK] Request body:", JSON.stringify(W)), this.request("/api/containers", {
+  async createContainer(A = "ubuntu", B) {
+    const F = { image: A };
+    return B && (F.role = B), console.log("[Rexec SDK] createContainer called with:", { image: A, role: B }), console.log("[Rexec SDK] Request body:", JSON.stringify(F)), this.request("/api/containers", {
       method: "POST",
-      body: JSON.stringify(W)
+      body: JSON.stringify(F)
     });
   }
   /**
    * Get container information
    */
-  async getContainer(D) {
+  async getContainer(A) {
     return this.request(
-      `/api/containers/${encodeURIComponent(D)}`
+      `/api/containers/${encodeURIComponent(A)}`
     );
   }
   /**
    * Wait for a container to be ready (running status)
    * Polls the container status until it's running or an error occurs
    */
-  async waitForContainer(D, O = {}) {
+  async waitForContainer(A, B = {}) {
     var G, T, t, a, h;
-    const W = (G = O.maxAttempts) != null ? G : 60, U = (T = O.intervalMs) != null ? T : 2e3;
-    for (let c = 1; c <= W; c++) {
-      const { data: n, error: l } = await this.getContainer(D);
+    const F = (G = B.maxAttempts) != null ? G : 60, $ = (T = B.intervalMs) != null ? T : 2e3;
+    for (let c = 1; c <= F; c++) {
+      const { data: n, error: l } = await this.getContainer(A);
       if (l) {
         if (l.includes("404") || l.includes("not found")) {
-          (t = O.onProgress) == null || t.call(O, "creating", c), await this.sleep(U);
+          (t = B.onProgress) == null || t.call(B, "creating", c), await this.sleep($);
           continue;
         }
         return { error: l };
       }
       if (n) {
         const f = ((a = n.status) == null ? void 0 : a.toLowerCase()) || "";
-        if ((h = O.onProgress) == null || h.call(O, f, c), f === "running")
+        if ((h = B.onProgress) == null || h.call(B, f, c), f === "running")
           return { data: n };
         if (f === "error" || f === "failed")
           return { error: `Container failed to start: ${f}` };
         if (f === "creating" || f === "configuring" || f === "starting" || f === "pulling") {
-          await this.sleep(U);
+          await this.sleep($);
           continue;
         }
-        if (c < W) {
-          await this.sleep(U);
+        if (c < F) {
+          await this.sleep($);
           continue;
         }
       }
-      await this.sleep(U);
+      await this.sleep($);
     }
     return { error: "Timeout waiting for container to be ready" };
   }
   /**
    * Sleep for a given number of milliseconds
    */
-  sleep(D) {
-    return new Promise((O) => setTimeout(O, D));
+  sleep(A) {
+    return new Promise((B) => setTimeout(B, A));
   }
   /**
    * Join a collaborative session via share code
    */
-  async joinSession(D) {
+  async joinSession(A) {
     return this.request(
-      `/api/collab/join/${encodeURIComponent(D)}`
+      `/api/collab/join/${encodeURIComponent(A)}`
     );
   }
   /**
    * Start a new collaborative session for a container
    */
-  async startCollabSession(D, O = "view") {
+  async startCollabSession(A, B = "view") {
     return this.request("/api/collab/start", {
       method: "POST",
-      body: JSON.stringify({ container_id: D, mode: O })
+      body: JSON.stringify({ container_id: A, mode: B })
     });
   }
   /**
    * Get WebSocket URL for terminal connection
    */
-  getTerminalWsUrl(D, O) {
-    const W = this.baseUrl.startsWith("https") ? "wss:" : "ws:", U = this.baseUrl.replace(/^https?:\/\//, "");
-    return `${W}//${U}/ws/terminal/${encodeURIComponent(D)}?id=${encodeURIComponent(O)}`;
+  getTerminalWsUrl(A, B) {
+    const F = this.baseUrl.startsWith("https") ? "wss:" : "ws:", $ = this.baseUrl.replace(/^https?:\/\//, "");
+    return `${F}//${$}/ws/terminal/${encodeURIComponent(A)}?id=${encodeURIComponent(B)}`;
   }
   /**
    * Get WebSocket URL for agent terminal connection
    */
-  getAgentTerminalWsUrl(D, O) {
-    const W = this.baseUrl.startsWith("https") ? "wss:" : "ws:", U = this.baseUrl.replace(/^https?:\/\//, "");
-    return `${W}//${U}/ws/agent/${encodeURIComponent(D)}/terminal?id=${encodeURIComponent(O)}`;
+  getAgentTerminalWsUrl(A, B) {
+    const F = this.baseUrl.startsWith("https") ? "wss:" : "ws:", $ = this.baseUrl.replace(/^https?:\/\//, "");
+    return `${F}//${$}/ws/agent/${encodeURIComponent(A)}/terminal?id=${encodeURIComponent(B)}`;
   }
   /**
    * Get WebSocket URL for collab session
    */
-  getCollabWsUrl(D) {
-    const O = this.baseUrl.startsWith("https") ? "wss:" : "ws:", W = this.baseUrl.replace(/^https?:\/\//, "");
-    return `${O}//${W}/ws/collab/${encodeURIComponent(D)}`;
+  getCollabWsUrl(A) {
+    const B = this.baseUrl.startsWith("https") ? "wss:" : "ws:", F = this.baseUrl.replace(/^https?:\/\//, "");
+    return `${B}//${F}/ws/collab/${encodeURIComponent(A)}`;
   }
 }
 function ot(te) {
   if (te)
     return [rt, `${nt}${te}`];
 }
-function at(te, D) {
-  const O = ot(D);
-  return O ? new WebSocket(te, O) : new WebSocket(te);
+function at(te, A) {
+  const B = ot(A);
+  return B ? new WebSocket(te, B) : new WebSocket(te);
 }
 class ht {
-  constructor(D, O, W = {}) {
+  constructor(A, B, F = {}) {
     se(this, "ws", null);
     se(this, "url");
     se(this, "token");
@@ -8586,60 +8586,60 @@ class ht {
     se(this, "onError", null);
     se(this, "onMessage", null);
     se(this, "onReconnecting", null);
-    var U, G;
-    this.url = D, this.token = O, this.autoReconnect = (U = W.autoReconnect) != null ? U : !0, this.maxReconnectAttempts = (G = W.maxReconnectAttempts) != null ? G : 10;
+    var $, G;
+    this.url = A, this.token = B, this.autoReconnect = ($ = F.autoReconnect) != null ? $ : !0, this.maxReconnectAttempts = (G = F.maxReconnectAttempts) != null ? G : 10;
   }
   /**
    * Connect to the WebSocket
    */
   connect() {
     this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) || (this.clearTimers(), this.ws = at(this.url, this.token), this.ws.onopen = () => {
-      var D;
-      this.reconnectAttempts = 0, this.startPingInterval(), (D = this.onOpen) == null || D.call(this);
-    }, this.ws.onclose = (D) => {
-      var U;
-      this.clearTimers(), (U = this.onClose) == null || U.call(this, D.code, D.reason);
-      const O = D.code === 1e3, W = D.code === 4e3 || D.code === 4001;
-      this.autoReconnect && !O && !W && this.attemptReconnect();
-    }, this.ws.onerror = (D) => {
-      var O;
-      (O = this.onError) == null || O.call(this, D);
-    }, this.ws.onmessage = (D) => {
-      var O, W, U, G, T;
+      var A;
+      this.reconnectAttempts = 0, this.startPingInterval(), (A = this.onOpen) == null || A.call(this);
+    }, this.ws.onclose = (A) => {
+      var $;
+      this.clearTimers(), ($ = this.onClose) == null || $.call(this, A.code, A.reason);
+      const B = A.code === 1e3, F = A.code === 4e3 || A.code === 4001;
+      this.autoReconnect && !B && !F && this.attemptReconnect();
+    }, this.ws.onerror = (A) => {
+      var B;
+      (B = this.onError) == null || B.call(this, A);
+    }, this.ws.onmessage = (A) => {
+      var B, F, $, G, T;
       console.log(
         "[Rexec WS] Raw message received:",
-        ((W = (O = D.data) == null ? void 0 : O.substring) == null ? void 0 : W.call(O, 0, 200)) || D.data
+        ((F = (B = A.data) == null ? void 0 : B.substring) == null ? void 0 : F.call(B, 0, 200)) || A.data
       );
       try {
-        const t = JSON.parse(D.data);
+        const t = JSON.parse(A.data);
         console.log(
           "[Rexec WS] Parsed message type:",
           t.type,
           "data length:",
-          ((U = t.data) == null ? void 0 : U.length) || 0
+          (($ = t.data) == null ? void 0 : $.length) || 0
         ), (G = this.onMessage) == null || G.call(this, t);
       } catch (t) {
-        console.log("[Rexec WS] Non-JSON message, treating as output"), (T = this.onMessage) == null || T.call(this, { type: "output", data: D.data });
+        console.log("[Rexec WS] Non-JSON message, treating as output"), (T = this.onMessage) == null || T.call(this, { type: "output", data: A.data });
       }
     });
   }
   /**
    * Send a message through the WebSocket
    */
-  send(D) {
-    this.ws && this.ws.readyState === WebSocket.OPEN && this.ws.send(JSON.stringify(D));
+  send(A) {
+    this.ws && this.ws.readyState === WebSocket.OPEN && this.ws.send(JSON.stringify(A));
   }
   /**
    * Send raw data (for terminal input)
    */
-  sendRaw(D) {
-    this.send({ type: "input", data: D });
+  sendRaw(A) {
+    this.send({ type: "input", data: A });
   }
   /**
    * Send resize message
    */
-  sendResize(D, O) {
-    this.send({ type: "resize", cols: D, rows: O });
+  sendResize(A, B) {
+    this.send({ type: "resize", cols: A, rows: B });
   }
   /**
    * Send ping message
@@ -8650,8 +8650,8 @@ class ht {
   /**
    * Close the WebSocket connection
    */
-  close(D = 1e3, O = "User disconnected") {
-    this.autoReconnect = !1, this.clearTimers(), this.ws && (this.ws.close(D, O), this.ws = null);
+  close(A = 1e3, B = "User disconnected") {
+    this.autoReconnect = !1, this.clearTimers(), this.ws && (this.ws.close(A, B), this.ws = null);
   }
   /**
    * Check if connected
@@ -8663,8 +8663,8 @@ class ht {
    * Get current ready state
    */
   getReadyState() {
-    var D, O;
-    return (O = (D = this.ws) == null ? void 0 : D.readyState) != null ? O : WebSocket.CLOSED;
+    var A, B;
+    return (B = (A = this.ws) == null ? void 0 : A.readyState) != null ? B : WebSocket.CLOSED;
   }
   /**
    * Clear all timers
@@ -8684,14 +8684,14 @@ class ht {
    * Attempt to reconnect
    */
   attemptReconnect() {
-    var O;
+    var B;
     if (this.reconnectAttempts >= this.maxReconnectAttempts)
       return;
     this.reconnectAttempts++;
-    const D = Math.min(100 * Math.pow(2, this.reconnectAttempts), 8e3);
-    (O = this.onReconnecting) == null || O.call(this, this.reconnectAttempts), this.reconnectTimer = setTimeout(() => {
+    const A = Math.min(100 * Math.pow(2, this.reconnectAttempts), 8e3);
+    (B = this.onReconnecting) == null || B.call(this, this.reconnectAttempts), this.reconnectTimer = setTimeout(() => {
       this.connect();
-    }, D);
+    }, A);
   }
   /**
    * Reset reconnect attempts counter
@@ -8702,8 +8702,8 @@ class ht {
   /**
    * Update the URL (useful for reconnecting to a different session)
    */
-  updateUrl(D) {
-    this.url = D;
+  updateUrl(A) {
+    this.url = A;
   }
 }
 function Me() {
@@ -8716,22 +8716,22 @@ class ut {
     se(this, "listeners", /* @__PURE__ */ new Map());
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  on(D, O) {
-    return this.listeners.has(D) || this.listeners.set(D, /* @__PURE__ */ new Set()), this.listeners.get(D).add(O), () => this.off(D, O);
+  on(A, B) {
+    return this.listeners.has(A) || this.listeners.set(A, /* @__PURE__ */ new Set()), this.listeners.get(A).add(B), () => this.off(A, B);
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  off(D, O) {
-    var W;
-    (W = this.listeners.get(D)) == null || W.delete(O);
+  off(A, B) {
+    var F;
+    (F = this.listeners.get(A)) == null || F.delete(B);
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  emit(D, ...O) {
-    var W;
-    (W = this.listeners.get(D)) == null || W.forEach((U) => {
+  emit(A, ...B) {
+    var F;
+    (F = this.listeners.get(A)) == null || F.forEach(($) => {
       try {
-        U(...O);
+        $(...B);
       } catch (G) {
-        console.error(`[Rexec] Error in event handler for ${D}:`, G);
+        console.error(`[Rexec] Error in event handler for ${A}:`, G);
       }
     });
   }
@@ -8740,7 +8740,7 @@ class ut {
   }
 }
 class Ue {
-  constructor(D, O = {}) {
+  constructor(A, B = {}) {
     // Configuration
     se(this, "config");
     se(this, "container");
@@ -8763,49 +8763,49 @@ class Ue {
     // Output buffering for performance
     se(this, "outputBuffer", "");
     se(this, "flushTimeout", null);
-    var W, U, G, T, t, a, h, c, n, l, f, g, o, e, r, i, s, d, p, _, m, u, v, S, y, b, w, L;
-    if (typeof D == "string") {
-      const M = document.querySelector(D);
+    var F, $, G, T, t, a, h, c, n, l, f, g, o, e, r, i, s, d, p, _, m, u, v, S, y, b, w, L;
+    if (typeof A == "string") {
+      const M = document.querySelector(A);
       if (!M)
-        throw new Error(`[Rexec] Element not found: ${D}`);
+        throw new Error(`[Rexec] Element not found: ${A}`);
       this.container = M;
     } else
-      this.container = D;
+      this.container = A;
     this.config = {
-      token: (W = O.token) != null ? W : "",
-      container: (U = O.container) != null ? U : "",
-      shareCode: (G = O.shareCode) != null ? G : "",
-      role: (T = O.role) != null ? T : "",
-      image: (t = O.image) != null ? t : "ubuntu",
-      baseUrl: (a = O.baseUrl) != null ? a : this.detectBaseUrl(),
-      theme: (h = O.theme) != null ? h : "dark",
-      fontSize: (c = O.fontSize) != null ? c : lt,
-      fontFamily: (n = O.fontFamily) != null ? n : ct,
-      cursorStyle: (l = O.cursorStyle) != null ? l : "block",
-      cursorBlink: (f = O.cursorBlink) != null ? f : !0,
-      scrollback: (g = O.scrollback) != null ? g : dt,
-      webgl: (o = O.webgl) != null ? o : !0,
-      showToolbar: (e = O.showToolbar) != null ? e : !0,
-      showStatus: (r = O.showStatus) != null ? r : !0,
-      allowCopy: (i = O.allowCopy) != null ? i : !0,
-      allowPaste: (s = O.allowPaste) != null ? s : !0,
-      onReady: (d = O.onReady) != null ? d : (() => {
+      token: (F = B.token) != null ? F : "",
+      container: ($ = B.container) != null ? $ : "",
+      shareCode: (G = B.shareCode) != null ? G : "",
+      role: (T = B.role) != null ? T : "",
+      image: (t = B.image) != null ? t : "ubuntu",
+      baseUrl: (a = B.baseUrl) != null ? a : this.detectBaseUrl(),
+      theme: (h = B.theme) != null ? h : "dark",
+      fontSize: (c = B.fontSize) != null ? c : lt,
+      fontFamily: (n = B.fontFamily) != null ? n : ct,
+      cursorStyle: (l = B.cursorStyle) != null ? l : "block",
+      cursorBlink: (f = B.cursorBlink) != null ? f : !0,
+      scrollback: (g = B.scrollback) != null ? g : dt,
+      webgl: (o = B.webgl) != null ? o : !0,
+      showToolbar: (e = B.showToolbar) != null ? e : !0,
+      showStatus: (r = B.showStatus) != null ? r : !0,
+      allowCopy: (i = B.allowCopy) != null ? i : !0,
+      allowPaste: (s = B.allowPaste) != null ? s : !0,
+      onReady: (d = B.onReady) != null ? d : (() => {
       }),
-      onStateChange: (p = O.onStateChange) != null ? p : (() => {
+      onStateChange: (p = B.onStateChange) != null ? p : (() => {
       }),
-      onError: (_ = O.onError) != null ? _ : (() => {
+      onError: (_ = B.onError) != null ? _ : (() => {
       }),
-      onData: (m = O.onData) != null ? m : (() => {
+      onData: (m = B.onData) != null ? m : (() => {
       }),
-      onResize: (u = O.onResize) != null ? u : (() => {
+      onResize: (u = B.onResize) != null ? u : (() => {
       }),
-      onDisconnect: (v = O.onDisconnect) != null ? v : (() => {
+      onDisconnect: (v = B.onDisconnect) != null ? v : (() => {
       }),
-      autoReconnect: (S = O.autoReconnect) != null ? S : !0,
-      maxReconnectAttempts: (y = O.maxReconnectAttempts) != null ? y : 10,
-      initialCommand: (b = O.initialCommand) != null ? b : "",
-      className: (w = O.className) != null ? w : "",
-      fitToContainer: (L = O.fitToContainer) != null ? L : !0
+      autoReconnect: (S = B.autoReconnect) != null ? S : !0,
+      maxReconnectAttempts: (y = B.maxReconnectAttempts) != null ? y : 10,
+      initialCommand: (b = B.initialCommand) != null ? b : "",
+      className: (w = B.className) != null ? w : "",
+      fitToContainer: (L = B.fitToContainer) != null ? L : !0
     }, this.api = new ke(
       this.config.baseUrl,
       this.config.token || void 0
@@ -8822,61 +8822,61 @@ class Ue {
     return this._stats;
   }
   // ========== Public Methods ==========
-  write(D) {
+  write(A) {
     if (!this.ws || !this.ws.isConnected()) {
       console.warn("[Rexec] Cannot write: not connected");
       return;
     }
-    this.ws.sendRaw(D);
+    this.ws.sendRaw(A);
   }
-  writeln(D) {
-    this.write(D + "\r");
+  writeln(A) {
+    this.write(A + "\r");
   }
   clear() {
-    var D;
-    (D = this.terminal) == null || D.clear();
+    var A;
+    (A = this.terminal) == null || A.clear();
   }
   fit() {
-    var D;
+    var A;
     if (this.fitAddon && this.terminal)
       try {
-        const O = this.container.getBoundingClientRect();
+        const B = this.container.getBoundingClientRect();
         if (console.log(
           "[Rexec SDK] fit() called, container size:",
-          O.width,
+          B.width,
           "x",
-          O.height
-        ), O.width === 0 || O.height === 0) {
+          B.height
+        ), B.width === 0 || B.height === 0) {
           console.warn(
             "[Rexec SDK] Container has zero dimensions, skipping fit"
           );
           return;
         }
         this.fitAddon.fit();
-        const W = this.fitAddon.proposeDimensions();
-        console.log("[Rexec SDK] fit() proposed dimensions:", W), W && ((D = this.ws) == null || D.sendResize(W.cols, W.rows), this.events.emit("resize", W.cols, W.rows));
-      } catch (O) {
-        console.error("[Rexec SDK] fit() error:", O);
+        const F = this.fitAddon.proposeDimensions();
+        console.log("[Rexec SDK] fit() proposed dimensions:", F), F && ((A = this.ws) == null || A.sendResize(F.cols, F.rows), this.events.emit("resize", F.cols, F.rows));
+      } catch (B) {
+        console.error("[Rexec SDK] fit() error:", B);
       }
   }
   focus() {
-    var D;
-    (D = this.terminal) == null || D.focus();
+    var A;
+    (A = this.terminal) == null || A.focus();
   }
   blur() {
-    var D;
-    (D = this.terminal) == null || D.blur();
+    var A;
+    (A = this.terminal) == null || A.blur();
   }
   async reconnect() {
     this.disconnect(), await this.connect();
   }
   disconnect() {
-    var D;
-    (D = this.ws) == null || D.close(), this.ws = null, this.setState("disconnected");
+    var A;
+    (A = this.ws) == null || A.close(), this.ws = null, this.setState("disconnected");
   }
   destroy() {
-    var D, O, W, U;
-    this.destroyed || (this.destroyed = !0, this.flushTimeout && (clearTimeout(this.flushTimeout), this.flushTimeout = null), this.disconnect(), (D = this.resizeObserver) == null || D.disconnect(), this.resizeObserver = null, (O = this.webglAddon) == null || O.dispose(), this.webglAddon = null, (W = this.fitAddon) == null || W.dispose(), this.fitAddon = null, (U = this.terminal) == null || U.dispose(), this.terminal = null, this.container.innerHTML = "", this.events.removeAllListeners());
+    var A, B, F, $;
+    this.destroyed || (this.destroyed = !0, this.flushTimeout && (clearTimeout(this.flushTimeout), this.flushTimeout = null), this.disconnect(), (A = this.resizeObserver) == null || A.disconnect(), this.resizeObserver = null, (B = this.webglAddon) == null || B.dispose(), this.webglAddon = null, (F = this.fitAddon) == null || F.dispose(), this.fitAddon = null, ($ = this.terminal) == null || $.dispose(), this.terminal = null, this.container.innerHTML = "", this.events.removeAllListeners());
   }
   getDimensions() {
     return this.terminal ? {
@@ -8885,13 +8885,13 @@ class Ue {
     } : { cols: 80, rows: 24 };
   }
   async copySelection() {
-    var O;
+    var B;
     if (!this.config.allowCopy) return !1;
-    const D = (O = this.terminal) == null ? void 0 : O.getSelection();
-    if (D)
+    const A = (B = this.terminal) == null ? void 0 : B.getSelection();
+    if (A)
       try {
-        return await navigator.clipboard.writeText(D), !0;
-      } catch (W) {
+        return await navigator.clipboard.writeText(A), !0;
+      } catch (F) {
         return !1;
       }
     return !1;
@@ -8899,44 +8899,44 @@ class Ue {
   async paste() {
     if (this.config.allowPaste)
       try {
-        const D = await navigator.clipboard.readText();
-        D && this.write(D);
-      } catch (D) {
+        const A = await navigator.clipboard.readText();
+        A && this.write(A);
+      } catch (A) {
       }
   }
   selectAll() {
-    var D;
-    (D = this.terminal) == null || D.selectAll();
+    var A;
+    (A = this.terminal) == null || A.selectAll();
   }
   scrollToBottom() {
-    var D;
-    (D = this.terminal) == null || D.scrollToBottom();
+    var A;
+    (A = this.terminal) == null || A.scrollToBottom();
   }
-  setFontSize(D) {
-    this.terminal && (this.terminal.options.fontSize = Math.max(8, Math.min(32, D)), this.fit());
+  setFontSize(A) {
+    this.terminal && (this.terminal.options.fontSize = Math.max(8, Math.min(32, A)), this.fit());
   }
-  setTheme(D) {
-    this.terminal && (this.terminal.options.theme = Re(D));
+  setTheme(A) {
+    this.terminal && (this.terminal.options.theme = Re(A));
   }
-  on(D, O) {
-    return this.events.on(D, O);
+  on(A, B) {
+    return this.events.on(A, B);
   }
-  off(D, O) {
-    this.events.off(D, O);
+  off(A, B) {
+    this.events.off(A, B);
   }
   // ========== Private Methods ==========
   /**
    * Detect base URL from script src or current page
    */
   detectBaseUrl() {
-    const D = document.getElementsByTagName("script");
-    for (const O of D) {
-      const W = O.src;
-      if (W && (W.includes("rexec") || W.includes("embed")))
+    const A = document.getElementsByTagName("script");
+    for (const B of A) {
+      const F = B.src;
+      if (F && (F.includes("rexec") || F.includes("embed")))
         try {
-          const U = new URL(W);
-          return `${U.protocol}//${U.host}`;
-        } catch (U) {
+          const $ = new URL(F);
+          return `${$.protocol}//${$.host}`;
+        } catch ($) {
         }
     }
     return typeof window != "undefined" && window.location.origin !== "null" ? window.location.origin : "https://rexec.dev";
@@ -8945,15 +8945,15 @@ class Ue {
    * Initialize the terminal
    */
   async init() {
-    this.setupContainer(), this.createTerminal(), this.setupResizeObserver(), await this.connect();
+    this.setupContainer(), this.createTerminal(), await this.connect();
   }
   /**
    * Set up the container element
    */
   setupContainer() {
     if (this.container.classList.add("rexec-embed"), this.config.className && this.container.classList.add(this.config.className), window.getComputedStyle(this.container).position === "static" && (this.container.style.position = "relative"), !document.getElementById("rexec-embed-styles")) {
-      const U = document.createElement("style");
-      U.id = "rexec-embed-styles", U.textContent = `
+      const $ = document.createElement("style");
+      $.id = "rexec-embed-styles", $.textContent = `
         .rexec-embed {
           width: 100%;
           height: 100%;
@@ -9083,12 +9083,12 @@ class Ue {
         .rexec-embed .rexec-branding a:hover .rexec-name {
           text-shadow: 0 0 8px rgba(0, 255, 65, 0.5);
         }
-      `, document.head.appendChild(U);
+      `, document.head.appendChild($);
     }
-    const O = document.createElement("div");
-    O.className = "terminal-wrapper", O.setAttribute("tabindex", "0"), this.container.appendChild(O);
-    const W = document.createElement("div");
-    W.className = "rexec-branding", W.innerHTML = `
+    const B = document.createElement("div");
+    B.className = "terminal-wrapper", B.setAttribute("tabindex", "0"), this.container.appendChild(B);
+    const F = document.createElement("div");
+    F.className = "rexec-branding", F.innerHTML = `
       <a href="https://rexec.sh" target="_blank" rel="noopener noreferrer" title="Powered by Rexec - Terminal as a Service">
         <span class="powered-text">Powered by</span>
         <svg class="rexec-logo" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -9096,9 +9096,9 @@ class Ue {
         </svg>
         <span class="rexec-name">Rexec</span>
       </a>
-    `, this.container.appendChild(W), this.container.addEventListener("click", (U) => {
+    `, this.container.appendChild(F), this.container.addEventListener("click", ($) => {
       var G;
-      U.target.closest(".rexec-branding") || (G = this.terminal) == null || G.focus();
+      $.target.closest(".rexec-branding") || (G = this.terminal) == null || G.focus();
     });
   }
   /**
@@ -9106,12 +9106,12 @@ class Ue {
    */
   createTerminal() {
     console.log("[Rexec SDK] createTerminal called");
-    const D = this.container.querySelector(".terminal-wrapper");
-    if (!D) {
+    const A = this.container.querySelector(".terminal-wrapper");
+    if (!A) {
       console.error("[Rexec SDK] No .terminal-wrapper found in container!");
       return;
     }
-    console.log("[Rexec SDK] Found terminal wrapper:", D), this.terminal = new Ge.Terminal({
+    console.log("[Rexec SDK] Found terminal wrapper:", A), this.terminal = new Ge.Terminal({
       cursorBlink: this.config.cursorBlink,
       cursorStyle: this.config.cursorStyle,
       fontSize: this.config.fontSize,
@@ -9125,36 +9125,32 @@ class Ue {
       macOptionIsMeta: !0,
       macOptionClickForcesSelection: !0
     }), this.fitAddon = new Ye.FitAddon(), this.terminal.loadAddon(this.fitAddon);
-    const O = new tt.Unicode11Addon();
-    this.terminal.loadAddon(O), this.terminal.unicode.activeVersion = "11";
-    const W = new Ze.WebLinksAddon();
-    if (this.terminal.loadAddon(W), console.log("[Rexec SDK] Opening terminal in wrapper"), this.terminal.open(D), console.log("[Rexec SDK] Terminal opened, element:", this.terminal.element), this.config.webgl)
+    const B = new tt.Unicode11Addon();
+    this.terminal.loadAddon(B), this.terminal.unicode.activeVersion = "11";
+    const F = new Ze.WebLinksAddon();
+    if (this.terminal.loadAddon(F), console.log("[Rexec SDK] Opening terminal in wrapper"), this.terminal.open(A), console.log("[Rexec SDK] Terminal opened, element:", this.terminal.element), this.config.webgl)
       try {
         this.webglAddon = new st.WebglAddon(), this.webglAddon.onContextLoss(() => {
-          var U;
-          (U = this.webglAddon) == null || U.dispose(), this.webglAddon = null;
+          var $;
+          ($ = this.webglAddon) == null || $.dispose(), this.webglAddon = null;
         }), this.terminal.loadAddon(this.webglAddon);
-      } catch (U) {
+      } catch ($) {
         console.warn("[Rexec] WebGL not available, using canvas renderer");
       }
     requestAnimationFrame(() => {
-      console.log("[Rexec SDK] Running initial fit"), this.fit(), setTimeout(() => {
-        console.log("[Rexec SDK] Running delayed fit"), this.fit();
-      }, 100), setTimeout(() => {
-        console.log("[Rexec SDK] Running second delayed fit"), this.fit();
-      }, 500);
-    }), this.terminal.write(
+      console.log("[Rexec SDK] Running initial fit sequence"), this.waitForDimensionsAndFit();
+    }), this.setupResizeObserver(), this.terminal.write(
       `\x1B[33m[Rexec SDK] Terminal initialized...\x1B[0m\r
 `
-    ), console.log("[Rexec SDK] Wrote test message to terminal"), this.terminal.onData((U) => {
+    ), console.log("[Rexec SDK] Wrote test message to terminal"), this.terminal.onData(($) => {
       var G;
-      console.log("[Rexec SDK] Terminal input:", U.length, "chars"), (G = this.ws) != null && G.isConnected() ? this.ws.sendRaw(U) : console.warn("[Rexec SDK] WebSocket not connected, can't send input");
-    }), this.terminal.onResize(({ cols: U, rows: G }) => {
+      console.log("[Rexec SDK] Terminal input:", $.length, "chars"), (G = this.ws) != null && G.isConnected() ? this.ws.sendRaw($) : console.warn("[Rexec SDK] WebSocket not connected, can't send input");
+    }), this.terminal.onResize(({ cols: $, rows: G }) => {
       var T;
-      (T = this.ws) == null || T.sendResize(U, G), this.events.emit("resize", U, G);
-    }), this.config.allowPaste && this.terminal.attachCustomKeyEventHandler((U) => {
+      (T = this.ws) == null || T.sendResize($, G), this.events.emit("resize", $, G);
+    }), this.config.allowPaste && this.terminal.attachCustomKeyEventHandler(($) => {
       var G;
-      return U.type === "keydown" && U.key === "v" && (U.ctrlKey || U.metaKey) ? (this.paste(), !1) : U.type === "keydown" && U.key === "c" && (U.ctrlKey || U.metaKey) && ((G = this.terminal) != null && G.hasSelection()) ? (this.copySelection(), !1) : !0;
+      return $.type === "keydown" && $.key === "v" && ($.ctrlKey || $.metaKey) ? (this.paste(), !1) : $.type === "keydown" && $.key === "c" && ($.ctrlKey || $.metaKey) && ((G = this.terminal) != null && G.hasSelection()) ? (this.copySelection(), !1) : !0;
     });
   }
   /**
@@ -9162,10 +9158,42 @@ class Ue {
    */
   setupResizeObserver() {
     if (!this.config.fitToContainer) return;
-    let D = null;
-    this.resizeObserver = new ResizeObserver(() => {
-      D && clearTimeout(D), D = setTimeout(() => this.fit(), 50);
+    let A = null, B = !1;
+    this.resizeObserver = new ResizeObserver(($) => {
+      const G = $[0];
+      if (!G) return;
+      const { width: T, height: t } = G.contentRect;
+      if (console.log("[Rexec SDK] ResizeObserver triggered:", T, "x", t), T > 0 && t > 0 && !B) {
+        B = !0, console.log("[Rexec SDK] Container has dimensions, doing initial fit"), setTimeout(() => this.fit(), 0), setTimeout(() => this.fit(), 100);
+        return;
+      }
+      A && clearTimeout(A), A = setTimeout(() => this.fit(), 50);
     }), this.resizeObserver.observe(this.container);
+    const F = this.container.querySelector(".terminal-wrapper");
+    F && this.resizeObserver.observe(F);
+  }
+  /**
+   * Wait for container to have dimensions, then fit
+   */
+  waitForDimensionsAndFit() {
+    const A = () => {
+      const G = this.container.getBoundingClientRect();
+      return console.log(
+        "[Rexec SDK] Checking dimensions:",
+        G.width,
+        "x",
+        G.height
+      ), G.width > 0 && G.height > 0 ? (console.log("[Rexec SDK] Container ready, fitting terminal"), this.fit(), !0) : !1;
+    };
+    if (A()) return;
+    let B = 0;
+    const F = 20, $ = setInterval(() => {
+      B++, (A() || B >= F) && (clearInterval($), B >= F && console.warn(
+        "[Rexec SDK] Container never got dimensions after",
+        F,
+        "attempts"
+      ));
+    }, 100);
   }
   /**
    * Connect to the terminal session
@@ -9174,40 +9202,40 @@ class Ue {
     if (!this.destroyed) {
       this.setState("connecting"), this.showStatus("Connecting...");
       try {
-        let D, O;
+        let A, B;
         if (this.config.shareCode) {
-          const { data: W, error: U } = await this.api.joinSession(
+          const { data: F, error: $ } = await this.api.joinSession(
             this.config.shareCode
           );
-          if (U || !W)
+          if ($ || !F)
             throw this.createError(
               "JOIN_FAILED",
-              U || "Failed to join session"
+              $ || "Failed to join session"
             );
-          D = W.container_id, this._session = {
-            id: W.session_id,
-            containerId: W.container_id,
-            containerName: W.container_name,
-            mode: W.mode,
-            expiresAt: W.expires_at
-          }, O = this.api.getTerminalWsUrl(D, this.sessionId);
+          A = F.container_id, this._session = {
+            id: F.session_id,
+            containerId: F.container_id,
+            containerName: F.container_name,
+            mode: F.mode,
+            expiresAt: F.expires_at
+          }, B = this.api.getTerminalWsUrl(A, this.sessionId);
         } else if (this.config.container)
-          D = this.config.container, this._session = {
+          A = this.config.container, this._session = {
             id: this.sessionId,
-            containerId: D
-          }, O = this.api.getTerminalWsUrl(D, this.sessionId);
+            containerId: A
+          }, B = this.api.getTerminalWsUrl(A, this.sessionId);
         else if (this.config.role || this.config.image) {
           this.showStatus("Creating container...");
-          const { data: W, error: U } = await this.api.createContainer(
+          const { data: F, error: $ } = await this.api.createContainer(
             this.config.image || "ubuntu",
             this.config.role
           );
-          if (U || !W)
+          if ($ || !F)
             throw this.createError(
               "CREATE_FAILED",
-              U || "Failed to create container"
+              $ || "Failed to create container"
             );
-          const G = W.id;
+          const G = F.id;
           this.showStatus("Waiting for container to start...");
           const { data: T, error: t } = await this.api.waitForContainer(G, {
             maxAttempts: 90,
@@ -9229,128 +9257,128 @@ class Ue {
               "CREATE_FAILED",
               t || "Container failed to start"
             );
-          D = T.docker_id || T.id, this._session = {
+          A = T.docker_id || T.id, this._session = {
             id: this.sessionId,
-            containerId: D,
+            containerId: A,
             containerName: T.name,
             role: T.role
-          }, O = this.api.getTerminalWsUrl(D, this.sessionId);
+          }, B = this.api.getTerminalWsUrl(A, this.sessionId);
         } else
           throw this.createError(
             "CONFIG_ERROR",
             "Must provide container, shareCode, role, or image"
           );
-        this.connectWebSocket(O);
-      } catch (D) {
-        const O = D instanceof Error ? this.createError("CONNECT_ERROR", D.message) : D;
-        this.handleError(O);
+        this.connectWebSocket(B);
+      } catch (A) {
+        const B = A instanceof Error ? this.createError("CONNECT_ERROR", A.message) : A;
+        this.handleError(B);
       }
     }
   }
   /**
    * Connect WebSocket to the terminal
    */
-  connectWebSocket(D) {
-    console.log("[Rexec SDK] connectWebSocket called with URL:", D), this.ws = new ht(D, this.config.token || null, {
+  connectWebSocket(A) {
+    console.log("[Rexec SDK] connectWebSocket called with URL:", A), this.ws = new ht(A, this.config.token || null, {
       autoReconnect: this.config.autoReconnect,
       maxReconnectAttempts: this.config.maxReconnectAttempts
     }), this.ws.onOpen = () => {
-      var W;
+      var F;
       console.log("[Rexec SDK] WebSocket opened!"), this.hideStatus(), this.setState("connected");
-      const O = this.getDimensions();
-      (W = this.ws) == null || W.sendResize(O.cols, O.rows), setTimeout(() => {
+      const B = this.getDimensions();
+      (F = this.ws) == null || F.sendResize(B.cols, B.rows), setTimeout(() => {
         var G;
         (G = this.terminal) == null || G.focus();
-        const U = this.container.querySelector(
+        const $ = this.container.querySelector(
           ".xterm-helper-textarea"
         );
-        U && U.focus();
+        $ && $.focus();
       }, 100), this.config.initialCommand && setTimeout(() => {
         this.writeln(this.config.initialCommand);
       }, 500), this.events.emit("ready", this);
-    }, this.ws.onClose = (O, W) => {
-      console.log("[Rexec SDK] WebSocket closed:", O, W), O !== 1e3 && this.events.emit("disconnect", W || "Connection closed"), this._state !== "reconnecting" && this.setState("disconnected");
+    }, this.ws.onClose = (B, F) => {
+      console.log("[Rexec SDK] WebSocket closed:", B, F), B !== 1e3 && this.events.emit("disconnect", F || "Connection closed"), this._state !== "reconnecting" && this.setState("disconnected");
     }, this.ws.onError = () => {
-    }, this.ws.onReconnecting = (O) => {
-      this.setState("reconnecting"), this.showStatus(`Reconnecting... (${O})`);
-    }, this.ws.onMessage = (O) => {
-      var W, U;
+    }, this.ws.onReconnecting = (B) => {
+      this.setState("reconnecting"), this.showStatus(`Reconnecting... (${B})`);
+    }, this.ws.onMessage = (B) => {
+      var F, $;
       console.log(
         "[Rexec SDK] WS message received:",
-        O.type,
+        B.type,
         "data:",
-        ((U = (W = O.data) == null ? void 0 : W.substring) == null ? void 0 : U.call(W, 0, 50)) || "(none)"
-      ), this.handleMessage(O);
+        (($ = (F = B.data) == null ? void 0 : F.substring) == null ? void 0 : $.call(F, 0, 50)) || "(none)"
+      ), this.handleMessage(B);
     }, console.log("[Rexec SDK] Calling ws.connect()"), this.ws.connect();
   }
   /**
    * Handle incoming WebSocket message
    */
-  handleMessage(D) {
-    var O;
+  handleMessage(A) {
+    var B;
     switch (console.log(
       "[Rexec Terminal] handleMessage:",
-      D.type,
+      A.type,
       "data length:",
-      ((O = D.data) == null ? void 0 : O.length) || 0
-    ), D.type) {
+      ((B = A.data) == null ? void 0 : B.length) || 0
+    ), A.type) {
       case "output":
-        D.data && (console.log(
+        A.data && (console.log(
           "[Rexec Terminal] Writing output to terminal:",
-          D.data.substring(0, 100)
-        ), this.writeToTerminal(D.data), this.events.emit("data", D.data));
+          A.data.substring(0, 100)
+        ), this.writeToTerminal(A.data), this.events.emit("data", A.data));
         break;
       case "connected":
         this.hideStatus(), this.setState("connected");
         break;
       case "stats":
-        if (D.data)
+        if (A.data)
           try {
-            const W = typeof D.data == "string" ? JSON.parse(D.data) : D.data;
+            const F = typeof A.data == "string" ? JSON.parse(A.data) : A.data;
             this._stats = {
-              cpu: W.cpu || 0,
-              memory: W.memory || 0,
-              memoryLimit: W.memory_limit || 0,
-              diskRead: W.disk_read || 0,
-              diskWrite: W.disk_write || 0,
-              diskUsage: W.disk_usage,
-              diskLimit: W.disk_limit || 0,
-              netRx: W.net_rx || 0,
-              netTx: W.net_tx || 0
+              cpu: F.cpu || 0,
+              memory: F.memory || 0,
+              memoryLimit: F.memory_limit || 0,
+              diskRead: F.disk_read || 0,
+              diskWrite: F.disk_write || 0,
+              diskUsage: F.disk_usage,
+              diskLimit: F.disk_limit || 0,
+              netRx: F.net_rx || 0,
+              netTx: F.net_tx || 0
             }, this.events.emit("stats", this._stats);
-          } catch (W) {
+          } catch (F) {
           }
         break;
       case "error":
         this.handleError(
-          this.createError("SERVER_ERROR", D.data || "Server error")
+          this.createError("SERVER_ERROR", A.data || "Server error")
         );
         break;
       case "setup":
-        this.showStatus(D.data || "Setting up...");
+        this.showStatus(A.data || "Setting up...");
         break;
       default:
-        D.data && typeof D.data == "string" && this.writeToTerminal(D.data);
+        A.data && typeof A.data == "string" && this.writeToTerminal(A.data);
     }
   }
   /**
    * Write data to terminal with buffering for performance
    */
-  writeToTerminal(D) {
+  writeToTerminal(A) {
     if (console.log(
       "[Rexec Terminal] writeToTerminal called, terminal exists:",
       !!this.terminal,
       "data length:",
-      D.length
+      A.length
     ), !this.terminal) {
       console.error("[Rexec Terminal] No terminal instance!");
       return;
     }
-    if (D.length < 256) {
-      console.log("[Rexec Terminal] Writing small output directly"), this.terminal.write(D);
+    if (A.length < 256) {
+      console.log("[Rexec Terminal] Writing small output directly"), this.terminal.write(A);
       return;
     }
-    if (this.outputBuffer += D, this.outputBuffer.length > 32 * 1024) {
+    if (this.outputBuffer += A, this.outputBuffer.length > 32 * 1024) {
       this.flushOutput();
       return;
     }
@@ -9365,18 +9393,18 @@ class Ue {
   /**
    * Update connection state
    */
-  setState(D) {
-    this._state !== D && (this._state = D, this.events.emit("stateChange", D));
+  setState(A) {
+    this._state !== A && (this._state = A, this.events.emit("stateChange", A));
   }
   /**
    * Show status overlay
    */
-  showStatus(D) {
+  showStatus(A) {
     if (!this.config.showStatus) return;
-    let O = this.container.querySelector(".status-overlay");
-    O || (O = document.createElement("div"), O.className = "status-overlay", this.container.appendChild(O)), O.innerHTML = `
+    let B = this.container.querySelector(".status-overlay");
+    B || (B = document.createElement("div"), B.className = "status-overlay", this.container.appendChild(B)), B.innerHTML = `
       <div class="spinner"></div>
-      <div>${D}</div>
+      <div>${A}</div>
       <div style="margin-top: 16px; display: flex; align-items: center; gap: 6px; opacity: 0.6;">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
           <path d="M4 4h16v2H4V4zm0 4h10v2H4V8zm0 4h16v2H4v-2zm0 4h10v2H4v-2zm12 0h4v4h-4v-4z"/>
@@ -9389,29 +9417,29 @@ class Ue {
    * Hide status overlay
    */
   hideStatus() {
-    const D = this.container.querySelector(".status-overlay");
-    D && D.remove();
+    const A = this.container.querySelector(".status-overlay");
+    A && A.remove();
   }
   /**
    * Create an error object
    */
-  createError(D, O, W = !1) {
-    return { code: D, message: O, recoverable: W };
+  createError(A, B, F = !1) {
+    return { code: A, message: B, recoverable: F };
   }
   /**
    * Handle an error
    */
-  handleError(D) {
-    this.setState("error"), this.showStatus(`Error: ${D.message}`), this.events.emit("error", D);
+  handleError(A) {
+    this.setState("error"), this.showStatus(`Error: ${A.message}`), this.events.emit("error", A);
   }
 }
 const _t = "1.0.0", be = /* @__PURE__ */ new Map();
 function ft() {
   return `rexec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
-function gt(te, D = {}) {
-  const O = new Ue(te, D), W = ft();
-  return be.set(W, O), O;
+function gt(te, A = {}) {
+  const B = new Ue(te, A), F = ft();
+  return be.set(F, B), B;
 }
 function vt() {
   return Array.from(be.values());
@@ -9419,12 +9447,12 @@ function vt() {
 function pt() {
   be.forEach((te) => te.destroy()), be.clear();
 }
-function mt(te, D) {
-  return new ke(te, D);
+function mt(te, A) {
+  return new ke(te, A);
 }
 const St = {
-  dark: Ae,
-  light: De,
+  dark: De,
+  light: Ae,
   get: Re
 }, Ct = {
   generateSessionId: Me
@@ -9437,8 +9465,8 @@ const St = {
   destroyAll: pt,
   // Themes
   themes: St,
-  DARK_THEME: Ae,
-  LIGHT_THEME: De,
+  DARK_THEME: De,
+  LIGHT_THEME: Ae,
   // Classes for advanced usage
   Terminal: Ue,
   ApiClient: ke,
@@ -9450,8 +9478,8 @@ const St = {
 };
 typeof window != "undefined" && (window.Rexec = bt);
 export {
-  Ae as DARK_THEME,
-  De as LIGHT_THEME,
+  De as DARK_THEME,
+  Ae as LIGHT_THEME,
   ke as RexecApiClient,
   Ue as RexecTerminal,
   ht as TerminalWebSocket,
