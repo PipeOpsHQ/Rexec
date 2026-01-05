@@ -8,6 +8,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { WebglAddon } from "@xterm/addon-webgl";
+import { CanvasAddon } from "@xterm/addon-canvas";
 import "@xterm/xterm/css/xterm.css";
 
 import type {
@@ -79,6 +80,7 @@ export class RexecTerminal implements RexecTerminalInstance {
   private terminal: Terminal | null = null;
   private fitAddon: FitAddon | null = null;
   private webglAddon: WebglAddon | null = null;
+  private canvasAddon: CanvasAddon | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private intersectionObserver: IntersectionObserver | null = null;
   private isVisible: boolean = false;
@@ -290,6 +292,10 @@ export class RexecTerminal implements RexecTerminalInstance {
     // Dispose WebGL addon
     this.webglAddon?.dispose();
     this.webglAddon = null;
+
+    // Dispose canvas addon
+    this.canvasAddon?.dispose();
+    this.canvasAddon = null;
 
     // Dispose fit addon
     this.fitAddon?.dispose();
@@ -641,18 +647,28 @@ export class RexecTerminal implements RexecTerminalInstance {
     this.terminal.open(wrapper as HTMLElement);
     console.log("[Rexec SDK] Terminal opened, element:", this.terminal.element);
 
-    // Try WebGL renderer for better performance
+    // Load renderer addon - WebGL for performance or Canvas for reliability
     if (this.config.webgl) {
       try {
         this.webglAddon = new WebglAddon();
         this.webglAddon.onContextLoss(() => {
+          console.warn(
+            "[Rexec SDK] WebGL context lost, falling back to canvas",
+          );
           this.webglAddon?.dispose();
           this.webglAddon = null;
+          // Fall back to canvas addon
+          this.loadCanvasAddon();
         });
         this.terminal.loadAddon(this.webglAddon);
+        console.log("[Rexec SDK] WebGL renderer loaded");
       } catch (e) {
-        console.warn("[Rexec] WebGL not available, using canvas renderer");
+        console.warn("[Rexec SDK] WebGL not available, using canvas renderer");
+        this.loadCanvasAddon();
       }
+    } else {
+      // Use canvas addon for reliable rendering
+      this.loadCanvasAddon();
     }
 
     // Initial fit - wait for container to have dimensions
@@ -664,6 +680,14 @@ export class RexecTerminal implements RexecTerminalInstance {
     // Set up observers to catch container sizing and visibility changes
     this.setupResizeObserver();
     this.setupIntersectionObserver();
+
+    // Force initial render after addons are loaded
+    setTimeout(() => {
+      console.log("[Rexec SDK] Forcing initial render");
+      if (this.terminal) {
+        this.terminal.refresh(0, this.terminal.rows - 1);
+      }
+    }, 100);
 
     // Write a test message to verify terminal works
     this.terminal.write(
@@ -709,6 +733,21 @@ export class RexecTerminal implements RexecTerminalInstance {
         }
         return true;
       });
+    }
+  }
+
+  /**
+   * Load the canvas addon for reliable rendering
+   */
+  private loadCanvasAddon(): void {
+    if (!this.terminal || this.canvasAddon) return;
+
+    try {
+      this.canvasAddon = new CanvasAddon();
+      this.terminal.loadAddon(this.canvasAddon);
+      console.log("[Rexec SDK] Canvas renderer loaded");
+    } catch (e) {
+      console.warn("[Rexec SDK] Canvas addon failed to load:", e);
     }
   }
 
