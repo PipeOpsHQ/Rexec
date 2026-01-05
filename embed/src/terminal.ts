@@ -839,9 +839,19 @@ export class RexecTerminal implements RexecTerminalInstance {
    * Handle incoming WebSocket message
    */
   private handleMessage(message: WsMessage): void {
+    console.log(
+      "[Rexec Terminal] handleMessage:",
+      message.type,
+      "data length:",
+      message.data?.length || 0,
+    );
     switch (message.type) {
       case "output":
         if (message.data) {
+          console.log(
+            "[Rexec Terminal] Writing output to terminal:",
+            message.data.substring(0, 100),
+          );
           this.writeToTerminal(message.data);
           this.events.emit("data", message.data);
         }
@@ -899,10 +909,20 @@ export class RexecTerminal implements RexecTerminalInstance {
    * Write data to terminal with buffering for performance
    */
   private writeToTerminal(data: string): void {
-    if (!this.terminal) return;
+    console.log(
+      "[Rexec Terminal] writeToTerminal called, terminal exists:",
+      !!this.terminal,
+      "data length:",
+      data.length,
+    );
+    if (!this.terminal) {
+      console.error("[Rexec Terminal] No terminal instance!");
+      return;
+    }
 
     // For small outputs, write immediately
     if (data.length < 256) {
+      console.log("[Rexec Terminal] Writing small output directly");
       this.terminal.write(data);
       return;
     }

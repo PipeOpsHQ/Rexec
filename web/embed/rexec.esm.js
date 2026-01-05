@@ -8605,12 +8605,21 @@ class ht {
       var O;
       (O = this.onError) == null || O.call(this, k);
     }, this.ws.onmessage = (k) => {
-      var O, z;
+      var O, z, U, G, T;
+      console.log(
+        "[Rexec WS] Raw message received:",
+        ((z = (O = k.data) == null ? void 0 : O.substring) == null ? void 0 : z.call(O, 0, 200)) || k.data
+      );
       try {
-        const U = JSON.parse(k.data);
-        (O = this.onMessage) == null || O.call(this, U);
-      } catch (U) {
-        (z = this.onMessage) == null || z.call(this, { type: "output", data: k.data });
+        const t = JSON.parse(k.data);
+        console.log(
+          "[Rexec WS] Parsed message type:",
+          t.type,
+          "data length:",
+          ((U = t.data) == null ? void 0 : U.length) || 0
+        ), (G = this.onMessage) == null || G.call(this, t);
+      } catch (t) {
+        console.log("[Rexec WS] Non-JSON message, treating as output"), (T = this.onMessage) == null || T.call(this, { type: "output", data: k.data });
       }
     });
   }
@@ -9233,9 +9242,18 @@ class Ue {
    * Handle incoming WebSocket message
    */
   handleMessage(k) {
-    switch (k.type) {
+    var O;
+    switch (console.log(
+      "[Rexec Terminal] handleMessage:",
+      k.type,
+      "data length:",
+      ((O = k.data) == null ? void 0 : O.length) || 0
+    ), k.type) {
       case "output":
-        k.data && (this.writeToTerminal(k.data), this.events.emit("data", k.data));
+        k.data && (console.log(
+          "[Rexec Terminal] Writing output to terminal:",
+          k.data.substring(0, 100)
+        ), this.writeToTerminal(k.data), this.events.emit("data", k.data));
         break;
       case "connected":
         this.hideStatus(), this.setState("connected");
@@ -9243,19 +9261,19 @@ class Ue {
       case "stats":
         if (k.data)
           try {
-            const O = typeof k.data == "string" ? JSON.parse(k.data) : k.data;
+            const z = typeof k.data == "string" ? JSON.parse(k.data) : k.data;
             this._stats = {
-              cpu: O.cpu || 0,
-              memory: O.memory || 0,
-              memoryLimit: O.memory_limit || 0,
-              diskRead: O.disk_read || 0,
-              diskWrite: O.disk_write || 0,
-              diskUsage: O.disk_usage,
-              diskLimit: O.disk_limit || 0,
-              netRx: O.net_rx || 0,
-              netTx: O.net_tx || 0
+              cpu: z.cpu || 0,
+              memory: z.memory || 0,
+              memoryLimit: z.memory_limit || 0,
+              diskRead: z.disk_read || 0,
+              diskWrite: z.disk_write || 0,
+              diskUsage: z.disk_usage,
+              diskLimit: z.disk_limit || 0,
+              netRx: z.net_rx || 0,
+              netTx: z.net_tx || 0
             }, this.events.emit("stats", this._stats);
-          } catch (O) {
+          } catch (z) {
           }
         break;
       case "error":
@@ -9274,17 +9292,24 @@ class Ue {
    * Write data to terminal with buffering for performance
    */
   writeToTerminal(k) {
-    if (this.terminal) {
-      if (k.length < 256) {
-        this.terminal.write(k);
-        return;
-      }
-      if (this.outputBuffer += k, this.outputBuffer.length > 32 * 1024) {
-        this.flushOutput();
-        return;
-      }
-      this.flushTimeout || (this.flushTimeout = setTimeout(() => this.flushOutput(), 8));
+    if (console.log(
+      "[Rexec Terminal] writeToTerminal called, terminal exists:",
+      !!this.terminal,
+      "data length:",
+      k.length
+    ), !this.terminal) {
+      console.error("[Rexec Terminal] No terminal instance!");
+      return;
     }
+    if (k.length < 256) {
+      console.log("[Rexec Terminal] Writing small output directly"), this.terminal.write(k);
+      return;
+    }
+    if (this.outputBuffer += k, this.outputBuffer.length > 32 * 1024) {
+      this.flushOutput();
+      return;
+    }
+    this.flushTimeout || (this.flushTimeout = setTimeout(() => this.flushOutput(), 8));
   }
   /**
    * Flush output buffer to terminal
