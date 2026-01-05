@@ -404,6 +404,7 @@ export class RexecTerminal implements RexecTerminalInstance {
           min-height: 200px;
           overflow: hidden;
           background: #0d1117;
+          position: relative;
         }
         .rexec-embed .terminal-wrapper {
           width: 100%;
@@ -412,6 +413,7 @@ export class RexecTerminal implements RexecTerminalInstance {
         }
         .rexec-embed .xterm {
           padding: 8px;
+          padding-bottom: 28px;
           height: 100%;
         }
         .rexec-embed .xterm-viewport::-webkit-scrollbar {
@@ -448,6 +450,51 @@ export class RexecTerminal implements RexecTerminalInstance {
         @keyframes rexec-spin {
           to { transform: rotate(360deg); }
         }
+        .rexec-embed .rexec-branding {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 24px;
+          background: linear-gradient(to top, rgba(13, 17, 23, 0.95) 0%, rgba(13, 17, 23, 0.8) 70%, transparent 100%);
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          padding: 0 10px;
+          z-index: 5;
+          pointer-events: auto;
+        }
+        .rexec-embed .rexec-branding a {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          text-decoration: none;
+          color: rgba(255, 255, 255, 0.5);
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          font-size: 11px;
+          font-weight: 500;
+          transition: color 0.2s, transform 0.2s;
+        }
+        .rexec-embed .rexec-branding a:hover {
+          color: #00ff41;
+          transform: translateY(-1px);
+        }
+        .rexec-embed .rexec-branding .rexec-logo {
+          width: 14px;
+          height: 14px;
+          fill: currentColor;
+        }
+        .rexec-embed .rexec-branding .powered-text {
+          opacity: 0.7;
+        }
+        .rexec-embed .rexec-branding .rexec-name {
+          color: #00ff41;
+          font-weight: 600;
+          letter-spacing: 0.5px;
+        }
+        .rexec-embed .rexec-branding a:hover .rexec-name {
+          text-shadow: 0 0 8px rgba(0, 255, 65, 0.5);
+        }
       `;
       document.head.appendChild(styleEl);
     }
@@ -457,8 +504,24 @@ export class RexecTerminal implements RexecTerminalInstance {
     wrapper.className = "terminal-wrapper";
     this.container.appendChild(wrapper);
 
+    // Add Rexec branding
+    const branding = document.createElement("div");
+    branding.className = "rexec-branding";
+    branding.innerHTML = `
+      <a href="https://rexec.sh" target="_blank" rel="noopener noreferrer" title="Powered by Rexec - Terminal as a Service">
+        <span class="powered-text">Powered by</span>
+        <svg class="rexec-logo" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 4h16v2H4V4zm0 4h10v2H4V8zm0 4h16v2H4v-2zm0 4h10v2H4v-2zm12 0h4v4h-4v-4z"/>
+        </svg>
+        <span class="rexec-name">Rexec</span>
+      </a>
+    `;
+    this.container.appendChild(branding);
+
     // Add click handler to focus terminal
-    this.container.addEventListener("click", () => {
+    this.container.addEventListener("click", (e) => {
+      // Don't focus if clicking on branding link
+      if ((e.target as HTMLElement).closest(".rexec-branding")) return;
       this.terminal?.focus();
     });
   }
@@ -866,7 +929,16 @@ export class RexecTerminal implements RexecTerminalInstance {
       overlay.className = "status-overlay";
       this.container.appendChild(overlay);
     }
-    overlay.innerHTML = `<div class="spinner"></div><div>${message}</div>`;
+    overlay.innerHTML = `
+      <div class="spinner"></div>
+      <div>${message}</div>
+      <div style="margin-top: 16px; display: flex; align-items: center; gap: 6px; opacity: 0.6;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 4h16v2H4V4zm0 4h10v2H4V8zm0 4h16v2H4v-2zm0 4h10v2H4v-2zm12 0h4v4h-4v-4z"/>
+        </svg>
+        <span style="font-size: 12px; color: #00ff41; font-weight: 600; letter-spacing: 0.5px;">Rexec</span>
+      </div>
+    `;
   }
 
   /**
