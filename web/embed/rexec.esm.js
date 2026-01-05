@@ -8469,7 +8469,7 @@ class ke {
    */
   async createContainer(k = "ubuntu", O) {
     const z = { image: k };
-    return O && (z.role = O), this.request("/api/containers", {
+    return O && (z.role = O), console.log("[Rexec SDK] createContainer called with:", { image: k, role: O }), console.log("[Rexec SDK] Request body:", JSON.stringify(z)), this.request("/api/containers", {
       method: "POST",
       body: JSON.stringify(z)
     });

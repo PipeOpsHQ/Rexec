@@ -98,6 +98,8 @@ export class RexecApiClient {
     if (role) {
       body.role = role;
     }
+    console.log("[Rexec SDK] createContainer called with:", { image, role });
+    console.log("[Rexec SDK] Request body:", JSON.stringify(body));
     return this.request<CreateContainerResponse>("/api/containers", {
       method: "POST",
       body: JSON.stringify(body),
