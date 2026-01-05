@@ -201,13 +201,32 @@ export class RexecTerminal implements RexecTerminalInstance {
   fit(): void {
     if (this.fitAddon && this.terminal) {
       try {
+        // Get container dimensions for debugging
+        const rect = this.container.getBoundingClientRect();
+        console.log(
+          "[Rexec SDK] fit() called, container size:",
+          rect.width,
+          "x",
+          rect.height,
+        );
+
+        // Ensure container has dimensions before fitting
+        if (rect.width === 0 || rect.height === 0) {
+          console.warn(
+            "[Rexec SDK] Container has zero dimensions, skipping fit",
+          );
+          return;
+        }
+
         this.fitAddon.fit();
         const dims = this.fitAddon.proposeDimensions();
+        console.log("[Rexec SDK] fit() proposed dimensions:", dims);
         if (dims) {
           this.ws?.sendResize(dims.cols, dims.rows);
           this.events.emit("resize", dims.cols, dims.rows);
         }
       } catch (e) {
+        console.error("[Rexec SDK] fit() error:", e);
         // Ignore fit errors (can happen if element is hidden)
       }
     }
@@ -401,20 +420,33 @@ export class RexecTerminal implements RexecTerminalInstance {
         .rexec-embed {
           width: 100%;
           height: 100%;
-          min-height: 200px;
+          min-height: 300px;
           overflow: hidden;
           background: #0d1117;
           position: relative;
+          display: flex;
+          flex-direction: column;
         }
         .rexec-embed .terminal-wrapper {
           width: 100%;
-          height: 100%;
+          flex: 1;
+          min-height: 0;
           position: relative;
+          display: flex;
+          flex-direction: column;
         }
         .rexec-embed .xterm {
           padding: 8px;
           padding-bottom: 28px;
-          height: 100%;
+          flex: 1;
+          min-height: 0;
+        }
+        .rexec-embed .xterm-screen {
+          width: 100% !important;
+          height: 100% !important;
+        }
+        .rexec-embed .xterm-viewport {
+          width: 100% !important;
         }
         .rexec-embed .xterm-helper-textarea {
           position: absolute !important;
@@ -550,8 +582,13 @@ export class RexecTerminal implements RexecTerminalInstance {
    * Create the xterm.js terminal
    */
   private createTerminal(): void {
+    console.log("[Rexec SDK] createTerminal called");
     const wrapper = this.container.querySelector(".terminal-wrapper");
-    if (!wrapper) return;
+    if (!wrapper) {
+      console.error("[Rexec SDK] No .terminal-wrapper found in container!");
+      return;
+    }
+    console.log("[Rexec SDK] Found terminal wrapper:", wrapper);
 
     // Create terminal with options
     this.terminal = new Terminal({
@@ -581,7 +618,9 @@ export class RexecTerminal implements RexecTerminalInstance {
     this.terminal.loadAddon(webLinksAddon);
 
     // Open terminal in DOM
+    console.log("[Rexec SDK] Opening terminal in wrapper");
     this.terminal.open(wrapper as HTMLElement);
+    console.log("[Rexec SDK] Terminal opened, element:", this.terminal.element);
 
     // Try WebGL renderer for better performance
     if (this.config.webgl) {
@@ -597,13 +636,34 @@ export class RexecTerminal implements RexecTerminalInstance {
       }
     }
 
-    // Initial fit
-    requestAnimationFrame(() => this.fit());
+    // Initial fit - run multiple times to ensure proper sizing
+    requestAnimationFrame(() => {
+      console.log("[Rexec SDK] Running initial fit");
+      this.fit();
+      // Run fit again after a short delay to handle dynamic container sizing
+      setTimeout(() => {
+        console.log("[Rexec SDK] Running delayed fit");
+        this.fit();
+      }, 100);
+      setTimeout(() => {
+        console.log("[Rexec SDK] Running second delayed fit");
+        this.fit();
+      }, 500);
+    });
+
+    // Write a test message to verify terminal works
+    this.terminal.write(
+      "\x1b[33m[Rexec SDK] Terminal initialized...\x1b[0m\r\n",
+    );
+    console.log("[Rexec SDK] Wrote test message to terminal");
 
     // Handle terminal data input
     this.terminal.onData((data) => {
+      console.log("[Rexec SDK] Terminal input:", data.length, "chars");
       if (this.ws?.isConnected()) {
         this.ws.sendRaw(data);
+      } else {
+        console.warn("[Rexec SDK] WebSocket not connected, can't send input");
       }
     });
 
@@ -773,12 +833,14 @@ export class RexecTerminal implements RexecTerminalInstance {
    * Connect WebSocket to the terminal
    */
   private connectWebSocket(url: string): void {
+    console.log("[Rexec SDK] connectWebSocket called with URL:", url);
     this.ws = new TerminalWebSocket(url, this.config.token || null, {
       autoReconnect: this.config.autoReconnect,
       maxReconnectAttempts: this.config.maxReconnectAttempts,
     });
 
     this.ws.onOpen = () => {
+      console.log("[Rexec SDK] WebSocket opened!");
       this.hideStatus();
       this.setState("connected");
 
@@ -811,6 +873,7 @@ export class RexecTerminal implements RexecTerminalInstance {
     };
 
     this.ws.onClose = (code, reason) => {
+      console.log("[Rexec SDK] WebSocket closed:", code, reason);
       if (code !== 1000) {
         this.events.emit("disconnect", reason || "Connection closed");
       }
@@ -829,9 +892,16 @@ export class RexecTerminal implements RexecTerminalInstance {
     };
 
     this.ws.onMessage = (message) => {
+      console.log(
+        "[Rexec SDK] WS message received:",
+        message.type,
+        "data:",
+        message.data?.substring?.(0, 50) || "(none)",
+      );
       this.handleMessage(message);
     };
 
+    console.log("[Rexec SDK] Calling ws.connect()");
     this.ws.connect();
   }
 
