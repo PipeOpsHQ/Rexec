@@ -112,6 +112,77 @@ export class RexecApiClient {
   }
 
   /**
+   * Wait for a container to be ready (running status)
+   * Polls the container status until it's running or an error occurs
+   */
+  async waitForContainer(
+    containerId: string,
+    options: {
+      maxAttempts?: number;
+      intervalMs?: number;
+      onProgress?: (status: string, attempt: number) => void;
+    } = {},
+  ): Promise<{ data?: ContainerInfoResponse; error?: string }> {
+    const maxAttempts = options.maxAttempts ?? 60; // 60 attempts = ~2 minutes
+    const intervalMs = options.intervalMs ?? 2000; // Poll every 2 seconds
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const { data, error } = await this.getContainer(containerId);
+
+      if (error) {
+        // If container not found yet, keep waiting
+        if (error.includes("404") || error.includes("not found")) {
+          options.onProgress?.("creating", attempt);
+          await this.sleep(intervalMs);
+          continue;
+        }
+        return { error };
+      }
+
+      if (data) {
+        const status = data.status?.toLowerCase() || "";
+        options.onProgress?.(status, attempt);
+
+        if (status === "running") {
+          return { data };
+        }
+
+        if (status === "error" || status === "failed") {
+          return { error: `Container failed to start: ${status}` };
+        }
+
+        // Container is still being created/configured
+        if (
+          status === "creating" ||
+          status === "configuring" ||
+          status === "starting" ||
+          status === "pulling"
+        ) {
+          await this.sleep(intervalMs);
+          continue;
+        }
+
+        // Unknown status, try a few more times
+        if (attempt < maxAttempts) {
+          await this.sleep(intervalMs);
+          continue;
+        }
+      }
+
+      await this.sleep(intervalMs);
+    }
+
+    return { error: "Timeout waiting for container to be ready" };
+  }
+
+  /**
+   * Sleep for a given number of milliseconds
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
    * Join a collaborative session via share code
    */
   async joinSession(

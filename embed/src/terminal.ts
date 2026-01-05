@@ -608,22 +608,57 @@ export class RexecTerminal implements RexecTerminalInstance {
         wsUrl = this.api.getTerminalWsUrl(containerId, this.sessionId);
       } else if (this.config.role || this.config.image) {
         // Create new container with role and/or image
-        const { data, error } = await this.api.createContainer(
-          this.config.role || "default",
-          this.config.image || "ubuntu",
-        );
-        if (error || !data) {
+        this.showStatus("Creating container...");
+        const { data: createData, error: createError } =
+          await this.api.createContainer(
+            this.config.role || "default",
+            this.config.image || "ubuntu",
+          );
+        if (createError || !createData) {
           throw this.createError(
             "CREATE_FAILED",
-            error || "Failed to create container",
+            createError || "Failed to create container",
           );
         }
-        containerId = data.docker_id || data.id;
+
+        // Container creation is async - we get the DB ID back immediately
+        // but need to wait for the container to actually be running
+        const dbId = createData.id;
+        this.showStatus("Waiting for container to start...");
+
+        // Poll for container to be ready
+        const { data: containerData, error: waitError } =
+          await this.api.waitForContainer(dbId, {
+            maxAttempts: 90, // Up to 3 minutes for slow roles
+            intervalMs: 2000,
+            onProgress: (status, _attempt) => {
+              const statusMessages: Record<string, string> = {
+                creating: "Creating container...",
+                pulling: "Pulling image...",
+                configuring: "Configuring environment...",
+                starting: "Starting container...",
+                running: "Container ready!",
+              };
+              const message =
+                statusMessages[status] || `Preparing container (${status})...`;
+              this.showStatus(message);
+            },
+          });
+
+        if (waitError || !containerData) {
+          throw this.createError(
+            "CREATE_FAILED",
+            waitError || "Container failed to start",
+          );
+        }
+
+        // Now we have the actual running container
+        containerId = containerData.docker_id || containerData.id;
         this._session = {
           id: this.sessionId,
           containerId,
-          containerName: data.name,
-          role: data.role,
+          containerName: containerData.name,
+          role: containerData.role,
         };
         wsUrl = this.api.getTerminalWsUrl(containerId, this.sessionId);
       } else {
