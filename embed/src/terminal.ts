@@ -128,7 +128,7 @@ export class RexecTerminal implements RexecTerminalInstance {
       cursorStyle: config.cursorStyle ?? "block",
       cursorBlink: config.cursorBlink ?? true,
       scrollback: config.scrollback ?? DEFAULT_SCROLLBACK,
-      webgl: config.webgl ?? true,
+      webgl: config.webgl ?? false,
       showToolbar: config.showToolbar ?? true,
       showStatus: config.showStatus ?? true,
       allowCopy: config.allowCopy ?? true,
@@ -979,6 +979,23 @@ export class RexecTerminal implements RexecTerminalInstance {
       const dims = this.getDimensions();
       this.ws?.sendResize(dims.cols, dims.rows);
 
+      // Force terminal to refresh/redraw its content
+      // This fixes issues where the canvas doesn't render initially
+      setTimeout(() => {
+        if (this.terminal) {
+          console.log("[Rexec SDK] Forcing terminal refresh");
+          this.terminal.refresh(0, this.terminal.rows - 1);
+          this.fit();
+        }
+      }, 50);
+
+      setTimeout(() => {
+        if (this.terminal) {
+          this.terminal.refresh(0, this.terminal.rows - 1);
+          this.fit();
+        }
+      }, 200);
+
       // Focus terminal so user can type immediately
       // Use setTimeout to ensure DOM is ready
       setTimeout(() => {
@@ -1055,6 +1072,10 @@ export class RexecTerminal implements RexecTerminalInstance {
           );
           this.writeToTerminal(message.data);
           this.events.emit("data", message.data);
+          // Force refresh after first output to ensure rendering
+          if (this.terminal) {
+            this.terminal.refresh(0, this.terminal.rows - 1);
+          }
         }
         break;
 

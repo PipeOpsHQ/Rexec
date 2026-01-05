@@ -8787,7 +8787,7 @@ class Ue {
       cursorStyle: (l = T.cursorStyle) != null ? l : "block",
       cursorBlink: (f = T.cursorBlink) != null ? f : !0,
       scrollback: (g = T.scrollback) != null ? g : dt,
-      webgl: (o = T.webgl) != null ? o : !0,
+      webgl: (o = T.webgl) != null ? o : !1,
       showToolbar: (e = T.showToolbar) != null ? e : !0,
       showStatus: (r = T.showStatus) != null ? r : !0,
       allowCopy: (i = T.allowCopy) != null ? i : !0,
@@ -9323,6 +9323,10 @@ class Ue {
       console.log("[Rexec SDK] WebSocket opened!"), this.hideStatus(), this.setState("connected");
       const T = this.getDimensions();
       (F = this.ws) == null || F.sendResize(T.cols, T.rows), setTimeout(() => {
+        this.terminal && (console.log("[Rexec SDK] Forcing terminal refresh"), this.terminal.refresh(0, this.terminal.rows - 1), this.fit());
+      }, 50), setTimeout(() => {
+        this.terminal && (this.terminal.refresh(0, this.terminal.rows - 1), this.fit());
+      }, 200), setTimeout(() => {
         var V;
         (V = this.terminal) == null || V.focus();
         const $ = this.container.querySelector(
@@ -9362,7 +9366,7 @@ class Ue {
         A.data && (console.log(
           "[Rexec Terminal] Writing output to terminal:",
           A.data.substring(0, 100)
-        ), this.writeToTerminal(A.data), this.events.emit("data", A.data));
+        ), this.writeToTerminal(A.data), this.events.emit("data", A.data), this.terminal && this.terminal.refresh(0, this.terminal.rows - 1));
         break;
       case "connected":
         this.hideStatus(), this.setState("connected");
