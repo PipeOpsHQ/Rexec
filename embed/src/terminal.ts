@@ -206,44 +206,26 @@ export class RexecTerminal implements RexecTerminalInstance {
   fit(): void {
     if (this.fitAddon && this.terminal) {
       try {
-        // Get container dimensions for debugging
         const rect = this.container.getBoundingClientRect();
-        console.log(
-          "[Rexec SDK] fit() called, container size:",
-          rect.width,
-          "x",
-          rect.height,
-          "visible:",
-          this.isVisible,
-        );
 
         // Ensure container has dimensions before fitting
         if (rect.width === 0 || rect.height === 0) {
-          console.warn(
-            "[Rexec SDK] Container has zero dimensions, skipping fit",
-          );
           this.pendingFit = true;
           return;
         }
 
         // If container is not visible, mark as pending
         if (!this.isVisible) {
-          console.log(
-            "[Rexec SDK] Container not visible, marking fit as pending",
-          );
           this.pendingFit = true;
-          // Still try to fit in case visibility detection is wrong
         }
 
         this.fitAddon.fit();
         const dims = this.fitAddon.proposeDimensions();
-        console.log("[Rexec SDK] fit() proposed dimensions:", dims);
         if (dims) {
           this.ws?.sendResize(dims.cols, dims.rows);
           this.events.emit("resize", dims.cols, dims.rows);
         }
       } catch (e) {
-        console.error("[Rexec SDK] fit() error:", e);
         // Ignore fit errors (can happen if element is hidden)
       }
     }
@@ -598,13 +580,10 @@ export class RexecTerminal implements RexecTerminalInstance {
    * Create the xterm.js terminal
    */
   private createTerminal(): void {
-    console.log("[Rexec SDK] createTerminal called");
     const wrapper = this.container.querySelector(".terminal-wrapper");
     if (!wrapper) {
-      console.error("[Rexec SDK] No .terminal-wrapper found in container!");
       return;
     }
-    console.log("[Rexec SDK] Found terminal wrapper:", wrapper);
 
     // Create terminal with options
     this.terminal = new Terminal({
@@ -634,37 +613,27 @@ export class RexecTerminal implements RexecTerminalInstance {
     this.terminal.loadAddon(webLinksAddon);
 
     // Open terminal in DOM
-    console.log("[Rexec SDK] Opening terminal in wrapper");
     this.terminal.open(wrapper as HTMLElement);
-    console.log("[Rexec SDK] Terminal opened, element:", this.terminal.element);
 
     // Load renderer addon - WebGL for performance or Canvas for reliability
     if (this.config.webgl) {
       try {
         this.webglAddon = new WebglAddon();
         this.webglAddon.onContextLoss(() => {
-          console.warn(
-            "[Rexec SDK] WebGL context lost, falling back to canvas",
-          );
           this.webglAddon?.dispose();
           this.webglAddon = null;
-          // Fall back to canvas addon
           this.loadCanvasAddon();
         });
         this.terminal.loadAddon(this.webglAddon);
-        console.log("[Rexec SDK] WebGL renderer loaded");
       } catch (e) {
-        console.warn("[Rexec SDK] WebGL not available, using canvas renderer");
         this.loadCanvasAddon();
       }
     } else {
-      // Use canvas addon for reliable rendering
       this.loadCanvasAddon();
     }
 
     // Initial fit - wait for container to have dimensions
     requestAnimationFrame(() => {
-      console.log("[Rexec SDK] Running initial fit sequence");
       this.waitForDimensionsAndFit();
     });
 
@@ -674,25 +643,15 @@ export class RexecTerminal implements RexecTerminalInstance {
 
     // Force initial render after addons are loaded
     setTimeout(() => {
-      console.log("[Rexec SDK] Forcing initial render");
       if (this.terminal) {
         this.terminal.refresh(0, this.terminal.rows - 1);
       }
     }, 100);
 
-    // Write a test message to verify terminal works
-    this.terminal.write(
-      "\x1b[33m[Rexec SDK] Terminal initialized...\x1b[0m\r\n",
-    );
-    console.log("[Rexec SDK] Wrote test message to terminal");
-
     // Handle terminal data input
     this.terminal.onData((data) => {
-      console.log("[Rexec SDK] Terminal input:", data.length, "chars");
       if (this.ws?.isConnected()) {
         this.ws.sendRaw(data);
-      } else {
-        console.warn("[Rexec SDK] WebSocket not connected, can't send input");
       }
     });
 
@@ -736,9 +695,8 @@ export class RexecTerminal implements RexecTerminalInstance {
     try {
       this.canvasAddon = new CanvasAddon();
       this.terminal.loadAddon(this.canvasAddon);
-      console.log("[Rexec SDK] Canvas renderer loaded");
     } catch (e) {
-      console.warn("[Rexec SDK] Canvas addon failed to load:", e);
+      // Canvas addon failed to load, fall back to DOM renderer
     }
   }
 
@@ -756,13 +714,10 @@ export class RexecTerminal implements RexecTerminalInstance {
       if (!entry) return;
 
       const { width, height } = entry.contentRect;
-      console.log("[Rexec SDK] ResizeObserver triggered:", width, "x", height);
 
       // If container now has dimensions and we haven't done initial fit, do it now
       if (width > 0 && height > 0 && !hasInitialFit) {
         hasInitialFit = true;
-        console.log("[Rexec SDK] Container has dimensions, doing initial fit");
-        // Use setTimeout to ensure DOM is fully laid out
         setTimeout(() => this.fit(), 0);
         setTimeout(() => this.fit(), 100);
         return;
@@ -787,8 +742,6 @@ export class RexecTerminal implements RexecTerminalInstance {
    * This handles cases where terminal is in a modal, tab, or hidden container
    */
   private setupIntersectionObserver(): void {
-    console.log("[Rexec SDK] Setting up IntersectionObserver");
-
     this.intersectionObserver = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
@@ -797,17 +750,8 @@ export class RexecTerminal implements RexecTerminalInstance {
         const wasVisible = this.isVisible;
         this.isVisible = entry.isIntersecting && entry.intersectionRatio > 0;
 
-        console.log(
-          "[Rexec SDK] IntersectionObserver:",
-          "visible:",
-          this.isVisible,
-          "ratio:",
-          entry.intersectionRatio,
-        );
-
         // Terminal just became visible
         if (this.isVisible && !wasVisible) {
-          console.log("[Rexec SDK] Terminal became visible, triggering fit");
           // Multiple fits to handle dynamic sizing
           setTimeout(() => this.fit(), 0);
           setTimeout(() => this.fit(), 50);
@@ -839,15 +783,8 @@ export class RexecTerminal implements RexecTerminalInstance {
   private waitForDimensionsAndFit(): void {
     const checkDimensions = () => {
       const rect = this.container.getBoundingClientRect();
-      console.log(
-        "[Rexec SDK] Checking dimensions:",
-        rect.width,
-        "x",
-        rect.height,
-      );
 
       if (rect.width > 0 && rect.height > 0) {
-        console.log("[Rexec SDK] Container ready, fitting terminal");
         this.fit();
         return true;
       }
@@ -864,13 +801,6 @@ export class RexecTerminal implements RexecTerminalInstance {
       attempts++;
       if (checkDimensions() || attempts >= maxAttempts) {
         clearInterval(interval);
-        if (attempts >= maxAttempts) {
-          console.warn(
-            "[Rexec SDK] Container never got dimensions after",
-            maxAttempts,
-            "attempts",
-          );
-        }
       }
     }, 100);
   }
@@ -994,14 +924,12 @@ export class RexecTerminal implements RexecTerminalInstance {
    * Connect WebSocket to the terminal
    */
   private connectWebSocket(url: string): void {
-    console.log("[Rexec SDK] connectWebSocket called with URL:", url);
     this.ws = new TerminalWebSocket(url, this.config.token || null, {
       autoReconnect: this.config.autoReconnect,
       maxReconnectAttempts: this.config.maxReconnectAttempts,
     });
 
     this.ws.onOpen = () => {
-      console.log("[Rexec SDK] WebSocket opened!");
       this.hideStatus();
       this.setState("connected");
 
@@ -1013,7 +941,6 @@ export class RexecTerminal implements RexecTerminalInstance {
       // This fixes issues where the canvas doesn't render initially
       setTimeout(() => {
         if (this.terminal) {
-          console.log("[Rexec SDK] Forcing terminal refresh");
           this.terminal.refresh(0, this.terminal.rows - 1);
           this.fit();
         }
@@ -1051,7 +978,6 @@ export class RexecTerminal implements RexecTerminalInstance {
     };
 
     this.ws.onClose = (code, reason) => {
-      console.log("[Rexec SDK] WebSocket closed:", code, reason);
       if (code !== 1000) {
         this.events.emit("disconnect", reason || "Connection closed");
       }
@@ -1070,16 +996,9 @@ export class RexecTerminal implements RexecTerminalInstance {
     };
 
     this.ws.onMessage = (message) => {
-      console.log(
-        "[Rexec SDK] WS message received:",
-        message.type,
-        "data:",
-        message.data?.substring?.(0, 50) || "(none)",
-      );
       this.handleMessage(message);
     };
 
-    console.log("[Rexec SDK] Calling ws.connect()");
     this.ws.connect();
   }
 
@@ -1087,19 +1006,9 @@ export class RexecTerminal implements RexecTerminalInstance {
    * Handle incoming WebSocket message
    */
   private handleMessage(message: WsMessage): void {
-    console.log(
-      "[Rexec Terminal] handleMessage:",
-      message.type,
-      "data length:",
-      message.data?.length || 0,
-    );
     switch (message.type) {
       case "output":
         if (message.data) {
-          console.log(
-            "[Rexec Terminal] Writing output to terminal:",
-            message.data.substring(0, 100),
-          );
           this.writeToTerminal(message.data);
           this.events.emit("data", message.data);
           // Force refresh after first output to ensure rendering
@@ -1161,20 +1070,12 @@ export class RexecTerminal implements RexecTerminalInstance {
    * Write data to terminal with buffering for performance
    */
   private writeToTerminal(data: string): void {
-    console.log(
-      "[Rexec Terminal] writeToTerminal called, terminal exists:",
-      !!this.terminal,
-      "data length:",
-      data.length,
-    );
     if (!this.terminal) {
-      console.error("[Rexec Terminal] No terminal instance!");
       return;
     }
 
     // For small outputs, write immediately
     if (data.length < 256) {
-      console.log("[Rexec Terminal] Writing small output directly");
       this.terminal.write(data);
       return;
     }

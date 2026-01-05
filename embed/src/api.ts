@@ -98,8 +98,6 @@ export class RexecApiClient {
     if (role) {
       body.role = role;
     }
-    console.log("[Rexec SDK] createContainer called with:", { image, role });
-    console.log("[Rexec SDK] Request body:", JSON.stringify(body));
     return this.request<CreateContainerResponse>("/api/containers", {
       method: "POST",
       body: JSON.stringify(body),
@@ -337,22 +335,11 @@ export class TerminalWebSocket {
     };
 
     this.ws.onmessage = (event) => {
-      console.log(
-        "[Rexec WS] Raw message received:",
-        event.data?.substring?.(0, 200) || event.data,
-      );
       try {
         const message: WsMessage = JSON.parse(event.data);
-        console.log(
-          "[Rexec WS] Parsed message type:",
-          message.type,
-          "data length:",
-          message.data?.length || 0,
-        );
         this.onMessage?.(message);
       } catch {
         // Handle non-JSON messages (raw terminal output)
-        console.log("[Rexec WS] Non-JSON message, treating as output");
         this.onMessage?.({ type: "output", data: event.data });
       }
     };
