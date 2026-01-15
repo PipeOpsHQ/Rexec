@@ -85,6 +85,8 @@ func SanitizeErrorString(errMsg string) string {
 	if strings.Contains(errMsg, "Cannot connect to the Docker daemon") ||
 		strings.Contains(errMsg, "Is the docker daemon running") ||
 		strings.Contains(errMsg, "connection refused") ||
+		strings.Contains(errMsg, "failed to connect to remote") ||
+		strings.Contains(errMsg, "failed to create docker client for remote host") ||
 		strings.Contains(errMsg, "tcp://") {
 		return "Container service temporarily unavailable. Please try again."
 	}

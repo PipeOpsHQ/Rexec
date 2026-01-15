@@ -58,6 +58,16 @@ func TestSanitizeError(t *testing.T) {
 			err:  errors.New("Error connecting to tcp://192.168.1.100:2376: timeout"),
 			want: "Container service temporarily unavailable. Please try again.",
 		},
+		{
+			name: "Remote daemon connection error",
+			err:  errors.New("failed to connect to remote Docker daemon at tcp://10.0.0.5:2375: connection refused"),
+			want: "Container service temporarily unavailable. Please try again.",
+		},
+		{
+			name: "Remote client creation error",
+			err:  errors.New("failed to create docker client for remote host tcp://192.168.1.100:2376: some error"),
+			want: "Container service temporarily unavailable. Please try again.",
+		},
 	}
 
 	for _, tt := range tests {
@@ -94,6 +104,16 @@ func TestSanitizeErrorString(t *testing.T) {
 			name:  "String with unix:// path",
 			input: "Socket at unix:///tmp/sock not found",
 			want:  "Socket at [docker-socket] not found",
+		},
+		{
+			name:  "Remote daemon connection error with IP",
+			input: "failed to connect to remote Docker daemon at 10.0.0.5:2375: timeout",
+			want:  "Container service temporarily unavailable. Please try again.",
+		},
+		{
+			name:  "Remote client creation error",
+			input: "failed to create docker client for remote host tcp://192.168.1.100:2376",
+			want:  "Container service temporarily unavailable. Please try again.",
 		},
 	}
 
