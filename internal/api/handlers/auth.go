@@ -1596,7 +1596,9 @@ func userToJSON(user *models.User) string {
 		subscriptionActive = "true"
 	}
 
-	return `{"id":"` + user.ID + `","email":"` + email + `","username":"` + username + `","name":"` + name + `","first_name":"` + firstName + `","last_name":"` + lastName + `","avatar":"` + avatar + `","verified":` + verified + `,"subscription_active":` + subscriptionActive + `,"tier":"` + tier + `","isGuest":` + isGuest + `}`
+	sessionDurationMinutes := strconv.Itoa(user.SessionDurationMinutes)
+
+	return `{"id":"` + user.ID + `","email":"` + email + `","username":"` + username + `","name":"` + name + `","first_name":"` + firstName + `","last_name":"` + lastName + `","avatar":"` + avatar + `","verified":` + verified + `,"subscription_active":` + subscriptionActive + `,"tier":"` + tier + `","isGuest":` + isGuest + `,"session_duration_minutes":` + sessionDurationMinutes + `}`
 }
 
 // SetupMFA initiates MFA setup for a user
@@ -2016,6 +2018,7 @@ func (h *AuthHandler) CompleteMFALogin(c *gin.Context) {
 			"subscription_active": user.SubscriptionActive,
 			"mfa_enabled":         user.MFAEnabled,
 			"allowed_ips":         user.AllowedIPs,
+			"session_duration_minutes": user.SessionDurationMinutes,
 		},
 	})
 }
