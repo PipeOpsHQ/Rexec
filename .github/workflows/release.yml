@@ -76,21 +76,37 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=raw,value=${{ steps.version.outputs.version }}
-            type=raw,value=latest
-
-      - name: Build and push Docker image
+      - name: Build and push rexec (main server)
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}
+            ghcr.io/${{ github.repository }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push rexec-agent
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/Dockerfile.agent
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}-agent:${{ steps.version.outputs.version }}
+            ghcr.io/${{ github.repository }}-agent:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push rexec-cli
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/Dockerfile.cli
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}-cli:${{ steps.version.outputs.version }}
+            ghcr.io/${{ github.repository }}-cli:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
