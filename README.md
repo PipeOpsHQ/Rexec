@@ -210,12 +210,3 @@ The agent automatically reconnects with exponential backoff. Your terminal sessi
 **Containers:** Ubuntu, Debian, Alpine, Fedora (pre-built images)
 
 **Agent:** Linux (amd64, arm64), macOS (amd64, arm64), Windows (experimental)
-
----
-
-# rexec
-
-- Subtle addition - Keep existing design, just add a small AI tools section below
-  - Hero variation - Add a secondary tagline mentioning AI tools
-  - Separate page - Create a dedicated /ai-tools or /vibe-coder page
-  - Feature cards - Add AI tools as additional feature cards in existing grid
