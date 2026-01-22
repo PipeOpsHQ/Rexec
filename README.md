@@ -1,5 +1,12 @@
 # Rexec - Terminal as a Service
 
+[![GitHub stars](https://img.shields.io/github/stars/PipeOpsHQ/rexec?style=social)](https://github.com/PipeOpsHQ/rexec)
+[![GitHub forks](https://img.shields.io/github/forks/PipeOpsHQ/rexec?style=social)](https://github.com/PipeOpsHQ/rexec/fork)
+[![GitHub issues](https://img.shields.io/github/issues/PipeOpsHQ/rexec)](https://github.com/PipeOpsHQ/rexec/issues)
+[![GitHub license](https://img.shields.io/github/license/PipeOpsHQ/rexec)](https://github.com/PipeOpsHQ/rexec/blob/main/LICENSE)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/PipeOpsHQ/rexec)](https://go.dev/)
+[![Docker Pulls](https://img.shields.io/docker/pulls/pipeopshq/rexec)](https://ghcr.io/pipeopshq/rexec)
+
 Rexec is an open-source platform that gives you instantly-available, network-isolated Linux terminals in the cloud, or lets you connect your own machines to a unified dashboard. Built for developers who need on-demand environments and secure remote access.
 
 ---
@@ -134,8 +141,9 @@ MIT License. See [LICENSE](LICENSE) for details.
 
 ## Community & Support
 
-*   **Issues**: [GitHub Issues](https://github.com/rexec/rexec/issues)
-*   **Discussion**: [GitHub Discussions](https://github.com/rexec/rexec/discussions)
+*   **GitHub**: [github.com/PipeOpsHQ/rexec](https://github.com/PipeOpsHQ/rexec)
+*   **Issues**: [GitHub Issues](https://github.com/PipeOpsHQ/rexec/issues)
+*   **Discussions**: [GitHub Discussions](https://github.com/PipeOpsHQ/rexec/discussions)
 
 
 Built with ❤️ for the 10x engineer in everyone.
