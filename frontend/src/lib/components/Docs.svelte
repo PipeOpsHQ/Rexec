@@ -309,6 +309,109 @@
         </div>
     </section>
 
+    <!-- SDKs -->
+    <section class="section" id="sdks">
+        <h2><StatusIcon status="code" size={20} /> Official SDKs</h2>
+        <div class="sdk-section">
+            <p>
+                Use our official SDKs to programmatically interact with Rexec in your preferred language.
+                All SDKs provide container management, file operations, and interactive terminal support.
+            </p>
+            <div class="sdk-grid">
+                <a href="https://github.com/PipeOpsHQ/rexec/tree/main/sdk/go" target="_blank" class="sdk-card">
+                    <div class="sdk-icon">🔵</div>
+                    <div class="sdk-info">
+                        <h4>Go</h4>
+                        <code>go get github.com/PipeOpsHQ/rexec-go</code>
+                    </div>
+                </a>
+                <a href="https://github.com/PipeOpsHQ/rexec/tree/main/sdk/js" target="_blank" class="sdk-card">
+                    <div class="sdk-icon">🟡</div>
+                    <div class="sdk-info">
+                        <h4>JavaScript / TypeScript</h4>
+                        <code>npm install @pipeopshq/rexec</code>
+                    </div>
+                </a>
+                <a href="https://github.com/PipeOpsHQ/rexec/tree/main/sdk/python" target="_blank" class="sdk-card">
+                    <div class="sdk-icon">🐍</div>
+                    <div class="sdk-info">
+                        <h4>Python</h4>
+                        <code>pip install rexec</code>
+                    </div>
+                </a>
+                <a href="https://github.com/PipeOpsHQ/rexec/tree/main/sdk/rust" target="_blank" class="sdk-card">
+                    <div class="sdk-icon">🦀</div>
+                    <div class="sdk-info">
+                        <h4>Rust</h4>
+                        <code>cargo add rexec</code>
+                    </div>
+                </a>
+                <a href="https://github.com/PipeOpsHQ/rexec/tree/main/sdk/ruby" target="_blank" class="sdk-card">
+                    <div class="sdk-icon">💎</div>
+                    <div class="sdk-info">
+                        <h4>Ruby</h4>
+                        <code>gem install rexec</code>
+                    </div>
+                </a>
+                <a href="https://github.com/PipeOpsHQ/rexec/tree/main/sdk/java" target="_blank" class="sdk-card">
+                    <div class="sdk-icon">☕</div>
+                    <div class="sdk-info">
+                        <h4>Java</h4>
+                        <code>io.pipeops:rexec</code>
+                    </div>
+                </a>
+                <a href="https://github.com/PipeOpsHQ/rexec/tree/main/sdk/dotnet" target="_blank" class="sdk-card">
+                    <div class="sdk-icon">🟣</div>
+                    <div class="sdk-info">
+                        <h4>C# / .NET</h4>
+                        <code>dotnet add package Rexec</code>
+                    </div>
+                </a>
+                <a href="https://github.com/PipeOpsHQ/rexec/tree/main/sdk/php" target="_blank" class="sdk-card">
+                    <div class="sdk-icon">🐘</div>
+                    <div class="sdk-info">
+                        <h4>PHP</h4>
+                        <code>composer require pipeopshq/rexec</code>
+                    </div>
+                </a>
+            </div>
+            <div class="sdk-example">
+                <h4>Quick Example (JavaScript)</h4>
+                <pre><code>import {'{'} RexecClient {'}'} from '@pipeopshq/rexec';
+
+const client = new RexecClient({'{'} 
+  baseURL: 'https://rexec.sh', 
+  token: 'YOUR_API_TOKEN' 
+{'}'});
+
+// Create a sandbox
+const container = await client.containers.create({'{'} 
+  image: 'ubuntu:24.04' 
+{'}'});
+
+// Execute commands
+const result = await client.containers.exec(
+  container.id, 
+  'echo "Hello from Rexec!"'
+);
+console.log(result.stdout);
+
+// Interactive terminal
+const terminal = await client.terminal.connect(container.id);
+terminal.onData((data) => console.log(data));
+terminal.write('ls -la\\n');</code></pre>
+            </div>
+            <div class="sdk-links">
+                <a href="https://github.com/PipeOpsHQ/rexec/blob/main/docs/SDK.md" target="_blank" class="sdk-link">
+                    📖 Full SDK Documentation
+                </a>
+                <a href="https://github.com/PipeOpsHQ/rexec/blob/main/docs/SDK_GETTING_STARTED.md" target="_blank" class="sdk-link">
+                    🚀 Getting Started Guide
+                </a>
+            </div>
+        </div>
+    </section>
+
     <!-- Architecture -->
     <section class="section">
         <h2>
@@ -1217,6 +1320,119 @@
     .api-auth code {
         font-family: var(--font-mono);
         font-size: 12px;
+        color: var(--accent);
+    }
+
+    /* SDK Section */
+    .sdk-section {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 24px;
+    }
+
+    .sdk-section > p {
+        margin: 0 0 20px;
+        font-size: 14px;
+        color: var(--text-secondary);
+        line-height: 1.5;
+    }
+
+    .sdk-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 12px;
+        margin-bottom: 24px;
+    }
+
+    .sdk-card {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 16px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+
+    .sdk-card:hover {
+        border-color: var(--accent);
+        background: rgba(0, 255, 65, 0.05);
+        transform: translateY(-2px);
+    }
+
+    .sdk-icon {
+        font-size: 24px;
+        width: 36px;
+        text-align: center;
+    }
+
+    .sdk-info h4 {
+        margin: 0 0 4px;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text);
+    }
+
+    .sdk-info code {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--text-muted);
+    }
+
+    .sdk-example {
+        margin-bottom: 20px;
+        border-top: 1px solid var(--border);
+        padding-top: 20px;
+    }
+
+    .sdk-example h4 {
+        font-size: 13px;
+        font-weight: 600;
+        margin: 0 0 12px;
+        color: var(--text);
+    }
+
+    .sdk-example pre {
+        margin: 0;
+        padding: 16px;
+        background: var(--bg-tertiary);
+        border-radius: 6px;
+        overflow-x: auto;
+    }
+
+    .sdk-example code {
+        font-family: var(--font-mono);
+        font-size: 12px;
+        color: var(--accent);
+        line-height: 1.6;
+    }
+
+    .sdk-links {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    .sdk-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text);
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+    .sdk-link:hover {
+        border-color: var(--accent);
         color: var(--accent);
     }
 
