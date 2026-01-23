@@ -1,0 +1,33 @@
+{
+    "name": "pipeopshq/rexec",
+    "description": "Official PHP SDK for Rexec - Terminal as a Service",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["rexec", "terminal", "sandbox", "container", "docker", "devtools"],
+    "homepage": "https://github.com/PipeOpsHQ/rexec",
+    "authors": [
+        {
+            "name": "PipeOpsHQ",
+            "email": "support@pipeops.io"
+        }
+    ],
+    "require": {
+        "php": ">=8.1",
+        "guzzlehttp/guzzle": "^7.0",
+        "ratchet/pawl": "^0.4"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Rexec\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Rexec\\Tests\\": "tests/"
+        }
+    },
+    "minimum-stability": "stable"
+}
