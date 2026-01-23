@@ -10,16 +10,11 @@ This document outlines the plan for expanding SDK support across multiple progra
 | **JavaScript/TypeScript** | `@pipeopshq/rexec` | ✅ Complete |
 | **Python** | `rexec` (PyPI) | ✅ Complete |
 | **Rust** | `rexec` (crates.io) | ✅ Complete |
+| **Ruby** | `rexec` (RubyGems) | ✅ Complete |
+| **Java** | `io.pipeops:rexec` (Maven) | ✅ Complete |
+| **C#/.NET** | `Rexec` (NuGet) | ✅ Complete |
 
 ## Planned SDKs
-
-### Phase 2: Medium Priority (Q2 2026)
-
-| Language | Package | Priority | Notes |
-|----------|---------|----------|-------|
-| **Ruby** | `rexec` (RubyGems) | 🟡 Medium | Rails ecosystem, DevOps tools |
-| **Java** | `com.pipeopshq:rexec` (Maven) | 🟡 Medium | Enterprise adoption |
-| **C#/.NET** | `PipeOpsHQ.Rexec` (NuGet) | 🟡 Medium | Windows/Azure ecosystem |
 
 ### Phase 3: Community Driven (Q3+ 2026)
 

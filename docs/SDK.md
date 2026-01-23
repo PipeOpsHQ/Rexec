@@ -10,6 +10,9 @@ Rexec provides official SDKs for programmatically interacting with your sandboxe
 | **JavaScript/TypeScript** | `@pipeopshq/rexec` | [JS SDK README](../sdk/js/README.md) |
 | **Python** | `rexec` (PyPI) | [Python SDK README](../sdk/python/README.md) |
 | **Rust** | `rexec` (crates.io) | [Rust SDK README](../sdk/rust/README.md) |
+| **Ruby** | `rexec` (RubyGems) | [Ruby SDK README](../sdk/ruby/README.md) |
+| **Java** | `io.pipeops:rexec` (Maven) | [Java SDK README](../sdk/java/README.md) |
+| **C#/.NET** | `Rexec` (NuGet) | [.NET SDK README](../sdk/dotnet/README.md) |
 
 ## Getting an API Token
 
