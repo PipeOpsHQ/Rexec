@@ -13,6 +13,7 @@ This document outlines the plan for expanding SDK support across multiple progra
 | **Ruby** | `rexec` (RubyGems) | ✅ Complete |
 | **Java** | `io.pipeops:rexec` (Maven) | ✅ Complete |
 | **C#/.NET** | `Rexec` (NuGet) | ✅ Complete |
+| **PHP** | `pipeopshq/rexec` (Packagist) | ✅ Complete |
 
 ## Planned SDKs
 

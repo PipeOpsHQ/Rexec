@@ -13,6 +13,7 @@ Rexec provides official SDKs for programmatically interacting with your sandboxe
 | **Ruby** | `rexec` (RubyGems) | [Ruby SDK README](../sdk/ruby/README.md) |
 | **Java** | `io.pipeops:rexec` (Maven) | [Java SDK README](../sdk/java/README.md) |
 | **C#/.NET** | `Rexec` (NuGet) | [.NET SDK README](../sdk/dotnet/README.md) |
+| **PHP** | `pipeopshq/rexec` (Packagist) | [PHP SDK README](../sdk/php/README.md) |
 
 ## Getting an API Token
 
