@@ -924,11 +924,74 @@ function createTerminalStore() {
       let lastFlushTime = 0;
       let hasReceivedFirstOutput = false;
 
+      // Track if we're in a TUI app that needs mouse support (opencode, vim, tmux, etc.)
+      // Detect TUI apps by checking for common patterns in output
+      let isTUIApp = false;
+      let mouseSupportEnabled = false;
+      let tuiAppDetectionBuffer = "";
+      const TUI_INDICATORS = [
+        "opencode",
+        "vim",
+        "nvim",
+        "tmux",
+        "screen",
+        "less",
+        "more",
+        "top",
+        "htop",
+        "nano",
+        "emacs",
+      ];
+
+      const detectTUIApp = (data: string): boolean => {
+        // Check last 2KB of output for TUI indicators
+        tuiAppDetectionBuffer = (tuiAppDetectionBuffer + data).slice(-2048);
+        const lower = tuiAppDetectionBuffer.toLowerCase();
+        return TUI_INDICATORS.some((indicator) => lower.includes(indicator));
+      };
+
+      // Enable mouse support only when TUI app is detected
+      const enableMouseSupport = () => {
+        if (mouseSupportEnabled) return;
+        const currentSession = getCurrentSession();
+        if (!currentSession?.terminal) return;
+
+        mouseSupportEnabled = true;
+        // Enable mouse events for TUI apps (opencode, vim, tmux, etc.)
+        // DECSET 1000: X10 mouse mode (basic)
+        // DECSET 1002: Cell motion mouse tracking
+        // DECSET 1003: All motion mouse tracking (needed for opencode)
+        // DECSET 1006: SGR mouse mode (preferred, more accurate)
+        // DECSET 1007: Alternate scroll mode
+        // DECSET 1015: URXVT mouse mode (fallback)
+        currentSession.terminal.options.mouseSupport = true;
+        currentSession.terminal.write("\x1b[?1000h"); // X10 mouse mode
+        currentSession.terminal.write("\x1b[?1002h"); // Cell motion mouse tracking
+        currentSession.terminal.write("\x1b[?1003h"); // All motion mouse tracking (for opencode)
+        currentSession.terminal.write("\x1b[?1006h"); // SGR mouse mode (preferred)
+        currentSession.terminal.write("\x1b[?1007h"); // Alternate scroll mode
+        currentSession.terminal.write("\x1b[?1015h"); // URXVT mouse mode (fallback)
+      };
+
       // Filter problematic escape sequences from output to prevent artifacts
+      // Mouse tracking sequences should only come from terminal input, not output
       const sanitizeOutput = (data: string): string => {
-        // Filter mouse tracking sequences
-        let result = data.replace(/\x1b\[<\d+;\d+;\d+[Mm]/g, "");
-        // Filter OSC (Operating System Command) query responses that leak into input
+        // Update TUI app detection
+        const wasTUIApp = isTUIApp;
+        isTUIApp = detectTUIApp(data) || isTUIApp;
+
+        // Enable mouse support when TUI app is first detected
+        if (isTUIApp && !wasTUIApp) {
+          enableMouseSupport();
+        }
+
+        let result = data;
+
+        // Always filter mouse tracking sequences from OUTPUT (they should only come from terminal input)
+        // Mouse tracking sequences in output are usually artifacts or unwanted
+        result = result.replace(/\x1b\[<\d+;\d+;\d+[Mm]/g, "");
+        
+        // Always filter OSC (Operating System Command) query responses that leak into input
         // These are sequences like ESC ] <number> ; <data> BEL or ESC ] <number> ; <data> ESC \
         // Common ones: OSC 10/11 (foreground/background color queries)
         result = result.replace(/\x1b\]\d+;[^\x07\x1b]*(?:\x07|\x1b\\)/g, "");
