@@ -371,7 +371,7 @@ const TERMINAL_OPTIONS = {
   scrollback: 100000, // 100K lines - handles heavy output like builds/logs
   fastScrollModifier: "alt" as const,
   fastScrollSensitivity: 20,
-  scrollSensitivity: 3,
+  scrollSensitivity: 1, // Minimum sensitivity to avoid interfering with TUI apps (opencode, vim, etc.)
   smoothScrollDuration: 0, // Instant scroll for responsiveness
   windowsMode: false,
   convertEol: false,
