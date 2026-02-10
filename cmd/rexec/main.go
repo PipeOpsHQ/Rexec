@@ -813,6 +813,12 @@ func runServer() {
 			collab.GET("/join/:code", collabHandler.JoinSession)
 			collab.DELETE("/sessions/:id", collabHandler.EndSession)
 			collab.GET("/sessions", collabHandler.GetActiveSessions)
+			// Invitation endpoints
+			collab.POST("/sessions/:id/invite", collabHandler.SendInvitation)
+			collab.GET("/sessions/:id/invitations", collabHandler.GetSessionInvitations)
+			collab.GET("/invitations", collabHandler.GetMyInvitations)
+			collab.POST("/invitations/:id/respond", collabHandler.RespondToInvitation)
+			collab.DELETE("/invitations/:id", collabHandler.DeleteInvitation)
 		}
 
 		// Recording endpoints

@@ -505,6 +505,21 @@ func (s *PostgresStore) migrate() error {
 
 	CREATE UNIQUE INDEX IF NOT EXISTS idx_collab_participants_session_user ON collab_participants(session_id, user_id);
 
+	-- Collaboration invitations table for email-based sharing
+	CREATE TABLE IF NOT EXISTS collab_invitations (
+		id VARCHAR(36) PRIMARY KEY,
+		session_id VARCHAR(36) NOT NULL REFERENCES collab_sessions(id) ON DELETE CASCADE,
+		invitee_user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		invited_by VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		status VARCHAR(20) DEFAULT 'pending',
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+		responded_at TIMESTAMP WITH TIME ZONE
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_collab_invitations_invitee ON collab_invitations(invitee_user_id);
+	CREATE INDEX IF NOT EXISTS idx_collab_invitations_session ON collab_invitations(session_id);
+	CREATE UNIQUE INDEX IF NOT EXISTS idx_collab_invitations_session_invitee ON collab_invitations(session_id, invitee_user_id);
+
 	-- Agents table for BYOS (Bring Your Own Server)
 	CREATE TABLE IF NOT EXISTS agents (
 		id VARCHAR(36) PRIMARY KEY,
@@ -1811,6 +1826,26 @@ type CollabParticipantRecord struct {
 	LeftAt    *time.Time `db:"left_at"`
 }
 
+// CollabInvitationRecord represents an invitation to join a collab session
+type CollabInvitationRecord struct {
+	ID            string     `db:"id"`
+	SessionID     string     `db:"session_id"`
+	InviteeUserID string     `db:"invitee_user_id"`
+	InvitedBy     string     `db:"invited_by"`
+	Status        string     `db:"status"` // "pending", "accepted", "declined"
+	CreatedAt     time.Time  `db:"created_at"`
+	RespondedAt   *time.Time `db:"responded_at"`
+	// Joined fields for API responses
+	InviterUsername  string    `db:"inviter_username"`
+	InviteeUsername  string    `db:"invitee_username"`
+	InviteeEmail     string    `db:"invitee_email"`
+	ContainerID      string    `db:"container_id"`
+	ContainerName    string    `db:"container_name"`
+	SessionMode      string    `db:"session_mode"`
+	SessionShareCode string    `db:"session_share_code"`
+	SessionExpiresAt time.Time `db:"session_expires_at"`
+}
+
 // CreateCollabSession creates a new collaboration session
 func (s *PostgresStore) CreateCollabSession(ctx context.Context, session *CollabSessionRecord) error {
 	query := `
@@ -2035,6 +2070,192 @@ func (s *PostgresStore) GetActiveCollabSessionsForParticipant(ctx context.Contex
 		sessions = append(sessions, &session)
 	}
 	return sessions, nil
+}
+
+// ============================================================================
+// Collaboration Invitations
+// ============================================================================
+
+// CreateCollabInvitation creates a new invitation to join a collab session
+func (s *PostgresStore) CreateCollabInvitation(ctx context.Context, invitation *CollabInvitationRecord) error {
+	query := `
+		INSERT INTO collab_invitations (id, session_id, invitee_user_id, invited_by, status, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		ON CONFLICT (session_id, invitee_user_id) DO UPDATE SET
+			status = 'pending',
+			responded_at = NULL,
+			created_at = EXCLUDED.created_at
+	`
+	_, err := s.db.ExecContext(ctx, query,
+		invitation.ID,
+		invitation.SessionID,
+		invitation.InviteeUserID,
+		invitation.InvitedBy,
+		invitation.Status,
+		invitation.CreatedAt,
+	)
+	return err
+}
+
+// GetPendingInvitationsForUser returns all pending invitations for a user
+func (s *PostgresStore) GetPendingInvitationsForUser(ctx context.Context, userID string) ([]*CollabInvitationRecord, error) {
+	query := `
+		SELECT 
+			ci.id, ci.session_id, ci.invitee_user_id, ci.invited_by, ci.status, ci.created_at, ci.responded_at,
+			u.username as inviter_username,
+			COALESCE(c.name, a.name, 'Unknown') as container_name,
+			COALESCE(c.id, a.id, '') as container_id,
+			cs.mode as session_mode,
+			cs.share_code as session_share_code,
+			cs.expires_at as session_expires_at
+		FROM collab_invitations ci
+		INNER JOIN collab_sessions cs ON ci.session_id = cs.id
+		INNER JOIN users u ON ci.invited_by = u.id
+		LEFT JOIN containers c ON cs.container_id = c.id
+		LEFT JOIN agents a ON cs.container_id = a.id
+		WHERE ci.invitee_user_id = $1 
+		  AND ci.status = 'pending'
+		  AND cs.is_active = true
+		  AND cs.expires_at > NOW()
+		ORDER BY ci.created_at DESC
+	`
+	rows, err := s.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var invitations []*CollabInvitationRecord
+	for rows.Next() {
+		var inv CollabInvitationRecord
+		err := rows.Scan(
+			&inv.ID,
+			&inv.SessionID,
+			&inv.InviteeUserID,
+			&inv.InvitedBy,
+			&inv.Status,
+			&inv.CreatedAt,
+			&inv.RespondedAt,
+			&inv.InviterUsername,
+			&inv.ContainerName,
+			&inv.ContainerID,
+			&inv.SessionMode,
+			&inv.SessionShareCode,
+			&inv.SessionExpiresAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		invitations = append(invitations, &inv)
+	}
+	return invitations, nil
+}
+
+// GetInvitationsForSession returns all invitations for a session (for the owner to see)
+func (s *PostgresStore) GetInvitationsForSession(ctx context.Context, sessionID string) ([]*CollabInvitationRecord, error) {
+	query := `
+		SELECT 
+			ci.id, ci.session_id, ci.invitee_user_id, ci.invited_by, ci.status, ci.created_at, ci.responded_at,
+			u.username as invitee_username,
+			u.email as invitee_email
+		FROM collab_invitations ci
+		INNER JOIN users u ON ci.invitee_user_id = u.id
+		WHERE ci.session_id = $1
+		ORDER BY ci.created_at DESC
+	`
+	rows, err := s.db.QueryContext(ctx, query, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var invitations []*CollabInvitationRecord
+	for rows.Next() {
+		var inv CollabInvitationRecord
+		err := rows.Scan(
+			&inv.ID,
+			&inv.SessionID,
+			&inv.InviteeUserID,
+			&inv.InvitedBy,
+			&inv.Status,
+			&inv.CreatedAt,
+			&inv.RespondedAt,
+			&inv.InviteeUsername,
+			&inv.InviteeEmail,
+		)
+		if err != nil {
+			return nil, err
+		}
+		invitations = append(invitations, &inv)
+	}
+	return invitations, nil
+}
+
+// RespondToInvitation updates the invitation status (accept or decline)
+func (s *PostgresStore) RespondToInvitation(ctx context.Context, invitationID, userID, status string) error {
+	query := `
+		UPDATE collab_invitations 
+		SET status = $1, responded_at = NOW() 
+		WHERE id = $2 AND invitee_user_id = $3 AND status = 'pending'
+	`
+	result, err := s.db.ExecContext(ctx, query, status, invitationID, userID)
+	if err != nil {
+		return err
+	}
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return fmt.Errorf("invitation not found or already responded")
+	}
+	return nil
+}
+
+// GetInvitationByID retrieves an invitation by ID
+func (s *PostgresStore) GetInvitationByID(ctx context.Context, invitationID string) (*CollabInvitationRecord, error) {
+	query := `
+		SELECT 
+			ci.id, ci.session_id, ci.invitee_user_id, ci.invited_by, ci.status, ci.created_at, ci.responded_at,
+			cs.share_code as session_share_code,
+			cs.mode as session_mode,
+			cs.expires_at as session_expires_at
+		FROM collab_invitations ci
+		INNER JOIN collab_sessions cs ON ci.session_id = cs.id
+		WHERE ci.id = $1
+	`
+	var inv CollabInvitationRecord
+	err := s.db.QueryRowContext(ctx, query, invitationID).Scan(
+		&inv.ID,
+		&inv.SessionID,
+		&inv.InviteeUserID,
+		&inv.InvitedBy,
+		&inv.Status,
+		&inv.CreatedAt,
+		&inv.RespondedAt,
+		&inv.SessionShareCode,
+		&inv.SessionMode,
+		&inv.SessionExpiresAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &inv, nil
+}
+
+// DeleteCollabInvitation deletes an invitation
+func (s *PostgresStore) DeleteCollabInvitation(ctx context.Context, invitationID, ownerID string) error {
+	query := `
+		DELETE FROM collab_invitations ci
+		USING collab_sessions cs
+		WHERE ci.id = $1 AND ci.session_id = cs.id AND cs.owner_id = $2
+	`
+	result, err := s.db.ExecContext(ctx, query, invitationID, ownerID)
+	if err != nil {
+		return err
+	}
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return fmt.Errorf("invitation not found or not authorized")
+	}
+	return nil
 }
 
 // ============================================================================
