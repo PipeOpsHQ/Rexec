@@ -766,3 +766,241 @@ func getParticipantColor(index int) string {
 	}
 	return colors[index%len(colors)]
 }
+
+// ============================================================================
+// Collaboration Invitations
+// ============================================================================
+
+// SendInvitation sends an invitation to a user by email
+func (h *CollabHandler) SendInvitation(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	sessionID := c.Param("id")
+
+	var req struct {
+		Email string `json:"email" binding:"required,email"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "valid email address is required"})
+		return
+	}
+
+	// Get the session
+	session, err := h.store.GetCollabSessionByID(c.Request.Context(), sessionID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "session not found"})
+		return
+	}
+
+	// Verify the user is the owner
+	if session.OwnerID != userID.(string) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "only the session owner can send invitations"})
+		return
+	}
+
+	// Check if session is still active
+	if !session.IsActive || time.Now().After(session.ExpiresAt) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "session has expired"})
+		return
+	}
+
+	// Find the user by email
+	invitee, _, err := h.store.GetUserByEmail(c.Request.Context(), req.Email)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "no user found with this email address"})
+		return
+	}
+
+	// Can't invite yourself
+	if invitee.ID == userID.(string) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "you cannot invite yourself"})
+		return
+	}
+
+	// Create the invitation
+	invitation := &storage.CollabInvitationRecord{
+		ID:            uuid.New().String(),
+		SessionID:     sessionID,
+		InviteeUserID: invitee.ID,
+		InvitedBy:     userID.(string),
+		Status:        "pending",
+		CreatedAt:     time.Now(),
+	}
+
+	if err := h.store.CreateCollabInvitation(c.Request.Context(), invitation); err != nil {
+		log.Printf("Failed to create invitation: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create invitation"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":       "invitation sent",
+		"invitation_id": invitation.ID,
+		"invitee_email": invitee.Email,
+		"invitee_name":  invitee.Username,
+	})
+}
+
+// GetSessionInvitations returns all invitations for a session
+func (h *CollabHandler) GetSessionInvitations(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	sessionID := c.Param("id")
+
+	// Get the session
+	session, err := h.store.GetCollabSessionByID(c.Request.Context(), sessionID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "session not found"})
+		return
+	}
+
+	// Verify the user is the owner
+	if session.OwnerID != userID.(string) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "only the session owner can view invitations"})
+		return
+	}
+
+	invitations, err := h.store.GetInvitationsForSession(c.Request.Context(), sessionID)
+	if err != nil {
+		log.Printf("Failed to get invitations: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve invitations"})
+		return
+	}
+
+	// Convert to response format
+	result := make([]gin.H, 0, len(invitations))
+	for _, inv := range invitations {
+		result = append(result, gin.H{
+			"id":         inv.ID,
+			"email":      inv.InviteeEmail,
+			"username":   inv.InviteeUsername,
+			"status":     inv.Status,
+			"created_at": inv.CreatedAt,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"invitations": result})
+}
+
+// GetMyInvitations returns all pending invitations for the current user
+func (h *CollabHandler) GetMyInvitations(c *gin.Context) {
+	userID, _ := c.Get("userID")
+
+	invitations, err := h.store.GetPendingInvitationsForUser(c.Request.Context(), userID.(string))
+	if err != nil {
+		log.Printf("Failed to get invitations for user %s: %v", userID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve invitations"})
+		return
+	}
+
+	// Convert to response format
+	result := make([]gin.H, 0, len(invitations))
+	for _, inv := range invitations {
+		result = append(result, gin.H{
+			"id":             inv.ID,
+			"session_id":     inv.SessionID,
+			"invited_by":     inv.InviterUsername,
+			"container_name": inv.ContainerName,
+			"container_id":   inv.ContainerID,
+			"mode":           inv.SessionMode,
+			"share_code":     inv.SessionShareCode,
+			"expires_at":     inv.SessionExpiresAt,
+			"created_at":     inv.CreatedAt,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"invitations": result})
+}
+
+// RespondToInvitation accepts or declines an invitation
+func (h *CollabHandler) RespondToInvitation(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	username, _ := c.Get("username")
+	invitationID := c.Param("id")
+
+	var req struct {
+		Action string `json:"action" binding:"required"` // "accept" or "decline"
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "action is required (accept or decline)"})
+		return
+	}
+
+	if req.Action != "accept" && req.Action != "decline" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "action must be 'accept' or 'decline'"})
+		return
+	}
+
+	// Get invitation details first
+	invitation, err := h.store.GetInvitationByID(c.Request.Context(), invitationID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "invitation not found"})
+		return
+	}
+
+	// Verify this invitation is for the current user
+	if invitation.InviteeUserID != userID.(string) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "this invitation is not for you"})
+		return
+	}
+
+	// Check if session is still active
+	if time.Now().After(invitation.SessionExpiresAt) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "the session has expired"})
+		return
+	}
+
+	status := "declined"
+	if req.Action == "accept" {
+		status = "accepted"
+	}
+
+	if err := h.store.RespondToInvitation(c.Request.Context(), invitationID, userID.(string), status); err != nil {
+		log.Printf("Failed to respond to invitation: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to respond to invitation"})
+		return
+	}
+
+	// If accepted, add user as a participant
+	if req.Action == "accept" {
+		role := "viewer"
+		if invitation.SessionMode == "control" {
+			role = "editor"
+		}
+
+		// Add to database
+		if err := h.store.AddCollabParticipant(c.Request.Context(), &storage.CollabParticipantRecord{
+			ID:        uuid.New().String(),
+			SessionID: invitation.SessionID,
+			UserID:    userID.(string),
+			Username:  username.(string),
+			Role:      role,
+			JoinedAt:  time.Now(),
+		}); err != nil {
+			log.Printf("Failed to add participant after accepting invitation: %v", err)
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"message":    "invitation accepted",
+			"share_code": invitation.SessionShareCode,
+			"mode":       invitation.SessionMode,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "invitation declined"})
+}
+
+// DeleteInvitation cancels/deletes an invitation
+func (h *CollabHandler) DeleteInvitation(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	invitationID := c.Param("id")
+
+	if err := h.store.DeleteCollabInvitation(c.Request.Context(), invitationID, userID.(string)); err != nil {
+		log.Printf("Failed to delete invitation: %v", err)
+		c.JSON(http.StatusNotFound, gin.H{"error": "invitation not found or not authorized"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "invitation deleted"})
+}

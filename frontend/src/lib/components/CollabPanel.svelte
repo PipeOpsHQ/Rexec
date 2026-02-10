@@ -1,6 +1,6 @@
 <script lang="ts">
     import { createEventDispatcher } from "svelte";
-    import { collab } from "../stores/collab";
+    import { collab, type SessionInvitation } from "../stores/collab";
     import { containers } from "../stores/containers";
     import { slide, fade } from "svelte/transition";
     import PlatformIcon from "./icons/PlatformIcon.svelte";
@@ -19,6 +19,13 @@
     let shareUrl = "";
     let copied = false;
 
+    // Invitation state
+    let inviteEmail = "";
+    let isInviting = false;
+    let inviteError = "";
+    let inviteSuccess = "";
+    let sessionInvitations: SessionInvitation[] = [];
+
     $: session = $collab.activeSession;
     $: participants = $collab.participants;
 
@@ -26,6 +33,17 @@
     $: terminal = $containers.containers.find((c) => c.id === containerId);
     $: terminalName = terminal?.name || containerId.slice(0, 12);
     $: terminalOS = terminal?.image || "unknown";
+
+    // Load invitations when session is active
+    $: if (session) {
+        loadSessionInvitations();
+    }
+
+    async function loadSessionInvitations() {
+        if (session) {
+            sessionInvitations = await collab.getSessionInvitations(session.id);
+        }
+    }
 
     async function startSession() {
         isStarting = true;
@@ -50,6 +68,31 @@
         navigator.clipboard.writeText(shareUrl);
         copied = true;
         setTimeout(() => (copied = false), 2000);
+    }
+
+    async function sendInvite() {
+        if (!session || !inviteEmail.trim()) return;
+        
+        inviteError = "";
+        inviteSuccess = "";
+        isInviting = true;
+        
+        const result = await collab.sendInvitation(session.id, inviteEmail.trim());
+        isInviting = false;
+        
+        if (result.success) {
+            inviteSuccess = `Invitation sent to ${result.inviteeName || inviteEmail}`;
+            inviteEmail = "";
+            await loadSessionInvitations();
+            setTimeout(() => (inviteSuccess = ""), 3000);
+        } else {
+            inviteError = result.error || "Failed to send invitation";
+        }
+    }
+
+    async function cancelInvite(invitationId: string) {
+        await collab.deleteInvitation(invitationId);
+        await loadSessionInvitations();
     }
 
     function close() {
@@ -320,6 +363,70 @@
                                         : "Perfect for demos, teaching, and code reviews!"}
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- Invite by Email Section -->
+                        <div class="section invite-section">
+                            <span class="section-label">Invite by Email</span>
+                            <div class="invite-box">
+                                <input
+                                    class="invite-input"
+                                    type="email"
+                                    placeholder="Enter email address..."
+                                    bind:value={inviteEmail}
+                                    onkeydown={(e) => e.key === "Enter" && sendInvite()}
+                                    disabled={isInviting}
+                                />
+                                <button
+                                    class="invite-btn"
+                                    onclick={sendInvite}
+                                    disabled={isInviting || !inviteEmail.trim()}
+                                >
+                                    {#if isInviting}
+                                        <span class="spinner small"></span>
+                                    {:else}
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13"></path>
+                                        </svg>
+                                        Send
+                                    {/if}
+                                </button>
+                            </div>
+                            {#if inviteError}
+                                <div class="invite-error" transition:fade={{ duration: 150 }}>
+                                    {inviteError}
+                                </div>
+                            {/if}
+                            {#if inviteSuccess}
+                                <div class="invite-success" transition:fade={{ duration: 150 }}>
+                                    {inviteSuccess}
+                                </div>
+                            {/if}
+                            
+                            <!-- Pending Invitations -->
+                            {#if sessionInvitations.length > 0}
+                                <div class="pending-invites">
+                                    <span class="pending-label">Pending Invitations</span>
+                                    {#each sessionInvitations as inv}
+                                        <div class="invite-row" class:accepted={inv.status === "accepted"} class:declined={inv.status === "declined"}>
+                                            <div class="invite-info">
+                                                <span class="invite-email">{inv.email}</span>
+                                                <span class="invite-status" class:pending={inv.status === "pending"} class:accepted={inv.status === "accepted"} class:declined={inv.status === "declined"}>
+                                                    {inv.status}
+                                                </span>
+                                            </div>
+                                            {#if inv.status === "pending"}
+                                                <button class="cancel-invite-btn" onclick={() => cancelInvite(inv.id)} title="Cancel invitation">
+                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                                                    </svg>
+                                                </button>
+                                            {/if}
+                                        </div>
+                                    {/each}
+                                </div>
+                            {/if}
                         </div>
 
                         <div class="section participants-section">
@@ -932,5 +1039,174 @@
         to {
             transform: rotate(360deg);
         }
+    }
+
+    /* Invite by Email Section */
+    .invite-section {
+        border-top: 1px solid var(--border);
+        padding-top: 20px;
+    }
+
+    .invite-box {
+        display: flex;
+        gap: 8px;
+    }
+
+    .invite-input {
+        flex: 1;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border);
+        padding: 10px 12px;
+        border-radius: 4px;
+        color: var(--text);
+        font-size: 12px;
+        outline: none;
+    }
+
+    .invite-input:focus {
+        border-color: var(--accent);
+    }
+
+    .invite-input::placeholder {
+        color: var(--text-muted);
+    }
+
+    .invite-btn {
+        background: var(--accent);
+        border: none;
+        border-radius: 4px;
+        color: var(--bg);
+        padding: 0 14px;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .invite-btn:hover:not(:disabled) {
+        background: var(--accent-hover);
+    }
+
+    .invite-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .invite-error {
+        margin-top: 8px;
+        padding: 8px 10px;
+        background: rgba(255, 68, 68, 0.1);
+        border: 1px solid rgba(255, 68, 68, 0.2);
+        border-radius: 4px;
+        color: #ff6b6b;
+        font-size: 11px;
+    }
+
+    .invite-success {
+        margin-top: 8px;
+        padding: 8px 10px;
+        background: rgba(0, 255, 157, 0.1);
+        border: 1px solid rgba(0, 255, 157, 0.2);
+        border-radius: 4px;
+        color: var(--accent);
+        font-size: 11px;
+    }
+
+    .pending-invites {
+        margin-top: 12px;
+    }
+
+    .pending-label {
+        display: block;
+        font-size: 10px;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        font-weight: 600;
+        margin-bottom: 8px;
+        letter-spacing: 0.5px;
+    }
+
+    .invite-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 10px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        margin-bottom: 6px;
+    }
+
+    .invite-row:last-child {
+        margin-bottom: 0;
+    }
+
+    .invite-row.accepted {
+        border-color: rgba(0, 255, 157, 0.3);
+        background: rgba(0, 255, 157, 0.05);
+    }
+
+    .invite-row.declined {
+        border-color: rgba(255, 68, 68, 0.3);
+        background: rgba(255, 68, 68, 0.05);
+    }
+
+    .invite-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .invite-email {
+        font-size: 12px;
+        color: var(--text);
+    }
+
+    .invite-status {
+        font-size: 9px;
+        padding: 2px 6px;
+        border-radius: 3px;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+
+    .invite-status.pending {
+        background: rgba(255, 193, 7, 0.15);
+        color: #ffc107;
+    }
+
+    .invite-status.accepted {
+        background: rgba(0, 255, 157, 0.15);
+        color: var(--accent);
+    }
+
+    .invite-status.declined {
+        background: rgba(255, 68, 68, 0.15);
+        color: #ff6b6b;
+    }
+
+    .cancel-invite-btn {
+        background: transparent;
+        border: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 3px;
+        display: flex;
+        transition: all 0.2s;
+    }
+
+    .cancel-invite-btn:hover {
+        background: rgba(255, 68, 68, 0.1);
+        color: #ff6b6b;
+    }
+
+    .spinner.small {
+        width: 10px;
+        height: 10px;
+        border-width: 1.5px;
     }
 </style>

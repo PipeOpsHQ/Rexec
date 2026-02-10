@@ -9,6 +9,7 @@
     } from "$stores/auth";
     import { toast } from "$stores/toast";
     import { theme } from "$stores/theme";
+    import { collab, type CollabInvitation } from "$stores/collab";
     import StatusIcon from "./icons/StatusIcon.svelte";
     import InstallButton from "./InstallButton.svelte";
 
@@ -31,10 +32,13 @@
 
     let showUserMenu = false;
     let showMobileMenu = false;
+    let showInvitationsMenu = false;
     let timeRemaining = "";
     let countdownInterval: ReturnType<typeof setInterval> | null = null;
+    let invitationsInterval: ReturnType<typeof setInterval> | null = null;
     let isOAuthLoading = false;
     let sessionCountValue = 0;
+    let pendingInvitations: CollabInvitation[] = [];
     let terminalModulePromise: Promise<
         typeof import("$stores/terminal")
     > | null = null;
@@ -117,11 +121,20 @@
             updateCountdown();
             countdownInterval = setInterval(updateCountdown, 1000);
         }
+        // Fetch invitations on mount for authenticated non-guest users
+        if ($isAuthenticated && !$isGuest) {
+            fetchInvitations();
+            // Poll for invitations every 30 seconds
+            invitationsInterval = setInterval(fetchInvitations, 30000);
+        }
     });
 
     onDestroy(() => {
         if (countdownInterval) {
             clearInterval(countdownInterval);
+        }
+        if (invitationsInterval) {
+            clearInterval(invitationsInterval);
         }
         if (unsubscribeSessionCount) {
             unsubscribeSessionCount();
@@ -146,6 +159,16 @@
         unsubscribeSessionCount();
         unsubscribeSessionCount = null;
         sessionCountValue = 0;
+    }
+
+    // Start/stop invitation polling based on auth state
+    $: if ($isAuthenticated && !$isGuest && !invitationsInterval) {
+        fetchInvitations();
+        invitationsInterval = setInterval(fetchInvitations, 30000);
+    } else if ((!$isAuthenticated || $isGuest) && invitationsInterval) {
+        clearInterval(invitationsInterval);
+        invitationsInterval = null;
+        pendingInvitations = [];
     }
 
     async function handleOAuthLogin() {
@@ -180,6 +203,45 @@
     function closeUserMenu(event: MouseEvent) {
         const target = event.target as HTMLElement;
         if (!target.closest(".user-menu-container")) {
+            showUserMenu = false;
+        }
+        if (!target.closest(".invitations-menu-container")) {
+            showInvitationsMenu = false;
+        }
+    }
+
+    async function fetchInvitations() {
+        if ($isAuthenticated && !$isGuest) {
+            pendingInvitations = await collab.getMyInvitations();
+        }
+    }
+
+    async function handleAcceptInvitation(invitation: CollabInvitation) {
+        const result = await collab.respondToInvitation(invitation.id, "accept");
+        if (result.success && result.shareCode) {
+            showInvitationsMenu = false;
+            toast.success(`Joined ${invitation.containerName}'s session`);
+            // Navigate to the terminal with the share code
+            window.location.href = `/join/${result.shareCode}`;
+        } else {
+            toast.error(result.error || "Failed to accept invitation");
+        }
+        await fetchInvitations();
+    }
+
+    async function handleDeclineInvitation(invitation: CollabInvitation) {
+        const result = await collab.respondToInvitation(invitation.id, "decline");
+        if (result.success) {
+            toast.info("Invitation declined");
+        } else {
+            toast.error(result.error || "Failed to decline invitation");
+        }
+        await fetchInvitations();
+    }
+
+    function toggleInvitationsMenu() {
+        showInvitationsMenu = !showInvitationsMenu;
+        if (showInvitationsMenu) {
             showUserMenu = false;
         }
     }
@@ -239,6 +301,63 @@
                         ? "s"
                         : ""}
                 </span>
+            {/if}
+
+            <!-- Invitations Bell -->
+            {#if !$isGuest}
+                <div class="invitations-menu-container">
+                    <button
+                        class="invitations-bell"
+                        class:has-invitations={pendingInvitations.length > 0}
+                        onclick={(e) => {
+                            e.stopPropagation();
+                            toggleInvitationsMenu();
+                        }}
+                        title="Collaboration Invitations"
+                    >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                        </svg>
+                        {#if pendingInvitations.length > 0}
+                            <span class="invitation-badge">{pendingInvitations.length}</span>
+                        {/if}
+                    </button>
+
+                    {#if showInvitationsMenu}
+                        <div class="invitations-menu">
+                            <div class="invitations-header">
+                                <span>Collaboration Invitations</span>
+                            </div>
+                            {#if pendingInvitations.length === 0}
+                                <div class="no-invitations">
+                                    No pending invitations
+                                </div>
+                            {:else}
+                                {#each pendingInvitations as invitation}
+                                    <div class="invitation-item">
+                                        <div class="invitation-info">
+                                            <span class="invitation-from">{invitation.invitedBy}</span>
+                                            <span class="invitation-text">invited you to</span>
+                                            <span class="invitation-terminal">{invitation.containerName}</span>
+                                            <span class="invitation-mode" class:control={invitation.mode === "control"}>
+                                                {invitation.mode === "control" ? "Full Control" : "View Only"}
+                                            </span>
+                                        </div>
+                                        <div class="invitation-actions">
+                                            <button class="inv-btn accept" onclick={() => handleAcceptInvitation(invitation)}>
+                                                Accept
+                                            </button>
+                                            <button class="inv-btn decline" onclick={() => handleDeclineInvitation(invitation)}>
+                                                Decline
+                                            </button>
+                                        </div>
+                                    </div>
+                                {/each}
+                            {/if}
+                        </div>
+                    {/if}
+                </div>
             {/if}
 
             <div class="user-menu-container">
@@ -999,6 +1118,166 @@
             opacity: 1;
             transform: translateY(0);
         }
+    }
+
+    /* Invitations Menu Styles */
+    .invitations-menu-container {
+        position: relative;
+    }
+
+    .invitations-bell {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+        cursor: pointer;
+        transition: all 0.2s;
+        position: relative;
+    }
+
+    .invitations-bell:hover {
+        color: var(--accent);
+        border-color: var(--accent);
+    }
+
+    .invitations-bell.has-invitations {
+        color: var(--accent);
+        border-color: var(--accent);
+    }
+
+    .invitation-badge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        min-width: 16px;
+        height: 16px;
+        background: var(--danger);
+        color: white;
+        font-size: 10px;
+        font-weight: 700;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 4px;
+    }
+
+    .invitations-menu {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        min-width: 300px;
+        max-width: 360px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        z-index: 200;
+        animation: fadeIn 0.15s ease;
+    }
+
+    .invitations-header {
+        padding: 12px 16px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text);
+        border-bottom: 1px solid var(--border);
+    }
+
+    .no-invitations {
+        padding: 20px;
+        text-align: center;
+        color: var(--text-muted);
+        font-size: 12px;
+    }
+
+    .invitation-item {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .invitation-item:last-child {
+        border-bottom: none;
+    }
+
+    .invitation-info {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px;
+        margin-bottom: 10px;
+        font-size: 12px;
+        line-height: 1.5;
+    }
+
+    .invitation-from {
+        font-weight: 600;
+        color: var(--accent);
+    }
+
+    .invitation-text {
+        color: var(--text-muted);
+    }
+
+    .invitation-terminal {
+        font-weight: 600;
+        color: var(--text);
+    }
+
+    .invitation-mode {
+        font-size: 10px;
+        padding: 2px 6px;
+        background: rgba(0, 255, 157, 0.1);
+        color: var(--accent);
+        border-radius: 3px;
+        margin-left: 4px;
+    }
+
+    .invitation-mode.control {
+        background: rgba(255, 166, 0, 0.1);
+        color: #ffa600;
+    }
+
+    .invitation-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .inv-btn {
+        flex: 1;
+        padding: 6px 12px;
+        border: none;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .inv-btn.accept {
+        background: var(--accent);
+        color: var(--bg);
+    }
+
+    .inv-btn.accept:hover {
+        background: var(--accent-hover);
+    }
+
+    .inv-btn.decline {
+        background: var(--bg-tertiary);
+        color: var(--text-muted);
+        border: 1px solid var(--border);
+    }
+
+    .inv-btn.decline:hover {
+        background: rgba(255, 68, 68, 0.1);
+        color: #ff6b6b;
+        border-color: rgba(255, 68, 68, 0.3);
     }
 
     /* Mobile responsive styles */

@@ -335,6 +335,11 @@
             openMfaVerifyModal(container);
             return;
         }
+        // For shared terminals, navigate to the collab join page
+        if (container.shared && container.share_code) {
+            window.location.href = `/join/${container.share_code}`;
+            return;
+        }
         // Mark as connecting immediately
         connectingIds.add(container.id);
         connectingIds = new Set(connectingIds); // Trigger reactivity

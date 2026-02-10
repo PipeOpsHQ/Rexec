@@ -23,6 +23,26 @@ export interface CollabParticipant {
   cursor?: { x: number; y: number };
 }
 
+export interface CollabInvitation {
+  id: string;
+  sessionId: string;
+  invitedBy: string;
+  containerName: string;
+  containerId: string;
+  mode: string;
+  shareCode: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
+export interface SessionInvitation {
+  id: string;
+  email: string;
+  username: string;
+  status: string;
+  createdAt: string;
+}
+
 export interface CollabMessage {
   type:
     | "join"
@@ -408,6 +428,130 @@ function createCollabStore() {
     });
   }
 
+  // Invitation functions
+  async function sendInvitation(sessionId: string, email: string): Promise<{ success: boolean; error?: string; inviteeName?: string }> {
+    const token = get(auth).token;
+    if (!token) return { success: false, error: "Not authenticated" };
+
+    try {
+      const res = await fetch(`${API_BASE}/api/collab/sessions/${sessionId}/invite`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        return { success: false, error: data.error || "Failed to send invitation" };
+      }
+
+      return { success: true, inviteeName: data.invitee_name };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  }
+
+  async function getSessionInvitations(sessionId: string): Promise<SessionInvitation[]> {
+    const token = get(auth).token;
+    if (!token) return [];
+
+    try {
+      const res = await fetch(`${API_BASE}/api/collab/sessions/${sessionId}/invitations`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        return (data.invitations || []).map((inv: any) => ({
+          id: inv.id,
+          email: inv.email,
+          username: inv.username,
+          status: inv.status,
+          createdAt: inv.created_at,
+        }));
+      }
+    } catch (err) {
+      console.error("[Collab] Failed to get session invitations:", err);
+    }
+    return [];
+  }
+
+  async function getMyInvitations(): Promise<CollabInvitation[]> {
+    const token = get(auth).token;
+    if (!token) return [];
+
+    try {
+      const res = await fetch(`${API_BASE}/api/collab/invitations`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        return (data.invitations || []).map((inv: any) => ({
+          id: inv.id,
+          sessionId: inv.session_id,
+          invitedBy: inv.invited_by,
+          containerName: inv.container_name,
+          containerId: inv.container_id,
+          mode: inv.mode,
+          shareCode: inv.share_code,
+          expiresAt: inv.expires_at,
+          createdAt: inv.created_at,
+        }));
+      }
+    } catch (err) {
+      console.error("[Collab] Failed to get my invitations:", err);
+    }
+    return [];
+  }
+
+  async function respondToInvitation(invitationId: string, action: "accept" | "decline"): Promise<{ success: boolean; shareCode?: string; error?: string }> {
+    const token = get(auth).token;
+    if (!token) return { success: false, error: "Not authenticated" };
+
+    try {
+      const res = await fetch(`${API_BASE}/api/collab/invitations/${invitationId}/respond`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        return { success: false, error: data.error || "Failed to respond to invitation" };
+      }
+
+      if (action === "accept" && data.share_code) {
+        return { success: true, shareCode: data.share_code };
+      }
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  }
+
+  async function deleteInvitation(invitationId: string): Promise<boolean> {
+    const token = get(auth).token;
+    if (!token) return false;
+
+    try {
+      const res = await fetch(`${API_BASE}/api/collab/invitations/${invitationId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return res.ok;
+    } catch (err) {
+      console.error("[Collab] Failed to delete invitation:", err);
+      return false;
+    }
+  }
+
   return {
     subscribe,
     startSession,
@@ -421,6 +565,12 @@ function createCollabStore() {
     getActiveSessions,
     disconnect,
     reset,
+    // Invitation functions
+    sendInvitation,
+    getSessionInvitations,
+    getMyInvitations,
+    respondToInvitation,
+    deleteInvitation,
   };
 }
 
