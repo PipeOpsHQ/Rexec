@@ -1523,10 +1523,12 @@
         margin: 12px 0;
         border-radius: 6px;
         border: 1px solid var(--border);
+        -webkit-overflow-scrolling: touch;
     }
 
     .markdown-body :global(.markdown-table) {
         width: 100%;
+        min-width: 600px;
         border-collapse: collapse;
         font-size: 13px;
         background: var(--bg-secondary);

@@ -104,6 +104,7 @@ function createCollabStore() {
     containerId: string,
     mode: "view" | "control" = "view",
     maxUsers: number = 5,
+    durationMinutes: number = 1440,
   ): Promise<CollabSession | null> {
     const token = get(auth).token;
     if (!token) return null;
@@ -119,6 +120,7 @@ function createCollabStore() {
           container_id: containerId,
           mode,
           max_users: maxUsers,
+          duration_minutes: durationMinutes,
         }),
       });
 

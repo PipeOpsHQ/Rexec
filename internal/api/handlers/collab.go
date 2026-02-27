@@ -136,7 +136,10 @@ func (h *CollabHandler) StartSession(c *gin.Context) {
 		req.MaxUsers = 5
 	}
 	if req.Duration <= 0 {
-		req.Duration = 60
+		req.Duration = 1440 // Default to 24 hours
+	}
+	if req.Duration > 4320 {
+		req.Duration = 4320 // Max 72 hours
 	}
 
 	// Generate share code
@@ -704,7 +707,7 @@ func (h *CollabHandler) sendParticipantsList(session *CollabSession, conn *webso
 }
 
 func (h *CollabHandler) cleanupLoop() {
-	ticker := time.NewTicker(5 * time.Minute)
+	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
 
 	for range ticker.C {

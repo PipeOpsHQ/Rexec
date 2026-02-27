@@ -3207,13 +3207,15 @@
 
     .logs-table-wrapper {
         max-height: 400px;
-        overflow-y: auto;
+        overflow: auto;
         border: 1px solid var(--border);
         border-radius: 6px;
+        -webkit-overflow-scrolling: touch;
     }
 
     .logs-table {
         width: 100%;
+        min-width: 600px;
         border-collapse: collapse;
         font-size: 13px;
     }
