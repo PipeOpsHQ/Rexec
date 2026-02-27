@@ -1872,7 +1872,7 @@ func (s *PostgresStore) GetCollabSessionByShareCode(ctx context.Context, code st
 	query := `
 		SELECT id, container_id, owner_id, share_code, mode, max_users, is_active, created_at, expires_at
 		FROM collab_sessions
-		WHERE share_code = $1 AND is_active = true AND expires_at > NOW()
+		WHERE share_code = $1 AND is_active = true AND expires_at > (NOW() - INTERVAL '1 hour')
 	`
 	row := s.db.QueryRowContext(ctx, query, code)
 	err := row.Scan(
@@ -1898,10 +1898,12 @@ func (s *PostgresStore) GetCollabSessionByShareCode(ctx context.Context, code st
 // GetCollabSessionByContainerID retrieves the active collab session for a container
 func (s *PostgresStore) GetCollabSessionByContainerID(ctx context.Context, containerID string) (*CollabSessionRecord, error) {
 	var session CollabSessionRecord
+	// Support matching by either Docker ID or DB ID
 	query := `
 		SELECT id, container_id, owner_id, share_code, mode, max_users, is_active, created_at, expires_at
 		FROM collab_sessions
-		WHERE container_id = $1 AND is_active = true AND expires_at > NOW()
+		WHERE (container_id = $1 OR container_id IN (SELECT docker_id FROM containers WHERE id = $1))
+		  AND is_active = true AND expires_at > (NOW() - INTERVAL '1 hour')
 	`
 	row := s.db.QueryRowContext(ctx, query, containerID)
 	err := row.Scan(
@@ -2031,7 +2033,7 @@ func (s *PostgresStore) GetActiveCollabSessionCount(ctx context.Context, session
 }
 
 // GetActiveCollabSessionsForParticipant returns all active collab sessions where the user
-// is a participant (not the owner). This is used to show shared terminals on the dashboard.
+// is a participant. This is used to show shared terminals on the dashboard.
 func (s *PostgresStore) GetActiveCollabSessionsForParticipant(ctx context.Context, userID string) ([]*CollabSessionRecord, error) {
 	query := `
 		SELECT cs.id, cs.container_id, cs.owner_id, cs.share_code, cs.mode, cs.max_users, cs.is_active, cs.created_at, cs.expires_at
@@ -2040,8 +2042,7 @@ func (s *PostgresStore) GetActiveCollabSessionsForParticipant(ctx context.Contex
 		WHERE cp.user_id = $1 
 		  AND cp.left_at IS NULL 
 		  AND cs.is_active = true 
-		  AND cs.expires_at > NOW()
-		  AND cs.owner_id != $1
+		  AND cs.expires_at > (NOW() - INTERVAL '1 hour')
 		ORDER BY cp.joined_at DESC
 	`
 	rows, err := s.db.QueryContext(ctx, query, userID)
@@ -2116,7 +2117,7 @@ func (s *PostgresStore) GetPendingInvitationsForUser(ctx context.Context, userID
 		WHERE ci.invitee_user_id = $1 
 		  AND ci.status = 'pending'
 		  AND cs.is_active = true
-		  AND cs.expires_at > NOW()
+		  AND cs.expires_at > (NOW() - INTERVAL '1 hour')
 		ORDER BY ci.created_at DESC
 	`
 	rows, err := s.db.QueryContext(ctx, query, userID)

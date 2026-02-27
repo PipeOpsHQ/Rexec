@@ -297,29 +297,37 @@ func (h *ContainerHandler) GetSharedTerminalsForUser(ctx context.Context, userID
 			}
 		} else {
 			// Docker container
+			// Try looking up by Docker ID first (common case), then by DB ID
 			record, err := h.store.GetContainerByDockerID(ctx, session.ContainerID)
 			if err != nil || record == nil {
-				log.Printf("[Container] Shared container %s not found: %v", session.ContainerID, err)
+				// Fallback: search by DB ID
+				record, err = h.store.GetContainerByID(ctx, session.ContainerID)
+			}
+
+			if err != nil || record == nil {
+				log.Printf("[Container] Shared container %s not found in DB: %v", session.ContainerID, err)
 				continue
 			}
 
-			// Check actual status
+			// Check actual live status from manager (Docker daemon)
 			status := record.Status
 			var idleTime float64
-			if info, ok := h.manager.GetContainer(record.DockerID); ok {
-				status = info.Status
-				idleTime = time.Since(info.LastUsedAt).Seconds()
-			} else if !record.LastUsedAt.IsZero() {
-				idleTime = time.Since(record.LastUsedAt).Seconds()
+			dockerID := record.DockerID
+			if dockerID != "" {
+				if info, ok := h.manager.GetContainer(dockerID); ok {
+					status = info.Status
+					idleTime = time.Since(info.LastUsedAt).Seconds()
+				} else if !record.LastUsedAt.IsZero() {
+					idleTime = time.Since(record.LastUsedAt).Seconds()
+				}
 			}
 
-			containerID := record.DockerID
-			if containerID == "" {
-				containerID = record.ID
+			if dockerID == "" {
+				dockerID = record.ID
 			}
 
 			containerData := gin.H{
-				"id":                containerID,
+				"id":                dockerID,
 				"db_id":             record.ID,
 				"user_id":           record.UserID,
 				"name":              record.Name,

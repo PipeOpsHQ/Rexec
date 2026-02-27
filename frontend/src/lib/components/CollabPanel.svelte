@@ -14,6 +14,7 @@
 
     let mode: "view" | "control" = "view";
     let maxUsers = 5;
+    let duration = 1440; // Default to 24 hours (1440 minutes)
     let isStarting = false;
     let shareCode = "";
     let shareUrl = "";
@@ -47,7 +48,7 @@
 
     async function startSession() {
         isStarting = true;
-        const result = await collab.startSession(containerId, mode, maxUsers);
+        const result = await collab.startSession(containerId, mode, maxUsers, duration);
         isStarting = false;
 
         if (result) {
@@ -246,6 +247,40 @@
                             />
                         </div>
 
+                        <div class="section">
+                            <span class="section-label">Session Duration</span>
+                            <div class="duration-options">
+                                <button
+                                    class="duration-btn"
+                                    class:active={duration === 60}
+                                    onclick={() => (duration = 60)}
+                                >
+                                    1h
+                                </button>
+                                <button
+                                    class="duration-btn"
+                                    class:active={duration === 720}
+                                    onclick={() => (duration = 720)}
+                                >
+                                    12h
+                                </button>
+                                <button
+                                    class="duration-btn"
+                                    class:active={duration === 1440}
+                                    onclick={() => (duration = 1440)}
+                                >
+                                    24h
+                                </button>
+                                <button
+                                    class="duration-btn"
+                                    class:active={duration === 4320}
+                                    onclick={() => (duration = 4320)}
+                                >
+                                    72h
+                                </button>
+                            </div>
+                        </div>
+
                         <div class="actions">
                             <button
                                 class="btn-primary start-btn"
@@ -351,7 +386,7 @@
                                     <li>
                                         <span class="step-num">4</span>
                                         <span
-                                            >Session expires in 60 minutes or
+                                            >Session expires in 24 hours or
                                             when you end it</span
                                         >
                                     </li>
@@ -696,6 +731,35 @@
         border-radius: 50%;
         cursor: pointer;
         border: 2px solid var(--bg-card);
+    }
+
+    .duration-options {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+    }
+
+    .duration-btn {
+        padding: 8px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--text-muted);
+        font-size: 12px;
+        font-family: var(--font-mono);
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .duration-btn:hover {
+        border-color: var(--text-muted);
+        color: var(--text);
+    }
+
+    .duration-btn.active {
+        background: var(--accent-dim);
+        border-color: var(--accent);
+        color: var(--accent);
     }
 
     .btn-primary {
