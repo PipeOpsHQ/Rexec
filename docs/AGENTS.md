@@ -187,6 +187,44 @@ sudo systemctl restart rexec-agent
 sudo journalctl -u rexec-agent -f
 ```
 
+### Uninstalling the Agent
+
+To completely remove the Rexec agent from your system, use the install script with the `--uninstall` flag:
+
+```bash
+curl -fsSL https://rexec.sh/install-agent.sh | sudo bash -s -- --uninstall
+```
+
+This will:
+
+- Stop and disable the agent service (systemd, launchd, or sysvinit)
+- Remove the agent binary from `/usr/local/bin/rexec-agent`
+- Remove the configuration directory `/etc/rexec/`
+- Remove log files from `/var/log/rexec-agent.log`
+
+**Manual uninstall (if needed):**
+
+```bash
+# Linux (systemd)
+sudo systemctl stop rexec-agent
+sudo systemctl disable rexec-agent
+sudo rm /etc/systemd/system/rexec-agent.service
+sudo systemctl daemon-reload
+sudo rm /usr/local/bin/rexec-agent
+sudo rm -rf /etc/rexec
+sudo rm /var/log/rexec-agent.log
+
+# macOS (launchd)
+sudo launchctl stop io.pipeops.rexec-agent
+sudo launchctl unload /Library/LaunchDaemons/io.pipeops.rexec-agent.plist
+sudo rm /Library/LaunchDaemons/io.pipeops.rexec-agent.plist
+sudo rm /usr/local/bin/rexec-agent
+sudo rm -rf /etc/rexec
+sudo rm /var/log/rexec-agent.log /var/log/rexec-agent.error.log
+```
+
+**Note:** Uninstalling the agent does not automatically remove the agent entry from your Rexec dashboard. To fully remove the agent, also delete it from **Settings → Agents** in the dashboard.
+
 ## Environment Variables
 
 | Variable       | Description                                 |
