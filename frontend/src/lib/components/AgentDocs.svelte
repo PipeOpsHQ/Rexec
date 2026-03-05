@@ -309,6 +309,60 @@
 	            </p>
 	        </section>
 
+        <section class="docs-section">
+            <h2>Uninstalling the Agent</h2>
+            <p>To completely remove the rexec agent from your system, use the install script with the <code>--uninstall</code> flag:</p>
+            
+            <div class="code-block large">
+                <code>curl -fsSL {installUrl}/install-agent.sh | sudo bash -s -- --uninstall</code>
+                <button
+                    class="copy-btn"
+                    onclick={() => copyToClipboard(`curl -fsSL ${installUrl}/install-agent.sh | sudo bash -s -- --uninstall`, 'uninstall')}
+                >
+                    {copiedCommand === 'uninstall' ? 'Copied!' : 'Copy'}
+                </button>
+            </div>
+            
+            <p>This will:</p>
+            <ul class="uninstall-list">
+                <li>Stop and disable the agent service (systemd, launchd, or sysvinit)</li>
+                <li>Remove the agent binary from <code>/usr/local/bin/rexec-agent</code></li>
+                <li>Remove the configuration directory <code>/etc/rexec/</code></li>
+                <li>Remove log files from <code>/var/log/rexec-agent.log</code></li>
+            </ul>
+
+            <div class="install-method">
+                <h3>Manual Uninstall (Linux/systemd)</h3>
+                <div class="code-block">
+                    <code>sudo systemctl stop rexec-agent<br/>sudo systemctl disable rexec-agent<br/>sudo rm /etc/systemd/system/rexec-agent.service<br/>sudo systemctl daemon-reload<br/>sudo rm /usr/local/bin/rexec-agent<br/>sudo rm -rf /etc/rexec<br/>sudo rm /var/log/rexec-agent.log</code>
+                    <button
+                        class="copy-btn"
+                        onclick={() => copyToClipboard('sudo systemctl stop rexec-agent && sudo systemctl disable rexec-agent && sudo rm /etc/systemd/system/rexec-agent.service && sudo systemctl daemon-reload && sudo rm /usr/local/bin/rexec-agent && sudo rm -rf /etc/rexec && sudo rm /var/log/rexec-agent.log', 'uninstall-linux')}
+                    >
+                        {copiedCommand === 'uninstall-linux' ? 'Copied!' : 'Copy'}
+                    </button>
+                </div>
+            </div>
+
+            <div class="install-method">
+                <h3>Manual Uninstall (macOS/launchd)</h3>
+                <div class="code-block">
+                    <code>sudo launchctl stop io.pipeops.rexec-agent<br/>sudo launchctl unload /Library/LaunchDaemons/io.pipeops.rexec-agent.plist<br/>sudo rm /Library/LaunchDaemons/io.pipeops.rexec-agent.plist<br/>sudo rm /usr/local/bin/rexec-agent<br/>sudo rm -rf /etc/rexec<br/>sudo rm /var/log/rexec-agent.log /var/log/rexec-agent.error.log</code>
+                    <button
+                        class="copy-btn"
+                        onclick={() => copyToClipboard('sudo launchctl stop io.pipeops.rexec-agent && sudo launchctl unload /Library/LaunchDaemons/io.pipeops.rexec-agent.plist && sudo rm /Library/LaunchDaemons/io.pipeops.rexec-agent.plist && sudo rm /usr/local/bin/rexec-agent && sudo rm -rf /etc/rexec && sudo rm /var/log/rexec-agent.log /var/log/rexec-agent.error.log', 'uninstall-macos')}
+                    >
+                        {copiedCommand === 'uninstall-macos' ? 'Copied!' : 'Copy'}
+                    </button>
+                </div>
+            </div>
+
+            <p class="hint">
+                Note: Uninstalling the agent does not automatically remove it from your rexec dashboard. 
+                To fully remove the agent, also delete it from <strong>Settings → Agents</strong> in the dashboard.
+            </p>
+        </section>
+
 	        <section class="docs-section">
 	            <h2>Supported Platforms</h2>
 	            <div class="platform-grid">
@@ -637,6 +691,26 @@
     }
 
     .faq-item code {
+        background: var(--bg-tertiary);
+        padding: 2px 6px;
+        border-radius: 4px;
+        color: var(--accent);
+        font-size: 12px;
+    }
+
+    .uninstall-list {
+        margin: 16px 0;
+        padding-left: 24px;
+        color: var(--text-muted);
+        font-size: 14px;
+        line-height: 1.8;
+    }
+
+    .uninstall-list li {
+        margin-bottom: 4px;
+    }
+
+    .uninstall-list code {
         background: var(--bg-tertiary);
         padding: 2px 6px;
         border-radius: 4px;
