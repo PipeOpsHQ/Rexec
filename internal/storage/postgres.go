@@ -2073,6 +2073,36 @@ func (s *PostgresStore) GetActiveCollabSessionsForParticipant(ctx context.Contex
 	return sessions, nil
 }
 
+// GetCollaboratorUserIDsForContainer returns all unique user IDs who are active participants
+// in collab sessions for a specific container/agent. This is used to broadcast agent status
+// updates to all collaborators, not just the owner.
+func (s *PostgresStore) GetCollaboratorUserIDsForContainer(ctx context.Context, containerID string) ([]string, error) {
+	query := `
+		SELECT DISTINCT cp.user_id
+		FROM collab_participants cp
+		INNER JOIN collab_sessions cs ON cp.session_id = cs.id
+		WHERE cs.container_id = $1
+		  AND cs.is_active = true
+		  AND cs.expires_at > NOW()
+		  AND cp.left_at IS NULL
+	`
+	rows, err := s.db.QueryContext(ctx, query, containerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var userIDs []string
+	for rows.Next() {
+		var userID string
+		if err := rows.Scan(&userID); err != nil {
+			return nil, err
+		}
+		userIDs = append(userIDs, userID)
+	}
+	return userIDs, nil
+}
+
 // ============================================================================
 // Collaboration Invitations
 // ============================================================================
