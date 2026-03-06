@@ -504,21 +504,62 @@ func (h *ContainerEventsHub) NotifyContainerProgress(userID string, progressData
 }
 
 // NotifyAgentConnected notifies a user that an agent connected
+// Also broadcasts to all collaborators who have access to this agent
 func (h *ContainerEventsHub) NotifyAgentConnected(userID string, agentData interface{}) {
-	h.BroadcastToUser(userID, ContainerEvent{
+	event := ContainerEvent{
 		Type:      "agent_connected",
 		Container: agentData,
 		Timestamp: time.Now(),
-	})
+	}
+
+	// Broadcast to the owner
+	h.BroadcastToUser(userID, event)
+
+	// Extract agent ID to find collaborators
+	if data, ok := agentData.(gin.H); ok {
+		if id, ok := data["id"].(string); ok && strings.HasPrefix(id, "agent:") {
+			// Also broadcast to all collaborators who have access to this agent
+			h.broadcastToCollaborators(id, event)
+		}
+	}
 }
 
 // NotifyAgentDisconnected notifies a user that an agent disconnected
+// Also broadcasts to all collaborators who have access to this agent
 func (h *ContainerEventsHub) NotifyAgentDisconnected(userID string, agentID string) {
-	h.BroadcastToUser(userID, ContainerEvent{
+	containerID := "agent:" + agentID
+	event := ContainerEvent{
 		Type:      "agent_disconnected",
-		Container: gin.H{"id": "agent:" + agentID},
+		Container: gin.H{"id": containerID},
 		Timestamp: time.Now(),
-	})
+	}
+
+	// Broadcast to the owner
+	h.BroadcastToUser(userID, event)
+
+	// Also broadcast to all collaborators who have access to this agent
+	h.broadcastToCollaborators(containerID, event)
+}
+
+// broadcastToCollaborators sends an event to all collaborators who have access to a container/agent
+func (h *ContainerEventsHub) broadcastToCollaborators(containerID string, event ContainerEvent) {
+	if h.store == nil {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	collaboratorIDs, err := h.store.GetCollaboratorUserIDsForContainer(ctx, containerID)
+	if err != nil {
+		log.Printf("[ContainerEvents] Failed to get collaborators for %s: %v", containerID, err)
+		return
+	}
+
+	// Broadcast to each collaborator
+	for _, collabUserID := range collaboratorIDs {
+		h.BroadcastToUser(collabUserID, event)
+	}
 }
 
 // NotifyAgentStatsUpdated notifies a user that an agent's stats have been updated
