@@ -1759,6 +1759,28 @@ func (h *AgentHandler) userHasAnyAgentSession(userID, agentID string) bool {
 	return false
 }
 
+// IsAgentOnline checks if an agent is currently connected (locally or via Redis)
+// This is used by shared terminal logic to determine accurate online status
+func (h *AgentHandler) IsAgentOnline(agentID string) bool {
+	// Check local connection first
+	h.agentsMu.RLock()
+	_, isLocal := h.agents[agentID]
+	h.agentsMu.RUnlock()
+	if isLocal {
+		return true
+	}
+
+	// Check Redis for remote agent location (agent connected to another instance)
+	if h.pubsubHub != nil {
+		_, found := h.pubsubHub.GetAgentLocation(agentID)
+		if found {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (h *AgentHandler) countDistinctAgentTerminalsForUser(userID string) int {
 	agentIDs := make(map[string]struct{})
 
