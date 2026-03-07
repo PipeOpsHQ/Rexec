@@ -2301,11 +2301,13 @@
 
     .container-meta {
         display: flex;
-        gap: 16px;
+        flex-wrap: wrap;
+        gap: 12px 16px;
         margin-bottom: 8px;
         padding: 8px 10px;
         background: var(--bg-secondary);
         border: 1px solid var(--border-muted);
+        border-radius: 6px;
         flex-shrink: 0; /* Prevent shrinking */
     }
 
@@ -2313,6 +2315,7 @@
         display: flex;
         flex-direction: column;
         gap: 2px;
+        min-width: 0; /* Allow text truncation */
     }
 
     .meta-item-right {
@@ -2324,11 +2327,16 @@
         font-size: 10px;
         color: #999999;
         text-transform: uppercase;
+        white-space: nowrap;
     }
 
     .meta-value {
         font-size: 12px;
         color: var(--text-secondary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 180px;
     }
 
     /* Activity dot in meta-item */
@@ -2363,11 +2371,13 @@
     .container-resources {
         display: flex;
         align-items: center;
+        flex-wrap: wrap;
         gap: 6px;
         margin-bottom: 10px;
         padding: 6px 10px;
         background: var(--bg-secondary);
         border: 1px solid var(--border-muted);
+        border-radius: 6px;
         font-family: var(--font-mono);
         font-size: 11px;
     }
@@ -2402,16 +2412,19 @@
         align-items: center;
         gap: 4px;
         color: var(--accent);
+        white-space: nowrap;
     }
 
     .resource-icon {
         width: 12px;
         height: 12px;
         color: var(--text-muted);
+        flex-shrink: 0;
     }
 
     .resource-divider {
         color: var(--text-muted);
+        flex-shrink: 0;
     }
 
     /* Activity dot in meta-item - consistent styling */
@@ -2650,13 +2663,19 @@
 
         .container-meta {
             flex-direction: column;
-            gap: 4px;
-            padding: 8px 0;
+            gap: 6px;
+            padding: 8px 10px;
         }
 
         .meta-item {
             flex-direction: row;
             justify-content: space-between;
+            align-items: center;
+        }
+
+        .meta-item .meta-value {
+            max-width: 60%;
+            text-align: right;
         }
 
         .meta-item-right {
@@ -3168,6 +3187,7 @@
     /* Shared owner info in meta section */
     .shared-owner .meta-value {
         color: #a78bfa;
+        max-width: 200px;
     }
 
     /* Collab mode indicators */
