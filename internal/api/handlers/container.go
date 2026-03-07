@@ -238,9 +238,14 @@ func (h *ContainerHandler) GetSharedTerminalsForUser(ctx context.Context, userID
 					continue
 				}
 
-				// Determine online status
-				threshold := time.Now().Add(-2 * time.Minute)
-				isOnline := !agent.LastPing.IsZero() && agent.LastPing.After(threshold)
+				// Determine online status - check if agent is actually connected
+				// First check real-time connection status (local or via Redis)
+				isOnline := h.agentHandler.IsAgentOnline(agentID)
+				// Fallback to LastPing check if not found in active connections
+				if !isOnline {
+					threshold := time.Now().Add(-2 * time.Minute)
+					isOnline = !agent.LastPing.IsZero() && agent.LastPing.After(threshold)
+				}
 				status := "offline"
 				if isOnline {
 					status = "running"
