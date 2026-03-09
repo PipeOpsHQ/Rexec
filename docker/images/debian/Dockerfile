@@ -1,4 +1,4 @@
-FROM debian:bookworm
+FROM debian:13.3
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
