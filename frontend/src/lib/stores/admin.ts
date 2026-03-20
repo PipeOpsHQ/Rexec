@@ -46,15 +46,21 @@ export interface AdminUsageTotals {
   users: number;
   containers: number;
   activeSessions: number;
+  logins: number;
   agents: number;
   onlineAgents: number;
+  recordings: number;
+  recordingHours: number;
 }
 
 export interface AdminUsageActivity {
   newUsers: number;
   newContainers: number;
   newSessions: number;
+  newLogins: number;
   newAgents: number;
+  newRecordings: number;
+  recordingHours: number;
 }
 
 export interface AdminUsagePoint {
@@ -63,7 +69,9 @@ export interface AdminUsagePoint {
   newUsers: number;
   newContainers: number;
   newSessions: number;
+  newLogins: number;
   newAgents: number;
+  newRecordings: number;
 }
 
 export interface AdminUsageStats {

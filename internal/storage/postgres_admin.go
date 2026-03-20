@@ -189,10 +189,19 @@ func (s *PostgresStore) GetAdminUsageStats(ctx context.Context, from, to time.Ti
 	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM sessions WHERE last_ping_at > NOW() - INTERVAL '5 minutes'`).Scan(&stats.Totals.ActiveSessions); err != nil {
 		return nil, err
 	}
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM user_sessions`).Scan(&stats.Totals.Logins); err != nil {
+		return nil, err
+	}
 	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM agents`).Scan(&stats.Totals.Agents); err != nil {
 		return nil, err
 	}
 	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM agents WHERE last_heartbeat > NOW() - INTERVAL '2 minutes'`).Scan(&stats.Totals.OnlineAgents); err != nil {
+		return nil, err
+	}
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM terminal_recordings`).Scan(&stats.Totals.Recordings); err != nil {
+		return nil, err
+	}
+	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(ROUND(SUM(duration_ms) / 3600000.0)::INTEGER, 0) FROM terminal_recordings`).Scan(&stats.Totals.RecordingHours); err != nil {
 		return nil, err
 	}
 
@@ -205,7 +214,16 @@ func (s *PostgresStore) GetAdminUsageStats(ctx context.Context, from, to time.Ti
 	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM sessions WHERE created_at >= $1 AND created_at < $2`, from, to).Scan(&stats.Activity.NewSessions); err != nil {
 		return nil, err
 	}
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM user_sessions WHERE created_at >= $1 AND created_at < $2`, from, to).Scan(&stats.Activity.NewLogins); err != nil {
+		return nil, err
+	}
 	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM agents WHERE created_at >= $1 AND created_at < $2`, from, to).Scan(&stats.Activity.NewAgents); err != nil {
+		return nil, err
+	}
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM terminal_recordings WHERE created_at >= $1 AND created_at < $2`, from, to).Scan(&stats.Activity.NewRecordings); err != nil {
+		return nil, err
+	}
+	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(ROUND(SUM(duration_ms) / 3600000.0)::INTEGER, 0) FROM terminal_recordings WHERE created_at >= $1 AND created_at < $2`, from, to).Scan(&stats.Activity.RecordingHours); err != nil {
 		return nil, err
 	}
 
@@ -231,8 +249,18 @@ func (s *PostgresStore) GetAdminUsageStats(ctx context.Context, from, to time.Ti
 	}); err != nil {
 		return nil, err
 	}
+	if err := s.fillAdminUsageSeries(ctx, stats.Timeline, `user_sessions`, `created_at`, interval, from, to, func(point *models.AdminUsagePoint, count int) {
+		point.NewLogins = count
+	}); err != nil {
+		return nil, err
+	}
 	if err := s.fillAdminUsageSeries(ctx, stats.Timeline, `agents`, `created_at`, interval, from, to, func(point *models.AdminUsagePoint, count int) {
 		point.NewAgents = count
+	}); err != nil {
+		return nil, err
+	}
+	if err := s.fillAdminUsageSeries(ctx, stats.Timeline, `terminal_recordings`, `created_at`, interval, from, to, func(point *models.AdminUsagePoint, count int) {
+		point.NewRecordings = count
 	}); err != nil {
 		return nil, err
 	}

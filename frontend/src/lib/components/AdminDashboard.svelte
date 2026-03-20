@@ -53,12 +53,14 @@
     $: wsError = $admin.error;
     $: chartMax = Math.max(
         1,
-        ...(stats?.timeline ?? []).flatMap((point) => [
-            point.newUsers,
-            point.newContainers,
-            point.newSessions,
-            point.newAgents
-        ])
+        ...((stats?.timeline ?? []).map((point) => (
+            point.newUsers +
+            point.newContainers +
+            point.newSessions +
+            point.newLogins +
+            point.newAgents +
+            point.newRecordings
+        )))
     );
 
     // Actions
@@ -83,25 +85,47 @@
          return "linux";
      }
 
-    function getSeriesPath(values: number[]): string {
-        if (values.length === 0) return "";
+    function getBarHeight(total: number): string {
+        return `${Math.max(8, (total / chartMax) * 100)}%`;
+    }
 
-        const width = 100;
-        const height = 100;
-        const stepX = values.length > 1 ? width / (values.length - 1) : 0;
-
-        return values
-            .map((value, index) => {
-                const x = index * stepX;
-                const y = height - (value / chartMax) * height;
-                return `${index === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`;
-            })
-            .join(" ");
+    function getSegmentHeight(value: number, total: number): string {
+        if (value === 0 || total === 0) return "0%";
+        return `${(value / total) * 100}%`;
     }
 
     async function handleStatsRangeChange(range: string) {
         selectedStatsRange = range;
         await admin.fetchStats(range);
+    }
+
+    function exportStatsCsv() {
+        if (!stats) return;
+
+        const rows = [
+            ["period", "users", "containers", "sessions", "logins", "agents", "recordings"],
+            ...stats.timeline.map((point) => [
+                point.bucketLabel,
+                point.newUsers,
+                point.newContainers,
+                point.newSessions,
+                point.newLogins,
+                point.newAgents,
+                point.newRecordings
+            ])
+        ];
+
+        const csv = rows
+            .map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(","))
+            .join("\n");
+
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `admin-stats-${selectedStatsRange}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
     }
 
 </script>
@@ -203,16 +227,21 @@
                             <h2>Usage overview</h2>
                             <p>Track signups, sessions, containers, and agents over time.</p>
                         </div>
-                        <div class="range-filter" role="group" aria-label="Stats time range">
-                            {#each statsRanges as range}
-                                <button
-                                    class="range-btn"
-                                    class:active={selectedStatsRange === range.value}
-                                    onclick={() => handleStatsRangeChange(range.value)}
-                                >
-                                    {range.label}
-                                </button>
-                            {/each}
+                        <div class="stats-actions">
+                            <div class="range-filter" role="group" aria-label="Stats time range">
+                                {#each statsRanges as range}
+                                    <button
+                                        class="range-btn"
+                                        class:active={selectedStatsRange === range.value}
+                                        onclick={() => handleStatsRangeChange(range.value)}
+                                    >
+                                        {range.label}
+                                    </button>
+                                {/each}
+                            </div>
+                            <button class="btn btn-secondary btn-sm export-btn" onclick={exportStatsCsv}>
+                                Export CSV
+                            </button>
                         </div>
                     </div>
 
@@ -229,6 +258,11 @@
                                 <span class="metric-note">{stats.activity.newSessions} sessions started</span>
                             </article>
                             <article class="metric-card">
+                                <span class="metric-label">Logins</span>
+                                <strong>{stats.totals.logins}</strong>
+                                <span class="metric-note">{stats.activity.newLogins} in range</span>
+                            </article>
+                            <article class="metric-card">
                                 <span class="metric-label">Active containers</span>
                                 <strong>{stats.totals.containers}</strong>
                                 <span class="metric-note">{stats.activity.newContainers} created in range</span>
@@ -237,6 +271,16 @@
                                 <span class="metric-label">Agents online</span>
                                 <strong>{stats.totals.onlineAgents} / {stats.totals.agents}</strong>
                                 <span class="metric-note">{stats.activity.newAgents} new registrations</span>
+                            </article>
+                            <article class="metric-card accent-recordings">
+                                <span class="metric-label">Recordings</span>
+                                <strong>{stats.totals.recordings}</strong>
+                                <span class="metric-note">{stats.activity.newRecordings} saved in range</span>
+                            </article>
+                            <article class="metric-card accent-recordings">
+                                <span class="metric-label">Recorded hours</span>
+                                <strong>{stats.totals.recordingHours}</strong>
+                                <span class="metric-note">{stats.activity.recordingHours} hours in range</span>
                             </article>
                         </div>
 
@@ -250,17 +294,28 @@
                                     <span class="legend-item users">Users</span>
                                     <span class="legend-item containers">Containers</span>
                                     <span class="legend-item sessions">Sessions</span>
+                                    <span class="legend-item logins">Logins</span>
                                     <span class="legend-item agents">Agents</span>
+                                    <span class="legend-item recordings">Recordings</span>
                                 </div>
                             </div>
 
                             <div class="chart-wrap">
-                                <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="Usage timeline chart">
-                                    <path class="chart-line users" d={getSeriesPath((stats.timeline ?? []).map((point) => point.newUsers))}></path>
-                                    <path class="chart-line containers" d={getSeriesPath((stats.timeline ?? []).map((point) => point.newContainers))}></path>
-                                    <path class="chart-line sessions" d={getSeriesPath((stats.timeline ?? []).map((point) => point.newSessions))}></path>
-                                    <path class="chart-line agents" d={getSeriesPath((stats.timeline ?? []).map((point) => point.newAgents))}></path>
-                                </svg>
+                                <div class="stacked-chart" aria-label="Usage timeline chart">
+                                    {#each stats.timeline as point (point.bucketStart)}
+                                        {@const total = point.newUsers + point.newContainers + point.newSessions + point.newLogins + point.newAgents + point.newRecordings}
+                                        <div class="chart-bar-group" title={`${point.bucketLabel}: ${total} total events`}>
+                                            <div class="chart-bar" style={`height: ${getBarHeight(total)}`}>
+                                                <span class="bar-segment users" style={`height: ${getSegmentHeight(point.newUsers, total)}`}></span>
+                                                <span class="bar-segment containers" style={`height: ${getSegmentHeight(point.newContainers, total)}`}></span>
+                                                <span class="bar-segment sessions" style={`height: ${getSegmentHeight(point.newSessions, total)}`}></span>
+                                                <span class="bar-segment logins" style={`height: ${getSegmentHeight(point.newLogins, total)}`}></span>
+                                                <span class="bar-segment agents" style={`height: ${getSegmentHeight(point.newAgents, total)}`}></span>
+                                                <span class="bar-segment recordings" style={`height: ${getSegmentHeight(point.newRecordings, total)}`}></span>
+                                            </div>
+                                        </div>
+                                    {/each}
+                                </div>
                             </div>
 
                             <div class="chart-axis">
@@ -278,7 +333,9 @@
                                         <th>Users</th>
                                         <th>Containers</th>
                                         <th>Sessions</th>
+                                        <th>Logins</th>
                                         <th>Agents</th>
+                                        <th>Recordings</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -288,7 +345,9 @@
                                             <td>{point.newUsers}</td>
                                             <td>{point.newContainers}</td>
                                             <td>{point.newSessions}</td>
+                                            <td>{point.newLogins}</td>
                                             <td>{point.newAgents}</td>
+                                            <td>{point.newRecordings}</td>
                                         </tr>
                                     {/each}
                                 </tbody>
@@ -651,6 +710,14 @@
         align-items: flex-start;
     }
 
+    .stats-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: flex-end;
+        align-items: center;
+    }
+
     .stats-toolbar h2,
     .chart-header h3 {
         margin: 0;
@@ -690,7 +757,7 @@
 
     .metric-grid {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 16px;
     }
 
@@ -725,6 +792,10 @@
 
     .metric-note {
         color: var(--text-secondary);
+    }
+
+    .accent-recordings strong {
+        color: #ff7a59;
     }
 
     .chart-card {
@@ -763,32 +834,44 @@
     }
 
     .legend-item.users,
-    .chart-line.users {
+    .bar-segment.users {
         color: #4aa3ff;
-        stroke: #4aa3ff;
+        background: #4aa3ff;
     }
 
     .legend-item.containers,
-    .chart-line.containers {
+    .bar-segment.containers {
         color: #f8b84e;
-        stroke: #f8b84e;
+        background: #f8b84e;
     }
 
     .legend-item.sessions,
-    .chart-line.sessions {
+    .bar-segment.sessions {
         color: #3ddc97;
-        stroke: #3ddc97;
+        background: #3ddc97;
+    }
+
+    .legend-item.logins,
+    .bar-segment.logins {
+        color: #b38cff;
+        background: #b38cff;
     }
 
     .legend-item.agents,
-    .chart-line.agents {
+    .bar-segment.agents {
         color: #ff7a59;
-        stroke: #ff7a59;
+        background: #ff7a59;
+    }
+
+    .legend-item.recordings,
+    .bar-segment.recordings {
+        color: #56d4c1;
+        background: #56d4c1;
     }
 
     .chart-wrap {
         height: 240px;
-        padding: 16px 0;
+        padding: 16px 0 8px;
         border-top: 1px solid var(--border);
         border-bottom: 1px solid var(--border);
         background:
@@ -797,22 +880,40 @@
             linear-gradient(to top, transparent 74%, color-mix(in srgb, var(--border) 70%, transparent) 75%, transparent 76%);
     }
 
-    .chart-wrap svg {
+    .stacked-chart {
         width: 100%;
         height: 100%;
-        overflow: visible;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(12px, 1fr));
+        gap: 8px;
+        align-items: end;
     }
 
-    .chart-line {
-        fill: none;
-        stroke-width: 2.5;
-        stroke-linecap: round;
-        stroke-linejoin: round;
+    .chart-bar-group {
+        min-width: 0;
+        height: 100%;
+        display: flex;
+        align-items: end;
+    }
+
+    .chart-bar {
+        width: 100%;
+        min-height: 8px;
+        display: flex;
+        flex-direction: column-reverse;
+        border-radius: 8px 8px 4px 4px;
+        overflow: hidden;
+        background: color-mix(in srgb, var(--bg-tertiary) 88%, transparent);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border) 75%, transparent);
+    }
+
+    .bar-segment {
+        width: 100%;
     }
 
     .chart-axis {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(48px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(12px, 1fr));
         gap: 8px;
         margin-top: 12px;
         color: var(--text-muted);
@@ -826,7 +927,7 @@
     }
 
     .stats-table {
-        min-width: 640px;
+        min-width: 760px;
     }
 
     /* Table */
@@ -1039,8 +1140,10 @@
         }
 
         .stats-toolbar,
-        .chart-header {
+        .chart-header,
+        .stats-actions {
             flex-direction: column;
+            align-items: stretch;
         }
 
         .metric-grid {

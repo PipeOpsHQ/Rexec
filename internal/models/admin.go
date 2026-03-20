@@ -25,16 +25,22 @@ type AdminUsageTotals struct {
 	Users          int `json:"users"`
 	Containers     int `json:"containers"`
 	ActiveSessions int `json:"activeSessions"`
+	Logins         int `json:"logins"`
 	Agents         int `json:"agents"`
 	OnlineAgents   int `json:"onlineAgents"`
+	Recordings     int `json:"recordings"`
+	RecordingHours int `json:"recordingHours"`
 }
 
 // AdminUsageActivity represents activity within the selected time range.
 type AdminUsageActivity struct {
-	NewUsers      int `json:"newUsers"`
-	NewContainers int `json:"newContainers"`
-	NewSessions   int `json:"newSessions"`
-	NewAgents     int `json:"newAgents"`
+	NewUsers       int `json:"newUsers"`
+	NewContainers  int `json:"newContainers"`
+	NewSessions    int `json:"newSessions"`
+	NewLogins      int `json:"newLogins"`
+	NewAgents      int `json:"newAgents"`
+	NewRecordings  int `json:"newRecordings"`
+	RecordingHours int `json:"recordingHours"`
 }
 
 // AdminUsagePoint represents one bucket in the usage chart.
@@ -44,7 +50,9 @@ type AdminUsagePoint struct {
 	NewUsers      int       `json:"newUsers"`
 	NewContainers int       `json:"newContainers"`
 	NewSessions   int       `json:"newSessions"`
+	NewLogins     int       `json:"newLogins"`
 	NewAgents     int       `json:"newAgents"`
+	NewRecordings int       `json:"newRecordings"`
 }
 
 // AdminUsageStats represents usage analytics for the admin dashboard.
