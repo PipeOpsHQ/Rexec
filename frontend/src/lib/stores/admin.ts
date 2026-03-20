@@ -42,6 +42,40 @@ export interface AdminAgent {
   system_info?: any;
 }
 
+export interface AdminUsageTotals {
+  users: number;
+  containers: number;
+  activeSessions: number;
+  agents: number;
+  onlineAgents: number;
+}
+
+export interface AdminUsageActivity {
+  newUsers: number;
+  newContainers: number;
+  newSessions: number;
+  newAgents: number;
+}
+
+export interface AdminUsagePoint {
+  bucketStart: string;
+  bucketLabel: string;
+  newUsers: number;
+  newContainers: number;
+  newSessions: number;
+  newAgents: number;
+}
+
+export interface AdminUsageStats {
+  range: string;
+  interval: "hour" | "day" | "week" | "month";
+  from: string;
+  to: string;
+  totals: AdminUsageTotals;
+  activity: AdminUsageActivity;
+  timeline: AdminUsagePoint[];
+}
+
 // Backend AdminEvent interface
 export interface AdminEvent<T = any> {
   type:
@@ -63,6 +97,7 @@ export interface AdminState {
   containers: AdminContainer[];
   terminals: AdminTerminal[];
   agents: AdminAgent[];
+  stats: AdminUsageStats | null;
   isLoading: boolean;
   error: string | null;
   ws: WebSocket | null;
@@ -77,6 +112,7 @@ const initialState: AdminState = {
   containers: [],
   terminals: [],
   agents: [],
+  stats: null,
   isLoading: false,
   error: null,
   ws: null,
@@ -319,6 +355,24 @@ function createAdminStore() {
       update((state) => ({
         ...state,
         agents: data || [],
+        isLoading: false,
+      }));
+    },
+
+    fetchStats: async (range = "30d") => {
+      update((state) => ({ ...state, isLoading: true, error: null }));
+      const { data, error } = await api.get<AdminUsageStats>(
+        `/api/admin/stats?range=${encodeURIComponent(range)}`,
+      );
+
+      if (error) {
+        update((state) => ({ ...state, isLoading: false, error }));
+        return;
+      }
+
+      update((state) => ({
+        ...state,
+        stats: data || null,
         isLoading: false,
       }));
     },

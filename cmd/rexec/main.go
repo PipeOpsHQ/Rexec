@@ -885,6 +885,7 @@ func runServer() {
 
 			admin.GET("/terminals", adminHandler.ListTerminals)
 			admin.GET("/agents", adminHandler.ListAgents)
+			admin.GET("/stats", adminHandler.UsageStats)
 
 			// Debug/runtime info (admin-only)
 			admin.GET("/runtime", handlers.GetRuntimeStats)

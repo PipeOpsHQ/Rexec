@@ -4,9 +4,18 @@
     import { formatRelativeTime, formatMemory, formatCPU } from "$utils/api";
     import PlatformIcon from "./icons/PlatformIcon.svelte";
 
+    const statsRanges = [
+        { value: "24h", label: "24H" },
+        { value: "7d", label: "7D" },
+        { value: "30d", label: "30D" },
+        { value: "90d", label: "90D" },
+        { value: "12m", label: "12M" }
+    ] as const;
+
     // Tabs
-    type Tab = "users" | "subscribers" | "containers" | "terminals" | "agents";
-    let activeTab: Tab = "users";
+    type Tab = "stats" | "users" | "subscribers" | "containers" | "terminals" | "agents";
+    let activeTab: Tab = "stats";
+    let selectedStatsRange = "30d";
 
     function setTab(tab: Tab) {
         activeTab = tab;
@@ -14,6 +23,7 @@
 
     async function loadData() {
         await Promise.all([
+            admin.fetchStats(selectedStatsRange),
             admin.fetchUsers(),
             admin.fetchContainers(),
             admin.fetchTerminals(),
@@ -37,9 +47,19 @@
     $: containers = $admin.containers;
     $: terminals = $admin.terminals;
     $: agents = $admin.agents;
+    $: stats = $admin.stats;
     $: isLoading = $admin.isLoading;
     $: wsConnected = $admin.wsConnected;
     $: wsError = $admin.error;
+    $: chartMax = Math.max(
+        1,
+        ...(stats?.timeline ?? []).flatMap((point) => [
+            point.newUsers,
+            point.newContainers,
+            point.newSessions,
+            point.newAgents
+        ])
+    );
 
     // Actions
     async function handleDeleteUser(userId: string) {
@@ -61,6 +81,27 @@
          if (lower.includes("debian")) return "debian";
          if (lower.includes("alpine")) return "alpine";
          return "linux";
+     }
+
+    function getSeriesPath(values: number[]): string {
+        if (values.length === 0) return "";
+
+        const width = 100;
+        const height = 100;
+        const stepX = values.length > 1 ? width / (values.length - 1) : 0;
+
+        return values
+            .map((value, index) => {
+                const x = index * stepX;
+                const y = height - (value / chartMax) * height;
+                return `${index === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`;
+            })
+            .join(" ");
+    }
+
+    async function handleStatsRangeChange(range: string) {
+        selectedStatsRange = range;
+        await admin.fetchStats(range);
     }
 
 </script>
@@ -106,6 +147,13 @@
     <div class="tabs">
         <button
             class="tab-btn"
+            class:active={activeTab === "stats"}
+            onclick={() => setTab("stats")}
+        >
+            Stats
+        </button>
+        <button
+            class="tab-btn"
             class:active={activeTab === "users"}
             onclick={() => setTab("users")}
         >
@@ -148,7 +196,107 @@
         </div>
     {:else}
         <div class="tab-content">
-            {#if activeTab === "users"}
+            {#if activeTab === "stats"}
+                <div class="stats-panel">
+                    <div class="stats-toolbar">
+                        <div>
+                            <h2>Usage overview</h2>
+                            <p>Track signups, sessions, containers, and agents over time.</p>
+                        </div>
+                        <div class="range-filter" role="group" aria-label="Stats time range">
+                            {#each statsRanges as range}
+                                <button
+                                    class="range-btn"
+                                    class:active={selectedStatsRange === range.value}
+                                    onclick={() => handleStatsRangeChange(range.value)}
+                                >
+                                    {range.label}
+                                </button>
+                            {/each}
+                        </div>
+                    </div>
+
+                    {#if stats}
+                        <div class="metric-grid metric-grid-primary">
+                            <article class="metric-card">
+                                <span class="metric-label">Total users</span>
+                                <strong>{stats.totals.users}</strong>
+                                <span class="metric-note">{stats.activity.newUsers} new in range</span>
+                            </article>
+                            <article class="metric-card">
+                                <span class="metric-label">Live terminals</span>
+                                <strong>{stats.totals.activeSessions}</strong>
+                                <span class="metric-note">{stats.activity.newSessions} sessions started</span>
+                            </article>
+                            <article class="metric-card">
+                                <span class="metric-label">Active containers</span>
+                                <strong>{stats.totals.containers}</strong>
+                                <span class="metric-note">{stats.activity.newContainers} created in range</span>
+                            </article>
+                            <article class="metric-card">
+                                <span class="metric-label">Agents online</span>
+                                <strong>{stats.totals.onlineAgents} / {stats.totals.agents}</strong>
+                                <span class="metric-note">{stats.activity.newAgents} new registrations</span>
+                            </article>
+                        </div>
+
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <div>
+                                    <h3>Usage over time</h3>
+                                    <p>{new Date(stats.from).toLocaleDateString()} - {new Date(stats.to).toLocaleDateString()}</p>
+                                </div>
+                                <div class="chart-legend">
+                                    <span class="legend-item users">Users</span>
+                                    <span class="legend-item containers">Containers</span>
+                                    <span class="legend-item sessions">Sessions</span>
+                                    <span class="legend-item agents">Agents</span>
+                                </div>
+                            </div>
+
+                            <div class="chart-wrap">
+                                <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="Usage timeline chart">
+                                    <path class="chart-line users" d={getSeriesPath((stats.timeline ?? []).map((point) => point.newUsers))}></path>
+                                    <path class="chart-line containers" d={getSeriesPath((stats.timeline ?? []).map((point) => point.newContainers))}></path>
+                                    <path class="chart-line sessions" d={getSeriesPath((stats.timeline ?? []).map((point) => point.newSessions))}></path>
+                                    <path class="chart-line agents" d={getSeriesPath((stats.timeline ?? []).map((point) => point.newAgents))}></path>
+                                </svg>
+                            </div>
+
+                            <div class="chart-axis">
+                                {#each stats.timeline as point (point.bucketStart)}
+                                    <span>{point.bucketLabel}</span>
+                                {/each}
+                            </div>
+                        </div>
+
+                        <div class="data-table-container stats-table-container">
+                            <table class="data-table stats-table">
+                                <thead>
+                                    <tr>
+                                        <th>Period</th>
+                                        <th>Users</th>
+                                        <th>Containers</th>
+                                        <th>Sessions</th>
+                                        <th>Agents</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {#each stats.timeline as point (point.bucketStart)}
+                                        <tr>
+                                            <td>{point.bucketLabel}</td>
+                                            <td>{point.newUsers}</td>
+                                            <td>{point.newContainers}</td>
+                                            <td>{point.newSessions}</td>
+                                            <td>{point.newAgents}</td>
+                                        </tr>
+                                    {/each}
+                                </tbody>
+                            </table>
+                        </div>
+                    {/if}
+                </div>
+            {:else if activeTab === "users"}
                 <div class="data-table-container">
                     <table class="data-table">
                         <thead>
@@ -491,6 +639,196 @@
         background: var(--accent);
     }
 
+    .stats-panel {
+        display: grid;
+        gap: 20px;
+    }
+
+    .stats-toolbar {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: flex-start;
+    }
+
+    .stats-toolbar h2,
+    .chart-header h3 {
+        margin: 0;
+        font-size: 18px;
+    }
+
+    .stats-toolbar p,
+    .chart-header p {
+        margin: 6px 0 0;
+        color: var(--text-muted);
+        font-size: 13px;
+    }
+
+    .range-filter {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .range-btn {
+        border: 1px solid var(--border);
+        background: var(--bg-secondary);
+        color: var(--text-muted);
+        padding: 8px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .range-btn:hover,
+    .range-btn.active {
+        color: var(--text);
+        border-color: var(--accent);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+    }
+
+    .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+    }
+
+    .metric-card,
+    .chart-card {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: linear-gradient(180deg, color-mix(in srgb, var(--bg-secondary) 92%, white 8%), var(--bg-secondary));
+    }
+
+    .metric-card {
+        padding: 18px;
+        display: grid;
+        gap: 8px;
+    }
+
+    .metric-label,
+    .metric-note {
+        font-size: 12px;
+    }
+
+    .metric-label {
+        text-transform: uppercase;
+        color: var(--text-muted);
+        letter-spacing: 0.08em;
+    }
+
+    .metric-card strong {
+        font-size: 28px;
+        line-height: 1;
+    }
+
+    .metric-note {
+        color: var(--text-secondary);
+    }
+
+    .chart-card {
+        padding: 20px;
+    }
+
+    .chart-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: flex-start;
+        margin-bottom: 20px;
+    }
+
+    .chart-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: flex-end;
+    }
+
+    .legend-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--text-muted);
+    }
+
+    .legend-item::before {
+        content: "";
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: currentColor;
+    }
+
+    .legend-item.users,
+    .chart-line.users {
+        color: #4aa3ff;
+        stroke: #4aa3ff;
+    }
+
+    .legend-item.containers,
+    .chart-line.containers {
+        color: #f8b84e;
+        stroke: #f8b84e;
+    }
+
+    .legend-item.sessions,
+    .chart-line.sessions {
+        color: #3ddc97;
+        stroke: #3ddc97;
+    }
+
+    .legend-item.agents,
+    .chart-line.agents {
+        color: #ff7a59;
+        stroke: #ff7a59;
+    }
+
+    .chart-wrap {
+        height: 240px;
+        padding: 16px 0;
+        border-top: 1px solid var(--border);
+        border-bottom: 1px solid var(--border);
+        background:
+            linear-gradient(to top, transparent 24%, color-mix(in srgb, var(--border) 70%, transparent) 25%, transparent 26%),
+            linear-gradient(to top, transparent 49%, color-mix(in srgb, var(--border) 70%, transparent) 50%, transparent 51%),
+            linear-gradient(to top, transparent 74%, color-mix(in srgb, var(--border) 70%, transparent) 75%, transparent 76%);
+    }
+
+    .chart-wrap svg {
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+    }
+
+    .chart-line {
+        fill: none;
+        stroke-width: 2.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .chart-axis {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(48px, 1fr));
+        gap: 8px;
+        margin-top: 12px;
+        color: var(--text-muted);
+        font-size: 11px;
+    }
+
+    .chart-axis span {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .stats-table {
+        min-width: 640px;
+    }
+
     /* Table */
     .data-table-container {
         overflow-x: auto;
@@ -700,6 +1038,19 @@
             padding: 12px;
         }
 
+        .stats-toolbar,
+        .chart-header {
+            flex-direction: column;
+        }
+
+        .metric-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .chart-wrap {
+            height: 200px;
+        }
+
         .dashboard-header {
             flex-direction: column;
             align-items: flex-start;
@@ -725,6 +1076,12 @@
 
         .data-table th, .data-table td {
             padding: 10px 12px;
+        }
+    }
+
+    @media (max-width: 520px) {
+        .metric-grid {
+            grid-template-columns: 1fr;
         }
     }
 </style>

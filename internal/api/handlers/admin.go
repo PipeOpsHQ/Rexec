@@ -5,14 +5,14 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	admin_events "github.com/rexec/rexec/internal/api/handlers/admin_events"
 	"github.com/rexec/rexec/internal/models"
 	"github.com/rexec/rexec/internal/storage"
-	admin_events "github.com/rexec/rexec/internal/api/handlers/admin_events"
 )
 
 // AdminHandler handles API requests related to admin functionalities.
 type AdminHandler struct {
-	store *storage.PostgresStore
+	store          *storage.PostgresStore
 	adminEventsHub *admin_events.AdminEventsHub // New field
 }
 
@@ -34,21 +34,21 @@ func (h *AdminHandler) ListUsers(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch container counts"})
 		return
 	}
-	    
-    // Define a response struct that includes container count
-    type AdminUserResponse struct {
-        models.User
-        ContainerCount int `json:"containerCount"`
-    }
-    
-    response := make([]AdminUserResponse, len(users))
-    for i, user := range users {
-        count := containerCounts[user.ID]
-        response[i] = AdminUserResponse{
-            User:           *user, // Dereference the pointer
-            ContainerCount: count,
-        }
-    }
+
+	// Define a response struct that includes container count
+	type AdminUserResponse struct {
+		models.User
+		ContainerCount int `json:"containerCount"`
+	}
+
+	response := make([]AdminUserResponse, len(users))
+	for i, user := range users {
+		count := containerCounts[user.ID]
+		response[i] = AdminUserResponse{
+			User:           *user, // Dereference the pointer
+			ContainerCount: count,
+		}
+	}
 
 	c.JSON(http.StatusOK, response)
 }
@@ -76,7 +76,7 @@ func (h *AdminHandler) ListTerminals(c *gin.Context) {
 // DeleteUser deletes a user by ID.
 func (h *AdminHandler) DeleteUser(c *gin.Context) {
 	userID := c.Param("id")
-	
+
 	// Fetch user before deleting to include in broadcast payload
 	userToDelete, err := h.store.GetUserByID(c.Request.Context(), userID)
 	if err != nil {
@@ -137,7 +137,7 @@ func (h *AdminHandler) ListAgents(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch agents"})
 		return
 	}
-	
+
 	threshold := time.Now().Add(-2 * time.Minute)
 	for i := range agents {
 		if !agents[i].LastPing.IsZero() && agents[i].LastPing.After(threshold) {
@@ -146,6 +146,64 @@ func (h *AdminHandler) ListAgents(c *gin.Context) {
 			agents[i].Status = "offline"
 		}
 	}
-	
+
 	c.JSON(http.StatusOK, agents)
+}
+
+// UsageStats returns time-filtered usage stats for the admin dashboard.
+func (h *AdminHandler) UsageStats(c *gin.Context) {
+	rangeKey := c.DefaultQuery("range", "30d")
+	from, to, interval, ok := resolveAdminUsageRange(rangeKey)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid range. Use 24h, 7d, 30d, 90d, or 12m"})
+		return
+	}
+
+	stats, err := h.store.GetAdminUsageStats(c.Request.Context(), from, to, interval)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch usage stats"})
+		return
+	}
+
+	stats.Range = rangeKey
+	c.JSON(http.StatusOK, stats)
+}
+
+func resolveAdminUsageRange(rangeKey string) (time.Time, time.Time, string, bool) {
+	now := time.Now().UTC()
+
+	switch rangeKey {
+	case "24h":
+		to := now.Truncate(time.Hour).Add(time.Hour)
+		from := to.Add(-24 * time.Hour)
+		return from, to, "hour", true
+	case "7d":
+		to := now.Truncate(24 * time.Hour).Add(24 * time.Hour)
+		from := to.AddDate(0, 0, -7)
+		return from, to, "day", true
+	case "30d":
+		to := now.Truncate(24 * time.Hour).Add(24 * time.Hour)
+		from := to.AddDate(0, 0, -30)
+		return from, to, "day", true
+	case "90d":
+		to := now.Truncate(24 * time.Hour).Add(24 * time.Hour)
+		from := startOfWeekUTC(to.AddDate(0, 0, -90))
+		return from, to, "week", true
+	case "12m":
+		monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+		to := monthStart.AddDate(0, 1, 0)
+		from := monthStart.AddDate(0, -11, 0)
+		return from, to, "month", true
+	default:
+		return time.Time{}, time.Time{}, "", false
+	}
+}
+
+func startOfWeekUTC(t time.Time) time.Time {
+	day := int(t.Weekday())
+	if day == 0 {
+		day = 7
+	}
+	start := t.Truncate(24 * time.Hour)
+	return start.AddDate(0, 0, -(day - 1))
 }

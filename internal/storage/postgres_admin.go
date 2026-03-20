@@ -3,6 +3,8 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"time"
 
 	"github.com/rexec/rexec/internal/models"
 )
@@ -96,7 +98,7 @@ func (s *PostgresStore) GetAllContainersAdmin(ctx context.Context) ([]*models.Ad
 	for rows.Next() {
 		var ac models.AdminContainer
 		ac.Resources = models.ResourceLimits{} // Initialize nested struct
-		
+
 		err := rows.Scan(
 			&ac.ID,
 			&ac.UserID,
@@ -168,4 +170,161 @@ func (s *PostgresStore) DeleteUser(ctx context.Context, id string) error {
 	query := `DELETE FROM users WHERE id = $1`
 	_, err := s.db.ExecContext(ctx, query, id)
 	return err
+}
+
+// GetAdminUsageStats returns aggregate usage analytics for the admin dashboard.
+func (s *PostgresStore) GetAdminUsageStats(ctx context.Context, from, to time.Time, interval string) (*models.AdminUsageStats, error) {
+	stats := &models.AdminUsageStats{
+		From:     from,
+		To:       to,
+		Interval: interval,
+	}
+
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM users`).Scan(&stats.Totals.Users); err != nil {
+		return nil, err
+	}
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM containers WHERE deleted_at IS NULL`).Scan(&stats.Totals.Containers); err != nil {
+		return nil, err
+	}
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM sessions WHERE last_ping_at > NOW() - INTERVAL '5 minutes'`).Scan(&stats.Totals.ActiveSessions); err != nil {
+		return nil, err
+	}
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM agents`).Scan(&stats.Totals.Agents); err != nil {
+		return nil, err
+	}
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM agents WHERE last_heartbeat > NOW() - INTERVAL '2 minutes'`).Scan(&stats.Totals.OnlineAgents); err != nil {
+		return nil, err
+	}
+
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE created_at >= $1 AND created_at < $2`, from, to).Scan(&stats.Activity.NewUsers); err != nil {
+		return nil, err
+	}
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM containers WHERE created_at >= $1 AND created_at < $2`, from, to).Scan(&stats.Activity.NewContainers); err != nil {
+		return nil, err
+	}
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM sessions WHERE created_at >= $1 AND created_at < $2`, from, to).Scan(&stats.Activity.NewSessions); err != nil {
+		return nil, err
+	}
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM agents WHERE created_at >= $1 AND created_at < $2`, from, to).Scan(&stats.Activity.NewAgents); err != nil {
+		return nil, err
+	}
+
+	buckets, err := buildAdminUsageBuckets(from, to, interval)
+	if err != nil {
+		return nil, err
+	}
+
+	stats.Timeline = buckets
+
+	if err := s.fillAdminUsageSeries(ctx, stats.Timeline, `users`, `created_at`, interval, from, to, func(point *models.AdminUsagePoint, count int) {
+		point.NewUsers = count
+	}); err != nil {
+		return nil, err
+	}
+	if err := s.fillAdminUsageSeries(ctx, stats.Timeline, `containers`, `created_at`, interval, from, to, func(point *models.AdminUsagePoint, count int) {
+		point.NewContainers = count
+	}); err != nil {
+		return nil, err
+	}
+	if err := s.fillAdminUsageSeries(ctx, stats.Timeline, `sessions`, `created_at`, interval, from, to, func(point *models.AdminUsagePoint, count int) {
+		point.NewSessions = count
+	}); err != nil {
+		return nil, err
+	}
+	if err := s.fillAdminUsageSeries(ctx, stats.Timeline, `agents`, `created_at`, interval, from, to, func(point *models.AdminUsagePoint, count int) {
+		point.NewAgents = count
+	}); err != nil {
+		return nil, err
+	}
+
+	return stats, nil
+}
+
+func buildAdminUsageBuckets(from, to time.Time, interval string) ([]models.AdminUsagePoint, error) {
+	var (
+		step      time.Duration
+		labelFmt  string
+		bucketCnt int
+	)
+
+	switch interval {
+	case "hour":
+		step = time.Hour
+		labelFmt = "3 PM"
+	case "day":
+		step = 24 * time.Hour
+		labelFmt = "Jan 2"
+	case "week":
+		step = 7 * 24 * time.Hour
+		labelFmt = "Jan 2"
+	case "month":
+		labelFmt = "Jan 2006"
+	default:
+		return nil, fmt.Errorf("unsupported interval %q", interval)
+	}
+
+	buckets := make([]models.AdminUsagePoint, 0)
+	cursor := from
+	for cursor.Before(to) {
+		next := cursor.Add(step)
+		if interval == "month" {
+			next = cursor.AddDate(0, 1, 0)
+		}
+		buckets = append(buckets, models.AdminUsagePoint{
+			BucketStart: cursor,
+			BucketLabel: cursor.Format(labelFmt),
+		})
+		cursor = next
+		bucketCnt++
+		if bucketCnt > 400 {
+			return nil, fmt.Errorf("too many usage buckets requested")
+		}
+	}
+
+	if len(buckets) == 0 {
+		buckets = append(buckets, models.AdminUsagePoint{
+			BucketStart: from,
+			BucketLabel: from.Format("Jan 2"),
+		})
+	}
+
+	return buckets, nil
+}
+
+func (s *PostgresStore) fillAdminUsageSeries(ctx context.Context, timeline []models.AdminUsagePoint, table, column, interval string, from, to time.Time, assign func(point *models.AdminUsagePoint, count int)) error {
+	if len(timeline) == 0 {
+		return nil
+	}
+
+	query := fmt.Sprintf(`
+		SELECT date_trunc('%s', %s) AS bucket, COUNT(*)
+		FROM %s
+		WHERE %s >= $1 AND %s < $2
+		GROUP BY 1
+		ORDER BY 1
+	`, interval, column, table, column, column)
+
+	rows, err := s.db.QueryContext(ctx, query, from, to)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	points := make(map[time.Time]*models.AdminUsagePoint, len(timeline))
+	for i := range timeline {
+		points[timeline[i].BucketStart] = &timeline[i]
+	}
+
+	for rows.Next() {
+		var bucket time.Time
+		var count int
+		if err := rows.Scan(&bucket, &count); err != nil {
+			return err
+		}
+		if point, ok := points[bucket]; ok {
+			assign(point, count)
+		}
+	}
+
+	return rows.Err()
 }
