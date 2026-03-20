@@ -34,6 +34,7 @@ export interface Container {
     | "running"
     | "stopped"
     | "creating"
+    | "configuring"
     | "starting"
     | "stopping"
     | "error"

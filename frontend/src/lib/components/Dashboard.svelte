@@ -350,7 +350,7 @@
     $: {
         // When connectedIds changes, check if any connecting containers are now connected
         for (const id of connectingIds) {
-            if (connectedIds.has(id)) {
+            if (connectedIds.has(id) || !hasActiveSession(id)) {
                 connectingIds.delete(id);
                 connectingIds = new Set(connectingIds);
             }
@@ -375,6 +375,7 @@
             case "offline":
                 return "status-stopped";
             case "creating":
+            case "configuring":
             case "starting":
             case "stopping":
                 return "status-creating";
@@ -1221,7 +1222,7 @@
                                     </svg>
                                 </button>
                             </div>
-                        {:else if container.status === "running"}
+                        {:else if container.status === "running" || container.status === "configuring"}
                             <div class="action-row">
                                 {#if !containerConnected && !isConnecting(container.id)}
                                     <button
@@ -1247,7 +1248,7 @@
                                             />
                                             <path d="M6 8l4 4-4 4" />
                                         </svg>
-                                        Connect
+                                        {container.status === "configuring" ? "Open" : "Connect"}
                                     </button>
                                 {:else if isConnecting(container.id)}
                                     <button
@@ -1298,27 +1299,38 @@
                             </div>
                             {#if !isShared}
                             <div class="action-row">
-                                <button
-                                    class="btn btn-secondary btn-sm flex-1"
-                                    onclick={() => handleStop(container)}
-                                    disabled={isContainerLoading(container.id)}
-                                >
-                                    <svg
-                                        class="icon"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="2"
+                                {#if container.status === "running"}
+                                    <button
+                                        class="btn btn-secondary btn-sm flex-1"
+                                        onclick={() => handleStop(container)}
+                                        disabled={isContainerLoading(container.id)}
                                     >
-                                        <rect
-                                            x="6"
-                                            y="6"
-                                            width="12"
-                                            height="12"
-                                        />
-                                    </svg>
-                                    Stop
-                                </button>
+                                        <svg
+                                            class="icon"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="2"
+                                        >
+                                            <rect
+                                                x="6"
+                                                y="6"
+                                                width="12"
+                                                height="12"
+                                            />
+                                        </svg>
+                                        Stop
+                                    </button>
+                                {:else}
+                                    <button
+                                        class="btn btn-secondary btn-sm flex-1"
+                                        disabled
+                                        title="This terminal is still configuring"
+                                    >
+                                        <span class="spinner-sm"></span>
+                                        Configuring
+                                    </button>
+                                {/if}
                                 <button
                                     class="btn btn-danger btn-sm flex-1"
                                     onclick={() => handleDelete(container)}
