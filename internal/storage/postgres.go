@@ -157,18 +157,38 @@ func (s *PostgresStore) migrate() error {
 
 	CREATE INDEX IF NOT EXISTS idx_snippets_user_id ON snippets(user_id);
 
-	CREATE TABLE IF NOT EXISTS audit_logs (
-		id VARCHAR(36) PRIMARY KEY,
-		user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-		action VARCHAR(255) NOT NULL,
-		ip_address VARCHAR(45),
-		user_agent TEXT,
-		details TEXT,
-		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-	);
+		CREATE TABLE IF NOT EXISTS audit_logs (
+			id VARCHAR(36) PRIMARY KEY,
+			user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			action VARCHAR(255) NOT NULL,
+			ip_address VARCHAR(45),
+			user_agent TEXT,
+			details TEXT,
+			created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+		);
 
-	CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
-	`
+		CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
+
+		CREATE TABLE IF NOT EXISTS agents (
+			id VARCHAR(36) PRIMARY KEY,
+			user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			name VARCHAR(255) NOT NULL,
+			description TEXT,
+			os VARCHAR(50),
+			arch VARCHAR(50),
+			shell VARCHAR(255),
+			distro VARCHAR(100),
+			tags TEXT[],
+			created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+			last_heartbeat TIMESTAMP WITH TIME ZONE,
+			connected_instance_id VARCHAR(255),
+			system_info JSONB,
+			mfa_locked BOOLEAN DEFAULT false
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_agents_user_id ON agents(user_id);
+		`
 
 	if _, err := s.db.Exec(createTables); err != nil {
 		return err
@@ -323,13 +343,14 @@ func (s *PostgresStore) migrate() error {
 				WHERE table_name='containers' AND column_name='mfa_locked') THEN
 				ALTER TABLE containers ADD COLUMN mfa_locked BOOLEAN DEFAULT false;
 			END IF;
-		END $$`,
+			END $$`,
 		`DO $$ BEGIN
-			IF NOT EXISTS (SELECT 1 FROM information_schema.columns
-				WHERE table_name='agents' AND column_name='mfa_locked') THEN
-				ALTER TABLE agents ADD COLUMN mfa_locked BOOLEAN DEFAULT false;
-			END IF;
-		END $$`,
+				IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='agents')
+					AND NOT EXISTS (SELECT 1 FROM information_schema.columns
+						WHERE table_name='agents' AND column_name='mfa_locked') THEN
+					ALTER TABLE agents ADD COLUMN mfa_locked BOOLEAN DEFAULT false;
+				END IF;
+			END $$`,
 		`DO $$ BEGIN
 			IF NOT EXISTS (SELECT 1 FROM information_schema.columns
 				WHERE table_name='users' AND column_name='session_duration_minutes') THEN
