@@ -22,6 +22,10 @@ type PostgresStore struct {
 
 // NewPostgresStore creates a new PostgreSQL store
 func NewPostgresStore(databaseURL string, encryptor *crypto.Encryptor) (*PostgresStore, error) {
+	if encryptor == nil {
+		return nil, fmt.Errorf("encryptor is required")
+	}
+
 	db, err := sqlx.Connect("postgres", databaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)

@@ -44,6 +44,11 @@ var (
 	wsLimiter        = middleware.WebSocketRateLimiter()
 )
 
+const (
+	defaultDatabaseURL      = "postgres://rexec:rexec@localhost:5432/rexec?sslmode=disable"
+	defaultDevEncryptionKey = "rexec-dev-key-do-not-use-in-prod"
+)
+
 // SEO overrides for server-rendered routes so curl/bots get correct metadata.
 type seoConfig struct {
 	Title              string
@@ -148,30 +153,13 @@ func main() {
 		case "server":
 			runServer()
 		case "admin":
-			// For CLI admin commands, we need a minimal setup for database access
-			// and potentially to broadcast events (even if no WS clients are connected)
-			err := godotenv.Load()
-			if err != nil && !os.IsNotExist(err) {
-				log.Printf("Warning: Could not load .env file for admin command: %v", err)
-			}
-
-			databaseURL := os.Getenv("DATABASE_URL")
-			if databaseURL == "" {
-				databaseURL = "postgres://rexec:rexec@localhost:5432/rexec?sslmode=disable"
-			}
-			encryptor, _ := crypto.NewEncryptor("dummy-key-for-admin-cli-operation") // Dummy key for CLI
-			store, err := storage.NewPostgresStore(databaseURL, encryptor)
+			store, err := newConfiguredStore("admin command")
 			if err != nil {
 				log.Fatalf("Failed to connect to database for admin command: %v", err)
 			}
 			defer store.Close()
 
-			// Create a dummy containerManager and adminEventsHub for CLI context
-			// The adminEventsHub will not have active WebSocket connections, but its Broadcast method can still be called
-			dummyContainerManager, _ := container.NewManager() // This might still try to connect to Docker, might need a mock for truly disconnected CLI. For now, assume Docker might be running or handle error.
-			dummyAdminEventsHub := admin_events.NewAdminEventsHub(store, dummyContainerManager)
-
-			handleAdminCommand(os.Args[2:], store, dummyContainerManager, dummyAdminEventsHub)
+			handleAdminCommand(os.Args[2:], store, nil)
 		default:
 			fmt.Printf("Unknown command: %s\n", os.Args[1])
 			fmt.Println("Usage: rexec [server|admin]")
@@ -213,7 +201,7 @@ func showMenu() {
 	}
 }
 
-func handleAdminCommand(args []string, store *storage.PostgresStore, containerManager *container.Manager, adminEventsHub *admin_events.AdminEventsHub) {
+func handleAdminCommand(args []string, store *storage.PostgresStore, adminEventsHub *admin_events.AdminEventsHub) {
 	if len(args) == 0 {
 		fmt.Println("Usage: rexec admin [promote <email>]")
 		return
@@ -249,26 +237,17 @@ func showAdminMenu() {
 			fmt.Print("Enter email to promote: ")
 			email, _ := reader.ReadString('\n')
 
-			// For interactive menu, create a temporary setup for database and hub
-			err := godotenv.Load()
-			if err != nil && !os.IsNotExist(err) {
-				log.Printf("Warning: Could not load .env file for admin menu: %v", err)
-			}
-			databaseURL := os.Getenv("DATABASE_URL")
-			if databaseURL == "" {
-				databaseURL = "postgres://rexec:rexec@localhost:5432/rexec?sslmode=disable"
-			}
-			encryptor, _ := crypto.NewEncryptor("dummy-key-for-admin-cli-operation")
-			store, err := storage.NewPostgresStore(databaseURL, encryptor)
+			store, err := newConfiguredStore("admin menu")
 			if err != nil {
-				log.Fatalf("Failed to connect to database for admin menu: %v", err)
+				log.Printf("Failed to connect to database for admin menu: %v", err)
+				continue
 			}
-			defer store.Close()
 
-			dummyContainerManager, _ := container.NewManager() // Might still try to connect to Docker
-			dummyAdminEventsHub := admin_events.NewAdminEventsHub(store, dummyContainerManager)
+			promoteUser(strings.TrimSpace(email), store, nil)
 
-			promoteUser(strings.TrimSpace(email), store, dummyAdminEventsHub) // Pass store and hub
+			if err := store.Close(); err != nil {
+				log.Printf("Warning: failed to close database connection: %v", err)
+			}
 		case "2":
 			return
 		default:
@@ -304,33 +283,81 @@ func promoteUser(email string, store *storage.PostgresStore, adminEventsHub *adm
 	fmt.Printf("✅ User %s (%s) successfully promoted to Admin.\n", user.Email, user.ID)
 }
 
-func runServer() {
-	// Load .env file if it exists
+func loadEnvFile(component string) {
 	err := godotenv.Load()
-	if err != nil && !os.IsNotExist(err) { // Handle non-existent .env gracefully
-		log.Printf("Warning: Could not load .env file for server: %v", err)
+	if err != nil && !os.IsNotExist(err) {
+		log.Printf("Warning: Could not load .env file for %s: %v", component, err)
 	}
+}
 
-	// Get database URL
+func getDatabaseURL() string {
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
-		databaseURL = "postgres://rexec:rexec@localhost:5432/rexec?sslmode=disable"
+		return defaultDatabaseURL
 	}
 
-	// Initialize encryption
+	return databaseURL
+}
+
+func newConfiguredEncryptor() (*crypto.Encryptor, error) {
 	encryptionKey := os.Getenv("REXEC_ENCRYPTION_KEY")
 	if encryptionKey == "" {
-		// Use a default key for development ONLY if not set
 		if os.Getenv("GIN_MODE") != "release" {
 			log.Println("⚠️  REXEC_ENCRYPTION_KEY not set, using default dev key")
-			encryptionKey = "rexec-dev-key-do-not-use-in-prod" // 32 bytes
+			encryptionKey = defaultDevEncryptionKey
 		} else {
-			log.Fatal("REXEC_ENCRYPTION_KEY must be set in production")
+			return nil, fmt.Errorf("REXEC_ENCRYPTION_KEY must be set in production")
 		}
 	}
 
-	if os.Getenv("GIN_MODE") == "release" && encryptionKey == "rexec-dev-key-do-not-use-in-prod" {
-		log.Fatal("REXEC_ENCRYPTION_KEY must be set to a production key in release mode")
+	if os.Getenv("GIN_MODE") == "release" && encryptionKey == defaultDevEncryptionKey {
+		return nil, fmt.Errorf("REXEC_ENCRYPTION_KEY must be set to a production key in release mode")
+	}
+
+	var keyBytes []byte
+
+	if len(encryptionKey) == 64 {
+		decodedKey, err := hex.DecodeString(encryptionKey)
+		if err != nil {
+			return nil, fmt.Errorf("invalid REXEC_ENCRYPTION_KEY: 64-char key must be valid hex: %w", err)
+		}
+		keyBytes = decodedKey
+	} else if len(encryptionKey) == 16 || len(encryptionKey) == 24 || len(encryptionKey) == 32 {
+		keyBytes = []byte(encryptionKey)
+	} else {
+		return nil, fmt.Errorf("invalid REXEC_ENCRYPTION_KEY length: must be 16, 24, or 32 bytes (raw), or 64 hex characters; got %d characters", len(encryptionKey))
+	}
+
+	encryptor, err := crypto.NewEncryptor(string(keyBytes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize encryptor: %w", err)
+	}
+
+	return encryptor, nil
+}
+
+func newConfiguredStore(component string) (*storage.PostgresStore, error) {
+	loadEnvFile(component)
+
+	encryptor, err := newConfiguredEncryptor()
+	if err != nil {
+		return nil, err
+	}
+
+	return storage.NewPostgresStore(getDatabaseURL(), encryptor)
+}
+
+func runServer() {
+	// Load .env file if it exists
+	loadEnvFile("server")
+
+	// Get database URL
+	databaseURL := getDatabaseURL()
+
+	// Initialize encryption
+	encryptor, err := newConfiguredEncryptor()
+	if err != nil {
+		log.Fatalf("Failed to initialize encryptor: %v", err)
 	}
 
 	// Initialize JWT secret for auth
@@ -349,36 +376,6 @@ func runServer() {
 		log.Fatal("JWT_SECRET must be at least 32 characters in release mode")
 	}
 	jwtSecret := []byte(jwtSecretStr)
-
-	var keyBytes []byte
-
-	// Support hex encoded keys (common for 32-byte keys represented as 64-char hex strings)
-	if len(encryptionKey) == 64 {
-		var err error
-		keyBytes, err = hex.DecodeString(encryptionKey)
-		if err != nil {
-			// If not valid hex, assume it's just a very long password?
-			// crypto.NewEncryptor only supports 16/24/32 bytes.
-			// 64 bytes is not supported by AES-GCM standard key sizes (128/192/256 bits).
-			// So if it's 64 chars and fails hex decode, it's invalid length for raw key.
-			log.Fatalf("Invalid REXEC_ENCRYPTION_KEY: 64-char key must be valid hex: %v", err)
-		}
-	} else if len(encryptionKey) == 16 || len(encryptionKey) == 24 || len(encryptionKey) == 32 {
-		keyBytes = []byte(encryptionKey)
-	} else {
-		log.Fatalf("Invalid REXEC_ENCRYPTION_KEY length. Must be 16, 24, or 32 bytes (raw), or 64 hex characters (32 bytes decoded). Got %d characters.", len(encryptionKey))
-	}
-
-	// Pass the byte slice directly to NewEncryptor if we modified it to accept []byte,
-	// OR convert back to string if it accepts string but we've validated/transformed it.
-	// Looking at crypto package, NewEncryptor(key string).
-	// If we decoded hex, we have []byte. converting []byte to string might not work if NewEncryptor expects readable chars?
-	// No, AES key is just bytes. string(keyBytes) is fine in Go as long as NewEncryptor converts it back to []byte.
-
-	encryptor, err := crypto.NewEncryptor(string(keyBytes))
-	if err != nil {
-		log.Fatalf("Failed to initialize encryptor: %v", err)
-	}
 
 	// Initialize PostgreSQL store
 	store, err := storage.NewPostgresStore(databaseURL, encryptor)
