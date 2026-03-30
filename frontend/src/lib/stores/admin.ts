@@ -23,7 +23,7 @@ export interface AdminTerminal {
   status: "connected" | "disconnected" | "error";
   userId: string;
   username: string;
-  connected_at: string;
+  connectedAt: string;
 }
 
 export interface AdminAgent {
@@ -106,6 +106,7 @@ export interface AdminState {
   terminals: AdminTerminal[];
   agents: AdminAgent[];
   stats: AdminUsageStats | null;
+  _loadingCount: number;
   isLoading: boolean;
   error: string | null;
   ws: WebSocket | null;
@@ -121,6 +122,7 @@ const initialState: AdminState = {
   terminals: [],
   agents: [],
   stats: null,
+  _loadingCount: 0,
   isLoading: false,
   error: null,
   ws: null,
@@ -308,81 +310,170 @@ function createAdminStore() {
   return {
     subscribe,
     fetchUsers: async () => {
-      update((state) => ({ ...state, isLoading: true, error: null }));
+      update((state) => ({
+        ...state,
+        _loadingCount: state._loadingCount + 1,
+        isLoading: true,
+        error: null,
+      }));
       const { data, error } = await api.get<AdminUser[]>("/api/admin/users");
 
       if (error) {
-        update((state) => ({ ...state, isLoading: false, error }));
+        update((state) => {
+          const count = state._loadingCount - 1;
+          return {
+            ...state,
+            _loadingCount: count,
+            isLoading: count > 0,
+            error,
+          };
+        });
         return;
       }
-      update((state) => ({ ...state, users: data || [], isLoading: false }));
+      update((state) => {
+        const count = state._loadingCount - 1;
+        return {
+          ...state,
+          users: data || [],
+          _loadingCount: count,
+          isLoading: count > 0,
+        };
+      });
     },
 
     fetchContainers: async () => {
-      update((state) => ({ ...state, isLoading: true, error: null }));
+      update((state) => ({
+        ...state,
+        _loadingCount: state._loadingCount + 1,
+        isLoading: true,
+        error: null,
+      }));
       const { data, error } = await api.get<AdminContainer[]>(
         "/api/admin/containers",
       );
 
       if (error) {
-        update((state) => ({ ...state, isLoading: false, error }));
+        update((state) => {
+          const count = state._loadingCount - 1;
+          return {
+            ...state,
+            _loadingCount: count,
+            isLoading: count > 0,
+            error,
+          };
+        });
         return;
       }
-      update((state) => ({
-        ...state,
-        containers: data || [],
-        isLoading: false,
-      }));
+      update((state) => {
+        const count = state._loadingCount - 1;
+        return {
+          ...state,
+          containers: data || [],
+          _loadingCount: count,
+          isLoading: count > 0,
+        };
+      });
     },
 
     fetchTerminals: async () => {
-      update((state) => ({ ...state, isLoading: true, error: null }));
+      update((state) => ({
+        ...state,
+        _loadingCount: state._loadingCount + 1,
+        isLoading: true,
+        error: null,
+      }));
       const { data, error } = await api.get<AdminTerminal[]>(
         "/api/admin/terminals",
       );
 
       if (error) {
-        update((state) => ({ ...state, isLoading: false, error }));
+        update((state) => {
+          const count = state._loadingCount - 1;
+          return {
+            ...state,
+            _loadingCount: count,
+            isLoading: count > 0,
+            error,
+          };
+        });
         return;
       }
-      update((state) => ({
-        ...state,
-        terminals: data || [],
-        isLoading: false,
-      }));
+      update((state) => {
+        const count = state._loadingCount - 1;
+        return {
+          ...state,
+          terminals: data || [],
+          _loadingCount: count,
+          isLoading: count > 0,
+        };
+      });
     },
 
     fetchAgents: async () => {
-      update((state) => ({ ...state, isLoading: true, error: null }));
+      update((state) => ({
+        ...state,
+        _loadingCount: state._loadingCount + 1,
+        isLoading: true,
+        error: null,
+      }));
       const { data, error } = await api.get<AdminAgent[]>("/api/admin/agents");
 
       if (error) {
-        update((state) => ({ ...state, isLoading: false, error }));
+        update((state) => {
+          const count = state._loadingCount - 1;
+          return {
+            ...state,
+            _loadingCount: count,
+            isLoading: count > 0,
+            error,
+          };
+        });
         return;
       }
-      update((state) => ({
-        ...state,
-        agents: data || [],
-        isLoading: false,
-      }));
+      update((state) => {
+        const count = state._loadingCount - 1;
+        return {
+          ...state,
+          agents: data || [],
+          _loadingCount: count,
+          isLoading: count > 0,
+        };
+      });
     },
 
     fetchStats: async (range = "30d") => {
-      update((state) => ({ ...state, isLoading: true, error: null }));
+      update((state) => ({
+        ...state,
+        _loadingCount: state._loadingCount + 1,
+        isLoading: true,
+        error: null,
+      }));
       const { data, error } = await api.get<AdminUsageStats>(
         `/api/admin/stats?range=${encodeURIComponent(range)}`,
       );
 
       if (error) {
-        update((state) => ({ ...state, isLoading: false, error }));
+        update((state) => {
+          const count = state._loadingCount - 1;
+          return {
+            ...state,
+            _loadingCount: count,
+            isLoading: count > 0,
+            error,
+          };
+        });
         return;
       }
 
-      update((state) => ({
-        ...state,
-        stats: data || null,
-        isLoading: false,
-      }));
+      update((state) => {
+        const count = state._loadingCount - 1;
+        return {
+          ...state,
+          stats: data || null,
+          _loadingCount: count,
+          isLoading: count > 0,
+        };
+      });
     },
 
     deleteUser: async (userId: string) => {

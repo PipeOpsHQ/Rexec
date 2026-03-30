@@ -529,7 +529,7 @@
                                             {term.status}
                                         </span>
                                     </td>
-                                    <td>{formatRelativeTime(term.connected_at)}</td>
+                                    <td>{formatRelativeTime(term.connectedAt)}</td>
                                 </tr>
                             {/each}
                         </tbody>

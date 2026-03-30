@@ -12,7 +12,7 @@ import (
 // GetAllUsers retrieves all users for the admin dashboard
 func (s *PostgresStore) GetAllUsers(ctx context.Context) ([]*models.User, error) {
 	query := `
-		SELECT id, email, username, tier, COALESCE(is_admin, false), 
+		SELECT id, email, username, tier, COALESCE(is_admin, false),
 		       COALESCE(pipeops_id, ''), subscription_active, created_at, updated_at
 		FROM users
 		ORDER BY created_at DESC
@@ -52,7 +52,7 @@ func (s *PostgresStore) GetAllUsers(ctx context.Context) ([]*models.User, error)
 // GetContainerCountsByUser returns a map of userID -> active container count.
 func (s *PostgresStore) GetContainerCountsByUser(ctx context.Context) (map[string]int, error) {
 	query := `
-		SELECT user_id, COUNT(*) 
+		SELECT user_id, COUNT(*)
 		FROM containers
 		WHERE deleted_at IS NULL
 		GROUP BY user_id
@@ -79,8 +79,8 @@ func (s *PostgresStore) GetContainerCountsByUser(ctx context.Context) (map[strin
 // It performs a JOIN with users to get owner details
 func (s *PostgresStore) GetAllContainersAdmin(ctx context.Context) ([]*models.AdminContainer, error) {
 	query := `
-		SELECT 
-			c.id, c.user_id, c.name, c.image, c.status, c.created_at, 
+		SELECT
+			c.id, c.user_id, c.name, c.image, c.status, c.created_at,
 			c.memory_mb, c.cpu_shares, c.disk_mb,
 			u.username, u.email
 		FROM containers c
@@ -127,7 +127,7 @@ func (s *PostgresStore) GetAllSessionsAdmin(ctx context.Context) ([]*models.Admi
 	// Although for now, we'll just return all sessions in the table as "active" implies
 	// they haven't been deleted yet.
 	query := `
-		SELECT 
+		SELECT
 			s.id, s.container_id, s.user_id, s.created_at,
 			u.username,
 			c.name as container_name, c.status
@@ -325,7 +325,7 @@ func (s *PostgresStore) fillAdminUsageSeries(ctx context.Context, timeline []mod
 	}
 
 	query := fmt.Sprintf(`
-		SELECT date_trunc('%s', %s) AS bucket, COUNT(*)
+		SELECT date_trunc('%s', %s AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' AS bucket, COUNT(*)
 		FROM %s
 		WHERE %s >= $1 AND %s < $2
 		GROUP BY 1
