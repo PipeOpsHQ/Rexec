@@ -1326,7 +1326,7 @@
                                         {#if agent.status === "online"}
                                             <button
                                                 class="btn btn-sm btn-primary"
-                                                title="Connect to terminal"
+                                                title="Connect to sandbox"
                                                 onclick={() =>
                                                     handleConnectAgent(agent)}
                                             >

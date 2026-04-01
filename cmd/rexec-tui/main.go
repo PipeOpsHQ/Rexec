@@ -195,7 +195,7 @@ func initialModel() model {
 	terminalDelegate.Styles.SelectedDesc = terminalDelegate.Styles.SelectedDesc.Foreground(dimColor)
 
 	terminalList := list.New([]list.Item{}, terminalDelegate, 0, 0)
-	terminalList.Title = "Terminals"
+	terminalList.Title = "Sandboxes"
 	terminalList.SetShowHelp(false)
 	terminalList.SetFilteringEnabled(true)
 	terminalList.Styles.Title = titleStyle
@@ -452,14 +452,14 @@ func (m model) renderDashboard() string {
 	s.WriteString(stats)
 	s.WriteString("\n\n")
 
-	// Recent terminals
-	s.WriteString(titleStyle.Render("  Recent Terminals"))
+	// Recent sandboxes
+	s.WriteString(titleStyle.Render("  Recent Sandboxes"))
 	s.WriteString("\n\n")
 
 	if m.loading {
 		s.WriteString(fmt.Sprintf("  %s Loading...\n", m.spinner.View()))
 	} else if len(m.containers) == 0 {
-		s.WriteString(dimStyle.Render("  No terminals yet. Press 'c' to create one.\n"))
+		s.WriteString(dimStyle.Render("  No sandboxes yet. Press 'c' to create one.\n"))
 	} else {
 		maxShow := 5
 		if len(m.containers) < maxShow {
@@ -505,7 +505,7 @@ func (m model) renderMFAPrompt() string {
 	s.WriteString("\n\n")
 	s.WriteString(titleStyle.Render("  🔒 MFA Required"))
 	s.WriteString("\n\n")
-	s.WriteString(dimStyle.Render("  This terminal is protected with MFA."))
+	s.WriteString(dimStyle.Render("  This sandbox is protected with MFA."))
 	s.WriteString("\n")
 	s.WriteString(dimStyle.Render("  Enter your 6-digit authenticator code:"))
 	s.WriteString("\n\n")
@@ -539,7 +539,7 @@ func (m model) renderHelp() string {
 	case ViewDashboard:
 		keys = []string{
 			"1-9 connect",
-			"t terminals",
+			"t sandboxes",
 			"s snippets",
 			"c create",
 			"r refresh",
@@ -599,7 +599,7 @@ func createTerminal(cfg *Config) tea.Cmd {
 	return func() tea.Msg {
 		// For now, just create with defaults
 		body := map[string]interface{}{
-			"name":  fmt.Sprintf("terminal-%d", time.Now().Unix()),
+			"name":  fmt.Sprintf("sandbox-%d", time.Now().Unix()),
 			"image": "ubuntu",
 			"role":  "default",
 		}

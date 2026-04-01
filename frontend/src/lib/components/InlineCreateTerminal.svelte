@@ -168,7 +168,7 @@
     const progressSteps = [
         { id: "validating", label: "Validating", icon: "validating" },
         { id: "pulling", label: "Pulling Image", icon: "pulling" },
-        { id: "creating", label: "Creating Terminal", icon: "creating" },
+        { id: "creating", label: "Creating Sandbox", icon: "creating" },
         { id: "starting", label: "Starting", icon: "starting" },
         { id: "configuring", label: "Configuring", icon: "configuring" },
         { id: "ready", label: "Ready", icon: "ready" },
@@ -577,7 +577,7 @@
             progress = 0;
             progressMessage = "";
             progressStage = "";
-            errorMessage = error || "Failed to create terminal";
+            errorMessage = error || "Failed to create sandbox";
         }
 
         // Reset error state when starting
@@ -603,7 +603,7 @@
         <div class="create-error">
             <div class="error-header">
                 <span class="error-icon">✖</span>
-                <h2>Terminal Creation Failed</h2>
+                <h2>Sandbox Creation Failed</h2>
             </div>
             <div class="error-content">
                 <p class="error-message">{errorMessage}</p>
@@ -620,7 +620,7 @@
     {:else if isCreating}
         <div class="create-progress">
             <div class="progress-header">
-                <h2>Creating Terminal</h2>
+                <h2>Creating Sandbox</h2>
                 <span class="progress-percent">{displayProgress}%</span>
             </div>
             <div class="progress-bar">
@@ -669,23 +669,23 @@
         <div class="create-content">
             <h1 class="create-title">Launch New Sandbox</h1>
 
-            <!-- Terminal Name -->
+            <!-- Sandbox Name -->
             <div class="create-section">
-                <h4>Terminal Name</h4>
+                <h4>Sandbox Name</h4>
                 <div class="name-input-container">
                     <input
                         type="text"
                         bind:value={customName}
-                        placeholder="my-awesome-terminal (optional)"
+                        placeholder="my-awesome-sandbox (optional)"
                         class="name-input"
                         maxlength="64"
                     />
                 </div>
             </div>
 
-            <!-- Terminal Settings -->
+            <!-- Sandbox Settings -->
             <div class="create-section">
-                <h4>Terminal Settings</h4>
+                <h4>Sandbox Settings</h4>
                 <div class="settings-grid">
                     <label class="setting-row" class:active={useTmux}>
                         <input type="checkbox" bind:checked={useTmux} />

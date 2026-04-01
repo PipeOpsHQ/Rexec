@@ -2,8 +2,8 @@
   "schema_version": "v1",
   "name_for_human": "Rexec",
   "name_for_model": "rexec_terminal_service",
-  "description_for_human": "Terminal as a Service - Instant Linux terminals in your browser with Docker-backed sandboxed execution environments.",
-  "description_for_model": "Rexec provides cloud-based Linux terminal access via browser. AI agents can use this service to execute code in sandboxed Docker containers, manage remote agents, and collaborate with humans in supervised terminal sessions. Key capabilities: container lifecycle management, WebSocket terminal connections, session recording/playback, remote agent integration, and multi-user collaboration.",
+  "description_for_human": "Sandbox as a Service - Instant Linux sandboxes in your browser with Docker-backed execution environments.",
+  "description_for_model": "Rexec provides cloud-based Linux sandboxes via browser. AI agents can use this service to execute code in sandboxed Docker containers, manage remote agents, and collaborate with humans in supervised sandbox sessions. Key capabilities: container lifecycle management, WebSocket terminal connections, session recording/playback, remote agent integration, and multi-user collaboration.",
   "auth": {
     "type": "user_http",
     "authorization_type": "bearer",
@@ -40,7 +40,7 @@
       ]
     },
     "session_recording": {
-      "description": "Record and replay terminal sessions",
+      "description": "Record and replay sandbox sessions",
       "endpoints": [
         "GET /api/sessions - List sessions",
         "GET /api/sessions/:id/recording - Get recording"
@@ -57,7 +57,7 @@
     "AI agent code execution in supervised sandboxes",
     "Remote development and debugging",
     "DevOps automation and CI/CD",
-    "Educational terminal environments",
+    "Educational sandbox environments",
     "Collaborative pair programming",
     "Live coding demonstrations",
     "System administration",

@@ -198,7 +198,7 @@
 
     function runSnippet(snippet: Snippet) {
         if (!containerId) {
-            toast.error("No active terminal to run snippet");
+            toast.error("No active sandbox to run snippet");
             return;
         }
 

@@ -116,7 +116,7 @@ const REXEC_BANNER =
   "  ██╔══██╗██╔══╝   ██╔██╗ ██╔══╝  ██║\r\n" +
   "  ██║  ██║███████╗██╔╝ ██╗███████╗╚██████╗\r\n" +
   "  ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚══════╝ ╚═════╝\r\n" +
-  "\x1b[0m\x1b[38;5;243m  Terminal as a Service · rexec.dev\x1b[0m\r\n" +
+  "\x1b[0m\x1b[38;5;243m  Sandbox as a Service · rexec.dev\x1b[0m\r\n" +
   "\x1b[38;5;243m  Run 'rexec tools' to see available tools\x1b[0m\r\n\r\n";
 
 // Helper to handle custom key events (prevent browser defaults, map macOS keys)
@@ -644,7 +644,7 @@ function createTerminalStore() {
           } = await loadXtermCore());
         } catch (e) {
           console.error("[Terminal] Failed to load xterm:", e);
-          toast.error("Failed to load terminal. Please refresh and try again.");
+          toast.error("Failed to load sandbox. Please refresh and try again.");
           // Close the session on failure
           this.closeSession(sessionId);
           return false;
@@ -675,7 +675,7 @@ function createTerminalStore() {
           );
         } catch (e) {
           console.error("[Terminal] Failed to initialize terminal:", e);
-          toast.error("Failed to initialize terminal. Please try again.");
+          toast.error("Failed to initialize sandbox. Please try again.");
           this.closeSession(sessionId);
           return false;
         }
@@ -1478,7 +1478,7 @@ function createTerminalStore() {
         );
       }
 
-      toast.success("Terminal reset");
+      toast.success("Sandbox reset");
     },
 
     // Reconnect a session

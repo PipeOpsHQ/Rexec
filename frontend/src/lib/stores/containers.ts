@@ -439,7 +439,7 @@ function createContainersStore() {
         onError?.(
           error instanceof Error
             ? error.message
-            : "Failed to create terminal",
+            : "Failed to create sandbox",
         );
       }
     },
@@ -500,7 +500,7 @@ function createContainersStore() {
         if (!response.ok) {
           cleanup?.();
           update((state) => ({ ...state, creating: null }));
-          onError?.(data.error || "Failed to create terminal");
+          onError?.(data.error || "Failed to create sandbox");
           return;
         }
 
@@ -538,7 +538,7 @@ function createContainersStore() {
       } catch (e) {
         cleanup?.();
         update((state) => ({ ...state, creating: null }));
-        onError?.(e instanceof Error ? e.message : "Failed to create terminal");
+        onError?.(e instanceof Error ? e.message : "Failed to create sandbox");
       }
     },
 

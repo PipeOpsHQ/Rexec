@@ -67,7 +67,7 @@
                 {
                     title: "Clean State Always",
                     description:
-                        "No more debugging environment issues. Every terminal starts fresh with exactly what you need.",
+                        "No more debugging environment issues. Every sandbox starts fresh with exactly what you need.",
                     icon: "connected",
                 },
                 {
@@ -88,7 +88,7 @@
                     step: 2,
                     title: "Launch Instantly",
                     description:
-                        "Your terminal is ready in under 2 seconds with all tools pre-installed.",
+                        "Your sandbox is ready in under 2 seconds with all tools pre-installed.",
                 },
                 {
                     step: 3,
@@ -107,7 +107,7 @@
                 {
                     title: "Testing a New Framework",
                     description:
-                        "Want to try out a new JavaScript framework without polluting your local node_modules? Spin up a terminal, experiment freely, and dispose when done.",
+                        "Want to try out a new JavaScript framework without polluting your local node_modules? Spin up a sandbox, experiment freely, and dispose when done.",
                     code: "npx create-next-app@latest my-app\ncd my-app && npm run dev",
                 },
                 {
@@ -350,7 +350,7 @@
                     step: 3,
                     title: "Teach Interactively",
                     description:
-                        "Watch students work, provide guidance, and share your terminal.",
+                        "Watch students work, provide guidance, and share your sandbox.",
                 },
                 {
                     step: 4,
@@ -500,7 +500,7 @@
                 {
                     title: "Instant Disposal",
                     description:
-                        "Close the terminal and it's gone. No cleanup required.",
+                        "Close the sandbox and it's gone. No cleanup required.",
                     icon: "terminal",
                 },
             ],
@@ -514,7 +514,7 @@
                     step: 2,
                     title: "Click on PR",
                     description:
-                        "One click to spin up a terminal with the PR branch checked out.",
+                        "One click to spin up a sandbox with the PR branch checked out.",
                 },
                 {
                     step: 3,
@@ -554,18 +554,18 @@
             ],
         },
         "gpu-terminals": {
-            title: "GPU Terminals for AI/ML",
+            title: "GPU Sandboxes for AI/ML",
             icon: "gpu",
             tagline: "Instant-on GPU power for your AI/ML workflows.",
             description:
-                "Rexec will provide instant-on, powerful GPU-enabled terminals for your team's AI/ML model development, training, and fine-tuning. Manage and share these dedicated GPU resources securely, eliminating the complexities of direct infrastructure access.",
+                "Rexec will provide instant-on, powerful GPU-enabled sandboxes for your team's AI/ML model development, training, and fine-tuning. Manage and share these dedicated GPU resources securely, eliminating the complexities of direct infrastructure access.",
             heroImage: "/images/use-cases/gpu-terminals.svg",
             comingSoon: true,
             benefits: [
                 {
                     title: "On-Demand GPU Access",
                     description:
-                        "Spin up GPU-accelerated terminals when you need them. Pay only for what you use.",
+                        "Spin up GPU-accelerated sandboxes when you need them. Pay only for what you use.",
                     icon: "bolt",
                 },
                 {
@@ -803,11 +803,11 @@
             ],
         },
         "resumable-sessions": {
-            title: "Resumable Terminal Sessions",
+            title: "Resumable Sandbox Sessions",
             icon: "reconnect",
             tagline: "Start tasks, disconnect, and come back later.",
             description:
-                "Run long-running processes, close your browser, and reconnect anytime. Your terminal session continues in the background with full scrollback history. Never lose work to network drops or accidental tab closures again.",
+                "Run long-running processes, close your browser, and reconnect anytime. Your sandbox session continues in the background with full scrollback history. Never lose work to network drops or accidental tab closures again.",
             heroImage: "/images/use-cases/resumable-sessions.svg",
             benefits: [
                 {
@@ -896,15 +896,15 @@
             title: "Rexec CLI & TUI",
             icon: "terminal",
             tagline:
-                "Manage your terminals from anywhere using our powerful command-line interface.",
+                "Manage your sandboxes from anywhere using our powerful command-line interface.",
             description:
                 "The Rexec CLI brings the power of the platform to your local terminal. Manage sessions, ssh into containers, and use the interactive TUI dashboard without leaving your keyboard.",
             heroImage: "/images/use-cases/cli.svg",
             benefits: [
                 {
-                    title: "Full Terminal Management",
+                    title: "Full Sandbox Management",
                     description:
-                        "Create, list, connect, and stop terminals directly from your command line.",
+                        "Create, list, connect, and stop sandboxes directly from your command line.",
                     icon: "terminal",
                 },
                 {
@@ -979,7 +979,7 @@
             icon: "connected",
             tagline: "Unify your infrastructure. One dashboard for everything.",
             description:
-                "Turn any Linux server, IoT device, or cloud instance into a managed Rexec terminal. Install our lightweight binary to instantly connect remote resources to your Rexec dashboard with real-time resource monitoring.",
+                "Turn any Linux server, IoT device, or cloud instance into a managed Rexec environment. Install our lightweight binary to instantly connect remote resources to your Rexec dashboard with real-time resource monitoring.",
             heroImage: "/images/use-cases/agent.svg",
             benefits: [
                 {
@@ -1029,7 +1029,7 @@
                     step: 4,
                     title: "Monitor & Control",
                     description:
-                        "View live stats and open terminal sessions immediately.",
+                        "View live stats and open sessions immediately.",
                 },
             ],
             examples: [
@@ -1061,7 +1061,7 @@
             icon: "cloud",
             tagline: "One dashboard to rule them all.",
             description:
-                "Manage virtual machines across AWS, GCP, Azure, DigitalOcean, Hetzner, and any other provider from a single unified dashboard. Install the Rexec agent on any Linux VM and gain instant terminal access, real-time monitoring, and centralized control—no matter where your infrastructure lives.",
+                "Manage virtual machines across AWS, GCP, Azure, DigitalOcean, Hetzner, and any other provider from a single unified dashboard. Install the Rexec agent on any Linux VM and gain instant remote access, real-time monitoring, and centralized control—no matter where your infrastructure lives.",
             heroImage: "/images/use-cases/multi-cloud.svg",
             benefits: [
                 {
@@ -1112,7 +1112,7 @@
                     step: 4,
                     title: "Manage Anywhere",
                     description:
-                        "Open terminals, monitor resources, and manage access from any browser.",
+                        "Open sessions, monitor resources, and manage access from any browser.",
                 },
             ],
             examples: [
@@ -1155,9 +1155,9 @@ ssh azureuser@azure-vm "curl -sSL ${installUrl}/install-agent.sh | sudo bash"`,
             title: "Hybrid Infrastructure Access",
             icon: "shield",
             tagline:
-                "Mix cloud-managed terminals with your own infrastructure.",
+                "Mix cloud-managed sandboxes with your own infrastructure.",
             description:
-                "Access everything through a single, unified interface. Seamlessly switch between Rexec's cloud terminals and your on-premise servers without changing tools or context.",
+                "Access everything through a single, unified interface. Seamlessly switch between Rexec's cloud sandboxes and your on-premise servers without changing tools or context.",
             heroImage: "/images/use-cases/hybrid.svg",
             benefits: [
                 {
@@ -1366,7 +1366,7 @@ ssh azureuser@azure-vm "curl -sSL ${installUrl}/install-agent.sh | sudo bash"`,
         <meta name="description" content={useCase.description} />
         <meta
             name="keywords"
-            content="rexec, {useCase.title.toLowerCase()}, cloud terminal, development environment, {slug.replace(
+            content="rexec, {useCase.title.toLowerCase()}, cloud sandbox, development environment, {slug.replace(
                 /-/g,
                 ', ',
             )}"
@@ -1622,12 +1622,12 @@ ssh azureuser@azure-vm "curl -sSL ${installUrl}/install-agent.sh | sudo bash"`,
         <section class="cta-section">
             <h2>Ready to get started?</h2>
             <p>
-                Launch your first terminal and experience the future of
+                Launch your first sandbox and experience the future of
                 development.
             </p>
             <button class="btn btn-primary btn-lg" onclick={handleTryNow}>
                 <StatusIcon status="rocket" size={16} />
-                <span>Launch Terminal</span>
+                <span>Launch Sandbox</span>
             </button>
         </section>
     </div>

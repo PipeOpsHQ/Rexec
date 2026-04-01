@@ -53,13 +53,13 @@
         {
             icon: "bolt",
             title: "Instant Dev Environments",
-            description: "Spin up a fully-configured terminal in seconds. No Docker setup, no VM provisioning, no waiting.",
+            description: "Spin up a fully-configured sandbox in seconds. No Docker setup, no VM provisioning, no waiting.",
             example: "Onboard new team members in minutes, not hours"
         },
         {
             icon: "users",
             title: "Pair Programming",
-            description: "Share terminals in real-time with view or control access. Perfect for debugging sessions and demos.",
+            description: "Share sandboxes in real-time with view or control access. Perfect for debugging sessions and demos.",
             example: "\"Can you look at this error?\" → Share link → Collaborate instantly"
         }
     ];
@@ -106,7 +106,7 @@
         </div>
 
         <h1 class="slide-in-up">
-            Instant Cloud Terminals
+            Instant Cloud Sandboxes
             <span class="gradient-text">For Modern Developers</span>
         </h1>
 
@@ -136,7 +136,7 @@
 
         <p class="hero-subtext">
             <StatusIcon status="check" size={14} />
-            Free tier includes 3 concurrent terminals
+            Free tier includes 3 concurrent sandboxes
         </p>
     </section>
 
@@ -145,7 +145,7 @@
         <div class="screenshot-wrapper slide-in-up">
             <img
                 src="/screenshot-desktop.png"
-                alt="Rexec Dashboard showing terminal management"
+                alt="Rexec Dashboard showing sandbox management"
                 class="screenshot"
             />
             <div class="screenshot-glow float"></div>
@@ -160,7 +160,7 @@
         <div class="proof-stats">
             <div class="stat slide-in-up delay-1">
                 <span class="stat-value">10K+</span>
-                <span class="stat-label">Terminals Created</span>
+                <span class="stat-label">Sandboxes Created</span>
             </div>
             <div class="stat slide-in-up delay-2">
                 <span class="stat-value">&lt;2s</span>
@@ -250,7 +250,7 @@
     <!-- Roles/Environments -->
     <section class="roles-section">
         <h2>Pre-Configured Environments</h2>
-        <p class="section-subtitle">Choose a role and get a fully-equipped terminal instantly</p>
+        <p class="section-subtitle">Choose a role and get a fully-equipped sandbox instantly</p>
 
         <div class="roles-grid">
             {#each roles as role, i}
@@ -314,13 +314,13 @@
     <!-- Pricing Teaser -->
     <section class="pricing-section">
         <h2>Start Free, Scale When Ready</h2>
-        <p class="section-subtitle">Sign in with PipeOps to unlock persistent terminals, SSH keys, snippets, and more</p>
+        <p class="section-subtitle">Sign in with PipeOps to unlock persistent sandboxes, SSH keys, snippets, and more</p>
         <div class="pricing-cards">
             <div class="pricing-card slide-in-up delay-1">
                 <h3>Guest</h3>
                 <div class="price">$0<span>/forever</span></div>
                 <ul>
-                    <li><StatusIcon status="check" size={14} /> 1 terminal (ephemeral)</li>
+                    <li><StatusIcon status="check" size={14} /> 1 sandbox (ephemeral)</li>
                     <li><StatusIcon status="check" size={14} /> All distros available</li>
                     <li><StatusIcon status="check" size={14} /> Try before signing up</li>
                     <li class="muted"><StatusIcon status="close" size={14} /> No persistence</li>
@@ -333,7 +333,7 @@
                 <h3>Free</h3>
                 <div class="price">$0<span>/month</span></div>
                 <ul>
-                    <li><StatusIcon status="check" size={14} /> 3 concurrent terminals</li>
+                    <li><StatusIcon status="check" size={14} /> 3 concurrent sandboxes</li>
                     <li><StatusIcon status="check" size={14} /> 1 agent connection</li>
                     <li><StatusIcon status="check" size={14} /> SSH key management</li>
                     <li><StatusIcon status="check" size={14} /> Snippets library</li>
@@ -352,7 +352,7 @@
                 <h3>Pro</h3>
                 <div class="price">$19<span>/month</span></div>
                 <ul>
-                    <li><StatusIcon status="check" size={14} /> 10 concurrent terminals</li>
+                    <li><StatusIcon status="check" size={14} /> 10 concurrent sandboxes</li>
                     <li><StatusIcon status="check" size={14} /> Unlimited agents</li>
                     <li><StatusIcon status="check" size={14} /> Priority support</li>
                     <li><StatusIcon status="check" size={14} /> Custom images</li>
@@ -368,10 +368,10 @@
     <!-- Final CTA -->
     <section class="final-cta">
         <h2>Ready to Try?</h2>
-        <p>Get your first terminal running in under 30 seconds. No credit card required.</p>
+        <p>Get your first sandbox running in under 30 seconds. No credit card required.</p>
         <button class="btn btn-primary btn-xl" onclick={handleGuestClick}>
             <StatusIcon status="bolt" size={18} />
-            Launch Your First Terminal
+            Launch Your First Sandbox
         </button>
     </section>
 
@@ -381,7 +381,7 @@
             <div class="footer-brand">
                 <span class="logo-icon">R</span>
                 <span>Rexec</span>
-                <span class="footer-tagline">Terminal as a Service</span>
+                <span class="footer-tagline">Sandbox as a Service</span>
             </div>
             <div class="footer-links">
                 <a href="/docs">Documentation</a>
@@ -1283,4 +1283,3 @@
         }
     }
 </style>
-

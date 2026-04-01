@@ -202,7 +202,7 @@
             class:active={activeTab === "terminals"}
             onclick={() => setTab("terminals")}
         >
-            Active Terminals ({terminals.length})
+            Active Sandboxes ({terminals.length})
         </button>
         <button
             class="tab-btn"

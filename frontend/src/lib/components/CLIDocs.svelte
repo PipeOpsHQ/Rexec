@@ -39,20 +39,20 @@
                 <StatusIcon status="terminal" size={48} />
             </div>
             <h1>rexec CLI</h1>
-            <p class="subtitle">Command-line interface for managing cloud terminal environments</p>
+            <p class="subtitle">Command-line interface for managing cloud sandboxes</p>
         </header>
 
         <section class="docs-section">
             <h2>What is the rexec CLI?</h2>
             <p>
-                The Rexec CLI (`rexec`) provides full access to all Rexec features including terminal management, 
+                The Rexec CLI (`rexec`) provides full access to all Rexec features including sandbox management,
                 snippets, and agent mode directly from your terminal.
             </p>
             <div class="feature-grid">
                 <div class="feature-card">
                     <StatusIcon status="ready" size={20} />
-                    <h4>Terminal Management</h4>
-                    <p>Create, list, connect, and delete terminals</p>
+                    <h4>Sandbox Management</h4>
+                    <p>Create, list, connect, and delete sandboxes</p>
                 </div>
                 <div class="feature-card">
                     <StatusIcon status="ready" size={20} />
@@ -67,14 +67,14 @@
                 <div class="feature-card">
                     <StatusIcon status="ready" size={20} />
                     <h4>Snippets & Macros</h4>
-                    <p>Run automation scripts on your terminals</p>
+                    <p>Run automation scripts on your sandboxes</p>
                 </div>
             </div>
         </section>
 
         <section class="docs-section">
             <h2>Installation</h2>
-            
+
             <div class="install-method">
                 <h3>
                     <StatusIcon status="ready" size={20} />
@@ -83,7 +83,7 @@
                 <div class="code-block">
                     <code>curl -fsSL {installUrl}/install-cli.sh | bash</code>
                     <button
-                        class="copy-btn" 
+                        class="copy-btn"
                         onclick={() => copyToClipboard(`curl -fsSL ${installUrl}/install-cli.sh | bash`, 'cli-direct')}
                     >
                         {copiedCommand === 'cli-direct' ? 'Copied!' : 'Copy'}
@@ -98,8 +98,8 @@
                 </h3>
                 <div class="code-block">
                     <code>brew tap rexec/tap<br/>brew install rexec</code>
-                    <button 
-                        class="copy-btn" 
+                    <button
+                        class="copy-btn"
                         onclick={() => copyToClipboard('brew tap rexec/tap && brew install rexec', 'brew')}
                     >
                         {copiedCommand === 'brew' ? 'Copied!' : 'Copy'}
@@ -114,8 +114,8 @@
                 </h3>
                 <div class="code-block">
                     <code>go install github.com/rexec/rexec/cmd/rexec-cli@latest</code>
-                    <button 
-                        class="copy-btn" 
+                    <button
+                        class="copy-btn"
                         onclick={() => copyToClipboard('go install github.com/rexec/rexec/cmd/rexec-cli@latest', 'go-install')}
                     >
                         {copiedCommand === 'go-install' ? 'Copied!' : 'Copy'}
@@ -127,15 +127,15 @@
         <section class="docs-section">
             <h2>API Token</h2>
             <p>
-                Use your API token to authenticate the CLI without interactive login. 
+                Use your API token to authenticate the CLI without interactive login.
                 This token is tied to your current session.
             </p>
-            
+
             {#if currentToken}
                 <div class="token-section">
                     <div class="token-header">
                         <span class="token-label">Your API Token</span>
-                        <button 
+                        <button
                             class="toggle-btn"
                             onclick={() => showToken = !showToken}
                         >
@@ -147,8 +147,8 @@
                         <code class="token-value">
                             {showToken ? currentToken : '••••••••••••••••••••••••••••••••'}
                         </code>
-                        <button 
-                            class="copy-btn" 
+                        <button
+                            class="copy-btn"
                             onclick={() => copyToClipboard(currentToken, 'api-token')}
                         >
                             {copiedCommand === 'api-token' ? 'Copied!' : 'Copy'}
@@ -158,13 +158,13 @@
                         <StatusIcon status="warning" size={14} />
                         Keep this token secret. It provides full access to your account.
                     </p>
-                    
+
                     <div class="token-usage">
                         <h4>Usage</h4>
                         <div class="code-block">
                             <code>rexec login --token YOUR_TOKEN</code>
-                            <button 
-                                class="copy-btn" 
+                            <button
+                                class="copy-btn"
                                 onclick={() => copyToClipboard(`rexec login --token ${currentToken}`, 'token-cmd')}
                             >
                                 {copiedCommand === 'token-cmd' ? 'Copied!' : 'Copy'}
@@ -191,19 +191,19 @@
                 <div class="command-item">
                     <div class="command-header">
                         <code class="command">rexec ls</code>
-                        <span class="command-desc">List your terminals</span>
+                        <span class="command-desc">List your sandboxes</span>
                     </div>
                 </div>
                 <div class="command-item">
                     <div class="command-header">
                         <code class="command">rexec create --name mydev</code>
-                        <span class="command-desc">Create a new terminal</span>
+                        <span class="command-desc">Create a new sandbox</span>
                     </div>
                 </div>
                 <div class="command-item">
                     <div class="command-header">
                         <code class="command">rexec connect abc123</code>
-                        <span class="command-desc">Connect to a terminal</span>
+                        <span class="command-desc">Connect to a sandbox</span>
                     </div>
                 </div>
                 <div class="command-item">
@@ -217,7 +217,7 @@
 
         <section class="docs-section">
             <h2>Commands Reference</h2>
-            
+
             <h3>Authentication</h3>
             <div class="cli-commands">
                 <div class="command-item">
@@ -240,18 +240,18 @@
                 </div>
             </div>
 
-            <h3 style="margin-top: 24px;">Terminal Management</h3>
+            <h3 style="margin-top: 24px;">Sandbox Management</h3>
             <div class="cli-commands">
                 <div class="command-item">
                     <div class="command-header">
                         <code class="command">rexec ls / list</code>
-                        <span class="command-desc">List all terminals.</span>
+                        <span class="command-desc">List all sandboxes.</span>
                     </div>
                 </div>
                 <div class="command-item">
                     <div class="command-header">
                         <code class="command">rexec create [options]</code>
-                        <span class="command-desc">Create a new terminal.</span>
+                        <span class="command-desc">Create a new sandbox.</span>
                     </div>
                     <div class="command-details" style="margin-top: 8px; font-size: 13px; color: var(--text-muted);">
                         Options: --name, --image, --role, --memory, --cpu
@@ -260,25 +260,25 @@
                 <div class="command-item">
                     <div class="command-header">
                         <code class="command">rexec connect &lt;terminal-id&gt;</code>
-                        <span class="command-desc">Connect to a terminal (interactive shell).</span>
+                        <span class="command-desc">Connect to a sandbox (interactive shell).</span>
                     </div>
                 </div>
                 <div class="command-item">
                     <div class="command-header">
                         <code class="command">rexec start &lt;terminal-id&gt;</code>
-                        <span class="command-desc">Start a stopped terminal.</span>
+                        <span class="command-desc">Start a stopped sandbox.</span>
                     </div>
                 </div>
                 <div class="command-item">
                     <div class="command-header">
                         <code class="command">rexec stop &lt;terminal-id&gt;</code>
-                        <span class="command-desc">Stop a running terminal.</span>
+                        <span class="command-desc">Stop a running sandbox.</span>
                     </div>
                 </div>
                 <div class="command-item">
                     <div class="command-header">
                         <code class="command">rexec rm &lt;terminal-id&gt;</code>
-                        <span class="command-desc">Delete a terminal.</span>
+                        <span class="command-desc">Delete a sandbox.</span>
                     </div>
                 </div>
             </div>
@@ -294,11 +294,11 @@
                 <div class="command-item">
                     <div class="command-header">
                         <code class="command">rexec run &lt;snippet-name&gt;</code>
-                        <span class="command-desc">Run a snippet on a terminal.</span>
+                        <span class="command-desc">Run a snippet on a sandbox.</span>
                     </div>
                 </div>
             </div>
-            
+
 	            <h3 style="margin-top: 24px;">Agent Mode</h3>
 	            <div class="cli-commands">
 	                <div class="command-item">

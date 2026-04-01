@@ -81,12 +81,12 @@
 
             if (!res.ok) {
                 toast.error(
-                    data.message || data.error || "Failed to lock terminal",
+                    data.message || data.error || "Failed to lock sandbox",
                 );
                 return;
             }
 
-            toast.success("Terminal is now protected with MFA");
+            toast.success("Sandbox is now protected with MFA");
             // Update local state and dispatch update event
             if (container) {
                 const updatedContainer = { ...container, mfa_locked: true };
@@ -94,7 +94,7 @@
             }
             await containers.fetchContainers();
         } catch (err) {
-            toast.error("Failed to lock terminal");
+            toast.error("Failed to lock sandbox");
         } finally {
             mfaLoading = false;
         }
@@ -130,7 +130,7 @@
                 return;
             }
 
-            toast.success("Terminal MFA lock removed");
+            toast.success("Sandbox MFA lock removed");
             // Update local state and dispatch update event
             if (container) {
                 const updatedContainer = { ...container, mfa_locked: false };
@@ -390,7 +390,7 @@
                 // Regular container update
                 const containerId = container.db_id || container.id;
                 if (!containerId) {
-                    toast.error("Terminal ID not found");
+                    toast.error("Sandbox ID not found");
                     return;
                 }
 
@@ -428,7 +428,7 @@
                             );
                         }
                     } else {
-                        toast.success("Terminal settings updated");
+                        toast.success("Sandbox settings updated");
                     }
 
                     if (responseData.container) {
@@ -494,7 +494,7 @@
                     </svg>
                 </div>
                 <h2 class="modal-title">
-                    {isAgent ? "Agent Settings" : "Terminal Settings"}
+                    {isAgent ? "Agent Settings" : "Sandbox Settings"}
                 </h2>
                 <button class="close-btn" onclick={handleClose}>
                     <svg
@@ -625,11 +625,11 @@
                                 </span>
                                 <span class="mfa-lock-desc">
                                     {#if isMfaLocked}
-                                        This terminal requires MFA code to
+                                        This sandbox requires MFA code to
                                         connect
                                     {:else}
                                         Require authenticator code to access
-                                        this terminal
+                                        this sandbox
                                     {/if}
                                 </span>
                             </div>
@@ -691,12 +691,12 @@
                     {/if}
                 {:else if activeTab === "settings"}
                     <div class="form-group">
-                        <label for="terminal-name">Terminal Name</label>
+                        <label for="terminal-name">Sandbox Name</label>
                         <input
                             id="terminal-name"
                             type="text"
                             bind:value={name}
-                            placeholder="my-terminal"
+                            placeholder="my-sandbox"
                             class="input"
                         />
                     </div>
@@ -787,7 +787,7 @@
                             <circle cx="12" cy="12" r="10" />
                             <path d="M12 16v-4M12 8h.01" />
                         </svg>
-                        Resource changes require terminal restart to take effect.
+                        Resource changes require sandbox restart to take effect.
                     </p>
 
                     {#if !isPaidUser && $userTier === "free"}
@@ -797,7 +797,7 @@
                         </p>
                     {/if}
 
-                    <!-- Security Section for Normal Terminals -->
+                    <!-- Security Section for Normal Sandboxes -->
                     {#if userHasMfa}
                         <div class="section-header" style="margin-top: 16px;">
                             <span class="section-title">Security</span>
@@ -826,11 +826,11 @@
                                 </span>
                                 <span class="mfa-lock-desc">
                                     {#if isMfaLocked}
-                                        This terminal requires MFA code to
+                                        This sandbox requires MFA code to
                                         connect
                                     {:else}
                                         Require authenticator code to access
-                                        this terminal
+                                        this sandbox
                                     {/if}
                                 </span>
                             </div>
@@ -893,7 +893,7 @@
                 {:else}
                     <div class="port-forwards-header">
                         <p class="section-description">
-                            Access services running in your terminal (like
+                            Access services running in your sandbox (like
                             localhost:8080) directly from your browser.
                         </p>
                         <button

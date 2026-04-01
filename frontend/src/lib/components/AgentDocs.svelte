@@ -169,7 +169,7 @@
 
         <section class="docs-section">
             <h2>rexec CLI Installation</h2>
-            <p>Install the rexec CLI to manage agents, terminals, and access the interactive TUI from your local machine.</p>
+            <p>Install the rexec CLI to manage agents, sandboxes, and access the interactive TUI from your local machine.</p>
             
             <div class="install-method">
                 <h3>
@@ -238,7 +238,7 @@
 
         <section class="docs-section">
             <h2>CLI Commands</h2>
-            <p>After installation, you can use the rexec CLI to manage your agent and terminals:</p>
+            <p>After installation, you can use the rexec CLI to manage your agent and sandboxes:</p>
             
             <div class="cli-commands">
                 <div class="command-item">
@@ -280,7 +280,7 @@
 	                <div class="command-item">
 	                    <div class="command-header">
 	                        <code class="command">rexec ls</code>
-	                        <span class="command-desc">List your terminals and agents</span>
+	                        <span class="command-desc">List your sandboxes and agents</span>
 	                    </div>
 	                </div>
             </div>
@@ -421,7 +421,7 @@
                     <p>Ensure you have sudo access or run the install script with appropriate permissions.</p>
                 </div>
                 <div class="faq-item">
-                    <h4>Terminal not appearing in dashboard</h4>
+                    <h4>Agent not appearing in dashboard</h4>
                     <p>Check that the agent is running with <code>rexec agent status</code> and that you're logged in to the same account.</p>
                 </div>
             </div>

@@ -381,7 +381,7 @@
                   {isStarting ? 'Starting...' : 'Start Recording'}
                 </button>
               {:else}
-                <p class="hint">Connect to a terminal first</p>
+                <p class="hint">Connect to a sandbox first</p>
               {/if}
             </div>
           {/if}

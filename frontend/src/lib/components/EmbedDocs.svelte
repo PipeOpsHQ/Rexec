@@ -536,9 +536,9 @@
             <div class="header-icon">
                 <StatusIcon status="code" size={48} />
             </div>
-            <h1>Embeddable Terminal Widget</h1>
+            <h1>Embeddable Sandbox Widget</h1>
             <p class="subtitle">
-                Add a cloud terminal to any website with a single script tag
+                Add a cloud sandbox to any website with a single script tag
             </p>
         </header>
 
@@ -546,8 +546,8 @@
             <h2>What is the Embed Widget?</h2>
             <p>
                 The Rexec embed widget lets you add a fully-featured cloud
-                terminal to any website. Similar to Google Cloud Shell, you can
-                embed interactive terminal sessions in documentation, tutorials,
+                sandbox to any website. Similar to Google Cloud Shell, you can
+                embed interactive sandbox sessions in documentation, tutorials,
                 learning platforms, or anywhere you need live command execution.
             </p>
             <div class="feature-grid">
@@ -555,7 +555,7 @@
                     <StatusIcon status="bolt" size={20} />
                     <h4>One-Line Integration</h4>
                     <p>
-                        Add a terminal with just a script tag and one line of
+                        Add a sandbox with just a script tag and one line of
                         JavaScript
                     </p>
                 </div>
@@ -587,7 +587,7 @@
 
         <section class="docs-section">
             <h2>Quick Start</h2>
-            <p>Add this to your HTML to embed a terminal:</p>
+            <p>Add this to your HTML to embed a sandbox:</p>
             <div class="code-block large">
                 <code
                     >&lt;!-- Include the embed script --&gt;<br />&lt;script
@@ -697,7 +697,7 @@
                     onclick={() => (previewMode = "new")}
                 >
                     <StatusIcon status="plus" size={16} />
-                    New Terminal
+                    New Sandbox
                 </button>
                 <!--
                 <button
@@ -729,7 +729,7 @@
                         > and clicking the share button.
                     </p>
                 {:else if previewMode === "new"}
-                    <!-- New Terminal mode -->
+                    <!-- New Sandbox mode -->
                     <div class="preview-form">
                         <div class="preview-input-group">
                             <label for="preview-token-new">API Token</label>
@@ -883,7 +883,7 @@
                 <div class="live-preview-container">
                     <div class="preview-header">
                         <StatusIcon status="terminal" size={16} />
-                        <span>Live Terminal Preview</span>
+                        <span>Live Sandbox Preview</span>
                         <span class="preview-code">
                             {#if previewMode === "share"}
                                 Share Code: {previewShareCode}
@@ -1154,7 +1154,7 @@
 
         <section class="docs-section">
             <h2>Event Callbacks</h2>
-            <p>Listen to terminal events for custom behavior:</p>
+            <p>Listen to widget events for custom behavior:</p>
             <div class="code-block">
                 <code
                     >const term = Rexec.embed('#terminal', &#123;<br />
@@ -1184,8 +1184,8 @@
         </section>
 
         <section class="docs-section">
-            <h2>Terminal API</h2>
-            <p>Control the terminal programmatically:</p>
+            <h2>Embed API</h2>
+            <p>Control the widget programmatically:</p>
 
             <div class="api-group">
                 <h3>Methods</h3>
@@ -1340,9 +1340,9 @@
                 <div class="faq-item">
                     <h4>How do I get a share code?</h4>
                     <p>
-                        Create a terminal in your Rexec dashboard, click the
+                        Create a sandbox in your Rexec dashboard, click the
                         share button, and copy the code. Share codes allow guest
-                        access to your terminal session.
+                        access to your sandbox session.
                     </p>
                 </div>
                 <div class="faq-item">

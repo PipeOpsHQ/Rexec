@@ -345,7 +345,7 @@
         navigator.clipboard
             .writeText(url)
             .then(() => {
-                toast.success("Terminal link copied to clipboard");
+                toast.success("Sandbox link copied to clipboard");
             })
             .catch(() => {
                 toast.error("Failed to copy link");

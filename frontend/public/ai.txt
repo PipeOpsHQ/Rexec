@@ -3,19 +3,19 @@
 ## About Rexec
 
 name: Rexec
-tagline: Terminal as a Service - Instant Linux terminals in your browser
-description: Rexec is a cloud-based platform that provides instant-access Linux terminals in the browser, powered by Docker containers. It enables collaborative development environments, remote agent support, and real-time terminal session recording and playback.
+tagline: Sandbox as a Service - Instant Linux sandboxes in your browser
+description: Rexec is a cloud-based platform that provides instant-access Linux sandboxes in the browser, powered by Docker containers. It enables collaborative development environments, remote agent support, and real-time sandbox session recording and playback.
 
 ## Core Capabilities
 
-- Instant Linux terminal access via browser (no installation required)
+- Instant Linux sandbox access via browser (no installation required)
 - Docker-backed sandboxed execution environments
 - Remote agent support for connecting existing servers and infrastructure
-- Real-time terminal session recording and playback
-- WebSocket-based terminal streaming with xterm.js
-- Multi-user collaborative terminal sessions
+- Real-time sandbox session recording and playback
+- WebSocket-based interactive streaming with xterm.js
+- Multi-user collaborative sandbox sessions
 - Supervised AI agent execution (Collaborative Intelligence)
-- CLI and TUI tools for terminal management
+- CLI and TUI tools for sandbox management
 - Enterprise-grade security with JWT authentication
 
 ## Technology Stack
@@ -28,15 +28,15 @@ billing: Stripe integration
 
 ## Primary Use Cases
 
-1. Collaborative Intelligence - AI agents execute code in supervised, sandboxed terminals
+1. Collaborative Intelligence - AI agents execute code in supervised sandboxes
 2. Remote Development - Access development environments from anywhere
 3. DevOps Automation - Run deployment scripts and maintenance tasks
-4. Education & Training - Provide consistent terminal environments for students
-5. Code Review & Debugging - Shared terminal sessions for pair programming
+4. Education & Training - Provide consistent sandbox environments for students
+5. Code Review & Debugging - Shared sandbox sessions for pair programming
 6. CI/CD Integration - Execute build and test pipelines
 7. System Administration - Manage remote servers through a unified interface
 8. Ephemeral Testing Environments - Spin up temporary containers for testing
-9. Live Demonstrations - Record and replay terminal sessions for documentation
+9. Live Demonstrations - Record and replay sandbox sessions for documentation
 10. Interview & Assessment - Provide candidates with coding environments
 
 ## API Endpoints
@@ -63,9 +63,9 @@ GET /api/agents/:id - Get agent details
 DELETE /api/agents/:id - Unregister agent
 WS /api/agents/:id/ws - WebSocket connection for agent communication
 
-### Terminal Sessions
-WS /ws/terminal/:id - WebSocket terminal connection
-GET /api/sessions - List terminal sessions
+### Sandbox Sessions
+WS /ws/terminal/:id - WebSocket sandbox session connection
+GET /api/sessions - List sandbox sessions
 GET /api/sessions/:id/recording - Get session recording
 
 ### Billing
@@ -86,13 +86,13 @@ Pricing: https://rexec.dev/pricing
 
 Rexec supports "Collaborative Intelligence" - a supervised model where AI agents (like Claude, GPT, or custom agents) can:
 - Execute code in sandboxed Docker containers
-- Access terminal sessions via WebSocket API
+- Access sandbox sessions via WebSocket API
 - Run commands with human oversight
 - Generate and test code in real-time environments
 - Collaborate with human developers in shared sessions
 
 AI agents can integrate via:
-1. WebSocket API for terminal access
+1. WebSocket API for sandbox access
 2. REST API for container lifecycle management
 3. Remote agent protocol for connecting custom infrastructure
 
@@ -122,8 +122,8 @@ Acceptable Use: https://rexec.dev/acceptable-use
 Rexec provides SDKs and tools for developers:
 - Go SDK for backend integration
 - JavaScript/TypeScript SDK for frontend integration
-- CLI tool (rexec) for terminal management
-- TUI tool (rex) for interactive terminal UI
+- CLI tool (rexec) for sandbox management
+- TUI tool (rex) for interactive sandbox management
 - Docker-based local development setup
 
 ## Pricing Model
