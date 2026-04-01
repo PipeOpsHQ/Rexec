@@ -421,18 +421,27 @@ function createContainersStore() {
 
       // Make the POST request to start container creation
       // All progress updates come via WebSocket events
-      this.postCreateContainer(
-        name,
-        image,
-        customImage,
-        role,
-        onProgress,
-        onError,
-        resources,
-        shellOptions,
-        isolation,
-        cleanup,
-      );
+      try {
+        await this.postCreateContainer(
+          name,
+          image,
+          customImage,
+          role,
+          onProgress,
+          onError,
+          resources,
+          shellOptions,
+          cleanup,
+        );
+      } catch (error) {
+        cleanup();
+        update((state) => ({ ...state, creating: null }));
+        onError?.(
+          error instanceof Error
+            ? error.message
+            : "Failed to create terminal",
+        );
+      }
     },
 
     // POST to create container - progress comes via WebSocket
