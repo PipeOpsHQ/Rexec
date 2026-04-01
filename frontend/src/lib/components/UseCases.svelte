@@ -26,6 +26,32 @@
 
     const useCases = [
         {
+            slug: "ai-native-headless",
+            title: "AI-Native & Headless Execution",
+            icon: "ai",
+            description:
+                "The perfect sandbox for the 'vibe coding' era. Give your AI agents (Claude, Cursor, Windsurf) a secure, remote environment to execute code and run commands.",
+            points: [
+                "Headless API for autonomous AI agents",
+                "Secure, network-isolated execution",
+                "Full shell access for complex AI tasks",
+                "Instant-on environments for AI workflows",
+            ],
+        },
+        {
+            slug: "collaborative-intelligence",
+            title: "Collaborative Intelligence",
+            icon: "connected",
+            description:
+                "A shared workspace for humans and AI agents. Let LLMs execute code in a real, safe environment while you supervise and intervene in real-time.",
+            points: [
+                "Human-in-the-loop oversight of AI execution",
+                "Shared terminal sessions for human-AI pairing",
+                "Resumable sessions - keep AI tasks running",
+                "Safe, sandboxed 'playground' for AI exploration",
+            ],
+        },
+        {
             slug: "ephemeral-dev-environments",
             title: "Ephemeral Dev Environments",
             icon: "bolt",
@@ -36,19 +62,6 @@
                 "Immutable infrastructure patterns applied to dev",
                 "Always clean state - avoid 'works on my machine'",
                 "Perfect for testing dangerous scripts",
-            ],
-        },
-        {
-            slug: "collaborative-intelligence",
-            title: "Collaborative Intelligence",
-            icon: "ai",
-            description:
-                "A shared workspace for humans and AI agents. Let LLMs execute code in a real, safe environment while you supervise.",
-            points: [
-                "Sandboxed execution for autonomous agents",
-                "Human-in-the-loop oversight",
-                "Resumable sessions - disconnect and reconnect anytime",
-                "Standardized toolchain for consistent AI output",
             ],
         },
         {
@@ -245,15 +258,15 @@
 </script>
 
 <svelte:head>
-    <title>Rexec Use Cases - The Future of Development</title>
+    <title>Rexec Use Cases - AI-Native Sandbox & Remote Access</title>
     <meta
         name="description"
-        content="Discover how Rexec powers ephemeral development environments, AI agent execution, collaborative coding, and secure cloud access."
+        content="Discover how Rexec powers AI-native headless execution, ephemeral dev environments, and secure cloud access for humans and agents."
     />
     <meta property="og:title" content="Rexec Use Cases" />
     <meta
         property="og:description"
-        content="Discover how Rexec powers ephemeral development environments, AI agent execution, collaborative coding, and secure cloud access."
+        content="Discover how Rexec powers AI-native headless execution, ephemeral dev environments, and secure cloud access for humans and agents."
     />
 </svelte:head>
 
@@ -261,12 +274,12 @@
     <div class="page-header">
         <div class="header-badge">
             <span class="dot"></span>
-            <span>Why Rexec?</span>
+            <span>The AI-Native Sandbox</span>
         </div>
-        <h1>Powerful <span class="accent">Use Cases</span></h1>
+        <h1>Powerful <span class="accent">AI-Native</span> Use Cases</h1>
         <p class="subtitle">
-            Rexec is more than just a terminal. It's an ephemeral sandbox
-            platform designed for modern workflows.
+            Rexec is an API-first sandbox platform built for the "vibe coding" era. 
+            Providing headless execution for AI agents and ephemeral environments for developers.
         </p>
     </div>
 

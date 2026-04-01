@@ -4,7 +4,7 @@
 
     // SEO metadata for docs page
     onMount(() => {
-        document.title = "Documentation | Rexec - Sandbox as a Service";
+        document.title = "Documentation | Rexec - AI-Native Sandbox";
 
         // Update meta tags
         const metaDescription = document.querySelector(
@@ -13,7 +13,7 @@
         if (metaDescription) {
             metaDescription.setAttribute(
                 "content",
-                "Complete documentation for Rexec - learn about instant cloud sandboxes, BYOS agents, CLI tools, security features, and API integration.",
+                "Complete documentation for Rexec - learn about AI-native headless execution, instant cloud sandboxes, BYOS agents, and API integration for coding tools.",
             );
         }
 
@@ -21,7 +21,7 @@
         if (ogTitle) {
             ogTitle.setAttribute(
                 "content",
-                "Documentation | Rexec - Sandbox as a Service",
+                "Documentation | Rexec - AI-Native Sandbox",
             );
         }
 
@@ -31,7 +31,7 @@
         if (ogDescription) {
             ogDescription.setAttribute(
                 "content",
-                "Complete documentation for Rexec - learn about instant cloud sandboxes, BYOS agents, CLI tools, security features, and API integration.",
+                "Complete documentation for Rexec - learn about AI-native headless execution, instant cloud sandboxes, BYOS agents, and API integration for coding tools.",
             );
         }
 
@@ -41,7 +41,7 @@
         if (twitterTitle) {
             twitterTitle.setAttribute(
                 "content",
-                "Documentation | Rexec - Sandbox as a Service",
+                "Documentation | Rexec - AI-Native Sandbox",
             );
         }
 
@@ -51,7 +51,7 @@
         if (twitterDescription) {
             twitterDescription.setAttribute(
                 "content",
-                "Complete documentation for Rexec - learn about instant cloud sandboxes, BYOS agents, CLI tools, security features, and API integration.",
+                "Complete documentation for Rexec - learn about AI-native headless execution, instant cloud sandboxes, BYOS agents, and API integration for coding tools.",
             );
         }
 
@@ -74,6 +74,12 @@
     // Feature sections
     const features = [
         {
+            icon: "ai",
+            title: "AI-Native Execution",
+            description:
+                "API-driven headless execution for AI agents and coding tools like Claude Code, Cursor, and Windsurf.",
+        },
+        {
             icon: "bolt",
             title: "Instant Sandboxes",
             description:
@@ -84,12 +90,6 @@
             title: "Network Isolation",
             description:
                 "Each sandbox runs in its own isolated Docker container with dedicated networking for maximum security.",
-        },
-        {
-            icon: "cloud",
-            title: "Persistent Storage",
-            description:
-                "Your files and configurations persist across sessions. Pick up exactly where you left off.",
         },
         {
             icon: "users",
@@ -198,9 +198,14 @@
 
 <div class="docs-page">
     <div class="docs-header">
-        <h1>Documentation</h1>
-        <p class="docs-subtitle">
-            Everything you need to know about Rexec - Sandbox as a Service
+        <div class="header-badge">
+            <span class="dot"></span>
+            <span>AI-Native & Headless Sandbox</span>
+        </div>
+        <h1>Platform <span class="accent">Documentation</span></h1>
+        <p class="subtitle">
+            Rexec is an API-first sandbox engine for the vibe coding era. 
+            Learn how to provision, connect, and manage your environments.
         </p>
     </div>
 

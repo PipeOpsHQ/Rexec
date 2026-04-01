@@ -40,18 +40,18 @@
     <div class="landing-content">
         <div class="landing-badge">
             <span class="dot"></span>
-            <span>Sandbox as a Service</span>
+            <span>AI-Native Sandbox</span>
         </div>
 
         <h1>
-            Instant <span class="accent">Linux</span> Sandboxes
+            The Sandbox for <span class="accent">Vibe Coding</span>
             <br />
-            In Your Browser
+            Built for AI Agents
         </h1>
 
         <p class="description">
-            Create your first sandbox to access a cloud environment, GPU workspace,
-            or connect to remote resources. No setup required.
+            The API-first, headless execution environment for your AI agents 
+            and coding tools. Secure, instant, and fully isolated.
         </p>
 
         <div class="landing-actions">
@@ -78,23 +78,27 @@
                 <span class="terminal-dot dot-red"></span>
                 <span class="terminal-dot dot-yellow"></span>
                 <span class="terminal-dot dot-green"></span>
-                <span class="terminal-title">ubuntu-24 — rexec</span>
+                <span class="terminal-title">ai-agent — rexec</span>
             </div>
             <div class="terminal-preview-body">
                 <div class="terminal-line">
-                    <span class="prompt">root@rexec:~#</span>
-                    <span class="command">whoami</span>
-                </div>
-                <div class="terminal-output">root</div>
-                <div class="terminal-line">
-                    <span class="prompt">root@rexec:~#</span>
-                    <span class="command">uname -a</span>
+                    <span class="prompt">ai@rexec:~#</span>
+                    <span class="command">rexec-agent status</span>
                 </div>
                 <div class="terminal-output">
-                    Linux rexec 6.5.0-44-generic #44-Ubuntu SMP x86_64 GNU/Linux
+                    Status: Headless (Running)<br/>
+                    Connection: WSS (Encrypted)<br/>
+                    Active Agents: claude-3-7-sonnet, cursor-v1
                 </div>
                 <div class="terminal-line">
-                    <span class="prompt">root@rexec:~#</span>
+                    <span class="prompt">ai@rexec:~#</span>
+                    <span class="command">python3 -c "import rexec; print('AI Ready')"</span>
+                </div>
+                <div class="terminal-output">
+                    AI Ready
+                </div>
+                <div class="terminal-line">
+                    <span class="prompt">ai@rexec:~#</span>
                     <span class="cursor">_</span>
                 </div>
             </div>
@@ -102,19 +106,19 @@
 
         <div class="features">
             <div class="feature">
+                <span class="feature-icon"><StatusIcon status="ai" size={24} /></span>
+                <h3>AI-Native</h3>
+                <p>API-driven headless execution for AI agents and coding tools</p>
+            </div>
+            <div class="feature">
                 <span class="feature-icon"><StatusIcon status="bolt" size={24} /></span>
-                <h3>Instant</h3>
-                <p>Rexec sandboxes launch in seconds with pre-configured shells</p>
+                <h3>Instant-On</h3>
+                <p>Sandboxes provision in milliseconds with zero setup required</p>
             </div>
             <div class="feature">
                 <span class="feature-icon"><StatusIcon status="connected" size={24} /></span>
-                <h3>Isolated</h3>
-                <p>Each sandbox is fully isolated with its own filesystem</p>
-            </div>
-            <div class="feature">
-                <span class="feature-icon"><StatusIcon status="terminal" size={24} /></span>
-                <h3>Accessible</h3>
-                <p>Access from any browser, anywhere. SSH support included</p>
+                <h3>Hybrid</h3>
+                <p>Connect your own machines to your AI workflow via the agent</p>
             </div>
         </div>
 

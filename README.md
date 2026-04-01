@@ -1,4 +1,4 @@
-# Rexec - Sandbox as a Service
+# Rexec - AI-Native Sandbox as a Service
 
 [![GitHub stars](https://img.shields.io/github/stars/PipeOpsHQ/rexec?style=social)](https://github.com/PipeOpsHQ/rexec)
 [![GitHub forks](https://img.shields.io/github/forks/PipeOpsHQ/rexec?style=social)](https://github.com/PipeOpsHQ/rexec/fork)
@@ -7,17 +7,18 @@
 [![Go Version](https://img.shields.io/github/go-mod/go-version/PipeOpsHQ/rexec)](https://go.dev/)
 [![Docker Pulls](https://img.shields.io/docker/pulls/pipeopshq/rexec)](https://ghcr.io/pipeopshq/rexec)
 
-Rexec is an open-source platform that gives you instantly-available, network-isolated Linux sandboxes in the cloud, or lets you connect your own machines to a unified dashboard. Built for developers who need on-demand environments and secure remote access.
+Rexec is an open-source, AI-native platform that gives you instantly-available, network-isolated Linux sandboxes in the cloud, or lets you connect your own machines to a unified dashboard. Built for the "vibe coding" era, Rexec provides the perfect headless execution environment for AI agents and coding tools.
 
 ---
 
 ## Features
 
+*   **🤖 AI-Native & Headless**: Designed for integration with AI agents (Claude Code, Cursor, Windsurf). Execute commands in secure, remote environments via API.
 *   **Instant Cloud Sandboxes**: Create, start, and destroy disposable Linux sandboxes in seconds (powered by Docker).
 *   **Connect Any Machine (BYOS)**: Install the lightweight Rexec Agent on your laptop, server, or Raspberry Pi to access it securely from the browser without VPNs or SSH port exposure.
 *   **First-Class Terminal UX**: Real-time WebSocket streaming with `xterm.js`, JetBrains Mono fonts, and a native-feeling UI.
 *   **Secure by Default**: JWT authentication, MFA support, audit logging, and isolated container networking.
-*   **Collaboration**: Share sandbox sessions for pair programming or debugging.
+*   **Collaboration**: Share sandbox sessions for pair programming or debugging with humans and AI agents.
 *   **Session Recording**: Record and replay sandbox sessions for documentation or audit trails.
 
 ---
