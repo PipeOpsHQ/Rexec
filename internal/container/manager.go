@@ -548,14 +548,16 @@ type ContainerInfo struct {
 
 // Manager handles Docker container lifecycle
 type Manager struct {
-	client           client.CommonAPIClient
-	containers       map[string]*ContainerInfo // dockerID -> container info
-	userIndex        map[string][]string       // userID -> list of dockerIDs
-	mu               sync.RWMutex
-	volumePath       string // base path for user volumes
-	diskQuotaEnabled bool   // whether disk quota is available
-	diskQuotaChecked bool   // whether we've checked for disk quota support
-	diskQuotaCheckMu sync.Once
+	client            client.CommonAPIClient
+	containers        map[string]*ContainerInfo // dockerID -> container info
+	userIndex         map[string][]string       // userID -> list of dockerIDs
+	mu                sync.RWMutex
+	volumePath        string // base path for user volumes
+	diskQuotaEnabled  bool   // whether disk quota is available
+	diskQuotaChecked  bool   // whether we've checked for disk quota support
+	diskQuotaCheckMu  sync.Once
+	availableRuntimes []string
+	runtimeCheckMu    sync.Once
 
 	// Stats broadcasting
 	activeStatsStreams map[string]*StatsBroadcaster
@@ -2363,22 +2365,6 @@ func parseSizeString(s string) int64 {
 		numStr = s[:len(s)-1]
 	case 'T':
 		multiplier = 1024 * 1024 * 1024 * 1024
-		numStr = s[:len(s)-1]
-	}
-
-	// Also handle "GB", "MB" etc.
-	if len(numStr) > 0 && numStr[len(numStr)-1] == 'B' {
-		numStr = numStr[:len(numStr)-1]
-	}
-
-	val, err := strconv.ParseFloat(numStr, 64)
-	if err != nil {
-		return 0
-	}
-
-	return int64(val * float64(multiplier))
-}
-024 * 1024 * 1024
 		numStr = s[:len(s)-1]
 	}
 
