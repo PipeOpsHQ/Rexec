@@ -44,6 +44,89 @@
             comingSoon?: boolean;
         }
     > = {
+        "ai-native-headless": {
+            title: "AI-Native & Headless Execution",
+            icon: "ai",
+            tagline: "The perfect engine for the vibe coding era.",
+            description:
+                "Modern AI coding assistants (Claude Code, Cursor, Windsurf) need more than just a text editor—they need a real, secure environment where they can execute code, run tests, and manage infrastructure. Rexec provides a headless, API-first sandbox platform designed specifically for the needs of AI agents.",
+            heroImage: "/images/use-cases/ai-native.svg",
+            benefits: [
+                {
+                    title: "API-First Headless Execution",
+                    description:
+                        "Connect your AI agents directly to a full Linux shell via our robust API and SDKs.",
+                    icon: "code",
+                },
+                {
+                    title: "Secure AI Sandboxing",
+                    description:
+                        "Let AI agents run untrusted code in a network-isolated environment without risking your local machine.",
+                    icon: "shield",
+                },
+                {
+                    title: "Instant Environment Provisioning",
+                    description:
+                        "Spin up specialized environments (Python, Node, Go) for AI tasks in milliseconds.",
+                    icon: "bolt",
+                },
+                {
+                    title: "Audit & Supervision",
+                    description:
+                        "Monitor every command your AI agent executes with real-time streaming and complete audit logs.",
+                    icon: "connected",
+                },
+            ],
+            workflow: [
+                {
+                    step: 1,
+                    title: "Integrate the SDK",
+                    description:
+                        "Add the Rexec SDK to your AI agent's toolchain in just a few lines of code.",
+                },
+                {
+                    step: 2,
+                    title: "Provision on Demand",
+                    description:
+                        "Your AI agent requests a sandbox with the specific tools and dependencies it needs.",
+                },
+                {
+                    step: 3,
+                    title: "Headless Execution",
+                    description:
+                        "The agent executes commands, analyzes output, and iterates entirely via the Rexec API.",
+                },
+                {
+                    step: 4,
+                    title: "Human-in-the-Loop",
+                    description:
+                        "Join the session via the Rexec dashboard to supervise, collaborate, or debug alongside the AI.",
+                },
+            ],
+            examples: [
+                {
+                    title: "AI Agent Integration",
+                    description: "Connect an AI agent to a remote sandbox.",
+                    code: `import { RexecClient } from "@rexec/sdk";
+
+const client = new RexecClient({ token: "YOUR_TOKEN" });
+const sandbox = await client.containers.create({ image: "python:3.12" });
+
+// Execute command from AI agent
+const result = await client.containers.exec(sandbox.id, "pip install requests && python script.py");
+console.log(result.stdout);`,
+                },
+                {
+                    title: "Headless Agent Connection",
+                    description: "Run the Rexec Agent in headless mode for remote AI access.",
+                    code: `# Start the agent on your dev machine
+rexec-agent start --headless --token YOUR_TOKEN
+
+# Your AI tool can now access this machine via the Rexec API from anywhere.`,
+                },
+            ],
+            relatedUseCases: ["collaborative-intelligence", "ephemeral-dev-environments", "sdk-integration"],
+        },
         "ephemeral-dev-environments": {
             title: "Ephemeral Dev Environments",
             icon: "bolt",

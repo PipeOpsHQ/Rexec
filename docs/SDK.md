@@ -2,6 +2,8 @@
 
 Rexec provides official SDKs for programmatically interacting with your sandboxed environments.
 
+> 🤖 **AI-Native Headless Engine**: Rexec is designed for the "vibe coding" era. Our SDKs provide the perfect bridge for AI coding assistants (Claude Code, Cursor, Windsurf) to execute commands in secure, remote environments.
+
 > 📖 **New to Rexec SDKs?** Start with the [Getting Started Guide](SDK_GETTING_STARTED.md) for a step-by-step tutorial.
 
 ## Available SDKs
