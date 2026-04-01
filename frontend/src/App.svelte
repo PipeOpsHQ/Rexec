@@ -2322,7 +2322,7 @@
                     aria-labelledby="guest-modal-title"
                 >
                     <div class="modal-header">
-                        <h2 id="guest-modal-title">Get Started</h2>
+                        <h2 id="guest-modal-title">Quick Start</h2>
                         <button
                             class="modal-close"
                             on:click={closeGuestModal}
@@ -2332,9 +2332,8 @@
 
                     <div class="modal-body">
                         <p class="modal-description">
-                            Enter your email to start your free guest access.
-                            We'll use this to save your work and send you
-                            updates.
+                            Enter your email to launch your first sandbox instantly.
+                            We'll use this to save your work and persist your data.
                         </p>
 
                         <div class="form-group">
@@ -2350,8 +2349,8 @@
                         </div>
 
                         <p class="modal-hint">
-                            <StatusIcon status="validating" size={14} /> Guest access
-                            lasts 50 hours. Sign in with PipeOps for unlimited access.
+                            <StatusIcon status="validating" size={14} /> Guest sandboxes
+                            last 50 hours. Sign in for persistent cloud storage.
                         </p>
                     </div>
 
@@ -2369,8 +2368,8 @@
                             disabled={isGuestSubmitting || !guestEmail.trim()}
                         >
                             {isGuestSubmitting
-                                ? "Starting..."
-                                : "Start Terminal"}
+                                ? "Launching..."
+                                : "Launch Sandbox"}
                         </button>
                     </div>
                 </div>

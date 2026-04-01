@@ -1318,6 +1318,7 @@ type ContainerRecord struct {
 	MemoryMB   int64     `db:"memory_mb"`
 	CPUShares  int64     `db:"cpu_shares"`
 	DiskMB     int64     `db:"disk_mb"`
+	Isolation  string    `db:"isolation"`
 	MFALocked  bool      `db:"mfa_locked"`
 	CreatedAt  time.Time `db:"created_at"`
 	LastUsedAt time.Time `db:"last_used_at"`

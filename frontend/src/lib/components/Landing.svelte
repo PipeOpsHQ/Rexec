@@ -56,7 +56,7 @@
 
         <div class="landing-actions">
             <button class="btn btn-primary btn-lg" onclick={handleGuestClick}>
-                Try Now — No Sign Up
+                Launch Sandbox — Free
             </button>
             <button
                 class="btn btn-secondary btn-lg"
