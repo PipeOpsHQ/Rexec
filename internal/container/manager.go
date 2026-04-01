@@ -988,6 +988,33 @@ func (m *Manager) IsRuntimeAvailable(name string) bool {
 	return false
 }
 
+func (m *Manager) selectOCIRuntime(cfg ContainerConfig, diskQuotaEnabled bool) string {
+	isMacOS := strings.Contains(strings.ToLower(cfg.ImageType), "macos") || strings.Contains(strings.ToLower(cfg.ImageType), "osx")
+
+	requestedRuntime := strings.TrimSpace(os.Getenv("OCI_RUNTIME"))
+	if requestedRuntime != "" {
+		if isMacOS && strings.HasPrefix(requestedRuntime, "runsc") {
+			log.Printf("[Container] WARNING: Runtime %q is incompatible with macOS VM containers; using runc instead", requestedRuntime)
+			return "runc"
+		}
+		return requestedRuntime
+	}
+
+	if isMacOS {
+		return "runc"
+	}
+
+	if cfg.DiskQuota > 0 && diskQuotaEnabled {
+		return "runc"
+	}
+
+	if m.IsRuntimeAvailable("runsc") {
+		return "runsc"
+	}
+
+	return "runc"
+}
+
 // CheckImageExists checks if an image exists in Docker
 func (m *Manager) CheckImageExists(ctx context.Context, imageType string, isCustom bool, customImage string) (bool, string) {
 	var imageName string
@@ -1049,6 +1076,8 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 		shell = "/bin/sh" // Default fallback - always available
 	}
 
+	isMacOS := strings.Contains(strings.ToLower(cfg.ImageType), "macos") || strings.Contains(strings.ToLower(cfg.ImageType), "osx")
+
 	// Generate a short container hostname (first 12 chars of container name hash)
 	containerHostname := cfg.ContainerName
 	if len(containerHostname) > 12 {
@@ -1095,7 +1124,7 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 	}
 
 	// Special resource handling for macOS (requires more resources)
-	if cfg.ImageType == "macos" {
+	if isMacOS {
 		log.Printf("[Container] Enforcing minimum resources for macOS")
 		minMemory := int64(4096 * 1024 * 1024)    // 4GB
 		minCPU := int64(2000)                     // 2 vCPU
@@ -1121,27 +1150,20 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 	cpuPeriod := int64(100000)                    // 100ms in microseconds
 	cpuQuota := (cfg.CPULimit * cpuPeriod) / 1000 // Convert millicores to quota
 
-	// Use default Docker runtime (runc)
-	// OCI runtime can be configured via OCI_RUNTIME env var or automatically detected
-	ociRuntime := os.Getenv("OCI_RUNTIME")
-	if ociRuntime == "" {
-		// Try to detect gVisor (runsc) as the default for high isolation
-		// This now works for both local and REMOTE hosts via the Docker API
-		if m.IsRuntimeAvailable("runsc") {
-			ociRuntime = "runsc"
-		} else {
-			ociRuntime = "runc" // Default to runc for maximum compatibility
-		}
-	}
+	diskQuotaEnabled := m.IsDiskQuotaEnabled()
+
+	// Select an OCI runtime that is compatible with the requested container features.
+	// Prefer gVisor only when it won't conflict with disk quotas or macOS VM containers.
+	ociRuntime := m.selectOCIRuntime(cfg, diskQuotaEnabled)
 
 	// Build storage options conditionally based on quota support
 	// NOTE: gVisor (runsc) does NOT support overlay2 storage quotas - use runc for disk limits
 	storageOpts := make(map[string]string)
-	if m.IsDiskQuotaEnabled() && cfg.DiskQuota > 0 {
-		storageOpts["size"] = formatBytes(cfg.DiskQuota)
+	if diskQuotaEnabled && cfg.DiskQuota > 0 {
 		if strings.HasPrefix(ociRuntime, "runsc") {
-			log.Printf("[Container] WARNING: Disk quota (%s) ignored - gVisor doesn't support overlay2 quotas. Use runc for disk limits.", formatBytes(cfg.DiskQuota))
+			log.Printf("[Container] WARNING: Disk quota (%s) skipped because runtime %q doesn't support overlay2 quotas", formatBytes(cfg.DiskQuota), ociRuntime)
 		} else {
+			storageOpts["size"] = formatBytes(cfg.DiskQuota)
 			log.Printf("[Container] Disk quota enabled: %s", formatBytes(cfg.DiskQuota))
 		}
 	} else if cfg.DiskQuota > 0 {
@@ -1231,9 +1253,6 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 	}
 
 	// Special handling for macOS (CUA Lumier / docker-osx style VM images)
-	// Check for "macos" or "osx" in image type (case-insensitive)
-	isMacOS := strings.Contains(strings.ToLower(cfg.ImageType), "macos") || strings.Contains(strings.ToLower(cfg.ImageType), "osx")
-
 	if isMacOS {
 		// Do NOT override Entrypoint - let the VM boot script run
 		// Do NOT use /home/user working dir - use default
