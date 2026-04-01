@@ -714,7 +714,7 @@
                             y2="12"
                         />
                     </svg>
-                    New Terminal
+                    Launch Sandbox
                 {/if}
             </button>
         </div>
@@ -761,7 +761,7 @@
                         y2="12"
                     />
                 </svg>
-                Create Terminal
+                Launch Sandbox
             </button>
 
             <div class="connect-own-tip">
@@ -803,7 +803,7 @@
                         </span>
                         <div class="container-info">
                             <h2 class="container-name">
-                                {creatingInfo.name || "New Terminal"}
+                                {creatingInfo.name || "Launch Sandbox"}
                             </h2>
                             <span class="container-image"
                                 >{creatingInfo.image}</span

@@ -667,7 +667,7 @@
         </div>
     {:else}
         <div class="create-content">
-            <h1 class="create-title">Create New Terminal</h1>
+            <h1 class="create-title">Launch New Sandbox</h1>
 
             <!-- Terminal Name -->
             <div class="create-section">
