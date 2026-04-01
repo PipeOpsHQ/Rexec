@@ -2232,13 +2232,3 @@
         color: var(--text-muted);
     }
 </style>
-t-size: 13px;
-        color: var(--text);
-        font-weight: 500;
-    }
-
-    .setting-desc {
-        font-size: 11px;
-        color: var(--text-muted);
-    }
-</style>
