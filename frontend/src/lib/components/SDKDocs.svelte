@@ -208,7 +208,7 @@ $terminal->write("ls -la\\n");`,
                 <StatusIcon status="code" size={48} />
             </div>
             <h1>rexec SDKs</h1>
-            <p class="subtitle">Official SDKs for programmatic access to Rexec cloud terminals</p>
+            <p class="subtitle">Official SDKs for programmatic access to Rexec cloud sandboxes</p>
         </header>
 
         <section class="docs-section">

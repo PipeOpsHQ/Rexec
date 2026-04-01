@@ -63,7 +63,7 @@
             await terminal.createSession(containerId, name);
         } catch (e) {
             console.error("[App] Failed to open terminal:", e);
-            toast.error("Failed to open terminal. Please try again.");
+            toast.error("Failed to open sandbox. Please try again.");
         }
     }
 
@@ -78,7 +78,7 @@
             await terminal.createAgentSession(agentId, name);
         } catch (e) {
             console.error("[App] Failed to open agent terminal:", e);
-            toast.error("Failed to connect to agent terminal.");
+            toast.error("Failed to connect to agent session.");
         }
     }
 
@@ -261,28 +261,28 @@
 
     const seoConfig: Record<string, PageSEO> = {
         landing: {
-            title: "Rexec - Terminal as a Service | Instant Linux Terminals",
+            title: "Rexec - Sandbox as a Service | Instant Linux Sandboxes",
             description:
-                "Launch secure Linux terminals instantly in your browser. No setup required. Choose from Ubuntu, Debian, Alpine, and more. Perfect for developers, learning, and testing.",
+                "Launch secure Linux sandboxes instantly in your browser. No setup required. Choose from Ubuntu, Debian, Alpine, and more. Perfect for developers, learning, and testing.",
             keywords:
-                "terminal, linux, cloud terminal, web terminal, ubuntu, debian, docker, containers, developer tools",
+                "sandbox, linux sandbox, cloud sandbox, web sandbox, ubuntu, debian, docker, containers, developer tools",
         },
         promo: {
-            title: "Rexec - The Future of Cloud Terminals",
+            title: "Rexec - The Future of Cloud Sandboxes",
             description:
-                "Experience the next generation of cloud terminals. Instant access to powerful Linux environments with no setup required.",
+                "Experience the next generation of cloud sandboxes. Instant access to powerful Linux environments with no setup required.",
         },
         launch: {
-            title: "Rexec Launch - Terminal as a Service | Cloud Terminals & Secure Agent",
+            title: "Rexec Launch - Sandbox as a Service | Cloud Sandboxes & Secure Agent",
             description:
-                "Instant cloud terminals for developers. Safely run AI-generated code, access servers without SSH exposure, and spin up dev environments in seconds. Try free today.",
+                "Instant cloud sandboxes for developers. Safely run AI-generated code, access servers without SSH exposure, and spin up dev environments in seconds. Try free today.",
             keywords:
-                "terminal as a service, cloud terminal, AI code execution, secure jump box, developer tools, linux terminal, docker containers, remote server access",
+                "sandbox as a service, cloud sandbox, AI code execution, secure jump box, developer tools, linux sandbox, docker containers, remote server access",
         },
         dashboard: {
             title: "Dashboard - Rexec",
             description:
-                "Manage your cloud terminals and containers. Create, monitor, and control your Linux environments.",
+                "Manage your cloud sandboxes and containers. Create, monitor, and control your Linux environments.",
             robots: "noindex, nofollow",
         },
         admin: {
@@ -293,9 +293,9 @@
         pricing: {
             title: "Pricing - Rexec | Simple, Transparent Plans",
             description:
-                "Simple, transparent pricing for instant Linux terminals. Free tier available. Scale your infrastructure as you grow with Pro and Enterprise plans.",
+                "Simple, transparent pricing for instant Linux sandboxes. Free tier available. Scale your infrastructure as you grow with Pro and Enterprise plans.",
             keywords:
-                "pricing, plans, cloud terminal pricing, linux terminal cost",
+                "pricing, plans, cloud sandbox pricing, linux sandbox cost",
         },
         billing: {
             title: "Billing - Rexec",
@@ -305,19 +305,19 @@
         guides: {
             title: "Guides & Tutorials - Rexec",
             description:
-                "Learn how to use Rexec with AI tools like Claude, ChatGPT, and GitHub Copilot. Step-by-step tutorials for terminal automation.",
+                "Learn how to use Rexec with AI tools like Claude, ChatGPT, and GitHub Copilot. Step-by-step tutorials for sandbox automation.",
             keywords:
-                "tutorials, guides, AI tools, Claude, ChatGPT, terminal automation",
+                "tutorials, guides, AI tools, Claude, ChatGPT, sandbox automation",
         },
         resources: {
             title: "Resources - Rexec | Tutorials & Guides",
             description:
-                "Learn how to use Rexec with step-by-step video tutorials and comprehensive guides covering terminals, agents, CLI tools, and more.",
+                "Learn how to use Rexec with step-by-step video tutorials and comprehensive guides covering sandboxes, agents, CLI tools, and more.",
             keywords:
-                "resources, tutorials, videos, guides, how to, terminal, agents, CLI",
+                "resources, tutorials, videos, guides, how to, sandbox, agents, CLI",
         },
         "use-cases": {
-            title: "Use Cases - Rexec | Terminal as a Service",
+            title: "Use Cases - Rexec | Sandbox as a Service",
             description:
                 "Discover how developers, teams, and enterprises use Rexec for development, testing, training, and AI agent workflows.",
             keywords:
@@ -325,7 +325,7 @@
         },
         "use-case-detail": {
             title: "Use Case - Rexec",
-            description: "Detailed use case for Rexec Terminal as a Service.",
+            description: "Detailed use case for Rexec Sandbox as a Service.",
         },
         docs: {
             title: "Documentation - Rexec",
@@ -336,34 +336,34 @@
         "cli-docs": {
             title: "CLI Documentation - Rexec",
             description:
-                "Install and use the Rexec CLI for terminal access from your command line. SSH, exec, and manage containers.",
+                "Install and use the Rexec CLI for sandbox access from your command line. SSH, exec, and manage containers.",
             keywords: "CLI, command line, terminal, SSH, rexec-cli",
         },
         "agent-docs": {
             title: "Agent Documentation - Rexec",
             description:
-                "Connect your own servers to Rexec with the agent. Bring your own server (BYOS) for terminal access anywhere.",
+                "Connect your own servers to Rexec with the agent. Bring your own server (BYOS) for sandbox access anywhere.",
             keywords:
                 "agent, BYOS, bring your own server, remote terminal, rexec-agent",
         },
         "embed-docs": {
-            title: "Embeddable Terminal Widget - Rexec",
+            title: "Embeddable Sandbox Widget - Rexec",
             description:
-                "Add a cloud terminal to any website with a single script tag. Like Google Cloud Shell for your docs and tutorials.",
+                "Add a cloud sandbox to any website with a single script tag. Like Google Cloud Shell for your docs and tutorials.",
             keywords:
-                "embed, widget, terminal, cloud shell, javascript, documentation, interactive",
+                "embed, widget, sandbox, cloud shell, javascript, documentation, interactive",
         },
         "sdk-docs": {
             title: "SDK Documentation - Rexec",
             description:
-                "Official SDKs for programmatic access to Rexec cloud terminals. Available in Go, JavaScript, Python, Rust, Ruby, Java, C#, and PHP.",
+                "Official SDKs for programmatic access to Rexec cloud sandboxes. Available in Go, JavaScript, Python, Rust, Ruby, Java, C#, and PHP.",
             keywords:
                 "SDK, API, programming, Go, JavaScript, Python, Rust, Ruby, Java, C#, PHP, automation",
         },
         marketplace: {
             title: "Marketplace - Rexec",
             description:
-                "Browse and use pre-built terminal environments and configurations shared by the community.",
+                "Browse and use pre-built sandbox environments and configurations shared by the community.",
             keywords: "marketplace, templates, environments, community",
         },
         snippets: {
@@ -386,7 +386,7 @@
         },
         "account-ssh": {
             title: "SSH Keys - Rexec",
-            description: "Manage your SSH keys for secure terminal access.",
+            description: "Manage your SSH keys for secure sandbox access.",
             robots: "noindex, nofollow",
         },
         "account-billing": {
@@ -401,7 +401,7 @@
         },
         "account-recordings": {
             title: "Recordings - Rexec",
-            description: "View and manage your terminal session recordings.",
+            description: "View and manage your sandbox session recordings.",
             robots: "noindex, nofollow",
         },
         "account-api": {
@@ -412,7 +412,7 @@
         },
         settings: {
             title: "Settings - Rexec",
-            description: "Configure your terminal settings and preferences.",
+            description: "Configure your sandbox and session preferences.",
             robots: "noindex, nofollow",
         },
         sshkeys: {
@@ -421,14 +421,14 @@
             robots: "noindex, nofollow",
         },
         create: {
-            title: "Create Terminal - Rexec",
+            title: "Create Sandbox - Rexec",
             description:
-                "Create a new cloud terminal. Choose from Ubuntu, Debian, Alpine, Kali, and more.",
+                "Create a new cloud sandbox. Choose from Ubuntu, Debian, Alpine, Kali, and more.",
             robots: "noindex, nofollow",
         },
         join: {
             title: "Join Session - Rexec",
-            description: "Join a collaborative terminal session.",
+            description: "Join a collaborative sandbox session.",
             robots: "noindex, nofollow",
         },
         "cli-login": {
@@ -556,7 +556,7 @@
             if (result.returningGuest) {
                 if (result.containerCount > 0) {
                     toast.success(
-                        `Welcome back! Found ${result.containerCount} terminal${result.containerCount > 1 ? "s" : ""} from your previous visit.`,
+                        `Welcome back! Found ${result.containerCount} sandbox${result.containerCount > 1 ? "es" : ""} from your previous visit.`,
                     );
                 } else {
                     toast.success("Welcome back!");
@@ -1000,7 +1000,7 @@
                     currentView = "dashboard";
                 } else {
                     currentView = "404";
-                    toast.error("Terminal session not found or has expired");
+                    toast.error("Sandbox session not found or has expired");
                 }
             }
             return;
@@ -1016,7 +1016,7 @@
 
             // This is a popped-out terminal window
             const containerId = terminalParam;
-            const containerName = nameParam || "Terminal";
+            const containerName = nameParam || "Sandbox";
 
             // Set to docked mode for full-screen terminal experience
             void openTerminalForContainer(containerId, containerName, "docked");
@@ -1076,7 +1076,7 @@
                 localStorage.setItem("pendingTerminalUrl", path);
                 currentView = "landing";
                 setTimeout(() => {
-                    toast.info("Please sign in to access this terminal");
+                    toast.info("Please sign in to access this sandbox");
                 }, 500);
             }
             return;
@@ -1539,7 +1539,7 @@
                             } else {
                                 currentView = "404";
                                 toast.error(
-                                    "Terminal session not found or has expired",
+                                    "Sandbox session not found or has expired",
                                 );
                             }
                         });
@@ -1794,7 +1794,7 @@
                                 }, 50);
                             } else {
                                 toast.error(
-                                    "No active terminal. Please create one first.",
+                                    "No active sandbox. Please create one first.",
                                 );
                                 currentView = "dashboard";
                             }
@@ -2022,7 +2022,7 @@
                                     }, 50);
                                 } else {
                                     toast.error(
-                                        "No active terminal. Please create one first.",
+                                        "No active sandbox. Please create one first.",
                                     );
                                     currentView = "dashboard";
                                     window.history.pushState({}, "", "/");

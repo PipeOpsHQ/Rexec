@@ -13,11 +13,11 @@
 
     const steps = [
         {
-            title: "1. Instant Terminal Access",
+            title: "1. Instant Sandbox Access",
             icon: "bolt",
-            description: "We believe you shouldn't wait for a progress bar. Your terminal is ready to accept commands immediately upon creation.",
+            description: "We believe you shouldn't wait for a progress bar. Your sandbox is ready to accept commands immediately upon creation.",
             details: [
-                "**Zero Waiting**: The terminal starts in milliseconds.",
+                "**Zero Waiting**: The sandbox starts in milliseconds.",
                 "**Immediate Input**: You can start typing standard Linux commands right away.",
                 "**Basic Tools**: Core utilities (ls, cd, grep) are available instantly."
             ]
@@ -35,7 +35,7 @@
         {
             title: "3. Seamless Transition",
             icon: "check",
-            description: "Once the background setup is complete, your terminal automatically upgrades to the full experience.",
+            description: "Once the background setup is complete, your sandbox automatically upgrades to the full experience.",
             details: [
                 "**Auto-Upgrade**: Your shell upgrades to Zsh with Oh-My-Zsh automatically.",
                 "**Tool Availability**: Compilers, SDKs, and CLIs become available instantly.",
@@ -46,10 +46,10 @@
 </script>
 
 <svelte:head>
-    <title>Rexec Product Guide - Instant Terminal Architecture</title>
-    <meta name="description" content="Learn how Rexec delivers instant access to Linux terminals while silently provisioning complex environments in the background." />
+    <title>Rexec Product Guide - Instant Sandbox Architecture</title>
+    <meta name="description" content="Learn how Rexec delivers instant access to Linux sandboxes while silently provisioning complex environments in the background." />
     <meta property="og:title" content="Rexec Product Guide" />
-    <meta property="og:description" content="Learn how Rexec delivers instant access to Linux terminals while silently provisioning complex environments in the background." />
+    <meta property="og:description" content="Learn how Rexec delivers instant access to Linux sandboxes while silently provisioning complex environments in the background." />
 </svelte:head>
 
 <div class="guides-page">
@@ -90,10 +90,10 @@
 
     <section class="cta-section">
         <h2>Ready to feel the speed?</h2>
-        <p>Start a terminal and type `ls` before the setup finishes.</p>
+        <p>Start a sandbox and type `ls` before the setup finishes.</p>
         <button class="btn btn-primary btn-lg" onclick={handleTryNow}>
             <StatusIcon status="rocket" size={16} />
-            <span>Launch Terminal</span>
+            <span>Launch Sandbox</span>
         </button>
     </section>
 
@@ -109,7 +109,7 @@
                 </div>
                 <div class="doc-content">
                     <h3>CLI Reference</h3>
-                    <p>Manage terminals, snippets, and agents directly from your command line.</p>
+                    <p>Manage sandboxes, snippets, and agents directly from your command line.</p>
                     <span class="link-text">View Documentation →</span>
                 </div>
             </button>

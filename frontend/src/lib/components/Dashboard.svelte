@@ -81,7 +81,7 @@
             }
 
             if (mfaAction === "unlock") {
-                toast.success("Terminal MFA lock removed");
+                toast.success("Sandbox MFA lock removed");
                 refreshContainers();
                 closeMfaModal();
             } else {
@@ -237,13 +237,13 @@
             toast.update(toastId, `${container.name} started`, "success");
             if (result.recreated) {
                 toast.info(
-                    "Terminal was recreated. Your data volume was preserved.",
+                    "Sandbox was recreated. Your data volume was preserved.",
                 );
             }
         } else {
             toast.update(
                 toastId,
-                result.error || "Failed to start terminal",
+                result.error || "Failed to start sandbox",
                 "error",
             );
         }
@@ -260,7 +260,7 @@
         } else {
             toast.update(
                 toastId,
-                result.error || "Failed to stop terminal",
+                result.error || "Failed to stop sandbox",
                 "error",
             );
         }
@@ -316,7 +316,7 @@
         } else {
             toast.update(
                 toastId,
-                result.error || "Failed to delete terminal",
+                result.error || "Failed to delete sandbox",
                 "error",
             );
         }
@@ -489,7 +489,7 @@
 
 <ConfirmModal
     bind:show={showDeleteConfirm}
-    title="Delete Terminal"
+    title="Delete Sandbox"
     message={containerToDelete
         ? `Are you sure you want to delete "${containerToDelete.name}"? This action cannot be undone and all data will be lost.`
         : ""}
@@ -531,7 +531,7 @@
                 <h3>
                     {mfaAction === "unlock"
                         ? "Remove MFA Lock"
-                        : "MFA Protected Terminal"}
+                        : "MFA Protected Sandbox"}
                 </h3>
                 <button class="mfa-close-btn" onclick={closeMfaModal}>
                     <svg
@@ -548,14 +548,14 @@
             </div>
             <div class="mfa-modal-body">
                 <p class="mfa-terminal-name">
-                    Terminal: <strong>{mfaContainer.name}</strong>
+                    Sandbox: <strong>{mfaContainer.name}</strong>
                 </p>
                 <p class="mfa-description">
                     {#if mfaAction === "unlock"}
                         Enter your authenticator code to remove MFA protection
-                        from this terminal.
+                        from this sandbox.
                     {:else}
-                        This terminal is protected with MFA. Enter your
+                        This sandbox is protected with MFA. Enter your
                         authenticator code to access it.
                     {/if}
                 </p>
@@ -625,7 +625,7 @@
 <div class="dashboard">
     <div class="dashboard-header">
         <div class="dashboard-title">
-            <h1>Terminals</h1>
+            <h1>Sandboxes</h1>
             <span class="count-badge">
                 {effectiveCount} / {containerLimit}
             </span>
@@ -723,7 +723,7 @@
     {#if isLoading && containerList.length === 0}
         <div class="loading-state">
             <div class="spinner"></div>
-            <p>Loading terminals...</p>
+            <p>Loading sandboxes...</p>
         </div>
     {:else if containerList.length === 0}
         <div class="empty-state">
@@ -738,9 +738,9 @@
                     <path d="M8 21h8M12 17v4M6 8l4 4-4 4M12 16h4" />
                 </svg>
             </div>
-            <h2>No Terminals Yet</h2>
+            <h2>No Sandboxes Yet</h2>
             <p>
-                Create your first terminal to access a cloud environment, GPU
+                Create your first sandbox to access a cloud environment, GPU
                 workspace, or connect to remote resources.
             </p>
             <button
@@ -977,7 +977,7 @@
                             {#if isShared}
                                 <span
                                     class="shared-badge"
-                                    title="Shared terminal - {container.collab_mode === 'control' ? 'You can control this terminal' : 'View-only access'}"
+                                    title="Shared sandbox - {container.collab_mode === 'control' ? 'You can control this sandbox' : 'View-only access'}"
                                 >
                                     <svg
                                         width="14"
@@ -1325,7 +1325,7 @@
                                     <button
                                         class="btn btn-secondary btn-sm flex-1"
                                         disabled
-                                        title="This terminal is still configuring"
+                                        title="This sandbox is still configuring"
                                     >
                                         <span class="spinner-sm"></span>
                                         Configuring
@@ -1359,7 +1359,7 @@
                                     class="btn btn-secondary btn-sm flex-1"
                                     disabled
                                 >
-                                    Terminal Stopped
+                                    Sandbox Stopped
                                 </button>
                             </div>
                             {:else}
@@ -1408,7 +1408,7 @@
                                     class="btn btn-secondary btn-sm flex-1"
                                     disabled
                                 >
-                                    Terminal Error
+                                    Sandbox Error
                                 </button>
                             </div>
                             {:else}

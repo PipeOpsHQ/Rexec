@@ -264,7 +264,7 @@
                     <path d="M12 16v-4"/>
                     <path d="M12 8h.01"/>
                 </svg>
-                Your terminal sessions are still running in the background
+                Your sandbox sessions are still running in the background
             </p>
         </div>
     </div>
@@ -285,7 +285,7 @@
             </div>
             
             <div class="prompt-body">
-                <p>Set a screen lock passcode to protect your terminals when you're away. Your active sessions will stay running.</p>
+                <p>Set a screen lock passcode to protect your sandboxes when you're away. Your active sessions will stay running.</p>
                 
                 <div class="prompt-features">
                     <div class="feature">
@@ -298,7 +298,7 @@
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2">
                             <polyline points="20 6 9 17 4 12"/>
                         </svg>
-                        <span>Terminals keep running</span>
+                        <span>Sandboxes keep running</span>
                     </div>
                     <div class="feature">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2">

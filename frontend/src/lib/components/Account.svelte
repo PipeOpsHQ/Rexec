@@ -67,7 +67,7 @@
                 </div>
                 <div class="card-content">
                     <h3>Dashboard</h3>
-                    <p>Manage your terminals and active sessions.</p>
+                    <p>Manage your sandboxes and active sessions.</p>
                 </div>
             </button>
 
@@ -95,7 +95,7 @@
                 </div>
                 <div class="card-content">
                     <h3>SSH Keys</h3>
-                    <p>Manage SSH keys for secure terminal access.</p>
+                    <p>Manage SSH keys for secure sandbox access.</p>
                 </div>
             </button>
 
@@ -137,7 +137,7 @@
                 </div>
                 <div class="card-content">
                     <h3>Recordings</h3>
-                    <p>View and manage your terminal session recordings.</p>
+                    <p>View and manage your sandbox session recordings.</p>
                 </div>
             </button>
 

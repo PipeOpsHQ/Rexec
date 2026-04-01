@@ -170,7 +170,7 @@
                 container.name,
             );
             if (!sid) {
-                toast.error("Failed to connect to agent terminal");
+                toast.error("Failed to connect to agent session");
                 return;
             }
         } else {
@@ -435,7 +435,7 @@
         const session = $terminal.sessions.get(sessionId);
         if (session) {
             terminal.attachSession(sessionId);
-            toast.success(`Docked "${session.name}" back to terminal panel`);
+            toast.success(`Docked "${session.name}" back to sandbox panel`);
         }
     }
 
@@ -685,7 +685,7 @@
                                         closeSession(id);
                                     }
                                 }}
-                                title="Close terminal"
+                                title="Close sandbox"
                                 aria-label="Close {session.name}"
                             >
                                 ×
@@ -697,7 +697,7 @@
                             class="fullscreen-tab new-tab-btn"
                             class:active={showCreatePanel || showAddMenu}
                             onclick={toggleAddMenu}
-                            title="Add Terminal"
+                            title="Add Sandbox"
                         >
                             +
                         </button>
@@ -738,11 +738,11 @@
                                 if (session) {
                                     const url = `${window.location.origin}/terminal/${session.containerId}`;
                                     navigator.clipboard.writeText(url);
-                                    toast.success("Terminal link copied!");
+                                    toast.success("Sandbox link copied!");
                                 }
                             }
                         }}
-                        title="Share Terminal"
+                        title="Share Sandbox"
                         disabled={!activeId}
                     >
                         <svg
@@ -798,7 +798,7 @@
                     <button
                         class="btn btn-danger btn-sm btn-icon"
                         onclick={() => activeId && closeSession(activeId)}
-                        title="Close Terminal"
+                        title="Close Sandbox"
                         disabled={!activeId}
                     >
                         <svg
@@ -820,7 +820,7 @@
                 {#if showCreatePanel}
                     <div class="create-panel fullscreen-create">
                         <div class="create-panel-header">
-                            <h3>New Terminal</h3>
+                            <h3>New Sandbox</h3>
                             <button
                                 class="close-create"
                                 onclick={closeCreatePanel}>× Cancel</button
@@ -905,7 +905,7 @@
                                             closeSession(id);
                                         }
                                     }}
-                                    title="Close terminal"
+                                    title="Close sandbox"
                                     aria-label="Close {session.name}"
                                 >
                                     ×
@@ -917,7 +917,7 @@
                                 class="new-tab-btn"
                                 class:active={showCreatePanel || showAddMenu}
                                 onclick={toggleAddMenu}
-                                title="Add Terminal"
+                                title="Add Sandbox"
                             >
                                 +
                             </button>
@@ -958,11 +958,11 @@
                                     if (session) {
                                         const url = `${window.location.origin}/terminal/${session.containerId}`;
                                         navigator.clipboard.writeText(url);
-                                        toast.success("Terminal link copied!");
+                                        toast.success("Sandbox link copied!");
                                     }
                                 }
                             }}
-                            title="Share Terminal"
+                            title="Share Sandbox"
                             disabled={!activeId}
                         >
                             <svg
@@ -1053,7 +1053,7 @@
                         <button
                             class="float-action-btn close-btn"
                             onclick={() => activeId && closeSession(activeId)}
-                            title="Close Terminal"
+                            title="Close Sandbox"
                             disabled={!activeId}
                         >
                             <svg
@@ -1076,7 +1076,7 @@
                         <!-- Inline Create Panel -->
                         <div class="create-panel">
                             <div class="create-panel-header">
-                                <h3>New Terminal</h3>
+                                <h3>New Sandbox</h3>
                                 <button
                                     class="close-create"
                                     onclick={closeCreatePanel}>×</button
@@ -1126,7 +1126,7 @@
                 <button class="restore-btn" onclick={restore}>
                     <span class="restore-icon">↑</span>
                     <span
-                        >{$sessionCount} Terminal{$sessionCount > 1
+                        >{$sessionCount} Sandbox{$sessionCount > 1
                             ? "s"
                             : ""}</span
                     >
@@ -1140,7 +1140,7 @@
                 <button class="restore-btn" onclick={restore}>
                     <span class="restore-icon">↑</span>
                     <span
-                        >{$sessionCount} Terminal{$sessionCount > 1
+                        >{$sessionCount} Sandbox{$sessionCount > 1
                             ? "s"
                             : ""}</span
                     >
@@ -1160,7 +1160,7 @@
                     aria-valuenow={dockedHeight}
                     aria-valuemin={20}
                     aria-valuemax={90}
-                    aria-label="Resize terminal panel"
+                    aria-label="Resize sandbox panel"
                     tabindex="-1"
                     title="Drag to resize"
                 >
@@ -1207,7 +1207,7 @@
                                             closeSession(id);
                                         }
                                     }}
-                                    title="Close terminal"
+                                    title="Close sandbox"
                                     aria-label="Close {session.name}"
                                 >
                                     ×
@@ -1219,7 +1219,7 @@
                                 class="docked-tab new-tab-btn"
                                 class:active={showCreatePanel || showAddMenu}
                                 onclick={toggleAddMenu}
-                                title="Add Terminal"
+                                title="Add Sandbox"
                             >
                                 +
                             </button>
@@ -1262,11 +1262,11 @@
                                     if (session) {
                                         const url = `${window.location.origin}/terminal/${session.containerId}`;
                                         navigator.clipboard.writeText(url);
-                                        toast.success("Terminal link copied!");
+                                        toast.success("Sandbox link copied!");
                                     }
                                 }
                             }}
-                            title="Share Terminal"
+                            title="Share Sandbox"
                             disabled={!activeId}
                         >
                             <svg
@@ -1357,7 +1357,7 @@
                         <button
                             class="btn btn-danger btn-sm btn-icon"
                             onclick={() => activeId && closeSession(activeId)}
-                            title="Close Terminal"
+                            title="Close Sandbox"
                             disabled={!activeId}
                         >
                             <svg
@@ -1380,7 +1380,7 @@
                         <!-- Inline Create Panel for Docked Mode -->
                         <div class="create-panel docked-create">
                             <div class="create-panel-header">
-                                <h3>New Terminal</h3>
+                                <h3>New Sandbox</h3>
                                 <button
                                     class="close-create"
                                     onclick={closeCreatePanel}>× Cancel</button
@@ -1441,7 +1441,7 @@
             <div class="detached-actions">
                 <button
                     onclick={() => dockSession(id)}
-                    title="Dock back to terminal panel"
+                    title="Dock back to sandbox panel"
                 >
                     ⬒
                 </button>
@@ -1450,7 +1450,7 @@
                         terminal.closeSession(id);
                         toast.success(`Closed "${session.name}"`);
                     }}
-                    title="Close terminal"
+                    title="Close sandbox"
                 >
                     ×
                 </button>
@@ -1506,19 +1506,19 @@
     <div class="add-menu-overlay" onclick={closeAddMenu} role="presentation">
         <div class="add-menu-modal" onclick={(e) => e.stopPropagation()}>
             <div class="add-menu-header">
-                <span class="add-menu-title">Terminal Options</span>
+                <span class="add-menu-title">Sandbox Options</span>
                 <button class="add-menu-close" onclick={closeAddMenu}>×</button>
             </div>
             <div class="add-menu-content">
                 <button class="add-menu-item primary" onclick={openCreatePanel}>
                     <span class="menu-icon">+</span>
-                    <span>Create New Terminal</span>
+                    <span>Create New Sandbox</span>
                 </button>
 
                 {#if availableTerminals.length > 0}
                     <div class="add-menu-divider"></div>
                     <div class="add-menu-label">
-                        Connect to available terminal
+                        Connect to available sandbox
                     </div>
                     <div class="add-menu-sessions">
                         {#each availableTerminals as container}

@@ -4,7 +4,7 @@
 
     // SEO metadata for docs page
     onMount(() => {
-        document.title = "Documentation | Rexec - Terminal as a Service";
+        document.title = "Documentation | Rexec - Sandbox as a Service";
 
         // Update meta tags
         const metaDescription = document.querySelector(
@@ -13,7 +13,7 @@
         if (metaDescription) {
             metaDescription.setAttribute(
                 "content",
-                "Complete documentation for Rexec - learn about instant cloud terminals, BYOS agents, CLI tools, security features, and API integration.",
+                "Complete documentation for Rexec - learn about instant cloud sandboxes, BYOS agents, CLI tools, security features, and API integration.",
             );
         }
 
@@ -21,7 +21,7 @@
         if (ogTitle) {
             ogTitle.setAttribute(
                 "content",
-                "Documentation | Rexec - Terminal as a Service",
+                "Documentation | Rexec - Sandbox as a Service",
             );
         }
 
@@ -31,7 +31,7 @@
         if (ogDescription) {
             ogDescription.setAttribute(
                 "content",
-                "Complete documentation for Rexec - learn about instant cloud terminals, BYOS agents, CLI tools, security features, and API integration.",
+                "Complete documentation for Rexec - learn about instant cloud sandboxes, BYOS agents, CLI tools, security features, and API integration.",
             );
         }
 
@@ -41,7 +41,7 @@
         if (twitterTitle) {
             twitterTitle.setAttribute(
                 "content",
-                "Documentation | Rexec - Terminal as a Service",
+                "Documentation | Rexec - Sandbox as a Service",
             );
         }
 
@@ -51,7 +51,7 @@
         if (twitterDescription) {
             twitterDescription.setAttribute(
                 "content",
-                "Complete documentation for Rexec - learn about instant cloud terminals, BYOS agents, CLI tools, security features, and API integration.",
+                "Complete documentation for Rexec - learn about instant cloud sandboxes, BYOS agents, CLI tools, security features, and API integration.",
             );
         }
 
@@ -75,15 +75,15 @@
     const features = [
         {
             icon: "bolt",
-            title: "Instant Terminals",
+            title: "Instant Sandboxes",
             description:
-                "Spin up Linux terminals in seconds with no setup required. Choose from Ubuntu, Debian, Arch, or Kali Linux.",
+                "Spin up Linux sandboxes in seconds with no setup required. Choose from Ubuntu, Debian, Arch, or Kali Linux.",
         },
         {
             icon: "shield",
             title: "Network Isolation",
             description:
-                "Each terminal runs in its own isolated Docker container with dedicated networking for maximum security.",
+                "Each sandbox runs in its own isolated Docker container with dedicated networking for maximum security.",
         },
         {
             icon: "cloud",
@@ -95,7 +95,7 @@
             icon: "users",
             title: "Collaborative Sessions",
             description:
-                "Share terminals in real-time with team members. Perfect for pair programming and live debugging.",
+                "Share sandboxes in real-time with team members. Perfect for pair programming and live debugging.",
         },
         {
             icon: "agent",
@@ -107,7 +107,7 @@
             icon: "terminal",
             title: "CLI & TUI",
             description:
-                "Full-featured command line tools for power users. Manage terminals without leaving your shell.",
+                "Full-featured command line tools for power users. Manage sandboxes without leaving your shell.",
         },
     ];
 
@@ -122,7 +122,7 @@
             icon: "shield",
             title: "MFA Support",
             description:
-                "Two-factor authentication using TOTP. Lock individual terminals with MFA for extra protection.",
+                "Two-factor authentication using TOTP. Lock individual sandboxes with MFA for extra protection.",
         },
         {
             icon: "server",
@@ -134,7 +134,7 @@
             icon: "key",
             title: "SSH Key Management",
             description:
-                "Store and inject SSH keys securely into your terminals for seamless git operations.",
+                "Store and inject SSH keys securely into your sandboxes for seamless git operations.",
         },
         {
             icon: "data",
@@ -165,7 +165,7 @@
         },
         {
             title: "Embed Widget",
-            description: "Add a cloud terminal to any website",
+            description: "Add a cloud sandbox to any website",
             href: "/docs/embed",
             icon: "code",
         },
@@ -200,7 +200,7 @@
     <div class="docs-header">
         <h1>Documentation</h1>
         <p class="docs-subtitle">
-            Everything you need to know about Rexec - Terminal as a Service
+            Everything you need to know about Rexec - Sandbox as a Service
         </p>
     </div>
 
@@ -244,7 +244,7 @@
         <h2><StatusIcon status="shield" size={20} /> Security & Compliance</h2>
         <div class="security-intro">
             <p>
-                Rexec is built with security at its core. Every terminal runs in
+                Rexec is built with security at its core. Every sandbox runs in
                 an isolated container with its own network namespace, ensuring
                 complete separation between users.
             </p>
@@ -277,17 +277,17 @@
                 <div class="endpoint">
                     <span class="method get">GET</span>
                     <code>/api/containers</code>
-                    <span class="desc">List your terminals</span>
+                    <span class="desc">List your sandboxes</span>
                 </div>
                 <div class="endpoint">
                     <span class="method post">POST</span>
                     <code>/api/containers</code>
-                    <span class="desc">Create a new terminal</span>
+                    <span class="desc">Create a new sandbox</span>
                 </div>
                 <div class="endpoint">
                     <span class="method delete">DELETE</span>
                     <code>/api/containers/:id</code>
-                    <span class="desc">Delete a terminal</span>
+                    <span class="desc">Delete a sandbox</span>
                 </div>
                 <div class="endpoint">
                     <span class="method get">GET</span>
@@ -455,8 +455,8 @@
                     <p>
                         <strong>No!</strong> Rexec is <strong>not</strong> a VM
                         or hypervisor. It's a
-                        <strong>Terminal as a Service</strong> platform that gives
-                        you instant terminal access to:
+                        <strong>Sandbox as a Service</strong> platform that gives
+                        you instant sandbox access to:
                     </p>
                     <ul>
                         <li>
@@ -469,9 +469,9 @@
                         </li>
                     </ul>
                     <p>
-                        Think of it as a cloud-based terminal multiplexer, not a
+                        Think of it as a unified cloud shell gateway, not a
                         virtualization platform. There's no hypervisor, no VM
-                        overhead — just fast, secure terminal access from
+                        overhead — just fast, secure sandbox access from
                         anywhere.
                     </p>
                 </div>
@@ -486,7 +486,7 @@
                     <p>
                         <strong>Yes!</strong> This is exactly what the
                         <strong>Rexec Agent</strong> is for. Install a lightweight
-                        agent on any machine, and you get instant terminal access
+                        agent on any machine, and you get instant remote access
                         from the Rexec dashboard — no SSH port exposure, no VPN, no
                         complex setup.
                     </p>
@@ -538,7 +538,7 @@
                         We chose the name "Rexec" as shorthand for <strong
                             >"Remote Execution"</strong
                         > — which perfectly describes what we do: execute commands
-                        on remote cloud terminals. Think of it as reclaiming a cool
+                        on remote cloud sandboxes. Think of it as reclaiming a cool
                         name for a secure, modern use case.
                     </p>
                     <p>
@@ -570,7 +570,7 @@
                             use modern TLS encryption. No plaintext, ever.
                         </li>
                         <li>
-                            <strong>WebSocket over HTTPS</strong> — Terminal sessions
+                            <strong>WebSocket over HTTPS</strong> — Sandbox sessions
                             use encrypted WebSocket connections
                         </li>
                         <li>
@@ -602,7 +602,7 @@
                     <p><strong>Container Isolation</strong></p>
                     <ul>
                         <li>
-                            <strong>Kernel namespaces</strong> — Each terminal runs
+                            <strong>Kernel namespaces</strong> — Each sandbox runs
                             in isolated PID, network, and mount namespaces
                         </li>
                         <li>
@@ -626,7 +626,7 @@
                     <p><strong>Data Protection</strong></p>
                     <ul>
                         <li>
-                            <strong>No shared state</strong> — Your terminal is completely
+                            <strong>No shared state</strong> — Your sandbox is completely
                             isolated from other users
                         </li>
                         <li>
@@ -634,7 +634,7 @@
                             encrypted on disk
                         </li>
                         <li>
-                            <strong>Automatic cleanup</strong> — Deleted terminals
+                            <strong>Automatic cleanup</strong> — Deleted sandboxes
                             are securely wiped
                         </li>
                         <li>
@@ -700,7 +700,7 @@
                             separate without Docker on your machine
                         </li>
                         <li>
-                            <strong>Pair programming</strong> — Share your terminal
+                            <strong>Pair programming</strong> — Share your sandbox
                             session with teammates in real-time
                         </li>
                     </ul>
@@ -753,10 +753,10 @@
                         </li>
                         <li>
                             <strong>Model training</strong> — Run long-running training
-                            jobs in persistent terminals
+                            jobs in persistent sandboxes
                         </li>
                         <li>
-                            <strong>Jupyter alternative</strong> — Full terminal access
+                            <strong>Jupyter alternative</strong> — Full sandbox access
                             for complex workflows
                         </li>
                     </ul>
@@ -772,7 +772,7 @@
                             internal infrastructure through the browser
                         </li>
                         <li>
-                            <strong>Multi-job workflows</strong> — Manage terminals
+                            <strong>Multi-job workflows</strong> — Manage sandboxes
                             across multiple machines from one dashboard
                         </li>
                         <li>
@@ -806,9 +806,9 @@
                 </summary>
                 <div class="faq-answer">
                     <p>
-                        Terminals persist between sessions — your files and work
-                        are saved until you explicitly delete the terminal.
-                        However, once you delete a terminal, all data is
+                        Sandboxes persist between sessions — your files and work
+                        are saved until you explicitly delete the sandbox.
+                        However, once you delete a sandbox, all data is
                         permanently removed.
                     </p>
                     <p>For long-term storage, we recommend:</p>
@@ -842,12 +842,12 @@
                     </p>
                     <ul>
                         <li>
-                            <strong>Persistent terminals</strong> — Your terminals
+                            <strong>Persistent sandboxes</strong> — Your sandboxes
                             survive browser restarts
                         </li>
                         <li>
                             <strong>SSH key management</strong> — Store and inject
-                            keys into terminals
+                            keys into sandboxes
                         </li>
                         <li>
                             <strong>Snippets library</strong> — Save and reuse commands
@@ -857,7 +857,7 @@
                             servers
                         </li>
                         <li>
-                            <strong>Session history</strong> — Access your terminal
+                            <strong>Session history</strong> — Access your sandbox
                             recordings
                         </li>
                     </ul>
@@ -867,7 +867,7 @@
                     </p>
                     <ul>
                         <li>
-                            <strong>More concurrent terminals</strong> (10+ vs 3)
+                            <strong>More concurrent sandboxes</strong> (10+ vs 3)
                         </li>
                         <li><strong>Unlimited agents</strong></li>
                         <li><strong>Priority support</strong></li>
@@ -955,7 +955,7 @@
                 </summary>
                 <div class="faq-answer">
                     <p>
-                        Both give you terminal access, but they serve different
+                        Both give you interactive access, but they serve different
                         purposes:
                     </p>
                     <p><strong>Containers (provisioned by Rexec):</strong></p>
@@ -1009,7 +1009,7 @@
                         <li><strong>PHP</strong> — <code>composer require pipeopshq/rexec</code></li>
                     </ul>
                     <p>
-                        All SDKs support container management, file operations, and interactive WebSocket terminals.
+                        All SDKs support container management, file operations, and interactive WebSocket sessions.
                         See the <a href="#sdks">SDK section</a> or <a href="https://github.com/PipeOpsHQ/rexec/blob/main/docs/SDK.md" target="_blank">full documentation</a>.
                     </p>
                 </div>
@@ -1028,7 +1028,7 @@
                         <li><strong>Create containers</strong> — Spin up sandboxed environments programmatically</li>
                         <li><strong>Execute commands</strong> — Run scripts and capture output</li>
                         <li><strong>File operations</strong> — Upload, download, and manage files</li>
-                        <li><strong>Interactive terminals</strong> — Connect via WebSocket for real-time I/O</li>
+                        <li><strong>Interactive sessions</strong> — Connect via WebSocket for real-time I/O</li>
                     </ul>
                     <p>
                         Common use cases include CI/CD pipelines, code execution services, 

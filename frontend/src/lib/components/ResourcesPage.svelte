@@ -526,10 +526,10 @@
             href={buildCanonicalUrl(`/resources?id=${selectedResource.id}`)}
         />
     {:else}
-        <title>Tutorials | Rexec - Terminal as a Service</title>
+        <title>Tutorials | Rexec - Sandbox as a Service</title>
         <meta
             name="description"
-            content="Learn how to use Rexec with video tutorials covering terminals, agents, CLI tools, and more."
+            content="Learn how to use Rexec with video tutorials covering sandboxes, agents, CLI tools, and more."
         />
 
         <!-- Open Graph -->
@@ -540,7 +540,7 @@
         />
         <meta
             property="og:description"
-            content="Learn how to use Rexec with step-by-step video tutorials and comprehensive guides covering terminals, agents, CLI tools, and more."
+            content="Learn how to use Rexec with step-by-step video tutorials and comprehensive guides covering sandboxes, agents, CLI tools, and more."
         />
         <meta property="og:url" content={buildCanonicalUrl("/resources")} />
         <meta property="og:image" content={getAssetUrl("/og-image.png")} />
@@ -554,7 +554,7 @@
         />
         <meta
             name="twitter:description"
-            content="Learn how to use Rexec with step-by-step video tutorials and comprehensive guides covering terminals, agents, CLI tools, and more."
+            content="Learn how to use Rexec with step-by-step video tutorials and comprehensive guides covering sandboxes, agents, CLI tools, and more."
         />
         <meta name="twitter:image" content={getAssetUrl("/og-image.png")} />
 
@@ -577,7 +577,7 @@
                     >
                 </h1>
                 <p class="subtitle">
-                    Learn how to create terminals, manage agents, and automate
+                    Learn how to create sandboxes, manage agents, and automate
                     your workflows with videos and step-by-step guides.
                 </p>
             </div>

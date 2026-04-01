@@ -1,4 +1,4 @@
-# Rexec - Terminal as a Service
+# Rexec - Sandbox as a Service
 
 [![GitHub stars](https://img.shields.io/github/stars/PipeOpsHQ/rexec?style=social)](https://github.com/PipeOpsHQ/rexec)
 [![GitHub forks](https://img.shields.io/github/forks/PipeOpsHQ/rexec?style=social)](https://github.com/PipeOpsHQ/rexec/fork)
@@ -7,18 +7,18 @@
 [![Go Version](https://img.shields.io/github/go-mod/go-version/PipeOpsHQ/rexec)](https://go.dev/)
 [![Docker Pulls](https://img.shields.io/docker/pulls/pipeopshq/rexec)](https://ghcr.io/pipeopshq/rexec)
 
-Rexec is an open-source platform that gives you instantly-available, network-isolated Linux terminals in the cloud, or lets you connect your own machines to a unified dashboard. Built for developers who need on-demand environments and secure remote access.
+Rexec is an open-source platform that gives you instantly-available, network-isolated Linux sandboxes in the cloud, or lets you connect your own machines to a unified dashboard. Built for developers who need on-demand environments and secure remote access.
 
 ---
 
 ## Features
 
-*   **Instant Cloud Terminals**: Create, start, and destroy disposable Linux sandboxes in seconds (powered by Docker).
+*   **Instant Cloud Sandboxes**: Create, start, and destroy disposable Linux sandboxes in seconds (powered by Docker).
 *   **Connect Any Machine (BYOS)**: Install the lightweight Rexec Agent on your laptop, server, or Raspberry Pi to access it securely from the browser without VPNs or SSH port exposure.
 *   **First-Class Terminal UX**: Real-time WebSocket streaming with `xterm.js`, JetBrains Mono fonts, and a native-feeling UI.
 *   **Secure by Default**: JWT authentication, MFA support, audit logging, and isolated container networking.
-*   **Collaboration**: Share terminal sessions for pair programming or debugging.
-*   **Session Recording**: Record and replay terminal sessions for documentation or audit trails.
+*   **Collaboration**: Share sandbox sessions for pair programming or debugging.
+*   **Session Recording**: Record and replay sandbox sessions for documentation or audit trails.
 
 ---
 
@@ -119,7 +119,7 @@ See `.env.example` for a full list of options.
 *   **Frontend:** Svelte, xterm.js, Tailwind CSS
 *   **Backend:** Go (Gin), Gorilla WebSocket
 *   **Database:** PostgreSQL
-*   **Runtime:** Docker (for cloud terminals)
+*   **Runtime:** Docker (for cloud sandboxes)
 
 ---
 

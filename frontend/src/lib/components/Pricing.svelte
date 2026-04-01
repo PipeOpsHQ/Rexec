@@ -25,7 +25,7 @@
             period: "50 hours",
             description: "Instant access, no signup",
             features: [
-                "1 terminal",
+                "1 sandbox",
                 "512MB memory",
                 "0.5 vCPU",
                 "2GB storage",
@@ -43,10 +43,10 @@
             period: "forever",
             description: "For trying out Rexec with PipeOps",
             features: [
-                "5 Cloud Terminals",
+                "5 Cloud Sandboxes",
                 "2GB Memory / 2 vCPU",
                 "10GB Storage",
-                "5 Agent Terminals",
+                "5 Agent Connections",
                 "50-hour session limit",
                 "Community Support",
             ],
@@ -61,7 +61,7 @@
             period: "/month",
             description: "For individual developers",
             features: [
-                "10 terminals",
+                "10 sandboxes",
                 "4GB memory",
                 "4 vCPU",
                 "20GB storage",
@@ -81,11 +81,11 @@
             period: "/month",
             description: "For teams & organizations",
             features: [
-                "Unlimited terminals",
+                "Unlimited sandboxes",
                 "Up to 32GB memory",
                 "Up to 16 vCPU",
                 "1TB storage",
-                "Persistent terminals",
+                "Persistent sandboxes",
                 "Team recordings library",
                 "Unlimited collaborators",
                 "GPU access",
@@ -139,7 +139,7 @@
                         ? "Simple, Transparent Pricing"
                         : "Choose Your Plan"}
                 </h1>
-                <p>Scale your terminal infrastructure as you grow</p>
+                <p>Scale your sandbox infrastructure as you grow</p>
             </div>
 
             <div class="plans-grid">

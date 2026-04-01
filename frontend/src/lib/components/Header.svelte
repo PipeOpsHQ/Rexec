@@ -682,7 +682,7 @@
                         dispatch("create");
                     }}
                 >
-                    <StatusIcon status="plus" size={16} /> New Terminal
+                    <StatusIcon status="plus" size={16} /> New Sandbox
                 </button>
             </div>
         </div>

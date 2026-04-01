@@ -321,7 +321,7 @@
                 Recordings
             </h1>
             <p class="subtitle">
-                View and manage your terminal session recordings
+                View and manage your sandbox session recordings
             </p>
         </div>
         <div class="search-box">
@@ -423,7 +423,7 @@
                     <p>
                         {searchQuery
                             ? "Try a different search term"
-                            : "Start a recording from any terminal session"}
+                            : "Start a recording from any sandbox session"}
                     </p>
                 </div>
             {:else}

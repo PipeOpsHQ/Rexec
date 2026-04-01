@@ -132,12 +132,12 @@
         },
         {
             slug: "gpu-terminals",
-            title: "GPU Terminals for AI/ML (Coming Soon)",
+            title: "GPU Sandboxes for AI/ML (Coming Soon)",
             icon: "gpu",
             description:
-                "Rexec will provide instant-on, powerful GPU-enabled terminals for your team's AI/ML model development, training, and fine-tuning. Manage and share these dedicated GPU resources securely, eliminating the complexities of direct infrastructure access and SSH key sharing.",
+                "Rexec will provide instant-on, powerful GPU-enabled sandboxes for your team's AI/ML model development, training, and fine-tuning. Manage and share these dedicated GPU resources securely, eliminating the complexities of direct infrastructure access and SSH key sharing.",
             points: [
-                "On-demand access to GPU-accelerated terminals",
+                "On-demand access to GPU-accelerated sandboxes",
                 "Centralized team management of GPU resources",
                 "Pre-configured with ML frameworks (TensorFlow, PyTorch)",
                 "Isolated for reproducible experiments and data security",
@@ -174,10 +174,10 @@
         },
         {
             slug: "resumable-sessions",
-            title: "Resumable Terminal Sessions",
+            title: "Resumable Sandbox Sessions",
             icon: "reconnect",
             description:
-                "Start long-running tasks, close your browser, and come back later. Your terminal session keeps running in the background with full output history.",
+                "Start long-running tasks, close your browser, and come back later. Your sandbox session keeps running in the background with full output history.",
             points: [
                 "50,000 lines of scrollback history",
                 "Sessions persist across disconnects",
@@ -190,11 +190,11 @@
             title: "Rexec CLI & TUI",
             icon: "terminal",
             description:
-                "Manage your terminals from anywhere using our powerful command-line interface with an interactive TUI mode.",
+                "Manage your sandboxes from anywhere using our powerful command-line interface with an interactive TUI mode.",
             points: [
-                "Full terminal management from your shell",
+                "Full sandbox management from your shell",
                 "Interactive TUI dashboard (rexec -i)",
-                "Create, connect, and manage terminals",
+                "Create, connect, and manage sandboxes",
                 "Run snippets and macros directly",
                 `Install via: curl -fsSL ${installUrl}/install.sh | bash`,
             ],
@@ -204,9 +204,9 @@
             title: "Hybrid Infrastructure Access",
             icon: "shield",
             description:
-                "Mix cloud-managed terminals with your own infrastructure. Access everything through a single, unified interface.",
+                "Mix cloud-managed sandboxes with your own infrastructure. Access everything through a single, unified interface.",
             points: [
-                "Combine Rexec terminals with self-hosted",
+                "Combine Rexec sandboxes with self-hosted",
                 "Unified access control and audit logging",
                 "No VPN or complex networking required",
                 "Share access without sharing SSH keys",
@@ -265,7 +265,7 @@
         </div>
         <h1>Powerful <span class="accent">Use Cases</span></h1>
         <p class="subtitle">
-            Rexec is more than just a terminal. It's an ephemeral computing
+            Rexec is more than just a terminal. It's an ephemeral sandbox
             platform designed for modern workflows.
         </p>
     </div>
@@ -310,7 +310,7 @@
             <h2>Official SDKs for <span class="accent">Every Language</span></h2>
             <p>
                 Integrate Rexec into your applications with our official SDKs. 
-                Create sandboxed environments, execute code, and manage terminals programmatically.
+                Create sandboxed environments, execute code, and manage sandboxes programmatically.
             </p>
         </div>
         <div class="sdk-languages">
@@ -381,7 +381,7 @@
         <p>Start your first session and see what's possible.</p>
         <button class="btn btn-primary btn-lg" onclick={handleTryNow}>
             <StatusIcon status="rocket" size={16} />
-            <span>Launch Terminal</span>
+            <span>Launch Sandbox</span>
         </button>
     </section>
 </div>

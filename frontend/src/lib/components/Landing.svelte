@@ -40,17 +40,17 @@
     <div class="landing-content">
         <div class="landing-badge">
             <span class="dot"></span>
-            <span>Terminal as a Service</span>
+            <span>Sandbox as a Service</span>
         </div>
 
         <h1>
-            Instant <span class="accent">Linux</span> Terminals
+            Instant <span class="accent">Linux</span> Sandboxes
             <br />
             In Your Browser
         </h1>
 
         <p class="description">
-            Create your first terminal to access a cloud environment, GPU workspace,
+            Create your first sandbox to access a cloud environment, GPU workspace,
             or connect to remote resources. No setup required.
         </p>
 
@@ -104,12 +104,12 @@
             <div class="feature">
                 <span class="feature-icon"><StatusIcon status="bolt" size={24} /></span>
                 <h3>Instant</h3>
-                <p>Rexec terminals launch in seconds with pre-configured shells</p>
+                <p>Rexec sandboxes launch in seconds with pre-configured shells</p>
             </div>
             <div class="feature">
                 <span class="feature-icon"><StatusIcon status="connected" size={24} /></span>
                 <h3>Isolated</h3>
-                <p>Each terminal is fully isolated with its own filesystem</p>
+                <p>Each sandbox is fully isolated with its own filesystem</p>
             </div>
             <div class="feature">
                 <span class="feature-icon"><StatusIcon status="terminal" size={24} /></span>

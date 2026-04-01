@@ -39,10 +39,10 @@ export default defineConfig({
         "screenshot-mobile.png",
       ],
       manifest: {
-        name: "Rexec - Terminal as a Service",
+        name: "Rexec - Sandbox as a Service",
         short_name: "Rexec",
         description:
-          "Launch secure Linux terminals instantly in your browser. No setup required.",
+          "Launch secure Linux sandboxes instantly in your browser. No setup required.",
         start_url: "/",
         display: "standalone",
         background_color: "#0a0a0a",
@@ -77,14 +77,14 @@ export default defineConfig({
             sizes: "1280x720",
             type: "image/png",
             form_factor: "wide",
-            label: "Rexec Terminal Dashboard",
+            label: "Rexec Sandbox Dashboard",
           },
           {
             src: "/screenshot-mobile.png",
             sizes: "390x844",
             type: "image/png",
             form_factor: "narrow",
-            label: "Rexec Terminal on Mobile",
+            label: "Rexec Sandbox on Mobile",
           },
         ],
         categories: ["developer", "utilities", "productivity"],
@@ -93,9 +93,9 @@ export default defineConfig({
         scope: "/",
         shortcuts: [
           {
-            name: "New Terminal",
+            name: "New Sandbox",
             short_name: "New",
-            description: "Create a new terminal session",
+            description: "Create a new sandbox session",
             url: "/ui/dashboard?action=create",
             icons: [
               { src: "/pwa-96x96.png", sizes: "96x96", type: "image/png" },
@@ -104,7 +104,7 @@ export default defineConfig({
           {
             name: "Dashboard",
             short_name: "Dashboard",
-            description: "View your terminals",
+            description: "View your sandboxes",
             url: "/ui/dashboard",
             icons: [
               { src: "/pwa-96x96.png", sizes: "96x96", type: "image/png" },

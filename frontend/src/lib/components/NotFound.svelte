@@ -63,7 +63,7 @@
         <div class="error-info">
             <h1>404</h1>
             <h2>Page Not Found</h2>
-            <p>The terminal session you're looking for doesn't exist or has been terminated.</p>
+            <p>The sandbox session you're looking for doesn't exist or has been terminated.</p>
             
             <div class="actions">
                 <button class="btn btn-primary" onclick={goHome}>

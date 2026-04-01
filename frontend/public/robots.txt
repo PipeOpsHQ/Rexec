@@ -1,4 +1,4 @@
-# Robots.txt for Rexec - Terminal as a Service
+# Robots.txt for Rexec - Sandbox as a Service
 
 User-agent: *
 Allow: /

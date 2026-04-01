@@ -182,7 +182,7 @@
             icon: "connected",
             title: "Team Collaboration",
             description:
-                "Share your terminal session in real-time. Pair program, debug together, teach and learn.",
+                "Share your sandbox session in real-time. Pair program, debug together, teach and learn.",
             color: "#00d4ff",
             slug: "pair-programming",
         },
@@ -222,7 +222,7 @@
             icon: "clock",
             title: "Session Recording",
             description:
-                "Record and replay terminal sessions for documentation, audits, or training materials.",
+                "Record and replay sandbox sessions for documentation, audits, or training materials.",
             color: "#ec4899",
             slug: "session-recording",
         },
@@ -240,7 +240,7 @@
         {
             icon: "bolt",
             title: "Sub-second Launch",
-            desc: "Terminals ready in under 500ms",
+            desc: "Sandboxes ready in under 500ms",
         },
         {
             icon: "shield",
@@ -312,7 +312,7 @@
         },
         {
             title: "Access From Any Device",
-            desc: "Work from your laptop, tablet, or phone. Your terminal follows you everywhere with full functionality.",
+            desc: "Work from your laptop, tablet, or phone. Your sandbox follows you everywhere with full functionality.",
             icon: "globe",
         },
         {
@@ -327,14 +327,14 @@
         },
         {
             title: "Cost-Effective Scaling",
-            desc: "Pay only for what you use. No idle VMs, no wasted resources. Scale from 1 to 1000 terminals instantly.",
+            desc: "Pay only for what you use. No idle VMs, no wasted resources. Scale from 1 to 1000 sandboxes instantly.",
             icon: "chart",
         },
     ];
 
     const testimonials = [
         {
-            quote: "Finally, a terminal I can access from my iPad without any compromises.",
+            quote: "Finally, a sandbox I can access from my iPad without any compromises.",
             author: "Sarah Chen",
             role: "DevOps Lead, TechCorp",
         },
@@ -383,7 +383,7 @@
                 </div>
 
                 <h1 class="animate-fade-up" style="--delay: 0.2s">
-                    The Terminal
+                    The Sandbox
                     <span class="gradient-text">Reimagined</span>
                     for the
                     <span
@@ -398,7 +398,7 @@
                     style="--delay: 0.3s"
                 >
                     Instant Linux environments in your browser. No setup. No
-                    downloads. Just powerful, isolated terminals ready when you
+                    downloads. Just powerful, isolated sandboxes ready when you
                     are.
                 </p>
 
@@ -408,7 +408,7 @@
                         onclick={handleGuestClick}
                     >
                         <span class="btn-icon">▶</span>
-                        Start Free Terminal
+                        Start Free Sandbox
                         <span class="btn-shine"></span>
                     </button>
                     <button
@@ -566,7 +566,7 @@
                         <h3>With Rexec</h3>
                     </div>
                     <ul>
-                        <li>Terminal ready in milliseconds</li>
+                        <li>Sandbox ready in milliseconds</li>
                         <li>Identical environments everywhere</li>
                         <li>Real-time collaboration built-in</li>
                         <li>Secure browser access anywhere</li>
@@ -730,7 +730,7 @@
                     onclick={handleGuestClick}
                 >
                     <span class="btn-icon">▶</span>
-                    Launch Your First Terminal
+                    Launch Your First Sandbox
                 </button>
             </div>
 

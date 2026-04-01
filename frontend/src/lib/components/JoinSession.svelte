@@ -50,12 +50,12 @@
         };
         // Connect to the collab websocket
         collab.connectWebSocket(code);
-        toast.success(`Joined terminal as ${result.role}`);
+        toast.success(`Joined sandbox as ${result.role}`);
       } else {
-        error = 'Terminal not found or sharing has ended';
+        error = 'Sandbox not found or sharing has ended';
       }
     } catch (e) {
-      error = 'Failed to join terminal';
+      error = 'Failed to join sandbox';
     }
     
     isLoading = false;
@@ -106,7 +106,7 @@
     if (sessionInfo) {
       dispatch('joined', {
         containerId: sessionInfo.containerId,
-        containerName: `Shared Terminal (${code})`,
+        containerName: `Shared Sandbox (${code})`,
         mode: sessionInfo.mode,
         role: sessionInfo.role
       });
@@ -128,18 +128,18 @@
           <line x1="12" y1="17" x2="12" y2="21"/>
         </svg>
       </div>
-      <h1>Join Shared Terminal</h1>
+      <h1>Join Shared Sandbox</h1>
       <p class="code-display">{code}</p>
     </div>
 
     {#if isLoading}
       <div class="loading">
         <div class="spinner"></div>
-        <p>Connecting to terminal...</p>
+        <p>Connecting to sandbox...</p>
       </div>
     {:else if needsAuth}
       <div class="auth-prompt">
-        <p class="auth-description">Login to join this shared terminal session</p>
+        <p class="auth-description">Login to join this shared sandbox session</p>
         
         <!-- PipeOps Login Button -->
         <button class="btn btn-pipeops" onclick={() => auth.getOAuthUrl().then(url => url && (window.location.href = url))}>
@@ -194,7 +194,7 @@
             <span class="terminal-name">{sessionInfo.containerName}</span>
             <span class="terminal-shared">
               <span class="shared-badge">LIVE</span>
-              Shared Terminal
+              Shared Sandbox
             </span>
           </div>
         </div>
