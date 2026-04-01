@@ -261,7 +261,7 @@
 
     const seoConfig: Record<string, PageSEO> = {
         landing: {
-            title: "Rexec - Sandbox as a Service | Instant Linux Sandboxes",
+            title: "Rexec - AI-Native Sandbox | Instant Linux Sandboxes",
             description:
                 "Launch secure Linux sandboxes instantly in your browser. No setup required. Choose from Ubuntu, Debian, Alpine, and more. Perfect for developers, learning, and testing.",
             keywords:
@@ -273,7 +273,7 @@
                 "Experience the next generation of cloud sandboxes. Instant access to powerful Linux environments with no setup required.",
         },
         launch: {
-            title: "Rexec Launch - Sandbox as a Service | Cloud Sandboxes & Secure Agent",
+            title: "Rexec Launch - AI-Native Sandbox | Cloud Sandboxes & Secure Agent",
             description:
                 "Instant cloud sandboxes for developers. Safely run AI-generated code, access servers without SSH exposure, and spin up dev environments in seconds. Try free today.",
             keywords:
@@ -317,7 +317,7 @@
                 "resources, tutorials, videos, guides, how to, sandbox, agents, CLI",
         },
         "use-cases": {
-            title: "Use Cases - Rexec | Sandbox as a Service",
+            title: "Use Cases - Rexec | AI-Native Sandbox",
             description:
                 "Discover how developers, teams, and enterprises use Rexec for development, testing, training, and AI agent workflows.",
             keywords:
@@ -325,7 +325,7 @@
         },
         "use-case-detail": {
             title: "Use Case - Rexec",
-            description: "Detailed use case for Rexec Sandbox as a Service.",
+            description: "Detailed use case for Rexec AI-Native Sandbox.",
         },
         docs: {
             title: "Documentation - Rexec",

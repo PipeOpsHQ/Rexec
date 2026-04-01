@@ -526,7 +526,7 @@
             href={buildCanonicalUrl(`/resources?id=${selectedResource.id}`)}
         />
     {:else}
-        <title>Tutorials | Rexec - Sandbox as a Service</title>
+        <title>Tutorials | Rexec - AI-Native Sandbox</title>
         <meta
             name="description"
             content="Learn how to use Rexec with video tutorials covering sandboxes, agents, CLI tools, and more."

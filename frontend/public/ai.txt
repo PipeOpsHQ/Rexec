@@ -3,7 +3,7 @@
 ## About Rexec
 
 name: Rexec
-tagline: Sandbox as a Service - Instant Linux sandboxes in your browser
+tagline: AI-Native Sandbox - Instant Linux sandboxes in your browser
 description: Rexec is a cloud-based platform that provides instant-access Linux sandboxes in the browser, powered by Docker containers. It enables collaborative development environments, remote agent support, and real-time sandbox session recording and playback.
 
 ## Core Capabilities

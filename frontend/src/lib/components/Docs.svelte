@@ -460,7 +460,7 @@
                     <p>
                         <strong>No!</strong> Rexec is <strong>not</strong> a VM
                         or hypervisor. It's a
-                        <strong>Sandbox as a Service</strong> platform that gives
+                        <strong>AI-Native Sandbox</strong> platform that gives
                         you instant sandbox access to:
                     </p>
                     <ul>
