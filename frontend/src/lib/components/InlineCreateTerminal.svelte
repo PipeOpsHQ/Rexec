@@ -686,20 +686,32 @@
             <!-- Terminal Settings -->
             <div class="create-section">
                 <h4>Terminal Settings</h4>
-                <label class="setting-row" class:active={useTmux}>
-                    <input type="checkbox" bind:checked={useTmux} />
-                    <div class="setting-icon">
-                        <StatusIcon status="clock" size={18} />
+                <div class="settings-grid">
+                    <label class="setting-row" class:active={useTmux}>
+                        <input type="checkbox" bind:checked={useTmux} />
+                        <div class="setting-icon">
+                            <StatusIcon status="clock" size={18} />
+                        </div>
+                        <div class="setting-info">
+                            <span class="setting-label"
+                                >Resumable session (tmux)</span
+                            >
+                            <span class="setting-desc"
+                                >Keep processes running when you disconnect</span
+                            >
+                        </div>
+                    </label>
+
+                    <div class="setting-row active static-setting">
+                        <div class="setting-icon">
+                            <StatusIcon status="bolt" size={18} />
+                        </div>
+                        <div class="setting-info">
+                            <span class="setting-label">Hardware Isolation</span>
+                            <span class="setting-desc">Automatically secured via gVisor/MicroVM</span>
+                        </div>
                     </div>
-                    <div class="setting-info">
-                        <span class="setting-label"
-                            >Enable resumable session (tmux)</span
-                        >
-                        <span class="setting-desc"
-                            >Keep processes running when you disconnect</span
-                        >
-                    </div>
-                </label>
+                </div>
             </div>
 
             <!-- Role Selection -->
@@ -2211,6 +2223,16 @@
 
     .setting-label {
         font-size: 13px;
+        color: var(--text);
+        font-weight: 500;
+    }
+
+    .setting-desc {
+        font-size: 11px;
+        color: var(--text-muted);
+    }
+</style>
+t-size: 13px;
         color: var(--text);
         font-weight: 500;
     }

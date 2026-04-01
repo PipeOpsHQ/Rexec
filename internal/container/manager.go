@@ -542,6 +542,7 @@ type ContainerInfo struct {
 	CreatedAt     time.Time
 	LastUsedAt    time.Time
 	IPAddress     string
+	Isolation     string
 	Labels        map[string]string
 }
 
@@ -1384,6 +1385,7 @@ exec tail -f /dev/null`, shell, shell)
 		CreatedAt:     now,
 		LastUsedAt:    now,
 		IPAddress:     ipAddress,
+		Isolation:     ociRuntime,
 		Labels:        allLabels,
 	}
 
@@ -2313,6 +2315,22 @@ func parseSizeString(s string) int64 {
 		numStr = s[:len(s)-1]
 	case 'T':
 		multiplier = 1024 * 1024 * 1024 * 1024
+		numStr = s[:len(s)-1]
+	}
+
+	// Also handle "GB", "MB" etc.
+	if len(numStr) > 0 && numStr[len(numStr)-1] == 'B' {
+		numStr = numStr[:len(numStr)-1]
+	}
+
+	val, err := strconv.ParseFloat(numStr, 64)
+	if err != nil {
+		return 0
+	}
+
+	return int64(val * float64(multiplier))
+}
+024 * 1024 * 1024
 		numStr = s[:len(s)-1]
 	}
 

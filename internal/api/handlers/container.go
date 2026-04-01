@@ -508,6 +508,7 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 		MemoryMB:   limits.MemoryMB,
 		CPUShares:  limits.CPUShares,
 		DiskMB:     limits.DiskMB,
+		Isolation:  req.Isolation,
 		CreatedAt:  time.Now(),
 		LastUsedAt: time.Now(),
 	}
@@ -2400,6 +2401,11 @@ func getImageNames() []string {
 // formatDiskQuota formats disk MB to human readable format (e.g., 2048 -> "2G")
 func formatDiskQuota(diskMB int64) string {
 	if diskMB >= 1024 {
+		return fmt.Sprintf("%dG", diskMB/1024)
+	}
+	return fmt.Sprintf("%dM", diskMB)
+}
+
 		return fmt.Sprintf("%dG", diskMB/1024)
 	}
 	return fmt.Sprintf("%dM", diskMB)
