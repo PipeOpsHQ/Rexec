@@ -338,6 +338,7 @@ function createContainersStore() {
           status: "running",
           created_at: container.created_at || new Date().toISOString(),
           ip_address: container.ip_address,
+          isolation: container.isolation,
           resources: container.resources,
         };
 
@@ -1302,8 +1303,5 @@ export const creatingContainer = derived(
 
 // Refresh containers list (silent fetch)
 export function refreshContainers() {
-  containers.fetchContainers(true);
-}
-iners() {
   containers.fetchContainers(true);
 }

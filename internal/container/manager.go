@@ -647,8 +647,8 @@ func NewManager(volumePaths ...string) (*Manager, error) {
 		activeStatsStreams: make(map[string]*StatsBroadcaster),
 	}
 
-	// Check disk quota availability asynchronously
-	go mgr.checkDiskQuotaSupport()
+	// Trigger async checks for host capabilities (runtimes, quotas)
+	go mgr.checkHostCapabilities()
 
 	// Ensure isolated network exists
 	if err := mgr.ensureIsolatedNetwork(); err != nil {
@@ -656,6 +656,12 @@ func NewManager(volumePaths ...string) (*Manager, error) {
 	}
 
 	return mgr, nil
+}
+
+// checkHostCapabilities runs all asynchronous checks for the Docker host
+func (m *Manager) checkHostCapabilities() {
+	m.checkRuntimeSupport()
+	m.checkDiskQuotaSupport()
 }
 
 // ensureIsolatedNetwork ensures the isolated network exists with ICC disabled
@@ -685,6 +691,31 @@ func (m *Manager) ensureIsolatedNetwork() error {
 
 	log.Printf("[Container] Created isolated network: %s", IsolatedNetworkName)
 	return nil
+}
+
+// checkRuntimeSupport queries the Docker host for available OCI runtimes
+func (m *Manager) checkRuntimeSupport() {
+	m.runtimeCheckMu.Do(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		info, err := m.client.Info(ctx)
+		if err != nil {
+			log.Printf("[Runtime] Failed to get Docker info for runtimes: %v", err)
+			return
+		}
+
+		var runtimes []string
+		for name := range info.Runtimes {
+			runtimes = append(runtimes, name)
+		}
+
+		m.mu.Lock()
+		m.availableRuntimes = runtimes
+		m.mu.Unlock()
+
+		log.Printf("[Runtime] Detected available runtimes on host: %v", runtimes)
+	})
 }
 
 // checkDiskQuotaSupport checks if disk quotas are available on the Docker host
@@ -943,6 +974,18 @@ func (m *Manager) pullImageWithProgressInternal(ctx context.Context, imageName s
 	return nil
 }
 
+// IsRuntimeAvailable checks if a specific OCI runtime is supported by the host
+func (m *Manager) IsRuntimeAvailable(name string) bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for _, r := range m.availableRuntimes {
+		if r == name {
+			return true
+		}
+	}
+	return false
+}
+
 // CheckImageExists checks if an image exists in Docker
 func (m *Manager) CheckImageExists(ctx context.Context, imageType string, isCustom bool, customImage string) (bool, string) {
 	var imageName string
@@ -1077,11 +1120,16 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 	cpuQuota := (cfg.CPULimit * cpuPeriod) / 1000 // Convert millicores to quota
 
 	// Use default Docker runtime (runc)
-	// OCI runtime can be configured via OCI_RUNTIME env var
-	// Valid runtimes: "runc" (default), "kata", "kata-fc", "runsc" (gVisor), "runsc-kvm"
+	// OCI runtime can be configured via OCI_RUNTIME env var or automatically detected
 	ociRuntime := os.Getenv("OCI_RUNTIME")
 	if ociRuntime == "" {
-		ociRuntime = "runc" // Default to runc for maximum compatibility
+		// Try to detect gVisor (runsc) as the default for high isolation
+		// This now works for both local and REMOTE hosts via the Docker API
+		if m.IsRuntimeAvailable("runsc") {
+			ociRuntime = "runsc"
+		} else {
+			ociRuntime = "runc" // Default to runc for maximum compatibility
+		}
 	}
 
 	// Build storage options conditionally based on quota support
