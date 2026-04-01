@@ -116,7 +116,7 @@ const REXEC_BANNER =
   "  ██╔══██╗██╔══╝   ██╔██╗ ██╔══╝  ██║\r\n" +
   "  ██║  ██║███████╗██╔╝ ██╗███████╗╚██████╗\r\n" +
   "  ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚══════╝ ╚═════╝\r\n" +
-  "\x1b[0m\x1b[38;5;243m  Sandbox as a Service · rexec.dev\x1b[0m\r\n" +
+  "\x1b[0m\x1b[38;5;243m  AI-Native Sandbox · rexec.dev\x1b[0m\r\n" +
   "\x1b[38;5;243m  Run 'rexec tools' to see available tools\x1b[0m\r\n\r\n";
 
 // Helper to handle custom key events (prevent browser defaults, map macOS keys)

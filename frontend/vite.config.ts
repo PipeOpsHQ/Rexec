@@ -39,7 +39,7 @@ export default defineConfig({
         "screenshot-mobile.png",
       ],
       manifest: {
-        name: "Rexec - Sandbox as a Service",
+        name: "Rexec - AI-Native Sandbox",
         short_name: "Rexec",
         description:
           "Launch secure Linux sandboxes instantly in your browser. No setup required.",

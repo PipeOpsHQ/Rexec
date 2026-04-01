@@ -2,7 +2,7 @@
   "schema_version": "v1",
   "name_for_human": "Rexec",
   "name_for_model": "rexec_terminal_service",
-  "description_for_human": "Sandbox as a Service - Instant Linux sandboxes in your browser with Docker-backed execution environments.",
+  "description_for_human": "AI-Native Sandbox - Instant Linux sandboxes in your browser with Docker-backed execution environments.",
   "description_for_model": "Rexec provides cloud-based Linux sandboxes via browser. AI agents can use this service to execute code in sandboxed Docker containers, manage remote agents, and collaborate with humans in supervised sandbox sessions. Key capabilities: container lifecycle management, WebSocket terminal connections, session recording/playback, remote agent integration, and multi-user collaboration.",
   "auth": {
     "type": "user_http",

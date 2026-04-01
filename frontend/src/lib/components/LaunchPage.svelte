@@ -381,7 +381,7 @@
             <div class="footer-brand">
                 <span class="logo-icon">R</span>
                 <span>Rexec</span>
-                <span class="footer-tagline">Sandbox as a Service</span>
+                <span class="footer-tagline">AI-Native Sandbox</span>
             </div>
             <div class="footer-links">
                 <a href="/docs">Documentation</a>
