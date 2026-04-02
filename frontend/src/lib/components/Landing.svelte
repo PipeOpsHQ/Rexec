@@ -169,7 +169,7 @@
         border: 1px solid var(--border);
         background: var(--bg-elevated);
         position: relative;
-        padding: 40px;
+        padding: 24px 40px;
     }
 
     .landing::before {
@@ -208,7 +208,7 @@
         border: 1px solid var(--border);
         font-size: 11px;
         color: var(--text-secondary);
-        margin-bottom: 24px;
+        margin-bottom: 16px;
         text-transform: uppercase;
         letter-spacing: 1px;
     }
@@ -221,9 +221,9 @@
     }
 
     h1 {
-        font-size: 36px;
+        font-size: 32px;
         font-weight: 700;
-        margin-bottom: 20px;
+        margin-bottom: 12px;
         text-transform: uppercase;
         letter-spacing: 2px;
         line-height: 1.3;
@@ -238,7 +238,7 @@
         font-size: 14px;
         color: var(--text-muted);
         max-width: 500px;
-        margin: 0 auto 40px;
+        margin: 0 auto 24px;
         line-height: 1.6;
     }
 
@@ -246,7 +246,7 @@
         display: flex;
         gap: 16px;
         justify-content: center;
-        margin-bottom: 40px;
+        margin-bottom: 24px;
     }
 
     .btn-spinner {
@@ -275,7 +275,7 @@
     .terminal-preview {
         width: 100%;
         max-width: 600px;
-        margin: 0 auto 40px;
+        margin: 0 auto 24px;
         background: var(--terminal-bg, #0a0a0a);
         border: 1px solid var(--border);
         text-align: left;
@@ -317,7 +317,7 @@
     }
 
     .terminal-preview-body {
-        padding: 16px;
+        padding: 12px;
         font-family: var(--font-mono);
         font-size: 13px;
     }
@@ -354,7 +354,7 @@
     }
 
     .feature {
-        padding: 20px;
+        padding: 12px;
         background: var(--bg-card);
         border: 1px solid var(--border);
         text-align: left;
@@ -368,7 +368,7 @@
     .feature-icon {
         font-size: 24px;
         display: block;
-        margin-bottom: 12px;
+        margin-bottom: 8px;
     }
 
     .feature h3 {
@@ -391,7 +391,7 @@
         flex-wrap: wrap;
         gap: 12px;
         justify-content: center;
-        margin-top: 40px;
+        margin-top: 24px;
     }
 
     .quick-link {
@@ -432,7 +432,7 @@
         flex-wrap: wrap;
         gap: 12px;
         justify-content: center;
-        margin-top: 24px;
+        margin-top: 16px;
     }
 
     .stat-badge {
