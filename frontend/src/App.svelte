@@ -598,7 +598,7 @@
                     return;
                 }
 
-                currentView = "dashboard";
+                goToDashboard();
                 toast.success("Successfully signed in!");
             }
         }
@@ -652,7 +652,7 @@
                     return;
                 }
 
-                currentView = "dashboard";
+                goToDashboard();
                 containers.fetchContainers();
                 toast.success(`Welcome, ${user.name}!`);
             } else {
@@ -707,13 +707,19 @@
         const path = window.location.pathname;
         const params = new URLSearchParams(window.location.search);
 
-        // Handle root path - show dashboard if authenticated, landing if not
-        if (path === "/" || path === "") {
+        // Handle dashboard/console path
+        if (path === "/dashboard" || path === "/console") {
             if (get(isAuthenticated)) {
                 currentView = "dashboard";
             } else {
                 currentView = "landing";
             }
+            return;
+        }
+
+        // Handle root path - always show landing page now that they are separated
+        if (path === "/" || path === "") {
+            currentView = "landing";
             return;
         }
 
@@ -1253,11 +1259,11 @@
                         security.refreshFromServer();
                     });
 
-                    // Set default view to dashboard only if on root path
+                    // Set default view to landing only if on root path
                     // handleTerminalUrl() will override for specific routes like /account
                     const currentPath = window.location.pathname;
                     if (currentPath === "/" || currentPath === "") {
-                        currentView = "dashboard";
+                        currentView = "landing";
                     }
                 } else {
                     auth.logout();
@@ -1296,14 +1302,12 @@
     });
 
     // React to auth changes (only after initialization to prevent race conditions)
-    $: if (isInitialized && $isAuthenticated && currentView === "landing") {
+    $: if (isInitialized && $isAuthenticated) {
         const pendingJoin = localStorage.getItem("pendingJoinCode");
-        if (pendingJoin) {
+        if (pendingJoin && currentView === "landing") {
             localStorage.removeItem("pendingJoinCode");
             joinCode = pendingJoin;
             currentView = "join";
-        } else {
-            currentView = "dashboard";
         }
         containers.fetchContainers();
         startAutoRefresh(); // Start polling when authenticated
@@ -1338,7 +1342,17 @@
 
     // Navigation functions
     function goToDashboard() {
-        currentView = $isAuthenticated ? "dashboard" : "landing";
+        if ($isAuthenticated) {
+            currentView = "dashboard";
+            window.history.pushState({}, "", "/dashboard");
+        } else {
+            currentView = "landing";
+            window.history.pushState({}, "", "/");
+        }
+    }
+
+    function goToHome() {
+        currentView = "landing";
         window.history.pushState({}, "", "/");
     }
 
@@ -1398,7 +1412,7 @@
             window.history.pushState({}, "", "/admin");
         } else {
             toast.error("Access denied");
-            currentView = "dashboard";
+            goToDashboard();
         }
     }
 
@@ -1406,7 +1420,7 @@
         event: CustomEvent<{ id: string; name: string }>,
     ) {
         const { id, name } = event.detail;
-        currentView = "dashboard";
+        goToDashboard();
 
         // Create session - TerminalPanel will handle WebSocket connection
         void openTerminalForContainer(id, name);
@@ -1415,8 +1429,10 @@
     // Handle browser navigation
     function handlePopState() {
         const path = window.location.pathname;
-        if (path === "/" || path === "") {
+        if (path === "/dashboard" || path === "/console") {
             currentView = $isAuthenticated ? "dashboard" : "landing";
+        } else if (path === "/" || path === "") {
+            currentView = "landing";
         } else if (path === "/resources") {
             currentView = "resources";
         } else if (path === "/guides" || path === "/ai-tools") {
@@ -1676,7 +1692,9 @@
         </div>
     {:else}
         <Header
-            on:home={goToDashboard}
+            currentView={currentView}
+            on:home={goToHome}
+            on:console={goToDashboard}
             on:create={goToCreate}
             on:settings={goToSettings}
             on:sshkeys={goToSSHKeys}
@@ -1764,8 +1782,7 @@
                         ) => {
                             const { agentId, agentName } = e.detail;
                             void openTerminalForAgent(agentId, agentName);
-                            currentView = "dashboard";
-                            window.history.pushState({}, "", "/");
+                            goToDashboard();
                             toast.success(`Connecting to ${agentName}...`);
                         }}
                     />
@@ -1784,7 +1801,7 @@
                                 store?.terminal.getState().activeSessionId;
 
                             if (activeSessionId && store) {
-                                currentView = "dashboard";
+                                goToDashboard();
                                 setTimeout(() => {
                                     store.terminal.sendInput(
                                         activeSessionId,
@@ -1796,7 +1813,7 @@
                                 toast.error(
                                     "No active sandbox. Please create one first.",
                                 );
-                                currentView = "dashboard";
+                                goToDashboard();
                             }
                         }}
                     />
@@ -1978,8 +1995,7 @@
                             ) => {
                                 const { agentId, agentName } = e.detail;
                                 void openTerminalForAgent(agentId, agentName);
-                                currentView = "dashboard";
-                                window.history.pushState({}, "", "/");
+                                goToDashboard();
                                 toast.success(`Connecting to ${agentName}...`);
                                 settingsScrollSection = null;
                             }}
@@ -2011,8 +2027,7 @@
                                     store?.terminal.getState().activeSessionId;
 
                                 if (activeSessionId && store) {
-                                    currentView = "dashboard";
-                                    window.history.pushState({}, "", "/");
+                                    goToDashboard();
                                     setTimeout(() => {
                                         store.terminal.sendInput(
                                             activeSessionId,
@@ -2024,8 +2039,7 @@
                                     toast.error(
                                         "No active sandbox. Please create one first.",
                                     );
-                                    currentView = "dashboard";
-                                    window.history.pushState({}, "", "/");
+                                    goToDashboard();
                                 }
                             }}
                         />
