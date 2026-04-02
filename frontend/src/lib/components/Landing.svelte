@@ -1,6 +1,6 @@
 <script lang="ts">
     import { createEventDispatcher } from "svelte";
-    import { auth } from "$stores/auth";
+    import { auth, isAuthenticated } from "$stores/auth";
     import { toast } from "$stores/toast";
     import StatusIcon from "./icons/StatusIcon.svelte";
 
@@ -55,21 +55,27 @@
         </p>
 
         <div class="landing-actions">
-            <button class="btn btn-primary btn-lg" onclick={handleGuestClick}>
-                Launch Sandbox — Free
-            </button>
-            <button
-                class="btn btn-secondary btn-lg"
-                onclick={handleOAuthLogin}
-                disabled={isOAuthLoading}
-            >
-                {#if isOAuthLoading}
-                    <span class="btn-spinner"></span>
-                    Connecting...
-                {:else}
-                    Sign in with PipeOps
-                {/if}
-            </button>
+            {#if $isAuthenticated}
+                <button class="btn btn-primary btn-lg" onclick={() => dispatch("navigate", { view: "dashboard" })}>
+                    Go to Console
+                </button>
+            {:else}
+                <button class="btn btn-primary btn-lg" onclick={handleGuestClick}>
+                    Launch Sandbox — Free
+                </button>
+                <button
+                    class="btn btn-secondary btn-lg"
+                    onclick={handleOAuthLogin}
+                    disabled={isOAuthLoading}
+                >
+                    {#if isOAuthLoading}
+                        <span class="btn-spinner"></span>
+                        Connecting...
+                    {:else}
+                        Sign in with PipeOps
+                    {/if}
+                </button>
+            {/if}
         </div>
 
 
