@@ -1253,6 +1253,12 @@ func runServer() {
 		}
 
 		// SPA routes - serve index.html for client-side routing
+		router.GET("/dashboard", func(c *gin.Context) {
+			c.File(indexFile)
+		})
+		router.GET("/console", func(c *gin.Context) {
+			c.File(indexFile)
+		})
 		router.GET("/guides", func(c *gin.Context) {
 			serveSEO(c, guidesSEO)
 		})
@@ -1290,6 +1296,30 @@ func runServer() {
 		})
 
 		// Explicitly serve index.html for known SPA routes to avoid /:id catch-all 404
+		router.GET("/settings", func(c *gin.Context) {
+			c.File(indexFile)
+		})
+
+		router.GET("/sshkeys", func(c *gin.Context) {
+			c.File(indexFile)
+		})
+
+		router.GET("/cli-login", func(c *gin.Context) {
+			c.File(indexFile)
+		})
+
+		router.GET("/profile", func(c *gin.Context) {
+			c.File(indexFile)
+		})
+
+		router.GET("/embed", func(c *gin.Context) {
+			c.File(indexFile)
+		})
+
+		router.GET("/sdk", func(c *gin.Context) {
+			c.File(indexFile)
+		})
+
 		router.GET("/pricing", func(c *gin.Context) {
 			serveSEO(c, pricingSEO)
 		})
@@ -1393,6 +1423,10 @@ func runServer() {
 		})
 
 		router.GET("/account/api", func(c *gin.Context) {
+			c.File(indexFile)
+		})
+
+		router.GET("/account/tokens", func(c *gin.Context) {
 			c.File(indexFile)
 		})
 
