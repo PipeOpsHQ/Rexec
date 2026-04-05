@@ -156,14 +156,13 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 RUN chown -R rexec:rexec /app && mkdir -p /app/recordings
 
 # Switch to non-root user
-# USER rexec
+USER rexec
 
 # Set HOME for the rexec user (needed for .docker and .ssh directories)
 ENV HOME=/home/rexec
 
-# Expose the API port and SSH gateway port
+# Expose the API port
 EXPOSE 8080
-EXPOSE 22
 
 # Set default environment variables
 ENV PORT=8080
