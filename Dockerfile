@@ -172,7 +172,6 @@ ENV DOWNLOADS_DIR=/app/downloads
 
 # SSH Gateway (disabled by default, set SSH_GATEWAY_ENABLED=true to enable)
 ENV SSH_GATEWAY_ENABLED=false
-ENV SSH_GATEWAY_HOST_KEY=/app/.ssh/host_key
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
