@@ -33,5 +33,11 @@
     "typescript": "^5.5.2",
     "vite": "^6.0.6",
     "vite-plugin-pwa": "^0.21.1"
+  },
+  "overrides": {
+    "serialize-javascript": "^7.0.5",
+    "lodash": "^4.18.1",
+    "minimatch": "^3.1.5",
+    "ajv": "^8.18.0"
   }
 }
