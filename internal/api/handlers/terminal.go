@@ -12,11 +12,11 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/docker/docker/api/types/container"
-	dockerclient "github.com/docker/docker/client"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	dockerclient "github.com/moby/moby/client"
 	admin_events "github.com/rexec/rexec/internal/api/handlers/admin_events"
 	mgr "github.com/rexec/rexec/internal/container"
 	"github.com/rexec/rexec/internal/storage"
@@ -334,7 +334,7 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 				// Quick verify it exists in Docker (fast check, no full sync)
 				log.Printf("[Terminal] Container not in manager cache (multi-replica or restart), verifying in Docker: %s", dbContainer.DockerID[:12])
 				dockerInspectStart := time.Now()
-				_, dockerErr := h.containerManager.GetClient().ContainerInspect(reqCtx, dbContainer.DockerID)
+				_, dockerErr := h.containerManager.GetClient().ContainerInspect(reqCtx, dbContainer.DockerID, dockerclient.ContainerInspectOptions{})
 				dockerInspectDuration := time.Since(dockerInspectStart)
 				if dockerErr == nil {
 					// Log slow Docker API calls
@@ -398,7 +398,7 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 		// If we found container in DB but not in manager, try to use Docker ID from DB
 		if dbContainer != nil && dbContainer.DockerID != "" {
 			// Verify container exists in Docker
-			_, err := h.containerManager.GetClient().ContainerInspect(reqCtx, dbContainer.DockerID)
+			_, err := h.containerManager.GetClient().ContainerInspect(reqCtx, dbContainer.DockerID, dockerclient.ContainerInspectOptions{})
 			if err == nil {
 				// Container exists in Docker - allow connection using DB record info
 				dockerID = dbContainer.DockerID
@@ -421,7 +421,7 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 			// Check if user has collab access to this container ID
 			if h.HasCollabAccess(reqCtx, userID.(string), containerIdOrName) {
 				// Verify container exists in Docker directly
-				dockerContainer, err := h.containerManager.GetClient().ContainerInspect(reqCtx, containerIdOrName)
+				dockerContainer, err := h.containerManager.GetClient().ContainerInspect(reqCtx, containerIdOrName, dockerclient.ContainerInspectOptions{})
 				if err != nil {
 					log.Printf("[Terminal] Collab container not found in Docker: %s (user: %s)", containerIdOrName, userID)
 					c.JSON(http.StatusNotFound, gin.H{
@@ -433,7 +433,7 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 					return
 				}
 				// Container exists in Docker, allow collab access
-				dockerID = dockerContainer.ID
+				dockerID = dockerContainer.Container.ID
 				isCollabUser = true
 				isOwner = false
 				log.Printf("[Terminal] Collab user %s accessing container %s via direct Docker lookup", userID, dockerID[:12])
@@ -508,9 +508,9 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 
 	// Always verify Docker state as final check (for multi-replica: container might exist but not in this instance's cache)
 	if dockerID != "" {
-		dockerContainer, err := h.containerManager.GetClient().ContainerInspect(reqCtx, dockerID)
+		dockerContainer, err := h.containerManager.GetClient().ContainerInspect(reqCtx, dockerID, dockerclient.ContainerInspectOptions{})
 		if err != nil {
-			if dockerclient.IsErrNotFound(err) {
+			if cerrdefs.IsNotFound(err) {
 				c.JSON(http.StatusGone, gin.H{
 					"error":           "container was removed from server",
 					"code":            "container_removed",
@@ -528,10 +528,10 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 		}
 
 		// Docker is source of truth for running state
-		isRunning = dockerContainer.State.Running
+		isRunning = dockerContainer.Container.State.Running
 		// If DB says "configuring" but Docker says running, container is actually ready
 		// (setup completed on another replica, DB might not be updated yet)
-		if containerStatus == "configuring" && dockerContainer.State.Running {
+		if containerStatus == "configuring" && dockerContainer.Container.State.Running {
 			// Check if shell setup is complete - if so, treat as "running"
 			if dbContainer != nil && h.store != nil {
 				quickCtx, quickCancel := context.WithTimeout(reqCtx, 200*time.Millisecond)
@@ -545,8 +545,8 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 		}
 
 		// Get image type from Docker labels if not already set
-		if imageType == "" && dockerContainer.Config != nil && dockerContainer.Config.Labels != nil {
-			if imgType, ok := dockerContainer.Config.Labels["rexec.image_type"]; ok {
+		if imageType == "" && dockerContainer.Container.Config != nil && dockerContainer.Container.Config.Labels != nil {
+			if imgType, ok := dockerContainer.Container.Config.Labels["rexec.image_type"]; ok {
 				imageType = imgType
 			}
 		}
@@ -935,8 +935,8 @@ func (h *TerminalHandler) runTerminalSessionWithRestart(session *TerminalSession
 
 			// Check if container stopped (since shell was likely PID 1)
 			ctx := context.Background()
-			inspect, err := h.containerManager.GetClient().ContainerInspect(ctx, session.ContainerID)
-			if err != nil || !inspect.State.Running {
+			inspect, err := h.containerManager.GetClient().ContainerInspect(ctx, session.ContainerID, dockerclient.ContainerInspectOptions{})
+			if err != nil || !inspect.Container.State.Running {
 				// Container doesn't exist or is not running
 				// Try to start it, which may recreate it with a new ID
 				session.SendMessage(TerminalMessage{
@@ -988,16 +988,16 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 
 	// For standard Linux containers, attach to tmux session for persistence
 	// This allows users to reconnect and see output that happened while disconnected
-	var execConfig container.ExecOptions
+	var execConfig dockerclient.ExecCreateOptions
 	if isMacOS {
 		// macOS containers don't use tmux (yet)
 		// Use /bin/bash directly for macOS - no detection needed
 		shell := "/bin/bash"
-		execConfig = container.ExecOptions{
+		execConfig = dockerclient.ExecCreateOptions{
 			AttachStdin:  true,
 			AttachStdout: true,
 			AttachStderr: true,
-			Tty:          true,
+			TTY:          true,
 			Cmd:          []string{shell, "-l"},
 			Env: []string{
 				"TERM=xterm-256color",
@@ -1154,11 +1154,11 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 			log.Printf("[Terminal] Using tmux session '%s' for %s in %s", tmuxSessionName,
 				map[bool]string{true: "split pane", false: "main terminal"}[session.ForceNewSession],
 				session.ContainerID[:12])
-			execConfig = container.ExecOptions{
+			execConfig = dockerclient.ExecCreateOptions{
 				AttachStdin:  true,
 				AttachStdout: true,
 				AttachStderr: true,
-				Tty:          true,
+				TTY:          true,
 				Cmd:          tmuxCmd,
 				Env: []string{
 					"TERM=xterm-256color",
@@ -1173,11 +1173,11 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 		} else {
 			// Direct shell without tmux - tmux is optional, not default
 			log.Printf("[Terminal] Using direct shell (no tmux) for %s: %s", session.ContainerID[:12], shell)
-			execConfig = container.ExecOptions{
+			execConfig = dockerclient.ExecCreateOptions{
 				AttachStdin:  true,
 				AttachStdout: true,
 				AttachStderr: true,
-				Tty:          true,
+				TTY:          true,
 				Cmd:          []string{shell, "-l"},
 				Env: []string{
 					"TERM=xterm-256color",
@@ -1199,7 +1199,7 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 	})
 
 	execStartTime := time.Now()
-	execResp, err := client.ContainerExecCreate(ctx, session.ContainerID, execConfig)
+	execResp, err := client.ExecCreate(ctx, session.ContainerID, execConfig)
 	if err != nil {
 		session.SendError("Failed to create terminal session: " + err.Error())
 		return false
@@ -1220,10 +1220,10 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 	session.ExecID = execResp.ID
 
 	// Attach to exec (this also starts it for Podman compatibility)
-	// ContainerExecAttach implicitly starts the exec session
+	// ExecAttach implicitly starts the exec session
 	attachStartTime := time.Now()
-	attachResp, err := client.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{
-		Tty: true,
+	attachResp, err := client.ExecAttach(ctx, execResp.ID, dockerclient.ExecAttachOptions{
+		TTY: true,
 	})
 	if err != nil {
 		session.SendError("Failed to attach to terminal: " + err.Error())
@@ -1246,7 +1246,7 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 	session.mu.Unlock()
 
 	if initialCols > 0 && initialRows > 0 {
-		if err := client.ContainerExecResize(ctx, execResp.ID, container.ResizeOptions{
+		if _, err := client.ExecResize(ctx, execResp.ID, dockerclient.ExecResizeOptions{
 			Height: initialRows,
 			Width:  initialCols,
 		}); err != nil {
@@ -1254,7 +1254,7 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 		}
 	} else {
 		// Default size if not set
-		if err := client.ContainerExecResize(ctx, execResp.ID, container.ResizeOptions{
+		if _, err := client.ExecResize(ctx, execResp.ID, dockerclient.ExecResizeOptions{
 			Height: 24,
 			Width:  80,
 		}); err != nil {
@@ -1402,7 +1402,7 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 						session.Rows = msg.Rows
 						session.mu.Unlock()
 
-						if err := client.ContainerExecResize(ctx, session.ExecID, container.ResizeOptions{
+						if _, err := client.ExecResize(ctx, session.ExecID, dockerclient.ExecResizeOptions{
 							Height: msg.Rows,
 							Width:  msg.Cols,
 						}); err != nil {
@@ -1529,25 +1529,25 @@ func (h *TerminalHandler) isZshSetup(ctx context.Context, containerID string) bo
 	// Check both /root and /home/user (standard rexec user home)
 	cmd := "test -f /root/.zshrc || test -f /home/user/.zshrc"
 
-	execConfig := container.ExecOptions{
+	execConfig := dockerclient.ExecCreateOptions{
 		Cmd:          []string{"/bin/sh", "-c", cmd},
 		AttachStdout: true,
 		AttachStderr: true,
 	}
 
-	execResp, err := client.ContainerExecCreate(ctx, containerID, execConfig)
+	execResp, err := client.ExecCreate(ctx, containerID, execConfig)
 	if err != nil {
 		return false
 	}
 
-	// Use ContainerExecAttach instead of ContainerExecStart for Podman compatibility
-	attachResp, err := client.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{})
+	// Use ExecAttach instead of ExecStart for Podman compatibility
+	attachResp, err := client.ExecAttach(ctx, execResp.ID, dockerclient.ExecAttachOptions{})
 	if err != nil {
 		return false
 	}
 	attachResp.Close()
 
-	inspect, err := client.ContainerExecInspect(ctx, execResp.ID)
+	inspect, err := client.ExecInspect(ctx, execResp.ID, dockerclient.ExecInspectOptions{})
 	if err != nil {
 		return false
 	}
@@ -1561,20 +1561,20 @@ func (h *TerminalHandler) shellExists(ctx context.Context, containerID, shell st
 
 	// Use /bin/sh -c to run test command - more portable across distros
 	// Some minimal distros don't have standalone 'test' binary
-	execConfig := container.ExecOptions{
+	execConfig := dockerclient.ExecCreateOptions{
 		Cmd:          []string{"/bin/sh", "-c", fmt.Sprintf("test -x %s", shell)},
 		AttachStdout: true,
 		AttachStderr: true,
 	}
 
-	execResp, err := client.ContainerExecCreate(ctx, containerID, execConfig)
+	execResp, err := client.ExecCreate(ctx, containerID, execConfig)
 	if err != nil {
 		log.Printf("[Terminal] shellExists: exec create failed for %s in %s: %v", shell, containerID[:12], err)
 		return false
 	}
 
 	// Must attach to start the exec (Podman compatibility)
-	attachResp, err := client.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{})
+	attachResp, err := client.ExecAttach(ctx, execResp.ID, dockerclient.ExecAttachOptions{})
 	if err != nil {
 		log.Printf("[Terminal] shellExists: exec attach failed for %s in %s: %v", shell, containerID[:12], err)
 		return false
@@ -1583,7 +1583,7 @@ func (h *TerminalHandler) shellExists(ctx context.Context, containerID, shell st
 
 	// Poll exec status instead of fixed sleep - much faster for quick commands
 	for i := 0; i < 20; i++ { // Max 200ms total
-		inspect, err := client.ContainerExecInspect(ctx, execResp.ID)
+		inspect, err := client.ExecInspect(ctx, execResp.ID, dockerclient.ExecInspectOptions{})
 		if err != nil {
 			log.Printf("[Terminal] shellExists: exec inspect failed for %s in %s: %v", shell, containerID[:12], err)
 			return false
@@ -1603,18 +1603,18 @@ func (h *TerminalHandler) shellExists(ctx context.Context, containerID, shell st
 func (h *TerminalHandler) commandExists(ctx context.Context, containerID, cmd string) bool {
 	client := h.containerManager.GetClient()
 
-	execConfig := container.ExecOptions{
+	execConfig := dockerclient.ExecCreateOptions{
 		Cmd:          []string{"/bin/sh", "-c", fmt.Sprintf("command -v %s >/dev/null 2>&1", cmd)},
 		AttachStdout: true,
 		AttachStderr: true,
 	}
 
-	execResp, err := client.ContainerExecCreate(ctx, containerID, execConfig)
+	execResp, err := client.ExecCreate(ctx, containerID, execConfig)
 	if err != nil {
 		return false
 	}
 
-	attachResp, err := client.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{})
+	attachResp, err := client.ExecAttach(ctx, execResp.ID, dockerclient.ExecAttachOptions{})
 	if err != nil {
 		return false
 	}
@@ -1622,7 +1622,7 @@ func (h *TerminalHandler) commandExists(ctx context.Context, containerID, cmd st
 
 	// Poll exec status
 	for i := 0; i < 20; i++ {
-		inspect, err := client.ContainerExecInspect(ctx, execResp.ID)
+		inspect, err := client.ExecInspect(ctx, execResp.ID, dockerclient.ExecInspectOptions{})
 		if err != nil {
 			return false
 		}
@@ -1643,19 +1643,19 @@ func (h *TerminalHandler) killTmuxSession(containerID, tmuxSessionName string) {
 	defer cancel()
 
 	client := h.containerManager.GetClient()
-	execConfig := container.ExecOptions{
+	execConfig := dockerclient.ExecCreateOptions{
 		// Best-effort cleanup; ignore errors if tmux/session doesn't exist.
 		Cmd:          []string{"/bin/sh", "-c", fmt.Sprintf("tmux kill-session -t %s 2>/dev/null || true", tmuxSessionName)},
 		AttachStdout: true,
 		AttachStderr: true,
 	}
 
-	execResp, err := client.ContainerExecCreate(ctx, containerID, execConfig)
+	execResp, err := client.ExecCreate(ctx, containerID, execConfig)
 	if err != nil {
 		return
 	}
 
-	attachResp, err := client.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{})
+	attachResp, err := client.ExecAttach(ctx, execResp.ID, dockerclient.ExecAttachOptions{})
 	if err == nil {
 		attachResp.Close()
 	}
@@ -1842,20 +1842,20 @@ fi
 exit 0
 `
 
-	execConfig := container.ExecOptions{
+	execConfig := dockerclient.ExecCreateOptions{
 		Cmd:          []string{"/bin/sh", "-c", cleanupScript},
 		AttachStdout: false,
 		AttachStderr: false,
-		Tty:          false,
+		TTY:          false,
 	}
 
-	execResp, err := h.containerManager.GetClient().ContainerExecCreate(ctx, containerID, execConfig)
+	execResp, err := h.containerManager.GetClient().ExecCreate(ctx, containerID, execConfig)
 	if err != nil {
 		// Don't log error - this is a best-effort cleanup
 		return
 	}
 
-	if err := h.containerManager.GetClient().ContainerExecStart(ctx, execResp.ID, container.ExecStartOptions{}); err != nil {
+	if _, err := h.containerManager.GetClient().ExecStart(ctx, execResp.ID, dockerclient.ExecStartOptions{}); err != nil {
 		return
 	}
 }
@@ -2018,11 +2018,11 @@ func (h *TerminalHandler) runSharedTerminalSession(session *SharedTerminalSessio
 	shell := h.detectShell(ctx, session.ContainerID, imageType)
 
 	// Use login shell (-l) to ensure .zshrc/.bashrc is sourced
-	execConfig := container.ExecOptions{
+	execConfig := dockerclient.ExecCreateOptions{
 		AttachStdin:  true,
 		AttachStdout: true,
 		AttachStderr: true,
-		Tty:          true,
+		TTY:          true,
 		Cmd:          []string{shell, "-l"},
 		Env: []string{
 			"TERM=xterm-256color",
@@ -2031,7 +2031,7 @@ func (h *TerminalHandler) runSharedTerminalSession(session *SharedTerminalSessio
 		},
 	}
 
-	execResp, err := client.ContainerExecCreate(ctx, session.ContainerID, execConfig)
+	execResp, err := client.ExecCreate(ctx, session.ContainerID, execConfig)
 	if err != nil {
 		session.broadcastError("Failed to create shared terminal: " + err.Error())
 		return
@@ -2039,8 +2039,8 @@ func (h *TerminalHandler) runSharedTerminalSession(session *SharedTerminalSessio
 
 	session.ExecID = execResp.ID
 
-	attachResp, err := client.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{
-		Tty: true,
+	attachResp, err := client.ExecAttach(ctx, execResp.ID, dockerclient.ExecAttachOptions{
+		TTY: true,
 	})
 	if err != nil {
 		session.broadcastError("Failed to attach to terminal: " + err.Error())

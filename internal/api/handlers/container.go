@@ -14,6 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	dockerclient "github.com/moby/moby/client"
 	admin_events "github.com/rexec/rexec/internal/api/handlers/admin_events"
 	"github.com/rexec/rexec/internal/container"
 	"github.com/rexec/rexec/internal/models"
@@ -1719,7 +1720,7 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 	// Quick Docker connectivity check before starting SSE stream
 	// This prevents 502 errors from proxy timeouts when Docker is unavailable
 	checkCtx, checkCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	_, dockerErr := h.manager.GetClient().Ping(checkCtx)
+	_, dockerErr := h.manager.GetClient().Ping(checkCtx, dockerclient.PingOptions{})
 	checkCancel()
 
 	if dockerErr != nil {

@@ -14,13 +14,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/client"
-	"github.com/docker/go-connections/nat"
+	cerrdefs "github.com/containerd/errdefs"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/mount"
+	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/client"
 )
 
 const IsolatedNetworkName = "rexec-isolated"
@@ -365,7 +363,7 @@ func ImageExists(imageName string) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	_, _, err = cli.ImageInspectWithRaw(ctx, imageName)
+	_, err = cli.ImageInspect(ctx, imageName)
 	return err == nil
 }
 
@@ -378,13 +376,13 @@ func ValidateCustomImage(ctx context.Context, imageName string) error {
 	defer cli.Close()
 
 	// First check if image exists locally
-	_, _, err = cli.ImageInspectWithRaw(ctx, imageName)
+	_, err = cli.ImageInspect(ctx, imageName)
 	if err == nil {
 		return nil // Image exists locally
 	}
 
 	// Try to pull the image
-	reader, err := cli.ImagePull(ctx, imageName, image.PullOptions{})
+	reader, err := cli.ImagePull(ctx, imageName, client.ImagePullOptions{})
 	if err != nil {
 		return fmt.Errorf("image not found locally and failed to pull: %w", err)
 	}
@@ -548,7 +546,7 @@ type ContainerInfo struct {
 
 // Manager handles Docker container lifecycle
 type Manager struct {
-	client            client.CommonAPIClient
+	client            client.APIClient
 	containers        map[string]*ContainerInfo // dockerID -> container info
 	userIndex         map[string][]string       // userID -> list of dockerIDs
 	mu                sync.RWMutex
@@ -605,7 +603,7 @@ func NewManager(volumePaths ...string) (*Manager, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	_, err = cli.Ping(ctx)
+	_, err = cli.Ping(ctx, client.PingOptions{})
 	if err != nil {
 		cli.Close()
 		if dockerHost != "" {
@@ -671,17 +669,17 @@ func (m *Manager) ensureIsolatedNetwork() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	_, err := m.client.NetworkInspect(ctx, IsolatedNetworkName, network.InspectOptions{})
+	_, err := m.client.NetworkInspect(ctx, IsolatedNetworkName, client.NetworkInspectOptions{})
 	if err == nil {
 		return nil // Network exists
 	}
 
-	if !client.IsErrNotFound(err) {
+	if !cerrdefs.IsNotFound(err) {
 		return fmt.Errorf("failed to inspect network: %w", err)
 	}
 
 	// Create network with Inter-Container Communication (ICC) disabled
-	_, err = m.client.NetworkCreate(ctx, IsolatedNetworkName, network.CreateOptions{
+	_, err = m.client.NetworkCreate(ctx, IsolatedNetworkName, client.NetworkCreateOptions{
 		Driver: "bridge",
 		Options: map[string]string{
 			"com.docker.network.bridge.enable_icc": "false",
@@ -701,14 +699,14 @@ func (m *Manager) checkRuntimeSupport() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		info, err := m.client.Info(ctx)
+		info, err := m.client.Info(ctx, client.InfoOptions{})
 		if err != nil {
 			log.Printf("[Runtime] Failed to get Docker info for runtimes: %v", err)
 			return
 		}
 
 		var runtimes []string
-		for name := range info.Runtimes {
+		for name := range info.Info.Runtimes {
 			runtimes = append(runtimes, name)
 		}
 
@@ -727,7 +725,7 @@ func (m *Manager) checkDiskQuotaSupport() {
 		defer cancel()
 
 		// Try to get Docker info to check storage driver
-		info, err := m.client.Info(ctx)
+		info, err := m.client.Info(ctx, client.InfoOptions{})
 		if err != nil {
 			log.Printf("[DiskQuota] Failed to get Docker info: %v", err)
 			m.diskQuotaChecked = true
@@ -735,14 +733,14 @@ func (m *Manager) checkDiskQuotaSupport() {
 		}
 
 		// Check if storage driver is overlay2 (required for disk quotas)
-		if info.Driver != "overlay2" {
-			log.Printf("[DiskQuota] Storage driver is %s (not overlay2) - disk quotas disabled", info.Driver)
+		if info.Info.Driver != "overlay2" {
+			log.Printf("[DiskQuota] Storage driver is %s (not overlay2) - disk quotas disabled", info.Info.Driver)
 			m.diskQuotaChecked = true
 			return
 		}
 
 		// Check driver status for backing filesystem info
-		for _, status := range info.DriverStatus {
+		for _, status := range info.Info.DriverStatus {
 			if len(status) >= 2 {
 				if status[0] == "Backing Filesystem" {
 					if status[1] != "xfs" && status[1] != "ext4" {
@@ -769,7 +767,11 @@ func (m *Manager) checkDiskQuotaSupport() {
 		}
 
 		// Try to create a test container
-		resp, err := m.client.ContainerCreate(ctx, testConfig, testHostConfig, nil, nil, testContainerName)
+		resp, err := m.client.ContainerCreate(ctx, client.ContainerCreateOptions{
+			Config:     testConfig,
+			HostConfig: testHostConfig,
+			Name:       testContainerName,
+		})
 		if err != nil {
 			if strings.Contains(err.Error(), "storage-opt") || strings.Contains(err.Error(), "pquota") || strings.Contains(err.Error(), "quota") {
 				log.Printf("[DiskQuota] Disk quotas not available: %v", err)
@@ -780,7 +782,7 @@ func (m *Manager) checkDiskQuotaSupport() {
 			log.Printf("[DiskQuota] Test container creation failed (non-quota error): %v", err)
 		} else {
 			// Clean up test container
-			m.client.ContainerRemove(ctx, resp.ID, container.RemoveOptions{Force: true})
+			_, _ = m.client.ContainerRemove(ctx, resp.ID, client.ContainerRemoveOptions{Force: true})
 			log.Printf("[DiskQuota] Disk quotas are available and working")
 			m.diskQuotaEnabled = true
 		}
@@ -816,13 +818,13 @@ func (m *Manager) PullImage(ctx context.Context, imageType string) error {
 	}
 
 	// Check if image exists
-	_, _, err := m.client.ImageInspectWithRaw(ctx, imageName)
+	_, err := m.client.ImageInspect(ctx, imageName)
 	if err == nil {
 		return nil // Image already exists
 	}
 
 	// Pull the image
-	reader, err := m.client.ImagePull(ctx, imageName, image.PullOptions{})
+	reader, err := m.client.ImagePull(ctx, imageName, client.ImagePullOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to pull image %s: %w", imageName, err)
 	}
@@ -836,13 +838,13 @@ func (m *Manager) PullImage(ctx context.Context, imageType string) error {
 // PullCustomImage pulls a custom Docker image
 func (m *Manager) PullCustomImage(ctx context.Context, imageName string) error {
 	// Check if image exists
-	_, _, err := m.client.ImageInspectWithRaw(ctx, imageName)
+	_, err := m.client.ImageInspect(ctx, imageName)
 	if err == nil {
 		return nil // Image already exists
 	}
 
 	// Pull the image
-	reader, err := m.client.ImagePull(ctx, imageName, image.PullOptions{})
+	reader, err := m.client.ImagePull(ctx, imageName, client.ImagePullOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to pull custom image %s: %w", imageName, err)
 	}
@@ -878,7 +880,7 @@ func (m *Manager) PullCustomImageWithProgress(ctx context.Context, imageName str
 // pullImageWithProgressInternal handles the actual image pull with progress tracking
 func (m *Manager) pullImageWithProgressInternal(ctx context.Context, imageName string, progressCh chan<- ProgressEvent) error {
 	// Check if image exists
-	_, _, err := m.client.ImageInspectWithRaw(ctx, imageName)
+	_, err := m.client.ImageInspect(ctx, imageName)
 	if err == nil {
 		// Image already exists, send quick progress
 		progressCh <- ProgressEvent{
@@ -899,7 +901,7 @@ func (m *Manager) pullImageWithProgressInternal(ctx context.Context, imageName s
 	}
 
 	// Pull the image
-	reader, err := m.client.ImagePull(ctx, imageName, image.PullOptions{})
+	reader, err := m.client.ImagePull(ctx, imageName, client.ImagePullOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to pull image %s: %w", imageName, err)
 	}
@@ -1029,7 +1031,7 @@ func (m *Manager) CheckImageExists(ctx context.Context, imageType string, isCust
 		}
 	}
 
-	_, _, err := m.client.ImageInspectWithRaw(ctx, imageName)
+	_, err := m.client.ImageInspect(ctx, imageName)
 	return err == nil, imageName
 }
 
@@ -1118,8 +1120,8 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 			"rexec.disk_quota":     fmt.Sprintf("%d", cfg.DiskQuota),
 		}, cfg.Labels),
 		// Expose SSH port
-		ExposedPorts: nat.PortSet{
-			"22/tcp": struct{}{},
+		ExposedPorts: network.PortSet{
+			network.MustParsePort("22/tcp"): struct{}{},
 		},
 	}
 
@@ -1249,7 +1251,7 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 			Name: "unless-stopped",
 		},
 		// Port bindings (optional, for future use)
-		PortBindings: nat.PortMap{},
+		PortBindings: network.PortMap{},
 	}
 
 	// Special handling for macOS (CUA Lumier / docker-osx style VM images)
@@ -1375,18 +1377,18 @@ exec tail -f /dev/null`, shell, shell)
 	// Clean up any existing container with the same name (from failed previous attempts)
 	// This prevents "container name already in use" errors
 	// IMPORTANT: Only remove if it belongs to the same user to prevent accidental deletion
-	existingContainers, err := m.client.ContainerList(ctx, container.ListOptions{
+	existingContainers, err := m.client.ContainerList(ctx, client.ContainerListOptions{
 		All:     true,
-		Filters: filters.NewArgs(filters.Arg("name", "^/"+containerName+"$")),
+		Filters: make(client.Filters).Add("name", "^/"+containerName+"$"),
 	})
-	if err == nil && len(existingContainers) > 0 {
-		for _, existing := range existingContainers {
+	if err == nil && len(existingContainers.Items) > 0 {
+		for _, existing := range existingContainers.Items {
 			// Check if this container belongs to the same user
 			ownerUserID := existing.Labels["rexec.user_id"]
 			if ownerUserID == "" || ownerUserID == cfg.UserID {
 				log.Printf("[Container] Removing stale container with same name: %s (%s) owned by user %s", containerName, existing.ID[:12], ownerUserID)
-				_ = m.client.ContainerStop(ctx, existing.ID, container.StopOptions{})
-				_ = m.client.ContainerRemove(ctx, existing.ID, container.RemoveOptions{Force: true})
+				_, _ = m.client.ContainerStop(ctx, existing.ID, client.ContainerStopOptions{})
+				_, _ = m.client.ContainerRemove(ctx, existing.ID, client.ContainerRemoveOptions{Force: true})
 			} else {
 				// Container belongs to a different user - this should never happen but log it
 				log.Printf("[Container] WARNING: Container name conflict! %s (%s) belongs to user %s, not %s", containerName, existing.ID[:12], ownerUserID, cfg.UserID)
@@ -1396,27 +1398,25 @@ exec tail -f /dev/null`, shell, shell)
 	}
 
 	// Create the container
-	resp, err := m.client.ContainerCreate(
-		ctx,
-		containerConfig,
-		hostConfig,
-		networkConfig,
-		nil, // platform
-		containerName,
-	)
+	resp, err := m.client.ContainerCreate(ctx, client.ContainerCreateOptions{
+		Config:           containerConfig,
+		HostConfig:       hostConfig,
+		NetworkingConfig: networkConfig,
+		Name:             containerName,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create container: %w", err)
 	}
 
 	// Start the container
-	if err := m.client.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
+	if _, err := m.client.ContainerStart(ctx, resp.ID, client.ContainerStartOptions{}); err != nil {
 		// Cleanup on failure
-		_ = m.client.ContainerRemove(ctx, resp.ID, container.RemoveOptions{Force: true})
+		_, _ = m.client.ContainerRemove(ctx, resp.ID, client.ContainerRemoveOptions{Force: true})
 		return nil, fmt.Errorf("failed to start container: %w", err)
 	}
 
 	// Get container details
-	inspect, err := m.client.ContainerInspect(ctx, resp.ID)
+	inspectResult, err := m.client.ContainerInspect(ctx, resp.ID, client.ContainerInspectOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to inspect container: %w", err)
 	}
@@ -1432,14 +1432,14 @@ exec tail -f /dev/null`, shell, shell)
 	}, cfg.Labels)
 
 	// Get IP address (handle custom network)
-	ipAddress := inspect.NetworkSettings.IPAddress
-	if ipAddress == "" && inspect.NetworkSettings.Networks != nil {
-		if net, ok := inspect.NetworkSettings.Networks[IsolatedNetworkName]; ok {
-			ipAddress = net.IPAddress
+	var ipAddress string
+	if inspectResult.Container.NetworkSettings != nil && inspectResult.Container.NetworkSettings.Networks != nil {
+		if net, ok := inspectResult.Container.NetworkSettings.Networks[IsolatedNetworkName]; ok {
+			ipAddress = net.IPAddress.String()
 		} else {
 			// Fallback to any network
-			for _, net := range inspect.NetworkSettings.Networks {
-				ipAddress = net.IPAddress
+			for _, net := range inspectResult.Container.NetworkSettings.Networks {
+				ipAddress = net.IPAddress.String()
 				break
 			}
 		}
@@ -1543,7 +1543,7 @@ func (m *Manager) StopContainer(ctx context.Context, dockerID string) error {
 	}
 
 	timeout := 10 // seconds
-	if err := m.client.ContainerStop(ctx, dockerID, container.StopOptions{Timeout: &timeout}); err != nil {
+	if _, err := m.client.ContainerStop(ctx, dockerID, client.ContainerStopOptions{Timeout: &timeout}); err != nil {
 		return fmt.Errorf("failed to stop container: %w", err)
 	}
 
@@ -1577,7 +1577,7 @@ func (m *Manager) StartContainer(ctx context.Context, dockerID string) error {
 		return fmt.Errorf("container not found: %s", dockerID)
 	}
 
-	if err := m.client.ContainerStart(ctx, dockerID, container.StartOptions{}); err != nil {
+	if _, err := m.client.ContainerStart(ctx, dockerID, client.ContainerStartOptions{}); err != nil {
 		return fmt.Errorf("failed to start container: %w", err)
 	}
 
@@ -1605,9 +1605,10 @@ func (m *Manager) StartContainerByUserID(ctx context.Context, userID string) err
 // RestartContainer restarts a container by docker ID
 func (m *Manager) RestartContainer(ctx context.Context, dockerID string) error {
 	timeout := 10 // seconds
-	return m.client.ContainerRestart(ctx, dockerID, container.StopOptions{
+	_, err := m.client.ContainerRestart(ctx, dockerID, client.ContainerRestartOptions{
 		Timeout: &timeout,
 	})
+	return err
 }
 
 // RemoveContainer removes a container by docker ID
@@ -1634,10 +1635,11 @@ func (m *Manager) RemoveContainer(ctx context.Context, dockerID string) error {
 	m.mu.Unlock()
 
 	// Remove from Docker
-	return m.client.ContainerRemove(ctx, dockerID, container.RemoveOptions{
+	_, err := m.client.ContainerRemove(ctx, dockerID, client.ContainerRemoveOptions{
 		Force:         true,
 		RemoveVolumes: false, // Keep volumes for data persistence
 	})
+	return err
 }
 
 // RemoveContainerByUserID removes the first container for a user (backward compatibility)
@@ -1682,7 +1684,7 @@ func (m *Manager) TouchContainer(dockerID string) {
 }
 
 // GetClient returns the underlying Docker client (for advanced operations)
-func (m *Manager) GetClient() client.CommonAPIClient {
+func (m *Manager) GetClient() client.APIClient {
 	return m.client
 }
 
@@ -1749,16 +1751,16 @@ func (m *Manager) UpdateContainerResources(ctx context.Context, dockerID string,
 	log.Printf("[UpdateContainerResources] Docker update: memory=%d bytes, cpuPeriod=%d, cpuQuota=%d", memoryBytes, cpuPeriod, cpuQuota)
 
 	// Update the container's resources using Docker API
-	updateConfig := container.UpdateConfig{
-		Resources: container.Resources{
-			Memory:     memoryBytes,
-			MemorySwap: memoryBytes, // Set equal to Memory to disable swap and enforce hard limit
-			CPUPeriod:  cpuPeriod,
-			CPUQuota:   cpuQuota,
-		},
+	resources := container.Resources{
+		Memory:     memoryBytes,
+		MemorySwap: memoryBytes, // Set equal to Memory to disable swap and enforce hard limit
+		CPUPeriod:  cpuPeriod,
+		CPUQuota:   cpuQuota,
 	}
 
-	_, err := m.client.ContainerUpdate(ctx, dockerID, updateConfig)
+	_, err := m.client.ContainerUpdate(ctx, dockerID, client.ContainerUpdateOptions{
+		Resources: &resources,
+	})
 	if err != nil {
 		log.Printf("[UpdateContainerResources] Docker API error: %v", err)
 		return fmt.Errorf("failed to update container resources: %w", err)
@@ -1770,19 +1772,19 @@ func (m *Manager) UpdateContainerResources(ctx context.Context, dockerID string,
 
 // ExecInContainer runs a command inside a running container
 func (m *Manager) ExecInContainer(ctx context.Context, dockerID string, cmd []string) error {
-	execConfig := container.ExecOptions{
+	execConfig := client.ExecCreateOptions{
 		Cmd:          cmd,
 		AttachStdout: true,
 		AttachStderr: true,
 	}
 
-	execResp, err := m.client.ContainerExecCreate(ctx, dockerID, execConfig)
+	execResp, err := m.client.ExecCreate(ctx, dockerID, execConfig)
 	if err != nil {
 		return fmt.Errorf("failed to create exec: %w", err)
 	}
 
-	// Use ContainerExecAttach for Podman compatibility (attach implicitly starts)
-	attachResp, err := m.client.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{})
+	// Use ExecAttach for Podman compatibility (attach implicitly starts)
+	attachResp, err := m.client.ExecAttach(ctx, execResp.ID, client.ExecAttachOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to attach/start exec: %w", err)
 	}
@@ -1835,7 +1837,7 @@ func (m *Manager) Close() error {
 
 // LoadExistingContainers loads rexec-managed containers from Docker
 func (m *Manager) LoadExistingContainers(ctx context.Context) error {
-	containers, err := m.client.ContainerList(ctx, container.ListOptions{All: true})
+	result, err := m.client.ContainerList(ctx, client.ContainerListOptions{All: true})
 	if err != nil {
 		return fmt.Errorf("failed to list containers: %w", err)
 	}
@@ -1847,7 +1849,7 @@ func (m *Manager) LoadExistingContainers(ctx context.Context) error {
 	m.containers = make(map[string]*ContainerInfo)
 	m.userIndex = make(map[string][]string)
 
-	for _, c := range containers {
+	for _, c := range result.Items {
 		// Check if this is a rexec-managed container
 		if c.Labels["rexec.managed"] != "true" {
 			continue
@@ -1863,15 +1865,15 @@ func (m *Manager) LoadExistingContainers(ctx context.Context) error {
 
 		// Determine status
 		status := "stopped"
-		if c.State == "running" {
+		if c.State == container.StateRunning {
 			status = "running"
 		}
 
 		// Get IP address
 		ipAddress := ""
 		if c.NetworkSettings != nil {
-			for _, network := range c.NetworkSettings.Networks {
-				ipAddress = network.IPAddress
+			for _, net := range c.NetworkSettings.Networks {
+				ipAddress = net.IPAddress.String()
 				break
 			}
 		}
@@ -1925,7 +1927,7 @@ func UserContainerLimit(tier string) int {
 
 // DockerContainerExists checks if a container exists in Docker by its ID
 func (m *Manager) DockerContainerExists(ctx context.Context, dockerID string) bool {
-	_, err := m.client.ContainerInspect(ctx, dockerID)
+	_, err := m.client.ContainerInspect(ctx, dockerID, client.ContainerInspectOptions{})
 	return err == nil
 }
 
@@ -2149,7 +2151,7 @@ func (sb *StatsBroadcaster) start() {
 	var configuredMemoryLimit int64
 	var configuredDiskLimit int64
 
-	inspectInfo, err := sb.manager.client.ContainerInspect(ctx, sb.containerID)
+	inspectInfo, err := sb.manager.client.ContainerInspect(ctx, sb.containerID, client.ContainerInspectOptions{})
 	if err != nil {
 		// Log error and remove self
 		sb.manager.statsMu.Lock()
@@ -2158,32 +2160,32 @@ func (sb *StatsBroadcaster) start() {
 		return
 	}
 
-	if inspectInfo.HostConfig != nil {
-		if inspectInfo.HostConfig.Memory > 0 {
-			configuredMemoryLimit = inspectInfo.HostConfig.Memory
+	if inspectInfo.Container.HostConfig != nil {
+		if inspectInfo.Container.HostConfig.Memory > 0 {
+			configuredMemoryLimit = inspectInfo.Container.HostConfig.Memory
 		}
-		if sizeStr, ok := inspectInfo.HostConfig.StorageOpt["size"]; ok {
+		if sizeStr, ok := inspectInfo.Container.HostConfig.StorageOpt["size"]; ok {
 			configuredDiskLimit = parseSizeString(sizeStr)
 		}
 	}
 
-	if inspectInfo.Config != nil && inspectInfo.Config.Labels != nil {
+	if inspectInfo.Container.Config != nil && inspectInfo.Container.Config.Labels != nil {
 		if configuredMemoryLimit == 0 {
-			if memLimitStr, ok := inspectInfo.Config.Labels["rexec.memory_limit"]; ok {
+			if memLimitStr, ok := inspectInfo.Container.Config.Labels["rexec.memory_limit"]; ok {
 				if memLimit, err := strconv.ParseInt(memLimitStr, 10, 64); err == nil && memLimit > 0 {
 					configuredMemoryLimit = memLimit
 				}
 			}
 		}
 		if configuredDiskLimit == 0 {
-			if diskLimitStr, ok := inspectInfo.Config.Labels["rexec.disk_quota"]; ok {
+			if diskLimitStr, ok := inspectInfo.Container.Config.Labels["rexec.disk_quota"]; ok {
 				if diskLimit, err := strconv.ParseInt(diskLimitStr, 10, 64); err == nil && diskLimit > 0 {
 					configuredDiskLimit = diskLimit
 				}
 			}
 		}
 		if configuredMemoryLimit == 0 {
-			tier := inspectInfo.Config.Labels["rexec.tier"]
+			tier := inspectInfo.Container.Config.Labels["rexec.tier"]
 			switch tier {
 			case "pro":
 				configuredMemoryLimit = 2048 * 1024 * 1024
@@ -2196,7 +2198,7 @@ func (sb *StatsBroadcaster) start() {
 	}
 
 	// 2. Start Docker stats stream
-	stats, err := sb.manager.client.ContainerStats(ctx, sb.containerID, true)
+	stats, err := sb.manager.client.ContainerStats(ctx, sb.containerID, client.ContainerStatsOptions{Stream: true})
 	if err != nil {
 		// Log error and remove self
 		sb.manager.statsMu.Lock()
@@ -2320,18 +2322,18 @@ func (sb *StatsBroadcaster) start() {
 
 // getContainerDiskUsage calculates disk usage of /home/user inside the container
 func (m *Manager) getContainerDiskUsage(ctx context.Context, containerID string) float64 {
-	execConfig := container.ExecOptions{
+	execConfig := client.ExecCreateOptions{
 		Cmd:          []string{"du", "-sk", "/home/user"},
 		AttachStdout: true,
 		AttachStderr: false,
 	}
 
-	execResp, err := m.client.ContainerExecCreate(ctx, containerID, execConfig)
+	execResp, err := m.client.ExecCreate(ctx, containerID, execConfig)
 	if err != nil {
 		return 0
 	}
 
-	attachResp, err := m.client.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{})
+	attachResp, err := m.client.ExecAttach(ctx, execResp.ID, client.ExecAttachOptions{})
 	if err != nil {
 		return 0
 	}

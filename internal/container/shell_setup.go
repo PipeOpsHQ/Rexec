@@ -6,8 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/client"
+	"github.com/moby/moby/client"
 )
 
 // ShellSetupTimeout is the maximum time allowed for shell setup
@@ -652,12 +651,12 @@ func generatePluginInstallScript(cfg ShellSetupConfig) string {
 }
 
 // SetupEnhancedShell installs and configures zsh with oh-my-zsh in a container (default config)
-func SetupEnhancedShell(ctx context.Context, cli client.CommonAPIClient, containerID string) (*SetupShellResponse, error) {
+func SetupEnhancedShell(ctx context.Context, cli client.APIClient, containerID string) (*SetupShellResponse, error) {
 	return SetupShellWithConfig(ctx, cli, containerID, DefaultShellSetupConfig())
 }
 
 // SetupShellWithConfig installs and configures zsh with oh-my-zsh using custom config
-func SetupShellWithConfig(ctx context.Context, cli client.CommonAPIClient, containerID string, cfg ShellSetupConfig) (*SetupShellResponse, error) {
+func SetupShellWithConfig(ctx context.Context, cli client.APIClient, containerID string, cfg ShellSetupConfig) (*SetupShellResponse, error) {
 	// If enhanced is disabled, skip shell setup entirely
 	if !cfg.Enhanced {
 		return &SetupShellResponse{
@@ -674,21 +673,21 @@ func SetupShellWithConfig(ctx context.Context, cli client.CommonAPIClient, conta
 	script := generateShellSetupScript(cfg)
 
 	// Create exec configuration
-	execConfig := container.ExecOptions{
+	execConfig := client.ExecCreateOptions{
 		Cmd:          []string{"/bin/sh", "-c", script},
 		AttachStdout: true,
 		AttachStderr: true,
-		Tty:          false,
+		TTY:          false,
 	}
 
-	execResp, err := cli.ContainerExecCreate(ctx, containerID, execConfig)
+	execResp, err := cli.ExecCreate(ctx, containerID, execConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create exec: %w", err)
 	}
 
 	// Start exec
-	attachResp, err := cli.ContainerExecAttach(ctx, execResp.ID, container.ExecStartOptions{
-		Tty: false,
+	attachResp, err := cli.ExecAttach(ctx, execResp.ID, client.ExecAttachOptions{
+		TTY: false,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to attach exec: %w", err)
@@ -709,7 +708,7 @@ func SetupShellWithConfig(ctx context.Context, cli client.CommonAPIClient, conta
 	}
 
 	// Check exit code
-	inspect, err := cli.ContainerExecInspect(ctx, execResp.ID)
+	inspect, err := cli.ExecInspect(ctx, execResp.ID, client.ExecInspectOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to inspect exec: %w", err)
 	}
@@ -730,26 +729,26 @@ func SetupShellWithConfig(ctx context.Context, cli client.CommonAPIClient, conta
 }
 
 // IsShellSetupComplete checks if the enhanced shell is already set up
-func IsShellSetupComplete(ctx context.Context, cli client.CommonAPIClient, containerID string) bool {
-	execConfig := container.ExecOptions{
+func IsShellSetupComplete(ctx context.Context, cli client.APIClient, containerID string) bool {
+	execConfig := client.ExecCreateOptions{
 		Cmd:          []string{"/bin/sh", "-c", "test -d ~/.oh-my-zsh && test -f ~/.zshrc"},
 		AttachStdout: true,
 		AttachStderr: true,
 	}
 
-	execResp, err := cli.ContainerExecCreate(ctx, containerID, execConfig)
+	execResp, err := cli.ExecCreate(ctx, containerID, execConfig)
 	if err != nil {
 		return false
 	}
 
-	// Use ContainerExecAttach instead of ContainerExecStart for Podman compatibility
-	attachResp, err := cli.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{})
+	// Use ExecAttach instead of ExecStart for Podman compatibility
+	attachResp, err := cli.ExecAttach(ctx, execResp.ID, client.ExecAttachOptions{})
 	if err != nil {
 		return false
 	}
 	attachResp.Close()
 
-	inspect, err := cli.ContainerExecInspect(ctx, execResp.ID)
+	inspect, err := cli.ExecInspect(ctx, execResp.ID, client.ExecInspectOptions{})
 	if err != nil {
 		return false
 	}
@@ -758,30 +757,30 @@ func IsShellSetupComplete(ctx context.Context, cli client.CommonAPIClient, conta
 }
 
 // GetContainerShell returns the best available shell in the container
-func GetContainerShell(ctx context.Context, cli client.CommonAPIClient, containerID string) string {
+func GetContainerShell(ctx context.Context, cli client.APIClient, containerID string) string {
 	// Check for zsh first
 	shells := []string{"/bin/zsh", "/usr/bin/zsh", "/bin/bash", "/usr/bin/bash", "/bin/sh"}
 
 	for _, shell := range shells {
-		execConfig := container.ExecOptions{
+		execConfig := client.ExecCreateOptions{
 			Cmd:          []string{"/bin/sh", "-c", fmt.Sprintf("test -x %s", shell)},
 			AttachStdout: true,
 			AttachStderr: true,
 		}
 
-		execResp, err := cli.ContainerExecCreate(ctx, containerID, execConfig)
+		execResp, err := cli.ExecCreate(ctx, containerID, execConfig)
 		if err != nil {
 			continue
 		}
 
-		// Use ContainerExecAttach instead of ContainerExecStart for Podman compatibility
-		attachResp, err := cli.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{})
+		// Use ExecAttach instead of ExecStart for Podman compatibility
+		attachResp, err := cli.ExecAttach(ctx, execResp.ID, client.ExecAttachOptions{})
 		if err != nil {
 			continue
 		}
 		attachResp.Close()
 
-		inspect, err := cli.ContainerExecInspect(ctx, execResp.ID)
+		inspect, err := cli.ExecInspect(ctx, execResp.ID, client.ExecInspectOptions{})
 		if err != nil {
 			continue
 		}
@@ -798,7 +797,7 @@ func GetContainerShell(ctx context.Context, cli client.CommonAPIClient, containe
 const RoleSetupTimeout = 5 * time.Minute
 
 // SetupRole installs tools for a specific role
-func SetupRole(ctx context.Context, cli client.CommonAPIClient, containerID string, roleID string) (*SetupShellResponse, error) {
+func SetupRole(ctx context.Context, cli client.APIClient, containerID string, roleID string) (*SetupShellResponse, error) {
 	script, err := GenerateRoleScript(roleID)
 	if err != nil {
 		return nil, err
@@ -808,8 +807,8 @@ func SetupRole(ctx context.Context, cli client.CommonAPIClient, containerID stri
 	// This helps avoid race conditions with overlay filesystem
 	maxWait := 20 // Wait up to 10 seconds for container to start
 	for i := 0; i < maxWait; i++ {
-		inspect, err := cli.ContainerInspect(ctx, containerID)
-		if err == nil && inspect.State != nil && inspect.State.Running {
+		inspect, err := cli.ContainerInspect(ctx, containerID, client.ContainerInspectOptions{})
+		if err == nil && inspect.Container.State != nil && inspect.Container.State.Running {
 			// Container is running, give it a moment for filesystem to settle
 			time.Sleep(1 * time.Second)
 			break
@@ -822,21 +821,21 @@ func SetupRole(ctx context.Context, cli client.CommonAPIClient, containerID stri
 	defer cancel()
 
 	// Create exec configuration
-	execConfig := container.ExecOptions{
+	execConfig := client.ExecCreateOptions{
 		Cmd:          []string{"/bin/sh", "-c", script},
 		AttachStdout: true,
 		AttachStderr: true,
-		Tty:          false,
+		TTY:          false,
 	}
 
-	execResp, err := cli.ContainerExecCreate(ctx, containerID, execConfig)
+	execResp, err := cli.ExecCreate(ctx, containerID, execConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create exec: %w", err)
 	}
 
 	// Start exec
-	attachResp, err := cli.ContainerExecAttach(ctx, execResp.ID, container.ExecStartOptions{
-		Tty: false,
+	attachResp, err := cli.ExecAttach(ctx, execResp.ID, client.ExecAttachOptions{
+		TTY: false,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to attach exec: %w", err)
@@ -874,7 +873,7 @@ func SetupRole(ctx context.Context, cli client.CommonAPIClient, containerID stri
 	}
 
 	// Check exit code
-	inspect, err := cli.ContainerExecInspect(ctx, execResp.ID)
+	inspect, err := cli.ExecInspect(ctx, execResp.ID, client.ExecInspectOptions{})
 	if err != nil {
 		// If we can't inspect, the script might still have run successfully
 		return &SetupShellResponse{
@@ -900,7 +899,7 @@ func SetupRole(ctx context.Context, cli client.CommonAPIClient, containerID stri
 }
 
 // DetectShellAndTmux detects the best available shell and checks for tmux availability
-func DetectShellAndTmux(ctx context.Context, cli client.CommonAPIClient, containerID string) (shellPath string, hasTmux bool) {
+func DetectShellAndTmux(ctx context.Context, cli client.APIClient, containerID string) (shellPath string, hasTmux bool) {
 	// 1. Check for zsh (preferred)
 	if execCheck(ctx, cli, containerID, "test -x /bin/zsh || test -x /usr/bin/zsh") {
 		if execCheck(ctx, cli, containerID, "test -x /bin/zsh") {
@@ -925,15 +924,15 @@ func DetectShellAndTmux(ctx context.Context, cli client.CommonAPIClient, contain
 }
 
 // WarmStartTmux starts a detached tmux session to reduce latency on first connect
-func WarmStartTmux(ctx context.Context, cli client.CommonAPIClient, containerID, shellPath string) error {
+func WarmStartTmux(ctx context.Context, cli client.APIClient, containerID, shellPath string) error {
 	// Create a detached session named 'main'
 	cmd := []string{"tmux", "new-session", "-d", "-s", "main", shellPath}
 
-	execConfig := container.ExecOptions{
+	execConfig := client.ExecCreateOptions{
 		Cmd:          cmd,
 		AttachStdout: false,
 		AttachStderr: false,
-		Tty:          false, // Detached doesn't need TTY usually, but tmux might want it.
+		TTY:          false, // Detached doesn't need TTY usually, but tmux might want it.
 		// Actually for new-session -d, we don't strictly need TTY attached to exec,
 		// but tmux needs a PTY inside. Docker exec handles this.
 		Env: []string{
@@ -945,36 +944,37 @@ func WarmStartTmux(ctx context.Context, cli client.CommonAPIClient, containerID,
 		WorkingDir: "/home/user",
 	}
 
-	execResp, err := cli.ContainerExecCreate(ctx, containerID, execConfig)
+	execResp, err := cli.ExecCreate(ctx, containerID, execConfig)
 	if err != nil {
 		return err
 	}
 
-	return cli.ContainerExecStart(ctx, execResp.ID, container.ExecStartOptions{
+	_, err = cli.ExecStart(ctx, execResp.ID, client.ExecStartOptions{
 		Detach: true,
 	})
+	return err
 }
 
 // execCheck is a helper to run a simple command and check exit code
-func execCheck(ctx context.Context, cli client.CommonAPIClient, containerID, command string) bool {
-	execConfig := container.ExecOptions{
+func execCheck(ctx context.Context, cli client.APIClient, containerID, command string) bool {
+	execConfig := client.ExecCreateOptions{
 		Cmd:          []string{"/bin/sh", "-c", command},
 		AttachStdout: false,
 		AttachStderr: false,
 	}
 
-	execResp, err := cli.ContainerExecCreate(ctx, containerID, execConfig)
+	execResp, err := cli.ExecCreate(ctx, containerID, execConfig)
 	if err != nil {
 		return false
 	}
 
-	if err := cli.ContainerExecStart(ctx, execResp.ID, container.ExecStartOptions{}); err != nil {
+	if _, err := cli.ExecStart(ctx, execResp.ID, client.ExecStartOptions{}); err != nil {
 		return false
 	}
 
 	// Poll for exit code
 	for i := 0; i < 10; i++ {
-		inspect, err := cli.ContainerExecInspect(ctx, execResp.ID)
+		inspect, err := cli.ExecInspect(ctx, execResp.ID, client.ExecInspectOptions{})
 		if err != nil {
 			return false
 		}

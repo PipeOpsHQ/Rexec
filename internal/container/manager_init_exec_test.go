@@ -2,14 +2,12 @@ package container
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"testing"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/errdefs"
+	"github.com/containerd/errdefs"
+	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/client"
 )
 
 func TestManager_EnsureIsolatedNetwork(t *testing.T) {
@@ -23,11 +21,13 @@ func TestManager_EnsureIsolatedNetwork(t *testing.T) {
 
 	// Test Case 1: Network already exists
 	t.Run("NetworkExists", func(t *testing.T) {
-		mockClient.NetworkInspectFunc = func(ctx context.Context, networkID string, options network.InspectOptions) (network.Inspect, error) {
+		mockClient.NetworkInspectFunc = func(ctx context.Context, networkID string, options client.NetworkInspectOptions) (client.NetworkInspectResult, error) {
 			if networkID == IsolatedNetworkName {
-				return network.Inspect{Name: IsolatedNetworkName, ID: "existing-network-id"}, nil
+				return client.NetworkInspectResult{
+					Network: network.Inspect{Network: network.Network{Name: IsolatedNetworkName, ID: "existing-network-id"}},
+				}, nil
 			}
-			return network.Inspect{}, errdefs.NotFound(fmt.Errorf("network not found"))
+			return client.NetworkInspectResult{}, errdefs.ErrNotFound
 		}
 
 		// We can call ensureIsolatedNetwork directly on our manager instance since we are in package container.
@@ -40,17 +40,17 @@ func TestManager_EnsureIsolatedNetwork(t *testing.T) {
 
 	// Test Case 2: Network does not exist, create it
 	t.Run("CreateNetwork", func(t *testing.T) {
-		mockClient.NetworkInspectFunc = func(ctx context.Context, networkID string, options network.InspectOptions) (network.Inspect, error) {
-			return network.Inspect{}, errdefs.NotFound(fmt.Errorf("network not found"))
+		mockClient.NetworkInspectFunc = func(ctx context.Context, networkID string, options client.NetworkInspectOptions) (client.NetworkInspectResult, error) {
+			return client.NetworkInspectResult{}, errdefs.ErrNotFound
 		}
 
 		created := false
-		mockClient.NetworkCreateFunc = func(ctx context.Context, name string, options network.CreateOptions) (network.CreateResponse, error) {
+		mockClient.NetworkCreateFunc = func(ctx context.Context, name string, options client.NetworkCreateOptions) (client.NetworkCreateResult, error) {
 			if name != IsolatedNetworkName {
 				t.Errorf("Expected network name %s, got %s", IsolatedNetworkName, name)
 			}
 			created = true
-			return network.CreateResponse{ID: "new-network-id"}, nil
+			return client.NetworkCreateResult{ID: "new-network-id"}, nil
 		}
 
 		err := manager.ensureIsolatedNetwork()
@@ -81,22 +81,22 @@ func TestManager_ExecInContainer(t *testing.T) {
 	}
 
 	// Mock ExecCreate
-	mockClient.ContainerExecCreateFunc = func(ctx context.Context, container string, config container.ExecOptions) (types.IDResponse, error) {
-		if container != containerID {
-			t.Errorf("Expected container ID %s, got %s", containerID, container)
+	mockClient.ExecCreateFunc = func(ctx context.Context, ctr string, config client.ExecCreateOptions) (client.ExecCreateResult, error) {
+		if ctr != containerID {
+			t.Errorf("Expected container ID %s, got %s", containerID, ctr)
 		}
-		return types.IDResponse{ID: "exec-id"}, nil
+		return client.ExecCreateResult{ID: "exec-id"}, nil
 	}
 
 	// Mock ExecAttach
-	mockClient.ContainerExecAttachFunc = func(ctx context.Context, execID string, config container.ExecAttachOptions) (types.HijackedResponse, error) {
+	mockClient.ExecAttachFunc = func(ctx context.Context, execID string, config client.ExecAttachOptions) (client.ExecAttachResult, error) {
 		if execID != "exec-id" {
 			t.Errorf("Expected exec ID exec-id, got %s", execID)
 		}
-		client, _ := net.Pipe()
-		return types.HijackedResponse{
-			Conn: client,
-		}, nil
+		conn, _ := net.Pipe()
+		result := client.ExecAttachResult{}
+		result.Conn = conn
+		return result, nil
 	}
 
 	// Test ExecInContainer

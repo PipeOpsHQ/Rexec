@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	dockerContainer "github.com/docker/docker/api/types/container"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	dockerclient "github.com/moby/moby/client"
 	"github.com/rexec/rexec/internal/container"
 	"github.com/rexec/rexec/internal/models"
 	"github.com/rexec/rexec/internal/storage"
@@ -267,18 +267,17 @@ func (h *SSHHandler) GetSSHConnectionInfo(c *gin.Context) {
 
 	// Get container's IP address
 	client := h.containerManager.GetClient()
-	inspect, err := client.ContainerInspect(c.Request.Context(), containerID)
+	inspect, err := client.ContainerInspect(c.Request.Context(), containerID, dockerclient.ContainerInspectOptions{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to inspect container"})
 		return
 	}
 
-	ipAddress := inspect.NetworkSettings.IPAddress
-	if ipAddress == "" {
-		// Try to get IP from the first network
-		for _, network := range inspect.NetworkSettings.Networks {
-			if network.IPAddress != "" {
-				ipAddress = network.IPAddress
+	var ipAddress string
+	if inspect.Container.NetworkSettings != nil && inspect.Container.NetworkSettings.Networks != nil {
+		for _, network := range inspect.Container.NetworkSettings.Networks {
+			if inspect.Container.NetworkSettings.Networks != nil {
+				ipAddress = network.IPAddress.String()
 				break
 			}
 		}
@@ -383,7 +382,7 @@ func (h *SSHHandler) syncKeysToContainer(ctx context.Context, containerID, userI
 	escapedKeys := strings.ReplaceAll(keys, "'", "'\"'\"'")
 
 	// Create exec to write the authorized_keys file
-	execConfig := dockerContainer.ExecOptions{
+	execConfig := dockerclient.ExecCreateOptions{
 		AttachStdin:  true,
 		AttachStdout: true,
 		AttachStderr: true,
@@ -394,13 +393,13 @@ func (h *SSHHandler) syncKeysToContainer(ctx context.Context, containerID, userI
 		User: "root",
 	}
 
-	execResp, err := client.ContainerExecCreate(ctx, containerID, execConfig)
+	execResp, err := client.ExecCreate(ctx, containerID, execConfig)
 	if err != nil {
 		return fmt.Errorf("failed to create exec: %w", err)
 	}
 
-	// Use ContainerExecAttach for Podman compatibility (it starts the exec)
-	attachResp, err := client.ContainerExecAttach(ctx, execResp.ID, dockerContainer.ExecAttachOptions{})
+	// Use ExecAttach for Podman compatibility (it starts the exec)
+	attachResp, err := client.ExecAttach(ctx, execResp.ID, dockerclient.ExecAttachOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to attach/start exec: %w", err)
 	}
@@ -550,21 +549,21 @@ func (h *SSHHandler) InstallSSH(c *gin.Context) {
 	}
 
 	// Create exec to install SSH
-	execConfig := dockerContainer.ExecOptions{
+	execConfig := dockerclient.ExecCreateOptions{
 		AttachStdout: true,
 		AttachStderr: true,
 		Cmd:          []string{"sh", "-c", installCmd},
 		User:         "root",
 	}
 
-	execResp, err := client.ContainerExecCreate(ctx, containerID, execConfig)
+	execResp, err := client.ExecCreate(ctx, containerID, execConfig)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create exec: " + err.Error()})
 		return
 	}
 
 	// Start the exec via attach (Podman compatibility - attach implicitly starts)
-	attachResp, err := client.ContainerExecAttach(ctx, execResp.ID, dockerContainer.ExecAttachOptions{})
+	attachResp, err := client.ExecAttach(ctx, execResp.ID, dockerclient.ExecAttachOptions{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to attach exec: " + err.Error()})
 		return
@@ -575,7 +574,7 @@ func (h *SSHHandler) InstallSSH(c *gin.Context) {
 	io.Copy(io.Discard, attachResp.Reader)
 
 	// Check exit code
-	inspect, err := client.ContainerExecInspect(ctx, execResp.ID)
+	inspect, err := client.ExecInspect(ctx, execResp.ID, dockerclient.ExecInspectOptions{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to inspect exec: " + err.Error()})
 		return
@@ -696,21 +695,21 @@ func (h *SSHHandler) getSSHInstallCommand(ctx context.Context, containerID, imag
 
 	// Helper function to run a simple command and check exit code
 	runCheck := func(cmd []string) bool {
-		execConfig := dockerContainer.ExecOptions{
+		execConfig := dockerclient.ExecCreateOptions{
 			Cmd:          cmd,
 			AttachStdout: true,
 		}
-		execResp, err := client.ContainerExecCreate(ctx, containerID, execConfig)
+		execResp, err := client.ExecCreate(ctx, containerID, execConfig)
 		if err != nil {
 			return false
 		}
 		// Use attach for Podman compatibility
-		attachResp, err := client.ContainerExecAttach(ctx, execResp.ID, dockerContainer.ExecAttachOptions{})
+		attachResp, err := client.ExecAttach(ctx, execResp.ID, dockerclient.ExecAttachOptions{})
 		if err != nil {
 			return false
 		}
 		attachResp.Close()
-		inspect, err := client.ContainerExecInspect(ctx, execResp.ID)
+		inspect, err := client.ExecInspect(ctx, execResp.ID, dockerclient.ExecInspectOptions{})
 		return err == nil && inspect.ExitCode == 0
 	}
 
@@ -779,21 +778,21 @@ func (h *SSHHandler) CheckSSHStatus(c *gin.Context) {
 
 	// Helper to run a simple check command
 	runCheck := func(cmd []string) bool {
-		execConfig := dockerContainer.ExecOptions{
+		execConfig := dockerclient.ExecCreateOptions{
 			Cmd:          cmd,
 			AttachStdout: true,
 		}
-		execResp, err := client.ContainerExecCreate(ctx, containerID, execConfig)
+		execResp, err := client.ExecCreate(ctx, containerID, execConfig)
 		if err != nil {
 			return false
 		}
 		// Use attach for Podman compatibility
-		attachResp, err := client.ContainerExecAttach(ctx, execResp.ID, dockerContainer.ExecAttachOptions{})
+		attachResp, err := client.ExecAttach(ctx, execResp.ID, dockerclient.ExecAttachOptions{})
 		if err != nil {
 			return false
 		}
 		attachResp.Close()
-		inspect, err := client.ContainerExecInspect(ctx, execResp.ID)
+		inspect, err := client.ExecInspect(ctx, execResp.ID, dockerclient.ExecInspectOptions{})
 		return err == nil && inspect.ExitCode == 0
 	}
 

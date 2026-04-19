@@ -5,8 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/client"
+	"github.com/moby/moby/client"
 	"github.com/rexec/rexec/internal/storage"
 )
 
@@ -21,7 +20,7 @@ type ContainerStore interface {
 type ReconcilerService struct {
 	manager       *Manager
 	store         ContainerStore
-	dockerClient  client.CommonAPIClient
+	dockerClient  client.APIClient
 	checkInterval time.Duration
 	stopChan      chan struct{}
 }
@@ -83,7 +82,7 @@ func (r *ReconcilerService) reconcile() {
 	}
 
 	// Get all Docker containers (including stopped ones)
-	dockerContainers, err := r.dockerClient.ContainerList(ctx, container.ListOptions{
+	listResult, err := r.dockerClient.ContainerList(ctx, client.ContainerListOptions{
 		All: true,
 	})
 	if err != nil {
@@ -93,8 +92,8 @@ func (r *ReconcilerService) reconcile() {
 
 	// Build a map of Docker container IDs to their state
 	dockerState := make(map[string]string)
-	for _, dc := range dockerContainers {
-		dockerState[dc.ID] = dc.State
+	for _, dc := range listResult.Items {
+		dockerState[dc.ID] = string(dc.State)
 	}
 
 	var reconciled, removed, updated, stuckStopped int
@@ -174,10 +173,10 @@ func (r *ReconcilerService) reconcile() {
 				// Otherwise try to stop the container
 				log.Printf("🔄 Reconciler: container %s not running in Docker, stopping it", dbContainer.DockerID[:12])
 				stopCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-				if err := r.dockerClient.ContainerStop(stopCtx, dbContainer.DockerID, container.StopOptions{}); err != nil {
+				if _, err := r.dockerClient.ContainerStop(stopCtx, dbContainer.DockerID, client.ContainerStopOptions{}); err != nil {
 					log.Printf("🔄 Reconciler: failed to stop stuck container %s: %v", dbContainer.DockerID[:12], err)
 					// Force remove if stop fails
-					if err := r.dockerClient.ContainerRemove(stopCtx, dbContainer.DockerID, container.RemoveOptions{Force: true}); err != nil {
+					if _, err := r.dockerClient.ContainerRemove(stopCtx, dbContainer.DockerID, client.ContainerRemoveOptions{Force: true}); err != nil {
 						log.Printf("🔄 Reconciler: failed to force remove stuck container %s: %v", dbContainer.DockerID[:12], err)
 					}
 				}

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
+	"github.com/moby/moby/client"
 )
 
 func TestCleanupService_CleanupIdleContainers(t *testing.T) {
@@ -57,9 +57,9 @@ func TestCleanupService_CleanupIdleContainers(t *testing.T) {
 
 	// Mock ContainerStop
 	stoppedContainers := make(map[string]bool)
-	mockClient.ContainerStopFunc = func(ctx context.Context, id string, options container.StopOptions) error {
+	mockClient.ContainerStopFunc = func(ctx context.Context, id string, options client.ContainerStopOptions) (client.ContainerStopResult, error) {
 		stoppedContainers[id] = true
-		return nil
+		return client.ContainerStopResult{}, nil
 	}
 
 	// Run cleanup
@@ -117,15 +117,15 @@ func TestCleanupService_CleanupExpiredGuestContainers(t *testing.T) {
 	}
 
 	// Mock ContainerStop
-	mockClient.ContainerStopFunc = func(ctx context.Context, id string, options container.StopOptions) error {
-		return nil
+	mockClient.ContainerStopFunc = func(ctx context.Context, id string, options client.ContainerStopOptions) (client.ContainerStopResult, error) {
+		return client.ContainerStopResult{}, nil
 	}
 
 	// Mock ContainerRemove
 	removedContainers := make(map[string]bool)
-	mockClient.ContainerRemoveFunc = func(ctx context.Context, id string, options container.RemoveOptions) error {
+	mockClient.ContainerRemoveFunc = func(ctx context.Context, id string, options client.ContainerRemoveOptions) (client.ContainerRemoveResult, error) {
 		removedContainers[id] = true
-		return nil
+		return client.ContainerRemoveResult{}, nil
 	}
 
 	// Run cleanup
