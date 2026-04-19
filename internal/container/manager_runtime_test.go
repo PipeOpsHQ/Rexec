@@ -4,10 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 )
 
 func TestManagerCreateContainerRuntimeSelection(t *testing.T) {
@@ -51,17 +49,20 @@ func TestManagerCreateContainerRuntimeSelection(t *testing.T) {
 			var gotRuntime string
 			var gotStorageSize string
 
-			mockClient.ContainerInspectFunc = func(ctx context.Context, containerID string) (types.ContainerJSON, error) {
-				return types.ContainerJSON{
-					ContainerJSONBase: &types.ContainerJSONBase{},
-					NetworkSettings:   &types.NetworkSettings{},
+			mockClient.ContainerInspectFunc = func(ctx context.Context, containerID string, options client.ContainerInspectOptions) (client.ContainerInspectResult, error) {
+				return client.ContainerInspectResult{
+					Container: container.InspectResponse{
+						HostConfig:      &container.HostConfig{},
+						Config:          &container.Config{},
+						NetworkSettings: &container.NetworkSettings{},
+					},
 				}, nil
 			}
 
-			mockClient.ContainerCreateFunc = func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *v1.Platform, containerName string) (container.CreateResponse, error) {
-				gotRuntime = hostConfig.Runtime
-				gotStorageSize = hostConfig.StorageOpt["size"]
-				return container.CreateResponse{ID: "test-container-id"}, nil
+			mockClient.ContainerCreateFunc = func(ctx context.Context, options client.ContainerCreateOptions) (client.ContainerCreateResult, error) {
+				gotRuntime = options.HostConfig.Runtime
+				gotStorageSize = options.HostConfig.StorageOpt["size"]
+				return client.ContainerCreateResult{ID: "test-container-id"}, nil
 			}
 
 			manager := &Manager{

@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
 	"github.com/gin-gonic/gin"
+	dockerclient "github.com/moby/moby/client"
 	mgr "github.com/rexec/rexec/internal/container"
 	"github.com/rexec/rexec/internal/storage"
 )
@@ -124,7 +124,7 @@ func (h *FileHandler) Upload(c *gin.Context) {
 	defer cancel()
 
 	client := h.containerManager.GetClient()
-	err = client.CopyToContainer(ctx, dockerID, destPath, pr, container.CopyToContainerOptions{})
+	_, err = client.CopyToContainer(ctx, dockerID, dockerclient.CopyToContainerOptions{DestinationPath: destPath, Content: pr})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to copy to container: " + err.Error()})
 		return
@@ -181,11 +181,13 @@ func (h *FileHandler) Download(c *gin.Context) {
 	client := h.containerManager.GetClient()
 
 	// Copy from container
-	reader, stat, err := client.CopyFromContainer(ctx, dockerID, filePath)
+	copyResult, err := client.CopyFromContainer(ctx, dockerID, dockerclient.CopyFromContainerOptions{SourcePath: filePath})
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "file not found: " + err.Error()})
 		return
 	}
+	reader := copyResult.Content
+	stat := copyResult.Stat
 	defer reader.Close()
 
 	// Read tar archive
@@ -255,19 +257,19 @@ func (h *FileHandler) List(c *gin.Context) {
 	client := h.containerManager.GetClient()
 
 	// Use exec to run ls command (basic flags for busybox compatibility)
-	execConfig := container.ExecOptions{
+	execConfig := dockerclient.ExecCreateOptions{
 		Cmd:          []string{"ls", "-la", dirPath},
 		AttachStdout: true,
 		AttachStderr: true,
 	}
 
-	execResp, err := client.ContainerExecCreate(ctx, dockerID, execConfig)
+	execResp, err := client.ExecCreate(ctx, dockerID, execConfig)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create exec: " + err.Error()})
 		return
 	}
 
-	attachResp, err := client.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{})
+	attachResp, err := client.ExecAttach(ctx, execResp.ID, dockerclient.ExecAttachOptions{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to attach exec: " + err.Error()})
 		return
@@ -343,19 +345,19 @@ func (h *FileHandler) Delete(c *gin.Context) {
 	client := h.containerManager.GetClient()
 
 	// Use exec to run rm command
-	execConfig := container.ExecOptions{
+	execConfig := dockerclient.ExecCreateOptions{
 		Cmd:          []string{"rm", "-rf", filePath},
 		AttachStdout: true,
 		AttachStderr: true,
 	}
 
-	execResp, err := client.ContainerExecCreate(ctx, dockerID, execConfig)
+	execResp, err := client.ExecCreate(ctx, dockerID, execConfig)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create exec: " + err.Error()})
 		return
 	}
 
-	attachResp, err := client.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{})
+	attachResp, err := client.ExecAttach(ctx, execResp.ID, dockerclient.ExecAttachOptions{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to attach exec: " + err.Error()})
 		return
@@ -366,7 +368,7 @@ func (h *FileHandler) Delete(c *gin.Context) {
 	io.Copy(io.Discard, attachResp.Reader)
 
 	// Check exit code
-	inspect, err := client.ContainerExecInspect(ctx, execResp.ID)
+	inspect, err := client.ExecInspect(ctx, execResp.ID, dockerclient.ExecInspectOptions{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check result"})
 		return
@@ -426,19 +428,19 @@ func (h *FileHandler) Mkdir(c *gin.Context) {
 	client := h.containerManager.GetClient()
 
 	// Use exec to run mkdir command
-	execConfig := container.ExecOptions{
+	execConfig := dockerclient.ExecCreateOptions{
 		Cmd:          []string{"mkdir", "-p", dirPath},
 		AttachStdout: true,
 		AttachStderr: true,
 	}
 
-	execResp, err := client.ContainerExecCreate(ctx, dockerID, execConfig)
+	execResp, err := client.ExecCreate(ctx, dockerID, execConfig)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create exec: " + err.Error()})
 		return
 	}
 
-	attachResp, err := client.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{})
+	attachResp, err := client.ExecAttach(ctx, execResp.ID, dockerclient.ExecAttachOptions{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to attach exec: " + err.Error()})
 		return
@@ -449,7 +451,7 @@ func (h *FileHandler) Mkdir(c *gin.Context) {
 	io.Copy(io.Discard, attachResp.Reader)
 
 	// Check exit code
-	inspect, err := client.ContainerExecInspect(ctx, execResp.ID)
+	inspect, err := client.ExecInspect(ctx, execResp.ID, dockerclient.ExecInspectOptions{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check result"})
 		return

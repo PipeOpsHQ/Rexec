@@ -4,15 +4,29 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"iter"
+	"net/netip"
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/network"
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/jsonstream"
+	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/client"
 )
+
+// mockImagePullResponse implements client.ImagePullResponse for testing
+type mockImagePullResponse struct {
+	io.ReadCloser
+}
+
+func (m *mockImagePullResponse) JSONMessages(ctx context.Context) iter.Seq2[jsonstream.Message, error] {
+	return func(yield func(jsonstream.Message, error) bool) {}
+}
+
+func (m *mockImagePullResponse) Wait(ctx context.Context) error {
+	return nil
+}
 
 func TestManager_CreateContainer(t *testing.T) {
 	// Setup mock client
@@ -25,39 +39,39 @@ func TestManager_CreateContainer(t *testing.T) {
 		userIndex:  make(map[string][]string),
 	}
 
-	// Mock ImageInspectWithRaw to simulate image existence
-	mockClient.ImageInspectWithRawFunc = func(ctx context.Context, imageID string) (types.ImageInspect, []byte, error) {
-		return types.ImageInspect{}, []byte{}, nil
+	// Mock ImageInspect to simulate image existence
+	mockClient.ImageInspectFunc = func(ctx context.Context, imageID string, opts ...client.ImageInspectOption) (client.ImageInspectResult, error) {
+		return client.ImageInspectResult{}, nil
 	}
 
 	// Mock ContainerList to return empty list (no existing containers)
-	mockClient.ContainerListFunc = func(ctx context.Context, options container.ListOptions) ([]types.Container, error) {
-		return []types.Container{}, nil
+	mockClient.ContainerListFunc = func(ctx context.Context, options client.ContainerListOptions) (client.ContainerListResult, error) {
+		return client.ContainerListResult{}, nil
 	}
 
 	// Mock ContainerCreate
-	mockClient.ContainerCreateFunc = func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *v1.Platform, containerName string) (container.CreateResponse, error) {
-		return container.CreateResponse{ID: "test-container-id"}, nil
+	mockClient.ContainerCreateFunc = func(ctx context.Context, options client.ContainerCreateOptions) (client.ContainerCreateResult, error) {
+		return client.ContainerCreateResult{ID: "test-container-id"}, nil
 	}
 
 	// Mock ContainerStart
-	mockClient.ContainerStartFunc = func(ctx context.Context, containerID string, options container.StartOptions) error {
-		return nil
+	mockClient.ContainerStartFunc = func(ctx context.Context, containerID string, options client.ContainerStartOptions) (client.ContainerStartResult, error) {
+		return client.ContainerStartResult{}, nil
 	}
 
 	// Mock ContainerInspect
-	mockClient.ContainerInspectFunc = func(ctx context.Context, containerID string) (types.ContainerJSON, error) {
-		return types.ContainerJSON{
-			ContainerJSONBase: &types.ContainerJSONBase{
+	mockClient.ContainerInspectFunc = func(ctx context.Context, containerID string, options client.ContainerInspectOptions) (client.ContainerInspectResult, error) {
+		return client.ContainerInspectResult{
+			Container: container.InspectResponse{
 				ID: "test-container-id",
-				State: &types.ContainerState{
+				State: &container.State{
 					Status: "running",
 				},
-			},
-			NetworkSettings: &types.NetworkSettings{
-				Networks: map[string]*network.EndpointSettings{
-					IsolatedNetworkName: {
-						IPAddress: "172.17.0.2",
+				NetworkSettings: &container.NetworkSettings{
+					Networks: map[string]*network.EndpointSettings{
+						IsolatedNetworkName: {
+							IPAddress: netip.MustParseAddr("172.17.0.2"),
+						},
 					},
 				},
 			},
@@ -102,41 +116,41 @@ func TestManager_CreateContainer_ImagePull(t *testing.T) {
 		userIndex:  make(map[string][]string),
 	}
 
-	// Mock ImageInspectWithRaw to simulate image NOT existing initially
-	mockClient.ImageInspectWithRawFunc = func(ctx context.Context, imageID string) (types.ImageInspect, []byte, error) {
-		return types.ImageInspect{}, []byte{}, fmt.Errorf("image not found")
+	// Mock ImageInspect to simulate image NOT existing initially
+	mockClient.ImageInspectFunc = func(ctx context.Context, imageID string, opts ...client.ImageInspectOption) (client.ImageInspectResult, error) {
+		return client.ImageInspectResult{}, fmt.Errorf("image not found")
 	}
 
 	// Mock ImagePull
-	mockClient.ImagePullFunc = func(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error) {
-		return io.NopCloser(strings.NewReader(`{"status":"Pulling from library/ubuntu","id":"latest"}`)), nil
+	mockClient.ImagePullFunc = func(ctx context.Context, ref string, options client.ImagePullOptions) (client.ImagePullResponse, error) {
+		return &mockImagePullResponse{ReadCloser: io.NopCloser(strings.NewReader(`{"status":"Pulling from library/ubuntu","id":"latest"}`))}, nil
 	}
 
 	// Mock ContainerList
-	mockClient.ContainerListFunc = func(ctx context.Context, options container.ListOptions) ([]types.Container, error) {
-		return []types.Container{}, nil
+	mockClient.ContainerListFunc = func(ctx context.Context, options client.ContainerListOptions) (client.ContainerListResult, error) {
+		return client.ContainerListResult{}, nil
 	}
 
 	// Mock ContainerCreate
-	mockClient.ContainerCreateFunc = func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *v1.Platform, containerName string) (container.CreateResponse, error) {
-		return container.CreateResponse{ID: "test-container-id"}, nil
+	mockClient.ContainerCreateFunc = func(ctx context.Context, options client.ContainerCreateOptions) (client.ContainerCreateResult, error) {
+		return client.ContainerCreateResult{ID: "test-container-id"}, nil
 	}
 
 	// Mock ContainerStart
-	mockClient.ContainerStartFunc = func(ctx context.Context, containerID string, options container.StartOptions) error {
-		return nil
+	mockClient.ContainerStartFunc = func(ctx context.Context, containerID string, options client.ContainerStartOptions) (client.ContainerStartResult, error) {
+		return client.ContainerStartResult{}, nil
 	}
 
 	// Mock ContainerInspect
-	mockClient.ContainerInspectFunc = func(ctx context.Context, containerID string) (types.ContainerJSON, error) {
-		return types.ContainerJSON{
-			ContainerJSONBase: &types.ContainerJSONBase{
+	mockClient.ContainerInspectFunc = func(ctx context.Context, containerID string, options client.ContainerInspectOptions) (client.ContainerInspectResult, error) {
+		return client.ContainerInspectResult{
+			Container: container.InspectResponse{
 				ID: "test-container-id",
-			},
-			NetworkSettings: &types.NetworkSettings{
-				Networks: map[string]*network.EndpointSettings{
-					IsolatedNetworkName: {
-						IPAddress: "172.17.0.2",
+				NetworkSettings: &container.NetworkSettings{
+					Networks: map[string]*network.EndpointSettings{
+						IsolatedNetworkName: {
+							IPAddress: netip.MustParseAddr("172.17.0.2"),
+						},
 					},
 				},
 			},
@@ -202,8 +216,8 @@ func TestManager_PullImage(t *testing.T) {
 	manager := &Manager{client: mockClient}
 
 	// Mock ImagePull
-	mockClient.ImagePullFunc = func(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error) {
-		return io.NopCloser(strings.NewReader(`{"status":"Pulling from library/ubuntu","id":"latest"}`)), nil
+	mockClient.ImagePullFunc = func(ctx context.Context, ref string, options client.ImagePullOptions) (client.ImagePullResponse, error) {
+		return &mockImagePullResponse{ReadCloser: io.NopCloser(strings.NewReader(`{"status":"Pulling from library/ubuntu","id":"latest"}`))}, nil
 	}
 
 	ctx := context.Background()
@@ -238,11 +252,11 @@ func TestManager_StopContainer(t *testing.T) {
 	}
 
 	// Mock ContainerStop
-	mockClient.ContainerStopFunc = func(ctx context.Context, id string, options container.StopOptions) error {
+	mockClient.ContainerStopFunc = func(ctx context.Context, id string, options client.ContainerStopOptions) (client.ContainerStopResult, error) {
 		if id != containerID {
-			return fmt.Errorf("wrong container ID")
+			return client.ContainerStopResult{}, fmt.Errorf("wrong container ID")
 		}
-		return nil
+		return client.ContainerStopResult{}, nil
 	}
 
 	// Test StopContainer
@@ -269,11 +283,11 @@ func TestManager_StartContainer(t *testing.T) {
 	}
 
 	// Mock ContainerStart
-	mockClient.ContainerStartFunc = func(ctx context.Context, id string, options container.StartOptions) error {
+	mockClient.ContainerStartFunc = func(ctx context.Context, id string, options client.ContainerStartOptions) (client.ContainerStartResult, error) {
 		if id != containerID {
-			return fmt.Errorf("wrong container ID")
+			return client.ContainerStartResult{}, fmt.Errorf("wrong container ID")
 		}
-		return nil
+		return client.ContainerStartResult{}, nil
 	}
 
 	// Test StartContainer

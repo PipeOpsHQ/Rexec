@@ -15,6 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	dockerclient "github.com/moby/moby/client"
 	"github.com/rexec/rexec/internal/container"
 	"github.com/rexec/rexec/internal/models"
 	"github.com/rexec/rexec/internal/storage"
@@ -31,12 +32,12 @@ type PortForwardHandler struct {
 
 // ActivePortForward holds state for an active port forward session
 type ActivePortForward struct {
-	ForwardID   string
-	UserID      string
-	ContainerID string
+	ForwardID     string
+	UserID        string
+	ContainerID   string
 	ContainerPort int
-	LocalPort   int
-	Cancel      context.CancelFunc
+	LocalPort     int
+	Cancel        context.CancelFunc
 }
 
 // NewPortForwardHandler creates a new PortForwardHandler
@@ -58,7 +59,7 @@ func NewPortForwardHandler(store *storage.PostgresStore, containerManager *conta
 
 // CreatePortForwardRequest represents the request to create a port forward
 type CreatePortForwardRequest struct {
-	Name          string `json:"name"`                     // Optional name
+	Name          string `json:"name"` // Optional name
 	ContainerID   string `json:"container_id" binding:"required"`
 	ContainerPort int    `json:"container_port" binding:"required,gt=0,lte=65535"`
 	LocalPort     int    `json:"local_port" binding:"required,gt=0,lte=65535"`
@@ -116,7 +117,7 @@ func (h *PortForwardHandler) CreatePortForward(c *gin.Context) {
 		c.JSON(http.StatusNotFound, models.APIError{Code: http.StatusNotFound, Message: "container not found"})
 		return
 	}
-	
+
 	// Update containerID to use DB ID for consistency
 	containerID = containerRecord.ID
 	if containerRecord.UserID != userID {
@@ -142,15 +143,15 @@ func (h *PortForwardHandler) CreatePortForward(c *gin.Context) {
 
 	// Create port forward record in DB
 	pf := &models.PortForward{
-		ID:          uuid.New().String(),
-		UserID:      userID,
-		ContainerID: containerID,
-		Name:        req.Name,
+		ID:            uuid.New().String(),
+		UserID:        userID,
+		ContainerID:   containerID,
+		Name:          req.Name,
 		ContainerPort: req.ContainerPort,
-		LocalPort:   req.LocalPort,
-		Protocol:    "tcp", // Only TCP for now
-		IsActive:    true,
-		CreatedAt:   time.Now(),
+		LocalPort:     req.LocalPort,
+		Protocol:      "tcp", // Only TCP for now
+		IsActive:      true,
+		CreatedAt:     time.Now(),
 	}
 
 	if err := h.store.CreatePortForward(c.Request.Context(), pf); err != nil {
@@ -338,20 +339,17 @@ func (h *PortForwardHandler) HandlePortForwardWebSocket(c *gin.Context) {
 		wsConn.WriteMessage(websocket.TextMessage, []byte("Error: Container not available"))
 		return
 	}
-	inspect, err := dockerClient.ContainerInspect(c.Request.Context(), dockerID)
+	inspect, err := dockerClient.ContainerInspect(c.Request.Context(), dockerID, dockerclient.ContainerInspectOptions{})
 	if err != nil {
 		log.Printf("Failed to inspect container %s (docker: %s) for port forward %s: %v", pf.ContainerID, dockerID, forwardID, err)
 		return
 	}
 
-	ipAddress := inspect.NetworkSettings.IPAddress
-	if ipAddress == "" {
-		// Fallback for Podman/Docker networks - try finding the first attached network's IP
-		for _, network := range inspect.NetworkSettings.Networks {
-			if network.IPAddress != "" {
-				ipAddress = network.IPAddress
-				break
-			}
+	var ipAddress string
+	if inspect.Container.NetworkSettings != nil && inspect.Container.NetworkSettings.Networks != nil {
+		for _, network := range inspect.Container.NetworkSettings.Networks {
+			ipAddress = network.IPAddress.String()
+			break
 		}
 	}
 
@@ -376,12 +374,12 @@ func (h *PortForwardHandler) HandlePortForwardWebSocket(c *gin.Context) {
 	ctx, cancel := context.WithCancel(context.Background())
 	h.mu.Lock()
 	h.activeForwards[forwardID] = &ActivePortForward{
-		ForwardID:   forwardID,
-		UserID:      userID,
-		ContainerID: pf.ContainerID,
+		ForwardID:     forwardID,
+		UserID:        userID,
+		ContainerID:   pf.ContainerID,
 		ContainerPort: pf.ContainerPort,
-		LocalPort:   pf.LocalPort,
-		Cancel:      cancel,
+		LocalPort:     pf.LocalPort,
+		Cancel:        cancel,
 	}
 	h.mu.Unlock()
 
@@ -514,20 +512,18 @@ func (h *PortForwardHandler) HandleHTTPProxy(c *gin.Context) {
 		h.renderPortForwardError(c, "Container Unavailable", "The container is not properly initialized. Please try restarting it.", pf.ContainerPort)
 		return
 	}
-	inspect, err := dockerClient.ContainerInspect(c.Request.Context(), dockerID)
+	inspect, err := dockerClient.ContainerInspect(c.Request.Context(), dockerID, dockerclient.ContainerInspectOptions{})
 	if err != nil {
 		log.Printf("Failed to inspect container %s (docker: %s) for proxy %s: %v", pf.ContainerID, dockerID, forwardID, err)
 		h.renderPortForwardError(c, "Connection Error", "Failed to connect to the container. Please try again later.", pf.ContainerPort)
 		return
 	}
 
-	ipAddress := inspect.NetworkSettings.IPAddress
-	if ipAddress == "" {
-		for _, network := range inspect.NetworkSettings.Networks {
-			if network.IPAddress != "" {
-				ipAddress = network.IPAddress
-				break
-			}
+	var ipAddress string
+	if inspect.Container.NetworkSettings != nil && inspect.Container.NetworkSettings.Networks != nil {
+		for _, network := range inspect.Container.NetworkSettings.Networks {
+			ipAddress = network.IPAddress.String()
+			break
 		}
 	}
 

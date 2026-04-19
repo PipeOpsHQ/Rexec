@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
+	"github.com/moby/moby/client"
 )
 
 func TestManager_StreamContainerStats(t *testing.T) {
@@ -28,7 +28,7 @@ func TestManager_StreamContainerStats(t *testing.T) {
 
 	// Mock ContainerStats
 	// We need to return a ReadCloser that simulates stats JSON stream
-	mockClient.ContainerStatsFunc = func(ctx context.Context, containerID string, stream bool) (container.StatsResponseReader, error) {
+	mockClient.ContainerStatsFunc = func(ctx context.Context, containerID string, options client.ContainerStatsOptions) (client.ContainerStatsResult, error) {
 		// Create a pipe to simulate streaming
 		r, w := io.Pipe()
 
@@ -40,7 +40,7 @@ func TestManager_StreamContainerStats(t *testing.T) {
 			w.Close()
 		}()
 
-		return container.StatsResponseReader{
+		return client.ContainerStatsResult{
 			Body: r,
 		}, nil
 	}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	dockerclient "github.com/moby/moby/client"
 	"github.com/rexec/rexec/internal/container"
 )
 
@@ -35,7 +36,7 @@ func (p *DockerProvider) IsAvailable(ctx context.Context) bool {
 	if client == nil {
 		return false
 	}
-	_, err := client.Ping(ctx)
+	_, err := client.Ping(ctx, dockerclient.PingOptions{})
 	return err == nil
 }
 

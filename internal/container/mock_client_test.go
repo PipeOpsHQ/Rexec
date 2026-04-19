@@ -2,142 +2,137 @@ package container
 
 import (
 	"context"
-	"io"
 	"net"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/client"
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 )
 
-// MockDockerClient implements client.CommonAPIClient for testing
+// MockDockerClient implements client.APIClient for testing
 type MockDockerClient struct {
-	client.CommonAPIClient
-	ContainerCreateFunc     func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *v1.Platform, containerName string) (container.CreateResponse, error)
-	ContainerStartFunc      func(ctx context.Context, containerID string, options container.StartOptions) error
-	ContainerStopFunc       func(ctx context.Context, containerID string, options container.StopOptions) error
-	ContainerRemoveFunc     func(ctx context.Context, containerID string, options container.RemoveOptions) error
-	ContainerListFunc       func(ctx context.Context, options container.ListOptions) ([]types.Container, error)
-	ContainerInspectFunc    func(ctx context.Context, containerID string) (types.ContainerJSON, error)
-	ImagePullFunc           func(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error)
-	ImageInspectWithRawFunc func(ctx context.Context, imageID string) (types.ImageInspect, []byte, error)
-	NetworkListFunc         func(ctx context.Context, options network.ListOptions) ([]network.Inspect, error)
-	NetworkCreateFunc       func(ctx context.Context, name string, options network.CreateOptions) (network.CreateResponse, error)
-	NetworkInspectFunc      func(ctx context.Context, networkID string, options network.InspectOptions) (network.Inspect, error)
-	ContainerExecCreateFunc func(ctx context.Context, container string, config container.ExecOptions) (types.IDResponse, error)
-	ContainerExecAttachFunc func(ctx context.Context, execID string, config container.ExecAttachOptions) (types.HijackedResponse, error)
-	ContainerStatsFunc      func(ctx context.Context, containerID string, stream bool) (container.StatsResponseReader, error)
+	client.APIClient
+	ContainerCreateFunc  func(ctx context.Context, options client.ContainerCreateOptions) (client.ContainerCreateResult, error)
+	ContainerStartFunc   func(ctx context.Context, containerID string, options client.ContainerStartOptions) (client.ContainerStartResult, error)
+	ContainerStopFunc    func(ctx context.Context, containerID string, options client.ContainerStopOptions) (client.ContainerStopResult, error)
+	ContainerRemoveFunc  func(ctx context.Context, containerID string, options client.ContainerRemoveOptions) (client.ContainerRemoveResult, error)
+	ContainerListFunc    func(ctx context.Context, options client.ContainerListOptions) (client.ContainerListResult, error)
+	ContainerInspectFunc func(ctx context.Context, containerID string, options client.ContainerInspectOptions) (client.ContainerInspectResult, error)
+	ImagePullFunc        func(ctx context.Context, ref string, options client.ImagePullOptions) (client.ImagePullResponse, error)
+	ImageInspectFunc     func(ctx context.Context, imageID string, opts ...client.ImageInspectOption) (client.ImageInspectResult, error)
+	NetworkListFunc      func(ctx context.Context, options client.NetworkListOptions) (client.NetworkListResult, error)
+	NetworkCreateFunc    func(ctx context.Context, name string, options client.NetworkCreateOptions) (client.NetworkCreateResult, error)
+	NetworkInspectFunc   func(ctx context.Context, networkID string, options client.NetworkInspectOptions) (client.NetworkInspectResult, error)
+	ExecCreateFunc       func(ctx context.Context, container string, config client.ExecCreateOptions) (client.ExecCreateResult, error)
+	ExecAttachFunc       func(ctx context.Context, execID string, config client.ExecAttachOptions) (client.ExecAttachResult, error)
+	ContainerStatsFunc   func(ctx context.Context, containerID string, options client.ContainerStatsOptions) (client.ContainerStatsResult, error)
 }
 
-func (m *MockDockerClient) ContainerExecCreate(ctx context.Context, container string, config container.ExecOptions) (types.IDResponse, error) {
-	if m.ContainerExecCreateFunc != nil {
-		return m.ContainerExecCreateFunc(ctx, container, config)
+func (m *MockDockerClient) ExecCreate(ctx context.Context, container string, config client.ExecCreateOptions) (client.ExecCreateResult, error) {
+	if m.ExecCreateFunc != nil {
+		return m.ExecCreateFunc(ctx, container, config)
 	}
-	return types.IDResponse{ID: "test-exec-id"}, nil
+	return client.ExecCreateResult{ID: "test-exec-id"}, nil
 }
 
-func (m *MockDockerClient) ContainerExecAttach(ctx context.Context, execID string, config container.ExecAttachOptions) (types.HijackedResponse, error) {
-	if m.ContainerExecAttachFunc != nil {
-		return m.ContainerExecAttachFunc(ctx, execID, config)
+func (m *MockDockerClient) ExecAttach(ctx context.Context, execID string, config client.ExecAttachOptions) (client.ExecAttachResult, error) {
+	if m.ExecAttachFunc != nil {
+		return m.ExecAttachFunc(ctx, execID, config)
 	}
 
-	// Return a valid HijackedResponse with a dummy connection to avoid panic on Close()
-	client, _ := net.Pipe()
-	return types.HijackedResponse{
-		Conn: client,
-	}, nil
+	// Return a valid ExecAttachResult with a dummy connection to avoid panic on Close()
+	conn, _ := net.Pipe()
+	result := client.ExecAttachResult{}
+	result.Conn = conn
+	return result, nil
 }
 
-func (m *MockDockerClient) ContainerStats(ctx context.Context, containerID string, stream bool) (container.StatsResponseReader, error) {
+func (m *MockDockerClient) ContainerStats(ctx context.Context, containerID string, options client.ContainerStatsOptions) (client.ContainerStatsResult, error) {
 	if m.ContainerStatsFunc != nil {
-		return m.ContainerStatsFunc(ctx, containerID, stream)
+		return m.ContainerStatsFunc(ctx, containerID, options)
 	}
-	return container.StatsResponseReader{}, nil
+	return client.ContainerStatsResult{}, nil
 }
 
-func (m *MockDockerClient) ContainerList(ctx context.Context, options container.ListOptions) ([]types.Container, error) {
+func (m *MockDockerClient) ContainerList(ctx context.Context, options client.ContainerListOptions) (client.ContainerListResult, error) {
 	if m.ContainerListFunc != nil {
 		return m.ContainerListFunc(ctx, options)
 	}
-	return []types.Container{}, nil
+	return client.ContainerListResult{}, nil
 }
 
-func (m *MockDockerClient) ContainerInspect(ctx context.Context, containerID string) (types.ContainerJSON, error) {
+func (m *MockDockerClient) ContainerInspect(ctx context.Context, containerID string, options client.ContainerInspectOptions) (client.ContainerInspectResult, error) {
 	if m.ContainerInspectFunc != nil {
-		return m.ContainerInspectFunc(ctx, containerID)
+		return m.ContainerInspectFunc(ctx, containerID, options)
 	}
-	return types.ContainerJSON{
-		ContainerJSONBase: &types.ContainerJSONBase{
+	return client.ContainerInspectResult{
+		Container: container.InspectResponse{
 			HostConfig: &container.HostConfig{},
+			Config:     &container.Config{},
 		},
-		Config: &container.Config{},
 	}, nil
 }
 
-func (m *MockDockerClient) ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *v1.Platform, containerName string) (container.CreateResponse, error) {
+func (m *MockDockerClient) ContainerCreate(ctx context.Context, options client.ContainerCreateOptions) (client.ContainerCreateResult, error) {
 	if m.ContainerCreateFunc != nil {
-		return m.ContainerCreateFunc(ctx, config, hostConfig, networkingConfig, platform, containerName)
+		return m.ContainerCreateFunc(ctx, options)
 	}
-	return container.CreateResponse{ID: "test-container-id"}, nil
+	return client.ContainerCreateResult{ID: "test-container-id"}, nil
 }
 
-func (m *MockDockerClient) ContainerStart(ctx context.Context, containerID string, options container.StartOptions) error {
+func (m *MockDockerClient) ContainerStart(ctx context.Context, containerID string, options client.ContainerStartOptions) (client.ContainerStartResult, error) {
 	if m.ContainerStartFunc != nil {
 		return m.ContainerStartFunc(ctx, containerID, options)
 	}
-	return nil
+	return client.ContainerStartResult{}, nil
 }
 
-func (m *MockDockerClient) ContainerStop(ctx context.Context, containerID string, options container.StopOptions) error {
+func (m *MockDockerClient) ContainerStop(ctx context.Context, containerID string, options client.ContainerStopOptions) (client.ContainerStopResult, error) {
 	if m.ContainerStopFunc != nil {
 		return m.ContainerStopFunc(ctx, containerID, options)
 	}
-	return nil
+	return client.ContainerStopResult{}, nil
 }
 
-func (m *MockDockerClient) ContainerRemove(ctx context.Context, containerID string, options container.RemoveOptions) error {
+func (m *MockDockerClient) ContainerRemove(ctx context.Context, containerID string, options client.ContainerRemoveOptions) (client.ContainerRemoveResult, error) {
 	if m.ContainerRemoveFunc != nil {
 		return m.ContainerRemoveFunc(ctx, containerID, options)
 	}
-	return nil
+	return client.ContainerRemoveResult{}, nil
 }
 
-func (m *MockDockerClient) ImagePull(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error) {
+func (m *MockDockerClient) ImagePull(ctx context.Context, ref string, options client.ImagePullOptions) (client.ImagePullResponse, error) {
 	if m.ImagePullFunc != nil {
 		return m.ImagePullFunc(ctx, ref, options)
 	}
 	return nil, nil
 }
 
-func (m *MockDockerClient) ImageInspectWithRaw(ctx context.Context, imageID string) (types.ImageInspect, []byte, error) {
-	if m.ImageInspectWithRawFunc != nil {
-		return m.ImageInspectWithRawFunc(ctx, imageID)
+func (m *MockDockerClient) ImageInspect(ctx context.Context, imageID string, opts ...client.ImageInspectOption) (client.ImageInspectResult, error) {
+	if m.ImageInspectFunc != nil {
+		return m.ImageInspectFunc(ctx, imageID, opts...)
 	}
-	return types.ImageInspect{}, []byte{}, nil
+	return client.ImageInspectResult{}, nil
 }
 
-func (m *MockDockerClient) NetworkInspect(ctx context.Context, networkID string, options network.InspectOptions) (network.Inspect, error) {
+func (m *MockDockerClient) NetworkInspect(ctx context.Context, networkID string, options client.NetworkInspectOptions) (client.NetworkInspectResult, error) {
 	if m.NetworkInspectFunc != nil {
 		return m.NetworkInspectFunc(ctx, networkID, options)
 	}
-	return network.Inspect{}, nil
+	return client.NetworkInspectResult{}, nil
 }
 
-func (m *MockDockerClient) NetworkList(ctx context.Context, options network.ListOptions) ([]network.Inspect, error) {
+func (m *MockDockerClient) NetworkList(ctx context.Context, options client.NetworkListOptions) (client.NetworkListResult, error) {
 	if m.NetworkListFunc != nil {
 		return m.NetworkListFunc(ctx, options)
 	}
-	return []network.Inspect{}, nil
+	return client.NetworkListResult{}, nil
 }
 
-func (m *MockDockerClient) NetworkCreate(ctx context.Context, name string, options network.CreateOptions) (network.CreateResponse, error) {
+func (m *MockDockerClient) NetworkCreate(ctx context.Context, name string, options client.NetworkCreateOptions) (client.NetworkCreateResult, error) {
 	if m.NetworkCreateFunc != nil {
 		return m.NetworkCreateFunc(ctx, name, options)
 	}
-	return network.CreateResponse{ID: "test-network-id"}, nil
+	return client.NetworkCreateResult{ID: "test-network-id"}, nil
 }
 
 func (m *MockDockerClient) Close() error {

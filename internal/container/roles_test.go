@@ -7,10 +7,10 @@ import (
 
 func TestGenerateRoleScript(t *testing.T) {
 	tests := []struct {
-		name          string
-		roleID        string
-		wantErr       bool
-		wantContains  []string
+		name           string
+		roleID         string
+		wantErr        bool
+		wantContains   []string
 		checkVibeCoder bool
 	}{
 		{

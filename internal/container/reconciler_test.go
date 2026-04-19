@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 	"github.com/rexec/rexec/internal/storage"
 )
 
@@ -71,8 +71,8 @@ func TestReconcilerService_Reconcile(t *testing.T) {
 		}
 
 		// Mock Docker returning NO containers
-		mockClient.ContainerListFunc = func(ctx context.Context, options container.ListOptions) ([]types.Container, error) {
-			return []types.Container{}, nil
+		mockClient.ContainerListFunc = func(ctx context.Context, options client.ContainerListOptions) (client.ContainerListResult, error) {
+			return client.ContainerListResult{}, nil
 		}
 
 		// Mock DeleteContainer
@@ -105,11 +105,10 @@ func TestReconcilerService_Reconcile(t *testing.T) {
 		}
 
 		// Mock Docker returning exited container
-		mockClient.ContainerListFunc = func(ctx context.Context, options container.ListOptions) ([]types.Container, error) {
-			return []types.Container{
-				{
-					ID:    "docker-id-2",
-					State: "exited",
+		mockClient.ContainerListFunc = func(ctx context.Context, options client.ContainerListOptions) (client.ContainerListResult, error) {
+			return client.ContainerListResult{
+				Items: []container.Summary{
+					{ID: "docker-id-2", State: "exited"},
 				},
 			}, nil
 		}
@@ -149,20 +148,19 @@ func TestReconcilerService_Reconcile(t *testing.T) {
 		}
 
 		// Mock Docker returning created container (still starting)
-		mockClient.ContainerListFunc = func(ctx context.Context, options container.ListOptions) ([]types.Container, error) {
-			return []types.Container{
-				{
-					ID:    "docker-id-3-long-enough",
-					State: "created",
+		mockClient.ContainerListFunc = func(ctx context.Context, options client.ContainerListOptions) (client.ContainerListResult, error) {
+			return client.ContainerListResult{
+				Items: []container.Summary{
+					{ID: "docker-id-3-long-enough", State: "created"},
 				},
 			}, nil
 		}
 
 		// Mock ContainerStop
 		stoppedID := ""
-		mockClient.ContainerStopFunc = func(ctx context.Context, id string, options container.StopOptions) error {
+		mockClient.ContainerStopFunc = func(ctx context.Context, id string, options client.ContainerStopOptions) (client.ContainerStopResult, error) {
 			stoppedID = id
-			return nil
+			return client.ContainerStopResult{}, nil
 		}
 
 		// Mock UpdateContainerStatus
