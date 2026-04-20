@@ -13,7 +13,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/ssh"
-	"github.com/charmbracelet/wish"
+	"charm.land/wish/v2"
 	gossh "golang.org/x/crypto/ssh"
 )
 
