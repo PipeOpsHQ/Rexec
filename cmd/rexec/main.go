@@ -705,6 +705,9 @@ func runServer() {
 		// Available roles/environments
 		api.GET("/roles", containerHandler.ListRoles)
 
+		// AI CLIs a terminal can auto-launch into (for the create-terminal picker)
+		api.GET("/terminal/agents", terminalHandler.ListAgentCLIs)
+
 		// Stats endpoint
 		api.GET("/stats", containerHandler.Stats)
 

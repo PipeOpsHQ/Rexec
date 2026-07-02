@@ -8,6 +8,7 @@
     } from "$stores/terminal";
     import { toast } from "$stores/toast";
     import { containers, type Container } from "$stores/containers";
+    import { api } from "$utils/api";
     import TerminalPanel from "./TerminalPanel.svelte";
     import InlineCreateTerminal from "../InlineCreateTerminal.svelte";
     import RecordingPanel from "../RecordingPanel.svelte";
@@ -157,6 +158,61 @@
     function selectExistingSession(sessionId: string) {
         terminal.setActiveSession(sessionId);
         showAddMenu = false;
+    }
+
+    // AI CLIs a terminal can auto-launch into (allowlist fetched from backend)
+    interface AgentCliOption {
+        id: string;
+        label: string;
+        description: string;
+        installHint: string;
+    }
+    let agentClis: AgentCliOption[] = [];
+
+    async function loadAgentClis() {
+        try {
+            const res = await api.get<{ agents: AgentCliOption[] }>(
+                "/api/terminal/agents",
+            );
+            agentClis = res.data?.agents ?? [];
+        } catch (e) {
+            console.error("[Terminal] Failed to load AI CLI list:", e);
+        }
+    }
+
+    // The container a new AI CLI terminal should open on: prefer the active
+    // session's container, otherwise the first available running sandbox.
+    $: agentTargetContainer = (() => {
+        if (activeId) {
+            const s = $terminal.sessions.get(activeId);
+            if (s && !s.isAgentSession) {
+                return { id: s.containerId, name: s.name };
+            }
+        }
+        const c = availableTerminals.find(
+            (t) =>
+                t.session_type !== "agent" && !t.id.startsWith("agent:"),
+        );
+        return c ? { id: c.id, name: c.name } : null;
+    })();
+
+    async function openAgentTerminal(agent: AgentCliOption) {
+        const target = agentTargetContainer;
+        if (!target) {
+            toast.error("Start or open a sandbox first");
+            return;
+        }
+        showAddMenu = false;
+        const sid = await terminal.createNewTab(
+            target.id,
+            `${agent.label}`,
+            agent.id,
+        );
+        if (!sid) {
+            toast.error(`Failed to open ${agent.label} terminal`);
+            return;
+        }
+        toast.success(`Launching ${agent.label}…`);
     }
 
     async function connectToAvailable(container: Container) {
@@ -590,6 +646,9 @@
 
     // Window event listeners
     onMount(() => {
+        // Load the AI CLI allowlist for the "Open AI CLI terminal" picker
+        void loadAgentClis();
+
         // Listen for container deletions
         window.addEventListener("container-deleted", handleContainerDeleted);
         window.addEventListener("keydown", handleGlobalKeydown);
@@ -1515,6 +1574,36 @@
                     <span>Create New Sandbox</span>
                 </button>
 
+                {#if agentClis.length > 0}
+                    <div class="add-menu-divider"></div>
+                    <div class="add-menu-label">
+                        Open AI CLI terminal
+                        {#if agentTargetContainer}
+                            <span class="add-menu-label-target"
+                                >on {agentTargetContainer.name}</span
+                            >
+                        {/if}
+                    </div>
+                    <div class="add-menu-sessions">
+                        {#each agentClis as agent}
+                            <button
+                                class="add-menu-item agent-cli-item"
+                                disabled={!agentTargetContainer}
+                                title={agentTargetContainer
+                                    ? agent.description
+                                    : "Start or open a sandbox first"}
+                                onclick={() => openAgentTerminal(agent)}
+                            >
+                                <span class="menu-icon">🤖</span>
+                                <span>{agent.label}</span>
+                                <span class="agent-cli-desc"
+                                    >{agent.description}</span
+                                >
+                            </button>
+                        {/each}
+                    </div>
+                {/if}
+
                 {#if availableTerminals.length > 0}
                     <div class="add-menu-divider"></div>
                     <div class="add-menu-label">
@@ -1684,6 +1773,33 @@
 
     .add-menu-item:hover {
         background: var(--bg-secondary);
+    }
+
+    .add-menu-item:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+    }
+
+    .add-menu-item:disabled:hover {
+        background: none;
+    }
+
+    .add-menu-item.agent-cli-item .agent-cli-desc {
+        margin-left: auto;
+        font-size: 11px;
+        color: var(--text-secondary, #888);
+        opacity: 0.8;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 45%;
+    }
+
+    .add-menu-label-target {
+        margin-left: 6px;
+        font-size: 11px;
+        color: var(--accent);
+        opacity: 0.8;
     }
 
     .add-menu-item.primary {
