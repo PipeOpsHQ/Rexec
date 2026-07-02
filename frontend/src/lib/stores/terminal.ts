@@ -58,6 +58,8 @@ export interface TerminalSession {
   // Agent session (external machine)
   isAgentSession: boolean;
   agentId: string | null;
+  // AI CLI to auto-launch inside the terminal (allowlisted id, e.g. "claude"); null for a plain shell
+  agentCli: string | null;
   // Collaboration mode
   isCollabSession: boolean;
   collabMode: "view" | "control" | null; // null if not a collab session
@@ -537,6 +539,7 @@ function createTerminalStore() {
     async createNewTab(
       containerId: string,
       name: string,
+      agentCli: string | null = null,
     ): Promise<string | null> {
       const authToken = get(token);
       if (!authToken) return null;
@@ -584,6 +587,7 @@ function createTerminalStore() {
         hasConnectedOnce: false,
         isAgentSession: false,
         agentId: null,
+        agentCli: agentCli,
         isCollabSession: false,
         collabMode: null,
         collabRole: null,
@@ -797,6 +801,10 @@ function createTerminalStore() {
         wsUrl = `${getWsUrl()}/ws/agent/${encodeURIComponent(agentId)}/terminal?id=${encodeURIComponent(sessionId)}`;
       } else {
         wsUrl = `${getWsUrl()}/ws/terminal/${encodeURIComponent(session.containerId)}?id=${encodeURIComponent(sessionId)}`;
+        // Auto-launch an AI CLI when this tab was created for one.
+        if (session.agentCli) {
+          wsUrl += `&agent=${encodeURIComponent(session.agentCli)}`;
+        }
       }
       const ws = createRexecWebSocket(wsUrl, authToken);
 

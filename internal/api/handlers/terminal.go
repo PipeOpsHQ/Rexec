@@ -102,6 +102,7 @@ type TerminalSession struct {
 	ForceNewSession bool   // If true, create new tmux session instead of resuming main
 	IsOwner         bool   // Container owner (vs collab participant)
 	TmuxSessionName string // Set when tmux is used ("main", "user-...", "split-...")
+	AgentCLI        string // If set (allowlisted ID), terminal auto-launches this AI CLI
 }
 
 // TerminalMessage represents messages between client and server
@@ -695,6 +696,14 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 	// newSession=true means create a fresh tmux session instead of resuming main
 	forceNewSession := c.Query("newSession") == "true"
 
+	// Optional AI CLI to auto-launch. Validated against the allowlist so an
+	// untrusted query param can never inject a command into the container.
+	agentCLI := ""
+	if def, ok := lookupAgentCLI(c.Query("agent")); ok {
+		agentCLI = def.ID
+		log.Printf("[Terminal] AI CLI terminal requested for %s: %s", containerIdOrName, def.ID)
+	}
+
 	now := time.Now()
 	dbSessionID := uuid.New().String()
 	session := &TerminalSession{
@@ -708,6 +717,7 @@ func (h *TerminalHandler) HandleWebSocket(c *gin.Context) {
 		Done:            make(chan struct{}),
 		ForceNewSession: forceNewSession,
 		IsOwner:         isOwner,
+		AgentCLI:        agentCLI,
 	}
 
 	// Register session with unique key to allow multiplexing
@@ -993,12 +1003,17 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 		// macOS containers don't use tmux (yet)
 		// Use /bin/bash directly for macOS - no detection needed
 		shell := "/bin/bash"
+		shellCmd := []string{shell, "-l"}
+		if def, ok := lookupAgentCLI(session.AgentCLI); ok {
+			// Auto-launch the AI CLI, then drop to an interactive login shell.
+			shellCmd = []string{shell, "-c", buildAgentLaunchScript(shell, def)}
+		}
 		execConfig = dockerclient.ExecCreateOptions{
 			AttachStdin:  true,
 			AttachStdout: true,
 			AttachStderr: true,
 			TTY:          true,
-			Cmd:          []string{shell, "-l"},
+			Cmd:          shellCmd,
 			Env: []string{
 				"TERM=xterm-256color",
 				"COLORTERM=truecolor",
@@ -1136,8 +1151,23 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 			// Each control-mode collab user gets an independent tmux session.
 			tmuxSessionName = tmuxSessionNameForControlUser(session.UserID)
 			log.Printf("[Terminal] Control mode: using unique tmux session '%s' for user %s", tmuxSessionName, session.UserID)
+		} else if session.AgentCLI != "" {
+			// AI CLI terminals get their own persistent session, keyed by agent,
+			// so they never collide with the plain "main" shell and can resume
+			// (reconnect attaches to the running CLI instead of relaunching it).
+			tmuxSessionName = "agent-" + session.AgentCLI
+			log.Printf("[Terminal] AI CLI terminal: using tmux session '%s'", tmuxSessionName)
 		}
 		session.TmuxSessionName = tmuxSessionName
+
+		// The command tmux runs for the session. For AI CLI terminals this
+		// auto-launches the CLI and then drops to an interactive login shell;
+		// with the -A flag below, reconnects attach to the existing session so
+		// the CLI is not relaunched.
+		sessionCmd := []string{shell}
+		if def, ok := lookupAgentCLI(session.AgentCLI); ok {
+			sessionCmd = []string{shell, "-c", buildAgentLaunchScript(shell, def)}
+		}
 
 		if hasTmux {
 			// For split panes (ForceNewSession), always create new session (no -A flag)
@@ -1145,10 +1175,10 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 			var tmuxCmd []string
 			if session.ForceNewSession {
 				// Create new session, don't attach to existing
-				tmuxCmd = []string{"tmux", "new-session", "-s", tmuxSessionName, shell}
+				tmuxCmd = append([]string{"tmux", "new-session", "-s", tmuxSessionName}, sessionCmd...)
 			} else {
 				// Attach if session exists, create if not
-				tmuxCmd = []string{"tmux", "new-session", "-A", "-s", tmuxSessionName, shell}
+				tmuxCmd = append([]string{"tmux", "new-session", "-A", "-s", tmuxSessionName}, sessionCmd...)
 			}
 
 			log.Printf("[Terminal] Using tmux session '%s' for %s in %s", tmuxSessionName,
@@ -1173,12 +1203,16 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 		} else {
 			// Direct shell without tmux - tmux is optional, not default
 			log.Printf("[Terminal] Using direct shell (no tmux) for %s: %s", session.ContainerID[:12], shell)
+			directCmd := []string{shell, "-l"}
+			if def, ok := lookupAgentCLI(session.AgentCLI); ok {
+				directCmd = []string{shell, "-c", buildAgentLaunchScript(shell, def)}
+			}
 			execConfig = dockerclient.ExecCreateOptions{
 				AttachStdin:  true,
 				AttachStdout: true,
 				AttachStderr: true,
 				TTY:          true,
-				Cmd:          []string{shell, "-l"},
+				Cmd:          directCmd,
 				Env: []string{
 					"TERM=xterm-256color",
 					"COLORTERM=truecolor",

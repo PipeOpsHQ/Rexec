@@ -70,7 +70,7 @@ func AvailableRoles() []RoleInfo {
 			Name:        "Vibe Coder",
 			Description: "AI-powered coding: Copilot, Claude, aider, opencode & more.",
 			Icon:        "🤖",
-			Packages:    []string{"zsh", "git", "tmux", "python3", "python3-pip", "python3-venv", "nodejs", "npm", "curl", "wget", "htop", "vim", "neovim", "ripgrep", "fzf", "jq", "tgpt", "aichat", "mods", "aider", "opencode", "llm", "sgpt", "gh-copilot", "claude", "gemini", "zsh-autosuggestions", "zsh-syntax-highlighting"},
+			Packages:    []string{"zsh", "git", "tmux", "python3", "python3-pip", "python3-venv", "nodejs", "npm", "curl", "wget", "htop", "vim", "neovim", "ripgrep", "fzf", "jq", "tgpt", "aichat", "mods", "aider", "opencode", "codex", "amp", "llm", "sgpt", "gh-copilot", "claude", "gemini", "zsh-autosuggestions", "zsh-syntax-highlighting"},
 		},
 	}
 }
@@ -109,6 +109,8 @@ echo "[[REXEC_STATUS]]Setup complete."
 		"zsh-history-substring-search": true,
 		"aider":                        true,
 		"opencode":                     true,
+		"codex":                        true,
+		"amp":                          true,
 		"llm":                          true,
 		"sgpt":                         true,
 		"gh-copilot":                   true,
@@ -147,7 +149,7 @@ case "$1" in
         else
             export PATH="$HOME/.local/bin:/root/.local/bin:/usr/local/bin:$PATH"
             echo ""; echo "System:"; for cmd in zsh git curl wget vim nano htop jq tmux fzf ripgrep neofetch; do command -v $cmd >/dev/null 2>&1 && echo "  ✓ $cmd"; done
-            echo ""; echo "AI & Dev:"; for cmd in python3 node go rustc docker kubectl tgpt aichat mods gum aider opencode llm; do command -v $cmd >/dev/null 2>&1 && echo "  ✓ $cmd"; done
+            echo ""; echo "AI & Dev:"; for cmd in python3 node go rustc docker kubectl tgpt aichat mods gum aider opencode codex amp claude gemini llm; do command -v $cmd >/dev/null 2>&1 && echo "  ✓ $cmd"; done
             echo ""
         fi
         ;;
@@ -791,7 +793,7 @@ show_tools() {
             printf "\033[38;5;243m  (Installing AI tools...)\033[0m\n"
         fi
     fi
-    for cmd in python3 node go rustc docker kubectl tgpt aichat mods gum aider opencode llm; do
+    for cmd in python3 node go rustc docker kubectl tgpt aichat mods gum aider opencode codex amp claude gemini llm; do
         if command -v $cmd >/dev/null 2>&1; then printf "  ${GREEN}✓${NC} $cmd\n"; fi
     done
     echo ""
@@ -1166,6 +1168,42 @@ install_free_ai_tools() {
         fi
     else
         echo "    ! claude: npm not available"
+    fi
+
+    # Install Gemini CLI (requires npm)
+    echo "  Installing Gemini CLI..."
+    if command -v npm >/dev/null 2>&1; then
+        if command -v gemini >/dev/null 2>&1; then
+            echo "    ✓ gemini already installed"
+        else
+            npm install -g @google/gemini-cli 2>/dev/null && echo "    ✓ gemini installed" || echo "    ! gemini install failed"
+        fi
+    else
+        echo "    ! gemini: npm not available"
+    fi
+
+    # Install Codex CLI (requires npm)
+    echo "  Installing Codex CLI..."
+    if command -v npm >/dev/null 2>&1; then
+        if command -v codex >/dev/null 2>&1; then
+            echo "    ✓ codex already installed"
+        else
+            npm install -g @openai/codex 2>/dev/null && echo "    ✓ codex installed" || echo "    ! codex install failed"
+        fi
+    else
+        echo "    ! codex: npm not available"
+    fi
+
+    # Install Sourcegraph Amp CLI (requires npm)
+    echo "  Installing Amp CLI..."
+    if command -v npm >/dev/null 2>&1; then
+        if command -v amp >/dev/null 2>&1; then
+            echo "    ✓ amp already installed"
+        else
+            npm install -g @sourcegraph/amp 2>/dev/null && echo "    ✓ amp installed" || echo "    ! amp install failed"
+        fi
+    else
+        echo "    ! amp: npm not available"
     fi
 
     # Install aider (AI pair programming)
