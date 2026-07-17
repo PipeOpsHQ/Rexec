@@ -15,7 +15,7 @@ export default defineConfig({
     },
     outDir: "dist",
     emptyOutDir: true,
-    minify: "esbuild",
+    minify: "terser",
     rollupOptions: {
       output: {
         // Use named exports to avoid the default export warning
