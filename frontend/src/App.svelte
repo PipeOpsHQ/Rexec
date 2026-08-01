@@ -2448,10 +2448,39 @@
     }
 
     .view-loading {
-        padding: 24px 0;
+        min-height: 40vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 24px;
         text-align: center;
         color: var(--text-muted);
         font-size: 14px;
+    }
+
+    .view-loading-error {
+        max-width: 480px;
+        margin: 0;
+        font-size: 12px;
+        font-family: var(--font-mono);
+        color: var(--error, #f87171);
+        word-break: break-word;
+    }
+
+    .view-loading-retry {
+        padding: 8px 14px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: transparent;
+        color: var(--accent);
+        cursor: pointer;
+        font-size: 13px;
+    }
+
+    .view-loading-retry:hover {
+        border-color: var(--accent);
     }
 
     @media (max-width: 768px) {
