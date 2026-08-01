@@ -1767,6 +1767,20 @@
                         }}
                         on:showAgentDocs={goToAgentSettings}
                     />
+                {:else if lazyComponentErrors.dashboard}
+                    <div class="view-loading">
+                        <p>Failed to load console</p>
+                        <p class="view-loading-error">
+                            {lazyComponentErrors.dashboard}
+                        </p>
+                        <button
+                            type="button"
+                            class="view-loading-retry"
+                            onclick={() => retryComponent("dashboard")}
+                        >
+                            Retry
+                        </button>
+                    </div>
                 {:else}
                     <div class="view-loading">Loading...</div>
                 {/if}

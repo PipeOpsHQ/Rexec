@@ -5,6 +5,11 @@ import "./styles/global.css";
 import { registerSW } from "virtual:pwa-register";
 import { initInstallPrompt } from "./lib/stores/pwa";
 
+// Build stamp: bump forces a new hashed index bundle so CDN cache poisoning
+// of a previous /assets/index-*.js cannot keep the console blank.
+const REXEC_UI_BUILD = "2026-08-01-dashboard-fix";
+void REXEC_UI_BUILD;
+
 // Initialize PostHog analytics
 posthog.init("phc_bXCnSXoq52IpajVPLj2ddwOKhyOUhxmqw984yuc8XfR", {
   api_host: "https://eu.i.posthog.com",

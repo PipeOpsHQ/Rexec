@@ -50,6 +50,34 @@ func CORSMiddleware() gin.HandlerFunc {
 		origin := c.Request.Header.Get("Origin")
 		path := c.Request.URL.Path
 
+		// Static assets are same-origin module/script loads. Adding
+		// Access-Control-Allow-Origin + Vary: Origin splits CDN caches per Origin
+		// and previously poisoned Cloudflare with SPA HTML under the Origin key
+		// for /assets/index-*.js (breaking the whole console).
+		isStaticAsset := strings.HasPrefix(path, "/assets/") ||
+			strings.HasPrefix(path, "/embed/") ||
+			strings.HasSuffix(path, ".js") ||
+			strings.HasSuffix(path, ".css") ||
+			strings.HasSuffix(path, ".map") ||
+			strings.HasSuffix(path, ".woff2") ||
+			strings.HasSuffix(path, ".woff") ||
+			strings.HasSuffix(path, ".png") ||
+			strings.HasSuffix(path, ".svg") ||
+			strings.HasSuffix(path, ".ico") ||
+			strings.HasSuffix(path, ".webp")
+
+		if isStaticAsset {
+			// Still answer OPTIONS quickly if a browser preflights an asset.
+			if c.Request.Method == http.MethodOptions {
+				c.Header("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS")
+				c.Header("Access-Control-Allow-Headers", "Content-Type")
+				c.AbortWithStatus(http.StatusNoContent)
+				return
+			}
+			c.Next()
+			return
+		}
+
 		// Check if this is a WebSocket route or authenticated API request
 		// These allow any origin since security is handled by token validation
 		isWebSocketRoute := strings.HasPrefix(path, "/ws/")

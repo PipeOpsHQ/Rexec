@@ -12,6 +12,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	pathpkg "path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -572,7 +573,16 @@ func runServer() {
 	// Gzip compression for faster transfers (skip WebSocket)
 	router.Use(gzip.Gzip(gzip.DefaultCompression, gzip.WithExcludedPaths([]string{"/ws/", "/ws/admin/events"})))
 
-	// Cache control middleware for static assets and HTML pages
+	// Resolve web dir early for cache decisions (same default as static serving below).
+	webDirForCache := os.Getenv("WEB_DIR")
+	if webDirForCache == "" {
+		webDirForCache = "web"
+	}
+
+	// Cache control middleware for static assets and HTML pages.
+	// Hashed /assets/* only get immutable caching when the file exists on disk,
+	// so a missing file mid-deploy cannot be cached by Cloudflare as HTML with
+	// a year-long TTL (that previously blanked the entire SPA for Origin-keyed requests).
 	router.Use(func(c *gin.Context) {
 		path := c.Request.URL.Path
 		// Service worker - check order matters! Must be before generic .js check
@@ -580,8 +590,23 @@ func runServer() {
 			c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
 			c.Header("Service-Worker-Allowed", "/")
 		} else if strings.HasPrefix(path, "/assets/") {
-			// Long cache for hashed assets (immutable)
-			c.Header("Cache-Control", "public, max-age=31536000, immutable")
+			// Only immutable-cache real files. Missing assets get no-store 404.
+			// path.Clean collapses ".." so we never stat outside /assets/.
+			cleanPath := pathpkg.Clean(path)
+			rel := strings.TrimPrefix(cleanPath, "/assets/")
+			if rel == "" || rel == cleanPath || strings.HasPrefix(rel, "../") {
+				c.Header("Cache-Control", "no-store")
+			} else {
+				assetPath := filepath.Join(webDirForCache, "assets", filepath.FromSlash(rel))
+				assetsRoot := filepath.Join(webDirForCache, "assets")
+				if !strings.HasPrefix(assetPath, assetsRoot+string(os.PathSeparator)) && assetPath != assetsRoot {
+					c.Header("Cache-Control", "no-store")
+				} else if info, err := os.Stat(assetPath); err == nil && !info.IsDir() {
+					c.Header("Cache-Control", "public, max-age=31536000, immutable")
+				} else {
+					c.Header("Cache-Control", "no-store")
+				}
+			}
 		} else if strings.HasSuffix(path, ".js") || strings.HasSuffix(path, ".css") {
 			c.Header("Cache-Control", "public, max-age=86400")
 		} else if strings.HasSuffix(path, ".html") ||
@@ -591,6 +616,8 @@ func runServer() {
 			strings.HasPrefix(path, "/join/") ||
 			strings.HasPrefix(path, "/use-cases/") ||
 			strings.HasPrefix(path, "/account") ||
+			path == "/dashboard" ||
+			path == "/console" ||
 			path == "/pricing" ||
 			path == "/guides" ||
 			path == "/resources" ||
@@ -1484,6 +1511,21 @@ func runServer() {
 			// Don't mask API/WebSocket 404s with HTML; return JSON instead.
 			if strings.HasPrefix(path, "/api/") || strings.HasPrefix(path, "/ws/") {
 				c.JSON(404, gin.H{"error": "not found"})
+				return
+			}
+			// Never SPA-fallback static asset paths — browsers load these as
+			// module scripts (MIME text/javascript). Serving index.html here
+			// + long CDN cache breaks the entire console when a hash is missing
+			// mid-deploy or when Cloudflare keys cache on Origin.
+			if strings.HasPrefix(path, "/assets/") ||
+				strings.HasPrefix(path, "/embed/") ||
+				strings.HasSuffix(path, ".js") ||
+				strings.HasSuffix(path, ".css") ||
+				strings.HasSuffix(path, ".map") ||
+				strings.HasSuffix(path, ".woff2") ||
+				strings.HasSuffix(path, ".woff") {
+				c.Header("Cache-Control", "no-store")
+				c.Status(http.StatusNotFound)
 				return
 			}
 			c.File(indexFile)
