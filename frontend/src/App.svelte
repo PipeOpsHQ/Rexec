@@ -1776,7 +1776,7 @@
                         <button
                             type="button"
                             class="view-loading-retry"
-                            onclick={() => retryComponent("dashboard")}
+                            on:click={() => retryComponent("dashboard")}
                         >
                             Retry
                         </button>
@@ -1926,7 +1926,7 @@
                         <button
                             type="button"
                             class="view-loading-retry"
-                            onclick={() => retryComponent("sdkDocs")}
+                            on:click={() => retryComponent("sdkDocs")}
                         >
                             Retry
                         </button>
