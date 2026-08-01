@@ -168,6 +168,7 @@
     };
 
     let lazyComponents: Partial<Record<LazyComponentKey, any>> = {};
+    let lazyComponentErrors: Partial<Record<LazyComponentKey, string>> = {};
     const componentPromises = new Map<LazyComponentKey, Promise<any>>();
 
     async function ensureComponent(key: LazyComponentKey) {
@@ -178,12 +179,24 @@
         const promise = componentLoaders[key]()
             .then((mod) => {
                 const component = mod.default;
+                if (!component) {
+                    throw new Error(`Module for '${key}' has no default export`);
+                }
                 lazyComponents = { ...lazyComponents, [key]: component };
+                const { [key]: _removed, ...rest } = lazyComponentErrors;
+                lazyComponentErrors = rest;
                 componentPromises.delete(key);
                 return component;
             })
             .catch((err) => {
                 componentPromises.delete(key);
+                const message =
+                    err instanceof Error ? err.message : String(err);
+                lazyComponentErrors = {
+                    ...lazyComponentErrors,
+                    [key]: message,
+                };
+                console.error(`[App] Failed to load component '${key}':`, err);
                 throw err;
             });
 
@@ -192,9 +205,17 @@
     }
 
     function preloadComponent(key: LazyComponentKey) {
-        ensureComponent(key).catch((err) => {
-            console.error(`[App] Failed to load component '${key}':`, err);
+        ensureComponent(key).catch(() => {
+            /* error stored in lazyComponentErrors */
         });
+    }
+
+    function retryComponent(key: LazyComponentKey) {
+        const { [key]: _removed, ...rest } = lazyComponentErrors;
+        lazyComponentErrors = rest;
+        delete lazyComponents[key];
+        componentPromises.delete(key);
+        preloadComponent(key);
     }
 
     onDestroy(() => {
@@ -1882,8 +1903,22 @@
                             window.history.back();
                         }}
                     />
+                {:else if lazyComponentErrors.sdkDocs}
+                    <div class="view-loading">
+                        <p>Failed to load SDK docs.</p>
+                        <p class="view-loading-error">
+                            {lazyComponentErrors.sdkDocs}
+                        </p>
+                        <button
+                            type="button"
+                            class="view-loading-retry"
+                            onclick={() => retryComponent("sdkDocs")}
+                        >
+                            Retry
+                        </button>
+                    </div>
                 {:else}
-                    <div class="view-loading">Loading...</div>
+                    <div class="view-loading">Loading SDK docs…</div>
                 {/if}
             {:else if currentView === "docs"}
                 {#if lazyComponents.docs}

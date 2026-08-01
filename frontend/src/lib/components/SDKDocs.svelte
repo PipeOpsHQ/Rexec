@@ -16,9 +16,16 @@
 
     function handleBack() {
         if (onback) onback();
+        else if (typeof window !== "undefined") window.history.back();
     }
 
-    const sdks = [
+    const sdks: {
+        id: string;
+        name: string;
+        install: string;
+        registry: string;
+        github: string;
+    }[] = [
         {
             id: "javascript",
             name: "JavaScript / TypeScript",
@@ -63,7 +70,6 @@
         },
     ];
 
-    // Examples match live API: image aliases (ubuntu), list/create/get/delete.
     const codeExamples: Record<string, string> = {
         javascript: `import { RexecClient } from 'pipeops-rexec';
 
@@ -72,23 +78,14 @@ const client = new RexecClient({
   token: process.env.REXEC_TOKEN,
 });
 
-// List sandboxes
 const list = await client.containers.list();
-
-// Create (use image aliases: ubuntu, debian, alpine, …)
 const container = await client.containers.create({
   image: 'ubuntu',
   name: 'demo',
 });
 console.log(container.id, container.status);
-
 await client.containers.get(container.id);
-await client.containers.delete(container.id);
-
-// Terminal over WebSocket
-// const term = await client.terminal.connect(container.id);
-// term.onData((d) => console.log(d));
-// term.write('echo hello\\n');`,
+await client.containers.delete(container.id);`,
         python: `import asyncio, os
 from rexec import RexecClient
 
@@ -113,10 +110,8 @@ import (
 func main() {
     client := rexec.NewClient(os.Getenv("REXEC_URL"), os.Getenv("REXEC_TOKEN"))
     ctx := context.Background()
-
     list, _ := client.Containers.List(ctx)
     fmt.Println(len(list))
-
     c, err := client.Containers.Create(ctx, &rexec.CreateContainerRequest{
         Image: "ubuntu",
         Name:  "demo",
@@ -147,7 +142,6 @@ async fn main() -> Result<(), rexec::Error> {
 
 client = Rexec::Client.new(ENV['REXEC_URL'], ENV['REXEC_TOKEN'])
 puts client.containers.list.length
-
 c = client.containers.create(image: 'ubuntu', name: 'demo')
 puts "#{c.id} #{c.status}"
 client.containers.get(c.id)
@@ -166,142 +160,245 @@ Console.WriteLine($"{c?.Id} {c?.Status}");
 await client.Containers.GetAsync(c!.Id);
 await client.Containers.DeleteAsync(c.Id);`,
     };
+
+    $: activeSdk = sdks.find((s) => s.id === activeTab) ?? sdks[0];
+    $: activeCode = codeExamples[activeTab] ?? "";
 </script>
 
-<div class="sdk-docs">
-    <header class="docs-header">
-        <button class="back-btn" on:click={handleBack} type="button">
-            <StatusIcon status="arrow-left" size={16} />
-            Back
-        </button>
-        <div>
-            <h1>SDKs</h1>
-            <p class="lead">
-                Official clients for the Rexec API — verified end-to-end
-                (<code>list → create → get → delete</code>). Latest:
-                <strong>v1.0.1</strong>.
+<div class="docs-page">
+    <button class="back-btn" type="button" onclick={handleBack}>
+        <span class="back-icon">←</span>
+        <span>Back</span>
+    </button>
+
+    <div class="docs-content">
+        <header class="docs-header">
+            <div class="header-icon">
+                <StatusIcon status="code" size={48} />
+            </div>
+            <h1>Rexec SDKs</h1>
+            <p class="subtitle">
+                Official clients for the Rexec API (v1.0.1) — list, create, get,
+                and delete sandboxes from your code
             </p>
-        </div>
-    </header>
+        </header>
 
-    <section class="callout">
-        <h2>Quick notes</h2>
-        <ul>
-            <li>
-                Use <strong>image aliases</strong> such as <code>ubuntu</code>,
+        <section class="docs-section">
+            <h2>Install</h2>
+            <p>
+                Use image aliases such as <code>ubuntu</code>,
                 <code>debian</code>, or <code>alpine</code> (not
-                <code>ubuntu:24.04</code> on hosted Rexec).
-            </li>
-            <li>
-                Set <code>REXEC_URL</code> and <code>REXEC_TOKEN</code> (API token
-                from Settings, or guest login).
-            </li>
-            <li>
-                Full reference:
-                <a href="https://github.com/PipeOpsHQ/rexec/blob/main/docs/SDK.md" target="_blank" rel="noreferrer">docs/SDK.md</a>
-            </li>
-        </ul>
-    </section>
+                <code>ubuntu:24.04</code> on hosted Rexec). Set
+                <code>REXEC_URL</code> and <code>REXEC_TOKEN</code>.
+            </p>
 
-    <section class="sdk-grid">
-        {#each sdks as sdk}
-            <article class="sdk-card" class:active={activeTab === sdk.id}>
-                <button type="button" class="sdk-tab" on:click={() => (activeTab = sdk.id)}>
-                    <h3>{sdk.name}</h3>
-                    <code class="install">{sdk.install}</code>
-                </button>
-                <div class="card-actions">
-                    <button
-                        type="button"
-                        class="copy"
-                        on:click={() => copyToClipboard(sdk.install, sdk.id)}
+            <div class="sdk-list">
+                {#each sdks as sdk (sdk.id)}
+                    <div
+                        class="sdk-row"
+                        class:active={activeTab === sdk.id}
                     >
-                        {copiedCommand === sdk.id ? "Copied" : "Copy install"}
-                    </button>
-                    <a href={sdk.registry} target="_blank" rel="noreferrer">Registry</a>
-                    <a href={sdk.github} target="_blank" rel="noreferrer">Source</a>
-                </div>
-            </article>
-        {/each}
-    </section>
+                        <button
+                            type="button"
+                            class="sdk-select"
+                            onclick={() => (activeTab = sdk.id)}
+                        >
+                            <strong>{sdk.name}</strong>
+                            <code>{sdk.install}</code>
+                        </button>
+                        <div class="sdk-actions">
+                            <button
+                                type="button"
+                                class="copy-btn"
+                                onclick={() =>
+                                    copyToClipboard(sdk.install, sdk.id)}
+                            >
+                                {copiedCommand === sdk.id ? "Copied" : "Copy"}
+                            </button>
+                            <a
+                                href={sdk.registry}
+                                target="_blank"
+                                rel="noreferrer">Registry</a
+                            >
+                            <a
+                                href={sdk.github}
+                                target="_blank"
+                                rel="noreferrer">Source</a
+                            >
+                        </div>
+                    </div>
+                {/each}
+            </div>
+        </section>
 
-    <section class="example">
-        <div class="example-header">
-            <h2>{sdks.find((s) => s.id === activeTab)?.name} example</h2>
-            <button
-                type="button"
-                class="copy"
-                on:click={() => copyToClipboard(codeExamples[activeTab], "code")}
-            >
-                {copiedCommand === "code" ? "Copied" : "Copy code"}
-            </button>
-        </div>
-        <pre><code>{codeExamples[activeTab]}</code></pre>
-    </section>
+        <section class="docs-section">
+            <div class="section-head">
+                <h2>{activeSdk.name} example</h2>
+                <button
+                    type="button"
+                    class="copy-btn"
+                    onclick={() => copyToClipboard(activeCode, "code")}
+                >
+                    {copiedCommand === "code" ? "Copied" : "Copy code"}
+                </button>
+            </div>
+            <div class="code-block">
+                <pre><code>{activeCode}</code></pre>
+            </div>
+        </section>
+
+        <section class="docs-section">
+            <h2>References</h2>
+            <ul class="ref-list">
+                <li>
+                    <a
+                        href="https://github.com/PipeOpsHQ/rexec/blob/main/docs/SDK.md"
+                        target="_blank"
+                        rel="noreferrer">Full SDK reference (docs/SDK.md)</a
+                    >
+                </li>
+                <li>
+                    <a
+                        href="https://github.com/PipeOpsHQ/rexec/blob/main/docs/SDK_GETTING_STARTED.md"
+                        target="_blank"
+                        rel="noreferrer">Getting started</a
+                    >
+                </li>
+                <li>
+                    <a
+                        href="https://github.com/PipeOpsHQ/rexec/tree/main/scripts/sdk-e2e"
+                        target="_blank"
+                        rel="noreferrer">E2E smoke tests</a
+                    >
+                </li>
+            </ul>
+        </section>
+    </div>
 </div>
 
 <style>
-    .sdk-docs {
-        max-width: 960px;
-        margin: 0 auto;
-        padding: 1.5rem;
-        color: var(--text, #e2e8f0);
+    .docs-page {
+        min-height: 100vh;
+        background: var(--bg);
+        padding: 24px;
+        overflow-y: auto;
     }
-    .docs-header {
-        display: flex;
-        flex-direction: column;
-        gap: 0.75rem;
-        margin-bottom: 1.5rem;
-    }
+
     .back-btn {
-        align-self: flex-start;
         display: inline-flex;
         align-items: center;
-        gap: 0.35rem;
+        gap: 8px;
+        padding: 8px 14px;
         background: transparent;
-        border: 1px solid rgba(148, 163, 184, 0.3);
-        color: inherit;
-        border-radius: 0.5rem;
-        padding: 0.35rem 0.75rem;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text-muted);
+        font-size: 13px;
+        font-family: var(--font-mono);
         cursor: pointer;
+        transition: all 0.15s ease;
+        margin-bottom: 24px;
     }
-    h1 {
-        font-size: 1.75rem;
+
+    .back-btn:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+    }
+
+    .back-icon {
+        font-size: 16px;
+    }
+
+    .docs-content {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .docs-header {
+        text-align: center;
+        margin-bottom: 48px;
+        padding-bottom: 32px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .header-icon {
+        margin-bottom: 16px;
+    }
+
+    .header-icon :global(svg) {
+        color: var(--accent);
+    }
+
+    .docs-header h1 {
+        font-size: 36px;
+        margin: 0 0 12px 0;
+        background: linear-gradient(135deg, var(--accent), #00d4ff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .subtitle {
+        font-size: 16px;
+        color: var(--text-muted);
         margin: 0;
+        line-height: 1.5;
     }
-    .lead {
-        color: rgba(226, 232, 240, 0.75);
-        margin: 0.35rem 0 0;
+
+    .docs-section {
+        margin-bottom: 48px;
     }
-    .callout {
-        background: rgba(15, 23, 42, 0.6);
-        border: 1px solid rgba(148, 163, 184, 0.2);
-        border-radius: 0.75rem;
-        padding: 1rem 1.25rem;
-        margin-bottom: 1.5rem;
+
+    .docs-section h2 {
+        font-size: 20px;
+        margin: 0 0 16px 0;
+        color: var(--text);
+        text-transform: uppercase;
+        letter-spacing: 1px;
     }
-    .callout ul {
-        margin: 0.5rem 0 0;
-        padding-left: 1.2rem;
+
+    .docs-section p {
+        font-size: 14px;
+        color: var(--text-muted);
+        line-height: 1.7;
+        margin: 0 0 16px 0;
     }
-    .sdk-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-        gap: 0.75rem;
-        margin-bottom: 1.5rem;
+
+    .docs-section code {
+        font-family: var(--font-mono);
+        font-size: 12px;
+        color: var(--accent);
+        background: var(--bg-secondary);
+        padding: 2px 6px;
+        border-radius: 4px;
     }
-    .sdk-card {
-        border: 1px solid rgba(148, 163, 184, 0.2);
-        border-radius: 0.75rem;
-        padding: 0.75rem;
-        background: rgba(15, 23, 42, 0.45);
+
+    .sdk-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
     }
-    .sdk-card.active {
-        border-color: #22d3ee;
-        box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.35);
+
+    .sdk-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
     }
-    .sdk-tab {
-        width: 100%;
+
+    .sdk-row.active {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 1px rgba(var(--accent-rgb, 0, 212, 255), 0.25);
+    }
+
+    .sdk-select {
+        flex: 1;
+        min-width: 220px;
         text-align: left;
         background: transparent;
         border: 0;
@@ -309,60 +406,101 @@ await client.Containers.DeleteAsync(c.Id);`,
         cursor: pointer;
         padding: 0;
     }
-    .sdk-tab h3 {
-        margin: 0 0 0.35rem;
-        font-size: 1rem;
-    }
-    .install {
+
+    .sdk-select strong {
         display: block;
-        font-size: 0.75rem;
-        color: #67e8f9;
-        word-break: break-all;
+        font-size: 14px;
+        color: var(--text);
+        margin-bottom: 4px;
     }
-    .card-actions {
+
+    .sdk-select code {
+        display: block;
+        font-size: 12px;
+        color: var(--accent);
+        word-break: break-all;
+        background: transparent;
+        padding: 0;
+    }
+
+    .sdk-actions {
         display: flex;
         flex-wrap: wrap;
-        gap: 0.5rem;
-        margin-top: 0.65rem;
-        font-size: 0.8rem;
-    }
-    .card-actions a {
-        color: #93c5fd;
-    }
-    .copy {
-        background: rgba(34, 211, 238, 0.12);
-        border: 1px solid rgba(34, 211, 238, 0.35);
-        color: #a5f3fc;
-        border-radius: 0.4rem;
-        padding: 0.25rem 0.55rem;
-        cursor: pointer;
-        font-size: 0.8rem;
-    }
-    .example {
-        border: 1px solid rgba(148, 163, 184, 0.2);
-        border-radius: 0.75rem;
-        overflow: hidden;
-    }
-    .example-header {
-        display: flex;
-        justify-content: space-between;
         align-items: center;
-        padding: 0.75rem 1rem;
-        background: rgba(15, 23, 42, 0.8);
+        gap: 10px;
+        font-size: 12px;
     }
-    .example-header h2 {
-        margin: 0;
-        font-size: 1rem;
+
+    .sdk-actions a {
+        color: var(--accent);
+        text-decoration: none;
     }
-    pre {
+
+    .sdk-actions a:hover {
+        text-decoration: underline;
+    }
+
+    .copy-btn {
+        padding: 6px 10px;
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text-muted);
+        font-size: 12px;
+        font-family: var(--font-mono);
+        cursor: pointer;
+    }
+
+    .copy-btn:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+    }
+
+    .section-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .section-head h2 {
         margin: 0;
-        padding: 1rem;
+    }
+
+    .code-block {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
         overflow: auto;
-        background: #0b1220;
-        font-size: 0.8rem;
-        line-height: 1.45;
     }
-    code {
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+    .code-block pre {
+        margin: 0;
+        padding: 16px;
+        font-size: 12px;
+        line-height: 1.55;
+        color: var(--text);
+        font-family: var(--font-mono);
+        white-space: pre;
+    }
+
+    .code-block code {
+        background: transparent;
+        padding: 0;
+        color: inherit;
+        font-size: inherit;
+    }
+
+    .ref-list {
+        margin: 0;
+        padding-left: 1.25rem;
+        color: var(--text-muted);
+        font-size: 14px;
+        line-height: 1.8;
+    }
+
+    .ref-list a {
+        color: var(--accent);
     }
 </style>
