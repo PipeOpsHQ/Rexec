@@ -979,6 +979,10 @@ func runServer() {
 			Title:       "Embeddable Terminal Widget | Rexec",
 			Description: "Add a cloud terminal to any website with a single script tag. Like Google Cloud Shell for your docs and tutorials.",
 		}
+		sdkDocsSEO := seoConfig{
+			Title:       "SDKs | Rexec - pipeops-rexec for JS, Python, Go, Rust, Ruby, .NET",
+			Description: "Official Rexec client libraries. Install pipeops-rexec from npm, PyPI, crates.io, RubyGems, NuGet, or go get github.com/PipeOpsHQ/rexec-go. Create sandboxes, manage files, and stream terminals via API.",
+		}
 		guidesSEO := seoConfig{
 			Title:        "Rexec Product Guide - Instant Terminal Architecture",
 			Description:  "Learn how Rexec delivers instant access to Linux terminals while silently provisioning complex environments in the background.",
@@ -1320,7 +1324,7 @@ func runServer() {
 		})
 
 		router.GET("/sdk", func(c *gin.Context) {
-			c.File(indexFile)
+			serveSEO(c, sdkDocsSEO)
 		})
 
 		router.GET("/pricing", func(c *gin.Context) {
@@ -1414,6 +1418,10 @@ func runServer() {
 
 		router.GET("/docs/embed", func(c *gin.Context) {
 			serveSEO(c, embedDocsSEO)
+		})
+
+		router.GET("/docs/sdk", func(c *gin.Context) {
+			serveSEO(c, sdkDocsSEO)
 		})
 
 		// Account routes

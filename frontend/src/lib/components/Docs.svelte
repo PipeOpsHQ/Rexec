@@ -333,7 +333,7 @@
                     <div class="sdk-icon"><StatusIcon status="code" size={20} /></div>
                     <div class="sdk-info">
                         <h4>Go</h4>
-                        <code>go get github.com/PipeOpsHQ/rexec-go</code>
+                        <code>go get github.com/PipeOpsHQ/rexec-go@v1.0.1</code>
                     </div>
                 </a>
                 <a href="/docs/sdk" class="sdk-card">
@@ -1004,7 +1004,7 @@
                         We provide official SDKs for <strong>8 programming languages</strong>:
                     </p>
                     <ul>
-                        <li><strong>Go</strong> — <code>go get github.com/PipeOpsHQ/rexec-go</code></li>
+                        <li><strong>Go</strong> — <code>go get github.com/PipeOpsHQ/rexec-go@v1.0.1</code></li>
                         <li><strong>JavaScript/TypeScript</strong> — <code>npm install pipeops-rexec</code></li>
                         <li><strong>Python</strong> — <code>pip install pipeops-rexec</code></li>
                         <li><strong>Rust</strong> — <code>cargo add pipeops-rexec</code></li>

@@ -171,7 +171,7 @@ await client.Containers.DeleteAsync(c.Id);`,
 <div class="sdk-docs">
     <header class="docs-header">
         <button class="back-btn" on:click={handleBack} type="button">
-            <StatusIcon name="arrow-left" size={16} />
+            <StatusIcon status="arrow-left" size={16} />
             Back
         </button>
         <div>
