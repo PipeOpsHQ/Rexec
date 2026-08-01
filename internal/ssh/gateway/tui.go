@@ -6,12 +6,12 @@ import (
 	"io"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/list"
-	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/list"
+	"charm.land/bubbles/v2/spinner"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // Ensure Terminal, Agent, Snippet implement list.Item
@@ -202,9 +202,9 @@ func NewModel(cfg ModelConfig) Model {
 	// Link input
 	linkInput := textinput.New()
 	linkInput.Placeholder = "Enter your email or API token"
-	linkInput.Focus()
+	_ = linkInput.Focus()
 	linkInput.CharLimit = 256
-	linkInput.Width = 40
+	linkInput.SetWidth(40)
 
 	// Menu items depend on guest status
 	var menuItems []string
@@ -459,7 +459,7 @@ func (m Model) handleDashboardKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "l", "L":
 		if m.config.IsGuest {
 			m.view = ViewLinkAccount
-			m.linkInput.Focus()
+			_ = m.linkInput.Focus()
 		}
 	}
 	return m, nil
@@ -476,7 +476,7 @@ func (m Model) selectMenuItem() (tea.Model, tea.Cmd) {
 			return m, nil
 		case 2: // Link Account
 			m.view = ViewLinkAccount
-			m.linkInput.Focus()
+			_ = m.linkInput.Focus()
 			return m, nil
 		case 3: // Sign Up
 			// TODO: Show sign up info
@@ -612,10 +612,10 @@ func (m Model) handleLinkAccountKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 // View implements tea.Model
-func (m Model) View() string {
+func (m Model) View() tea.View {
 	// Terminal view is special - don't render TUI chrome
 	if m.view == ViewTerminal {
-		return "" // Terminal bridge takes over the session directly
+		return tea.NewView("") // Terminal bridge takes over the session directly
 	}
 
 	var b strings.Builder
@@ -650,7 +650,10 @@ func (m Model) View() string {
 	b.WriteString("\n")
 	b.WriteString(m.renderHelp())
 
-	return b.String()
+	view := tea.NewView(b.String())
+	view.AltScreen = true
+	view.MouseMode = tea.MouseModeCellMotion
+	return view
 }
 
 func (m Model) renderConnecting() string {

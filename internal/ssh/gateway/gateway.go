@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/ssh"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/ssh"
 	"charm.land/wish/v2"
 	gossh "golang.org/x/crypto/ssh"
 )
@@ -258,9 +258,8 @@ func (g *Gateway) TeaHandler(sess ssh.Session) (tea.Model, []tea.ProgramOption) 
 		}
 	}()
 
+	// Alt-screen and mouse modes are set on tea.View in Model.View() (Bubble Tea v2).
 	return model, []tea.ProgramOption{
-		tea.WithAltScreen(),
-		tea.WithMouseCellMotion(),
 		tea.WithInput(sess),
 		tea.WithOutput(sess),
 	}

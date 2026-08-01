@@ -17,9 +17,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/ssh"
-	"github.com/charmbracelet/wish"
-	"github.com/charmbracelet/wish/bubbletea"
+	"charm.land/ssh"
+	"charm.land/wish/v2"
+	"charm.land/wish/v2/bubbletea"
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"

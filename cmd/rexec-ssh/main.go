@@ -12,9 +12,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/charmbracelet/ssh"
-	"github.com/charmbracelet/wish"
-	"github.com/charmbracelet/wish/bubbletea"
+	"charm.land/ssh"
+	"charm.land/wish/v2"
+	"charm.land/wish/v2/bubbletea"
 	"github.com/rexec/rexec/internal/ssh/gateway"
 )
 

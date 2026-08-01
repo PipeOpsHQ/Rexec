@@ -45,7 +45,7 @@ impl Terminal {
         }
 
         let mut ws = self.ws.lock().await;
-        ws.send(Message::Binary(data.to_vec())).await?;
+        ws.send(Message::Binary(data.to_vec().into())).await?;
         Ok(())
     }
 
@@ -71,8 +71,8 @@ impl Terminal {
             drop(ws);
 
             match next {
-                Some(Ok(Message::Binary(data))) => return Ok(Some(data)),
-                Some(Ok(Message::Text(text))) => return Ok(Some(text.into_bytes())),
+                Some(Ok(Message::Binary(data))) => return Ok(Some(data.to_vec())),
+                Some(Ok(Message::Text(text))) => return Ok(Some(text.as_bytes().to_vec())),
                 Some(Ok(Message::Close(_))) => {
                     self.closed = true;
                     return Ok(None);
@@ -105,7 +105,7 @@ impl Terminal {
         let json = serde_json::to_string(&msg)?;
 
         let mut ws = self.ws.lock().await;
-        ws.send(Message::Text(json)).await?;
+        ws.send(Message::Text(json.into())).await?;
         Ok(())
     }
 
