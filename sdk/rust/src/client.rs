@@ -51,7 +51,7 @@ impl ClientInner {
         method: reqwest::Method,
         path: &str,
     ) -> Result<T> {
-        let response = self.raw_request(method, path, None::<()>).await?;
+        let response = self.raw_request::<()>(method, path, None).await?;
         self.handle_response(response).await
     }
 
@@ -76,7 +76,7 @@ impl ClientInner {
         method: reqwest::Method,
         path: &str,
     ) -> Result<()> {
-        let response = self.raw_request(method, path, None::<()>).await?;
+        let response = self.raw_request::<()>(method, path, None).await?;
         if response.status().is_success() {
             Ok(())
         } else {
@@ -92,8 +92,9 @@ impl ClientInner {
         body: Option<&B>,
     ) -> Result<Response> {
         let url = format!("{}{}", self.base_url, path);
-        
-        let mut builder = self.http
+
+        let mut builder = self
+            .http
             .request(method, &url)
             .header("Authorization", format!("Bearer {}", self.token))
             .header("Accept", "application/json");

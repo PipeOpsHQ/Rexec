@@ -1,0 +1,67 @@
+name: Sync Go SDK
+
+# Keep github.com/PipeOpsHQ/rexec-go in sync with sdk/go in this monorepo.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'sdk/go/**'
+      - '.github/workflows/sync-go-sdk.yml'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Optional semver tag to create on rexec-go (e.g. 1.0.1). Leave empty to only sync main.'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare publish directory
+        run: |
+          mkdir -p /tmp/rexec-go
+          cp sdk/go/go.mod sdk/go/go.sum sdk/go/rexec.go sdk/go/README.md /tmp/rexec-go/
+          if [ -f LICENSE ]; then cp LICENSE /tmp/rexec-go/; fi
+          if [ -f sdk/go/LICENSE ]; then cp sdk/go/LICENSE /tmp/rexec-go/; fi
+
+      - name: Push to PipeOpsHQ/rexec-go
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+
+          # Prefer a PAT with cross-repo write if provided; fall back to GITHUB_TOKEN
+          # (GITHUB_TOKEN cannot push to other repos unless a PAT secret is set).
+          TOKEN="${{ secrets.GO_SDK_PUSH_TOKEN || secrets.GITHUB_TOKEN }}"
+
+          git clone "https://x-access-token:${TOKEN}@github.com/PipeOpsHQ/rexec-go.git" /tmp/rexec-go-repo
+          rsync -a --delete --exclude .git /tmp/rexec-go/ /tmp/rexec-go-repo/
+          cd /tmp/rexec-go-repo
+
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "No changes to sync"
+          else
+            git add -A
+            git commit -m "chore: sync from PipeOpsHQ/rexec@${GITHUB_SHA}"
+            git push origin HEAD:main
+          fi
+
+          VERSION="${{ github.event.inputs.version }}"
+          if [ -n "${VERSION}" ]; then
+            VERSION="${VERSION#v}"
+            git tag -a "v${VERSION}" -m "Release v${VERSION}"
+            git push origin "v${VERSION}"
+            gh release create "v${VERSION}" \
+              --repo PipeOpsHQ/rexec-go \
+              --title "v${VERSION}" \
+              --notes "Synced from monorepo. Install: \`go get github.com/PipeOpsHQ/rexec-go@v${VERSION}\`" \
+              || true
+          fi

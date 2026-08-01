@@ -354,14 +354,14 @@
                     <div class="sdk-icon"><StatusIcon status="code" size={20} /></div>
                     <div class="sdk-info">
                         <h4>Rust</h4>
-                        <code>cargo add rexec</code>
+                        <code>cargo add pipeops-rexec</code>
                     </div>
                 </a>
                 <a href="/docs/sdk" class="sdk-card">
                     <div class="sdk-icon"><StatusIcon status="code" size={20} /></div>
                     <div class="sdk-info">
                         <h4>Ruby</h4>
-                        <code>gem install rexec</code>
+                        <code>gem install pipeops-rexec</code>
                     </div>
                 </a>
                 <a href="/docs/sdk" class="sdk-card">
@@ -375,7 +375,7 @@
                     <div class="sdk-icon"><StatusIcon status="code" size={20} /></div>
                     <div class="sdk-info">
                         <h4>C# / .NET</h4>
-                        <code>dotnet add package Rexec</code>
+                        <code>dotnet add package PipeOps.Rexec</code>
                     </div>
                 </a>
                 <a href="/docs/sdk" class="sdk-card">
@@ -1007,10 +1007,10 @@
                         <li><strong>Go</strong> — <code>go get github.com/PipeOpsHQ/rexec-go</code></li>
                         <li><strong>JavaScript/TypeScript</strong> — <code>npm install @pipeopshq/rexec</code></li>
                         <li><strong>Python</strong> — <code>pip install rexec</code></li>
-                        <li><strong>Rust</strong> — <code>cargo add rexec</code></li>
-                        <li><strong>Ruby</strong> — <code>gem install rexec</code></li>
+                        <li><strong>Rust</strong> — <code>cargo add pipeops-rexec</code></li>
+                        <li><strong>Ruby</strong> — <code>gem install pipeops-rexec</code></li>
                         <li><strong>Java</strong> — Maven: <code>io.pipeops:rexec</code></li>
-                        <li><strong>C#/.NET</strong> — <code>dotnet add package Rexec</code></li>
+                        <li><strong>C#/.NET</strong> — <code>dotnet add package PipeOps.Rexec</code></li>
                         <li><strong>PHP</strong> — <code>composer require pipeopshq/rexec</code></li>
                     </ul>
                     <p>

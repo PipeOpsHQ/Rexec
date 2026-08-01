@@ -7,13 +7,13 @@ Official Ruby SDK for [Rexec](https://github.com/PipeOpsHQ/rexec) - Terminal as 
 Add to your Gemfile:
 
 ```ruby
-gem 'rexec'
+gem 'pipeops-rexec'
 ```
 
 Or install directly:
 
 ```bash
-gem install rexec
+gem install pipeops-rexec
 ```
 
 ## Quick Start

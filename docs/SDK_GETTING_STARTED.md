@@ -29,10 +29,10 @@ export REXEC_TOKEN="your-api-token"
 | Go | `go get github.com/PipeOpsHQ/rexec-go` |
 | JavaScript/TypeScript | `npm install @pipeopshq/rexec` |
 | Python | `pip install rexec` |
-| Rust | `cargo add rexec` |
-| Ruby | `gem install rexec` |
+| Rust | `cargo add pipeops-rexec` |
+| Ruby | `gem install pipeops-rexec` |
 | Java | Add Maven dependency (see below) |
-| C#/.NET | `dotnet add package Rexec` |
+| C#/.NET | `dotnet add package PipeOps.Rexec` |
 | PHP | `composer require pipeopshq/rexec` |
 
 ## Step 1: Create a Client

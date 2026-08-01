@@ -180,7 +180,7 @@ jobs:
       - name: Dry run - would publish
         if: ${{ github.event.inputs.dry_run == 'true' }}
         run: |
-          echo "DRY RUN: Would publish rexec@${{ needs.setup.outputs.version }} to crates.io"
+          echo "DRY RUN: Would publish pipeops-rexec@${{ needs.setup.outputs.version }} to crates.io"
           cargo package --list --allow-dirty
 
   # Ruby SDK -> RubyGems
@@ -212,12 +212,12 @@ jobs:
           mkdir -p ~/.gem
           echo -e "---\n:rubygems_api_key: ${{ secrets.RUBYGEMS_API_KEY }}" > ~/.gem/credentials
           chmod 0600 ~/.gem/credentials
-          gem push rexec-${{ needs.setup.outputs.version }}.gem
+          gem push pipeops-rexec-${{ needs.setup.outputs.version }}.gem
 
       - name: Dry run - would publish
         if: ${{ github.event.inputs.dry_run == 'true' }}
         run: |
-          echo "DRY RUN: Would publish rexec-${{ needs.setup.outputs.version }}.gem to RubyGems"
+          echo "DRY RUN: Would publish pipeops-rexec-${{ needs.setup.outputs.version }}.gem to RubyGems"
           ls -la *.gem
 
   # Java SDK -> Maven Central (via Sonatype OSSRH)
@@ -299,7 +299,7 @@ jobs:
       - name: Dry run - would publish
         if: ${{ github.event.inputs.dry_run == 'true' }}
         run: |
-          echo "DRY RUN: Would publish Rexec.${{ needs.setup.outputs.version }}.nupkg to NuGet"
+          echo "DRY RUN: Would publish PipeOps.Rexec.${{ needs.setup.outputs.version }}.nupkg to NuGet"
           ls -la ./nupkg/
 
   # PHP SDK -> Packagist (via GitHub webhook - just tag)

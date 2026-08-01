@@ -71,3 +71,16 @@ AGENTS.md
 
 # Promo video (Remotion project)
 promo-video/
+
+# SDK build artifacts
+sdk/**/target/
+sdk/**/bin/
+sdk/**/obj/
+sdk/**/dist/
+sdk/**/*.egg-info/
+sdk/**/.pytest_cache/
+sdk/python/dist/
+sdk/ruby/*.gem
+sdk/js/dist/
+sdk/dotnet/nupkg/
+sdk/java/target/

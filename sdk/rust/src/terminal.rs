@@ -3,7 +3,14 @@
 use futures_util::{SinkExt, StreamExt};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tokio_tungstenite::{connect_async, tungstenite::Message};
+use tokio_tungstenite::{
+    connect_async,
+    tungstenite::{
+        client::IntoClientRequest,
+        http::{header, HeaderValue},
+        Message,
+    },
+};
 
 use crate::client::ClientInner;
 use crate::error::{Error, Result};
@@ -57,31 +64,13 @@ impl Terminal {
             return Err(Error::TerminalClosed);
         }
 
-        let mut ws = self.ws.lock().await;
-        
-        match ws.next().await {
-            Some(Ok(Message::Binary(data))) => Ok(Some(data)),
-            Some(Ok(Message::Text(text))) => Ok(Some(text.into_bytes())),
-            Some(Ok(Message::Close(_))) => {
-                self.closed = true;
-                Ok(None)
-            }
-            Some(Ok(_)) => self.read_inner(&mut ws).await,
-            Some(Err(e)) => {
-                self.closed = true;
-                Err(e.into())
-            }
-            None => {
-                self.closed = true;
-                Ok(None)
-            }
-        }
-    }
-
-    async fn read_inner(&mut self, ws: &mut WsStream) -> Result<Option<Vec<u8>>> {
-        // Skip ping/pong messages
+        // Skip control frames (ping/pong) until we get payload or close.
         loop {
-            match ws.next().await {
+            let mut ws = self.ws.lock().await;
+            let next = ws.next().await;
+            drop(ws);
+
+            match next {
                 Some(Ok(Message::Binary(data))) => return Ok(Some(data)),
                 Some(Ok(Message::Text(text))) => return Ok(Some(text.into_bytes())),
                 Some(Ok(Message::Close(_))) => {
@@ -187,16 +176,14 @@ impl TerminalService {
     ) -> Result<Terminal> {
         let ws_url = self.client.ws_url(&format!("/ws/terminal/{}", container_id))?;
 
-        let request = http::Request::builder()
-            .uri(&ws_url)
-            .header("Authorization", format!("Bearer {}", self.client.token))
-            .header("Host", url::Url::parse(&self.client.base_url)?.host_str().unwrap_or(""))
-            .header("Connection", "Upgrade")
-            .header("Upgrade", "websocket")
-            .header("Sec-WebSocket-Version", "13")
-            .header("Sec-WebSocket-Key", tokio_tungstenite::tungstenite::handshake::client::generate_key())
-            .body(())
+        let mut request = ws_url
+            .into_client_request()
             .map_err(|e| Error::connection(e.to_string()))?;
+        request.headers_mut().insert(
+            header::AUTHORIZATION,
+            HeaderValue::from_str(&format!("Bearer {}", self.client.token))
+                .map_err(|e| Error::connection(e.to_string()))?,
+        );
 
         let (ws, _) = connect_async(request)
             .await

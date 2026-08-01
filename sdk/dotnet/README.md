@@ -11,13 +11,13 @@ Official .NET SDK for [Rexec](https://github.com/PipeOpsHQ/rexec) - Terminal as 
 ### NuGet
 
 ```bash
-dotnet add package Rexec
+dotnet add package PipeOps.Rexec
 ```
 
 ### Package Manager
 
 ```powershell
-Install-Package Rexec
+Install-Package PipeOps.Rexec
 ```
 
 ## Quick Start

@@ -1,15 +1,19 @@
 [package]
-name = "rexec"
+name = "pipeops-rexec"
 version = "1.0.0"
 edition = "2021"
 authors = ["PipeOpsHQ <support@pipeops.io>"]
 description = "Official Rust SDK for Rexec - Terminal as a Service"
 license = "MIT"
 repository = "https://github.com/PipeOpsHQ/rexec"
-documentation = "https://docs.rs/rexec"
+documentation = "https://docs.rs/pipeops-rexec"
 readme = "README.md"
 keywords = ["rexec", "terminal", "sandbox", "docker", "container"]
 categories = ["api-bindings", "development-tools"]
+
+[lib]
+name = "rexec"
+path = "src/lib.rs"
 
 [dependencies]
 reqwest = { version = "0.11", features = ["json"] }
@@ -21,7 +25,6 @@ thiserror = "1"
 url = "2"
 urlencoding = "2"
 futures-util = "0.3"
-http = "0.2"
 
 [dev-dependencies]
 tokio-test = "0.4"

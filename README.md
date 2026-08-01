@@ -175,7 +175,7 @@ async with RexecClient("https://your-instance.com", "your-token") as client:
 ### Rust SDK
 
 ```bash
-cargo add rexec tokio
+cargo add pipeops-rexec tokio
 ```
 
 ```rust

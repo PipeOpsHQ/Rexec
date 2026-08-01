@@ -8,9 +8,17 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rexec = "1.0"
+pipeops-rexec = "1.0"
 tokio = { version = "1", features = ["full"] }
 ```
+
+Or with Cargo:
+
+```bash
+cargo add pipeops-rexec tokio
+```
+
+The crate is imported as `rexec` in Rust code.
 
 ## Quick Start
 

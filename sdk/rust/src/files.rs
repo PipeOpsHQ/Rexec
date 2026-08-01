@@ -65,7 +65,7 @@ impl FileService {
             .raw_request(
                 Method::GET,
                 &format!("/api/containers/{}/files?path={}", container_id, encoded_path),
-                None::<()>,
+                None::<&()>,
             )
             .await?;
 

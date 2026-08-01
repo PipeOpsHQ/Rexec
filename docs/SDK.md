@@ -13,10 +13,10 @@ Rexec provides official SDKs for programmatically interacting with your sandboxe
 | **Go** | `github.com/PipeOpsHQ/rexec-go` | `go get github.com/PipeOpsHQ/rexec-go` | [README](../sdk/go/README.md) |
 | **JavaScript/TypeScript** | `@pipeopshq/rexec` | `npm install @pipeopshq/rexec` | [README](../sdk/js/README.md) |
 | **Python** | `rexec` (PyPI) | `pip install rexec` | [README](../sdk/python/README.md) |
-| **Rust** | `rexec` (crates.io) | `cargo add rexec` | [README](../sdk/rust/README.md) |
-| **Ruby** | `rexec` (RubyGems) | `gem install rexec` | [README](../sdk/ruby/README.md) |
+| **Rust** | `pipeops-rexec` (crates.io) | `cargo add pipeops-rexec` | [README](../sdk/rust/README.md) |
+| **Ruby** | `pipeops-rexec` (RubyGems) | `gem install pipeops-rexec` | [README](../sdk/ruby/README.md) |
 | **Java** | `io.pipeops:rexec` (Maven) | [Maven dependency](#java) | [README](../sdk/java/README.md) |
-| **C#/.NET** | `Rexec` (NuGet) | `dotnet add package Rexec` | [README](../sdk/dotnet/README.md) |
+| **C#/.NET** | `PipeOps.Rexec` (NuGet) | `dotnet add package PipeOps.Rexec` | [README](../sdk/dotnet/README.md) |
 | **PHP** | `pipeopshq/rexec` (Packagist) | `composer require pipeopshq/rexec` | [README](../sdk/php/README.md) |
 
 ## Getting an API Token
@@ -123,7 +123,7 @@ asyncio.run(main())
 ### Rust
 
 ```bash
-cargo add rexec
+cargo add pipeops-rexec
 ```
 
 ```rust
@@ -154,7 +154,7 @@ async fn main() -> Result<(), rexec::Error> {
 ### Ruby
 
 ```bash
-gem install rexec
+gem install pipeops-rexec
 ```
 
 ```ruby
@@ -208,7 +208,7 @@ public class Example {
 ### C#/.NET
 
 ```bash
-dotnet add package Rexec
+dotnet add package PipeOps.Rexec
 ```
 
 ```csharp

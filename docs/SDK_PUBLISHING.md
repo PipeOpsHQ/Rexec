@@ -19,7 +19,7 @@ The `publish-sdks.yml` workflow automates publishing all SDKs to their respectiv
 
 ## Required Secrets
 
-Configure these secrets in your repository settings (`Settings → Secrets and variables → Actions`):
+Configure these secrets in your repository settings (`Settings → Secrets and variables → Actions` on `PipeOpsHQ/rexec`):
 
 ### npm (JavaScript/TypeScript)
 
@@ -27,21 +27,22 @@ Configure these secrets in your repository settings (`Settings → Secrets and v
 |--------|-------------|
 | `NPM_TOKEN` | npm automation token with publish access |
 
-**How to get**: 
-1. Go to https://www.npmjs.com/settings/tokens
-2. Create new "Automation" token
-3. Ensure the token has publish access to `@pipeopshq` scope
+**How to get**:
+1. Create/claim org scope at https://www.npmjs.com/org/create → `pipeopshq` (or use existing)
+2. Go to https://www.npmjs.com/settings/tokens
+3. Create new **Automation** token
+4. Ensure the token can publish `@pipeopshq/rexec`
 
 ### PyPI (Python)
 
 | Secret | Description |
 |--------|-------------|
-| `PYPI_TOKEN` | PyPI API token |
+| `PYPI_TOKEN` | PyPI API token (`pypi-...`) |
 
 **How to get**:
-1. Go to https://pypi.org/manage/account/token/
-2. Create new API token with "Upload packages" scope
-3. Scope can be project-specific for `rexec` package
+1. Create account at https://pypi.org/account/register/
+2. Enable 2FA
+3. Create API token at https://pypi.org/manage/account/token/ (scope: entire account, or project `rexec` after first upload)
 
 ### crates.io (Rust)
 
@@ -50,8 +51,9 @@ Configure these secrets in your repository settings (`Settings → Secrets and v
 | `CRATES_IO_TOKEN` | crates.io API token |
 
 **How to get**:
-1. Go to https://crates.io/settings/tokens
-2. Create new token with publish scope
+1. Log in with GitHub at https://crates.io/
+2. Create token at https://crates.io/settings/tokens
+3. Package name: **`pipeops-rexec`** (plain `rexec` is taken by another crate)
 
 ### RubyGems (Ruby)
 
@@ -60,21 +62,22 @@ Configure these secrets in your repository settings (`Settings → Secrets and v
 | `RUBYGEMS_API_KEY` | RubyGems API key |
 
 **How to get**:
-1. Go to https://rubygems.org/profile/api_keys
-2. Create new API key with "Push rubygems" scope
+1. Create account at https://rubygems.org/sign_up
+2. Create API key at https://rubygems.org/profile/api_keys with **Push rubygem**
+3. Package name: **`pipeops-rexec`** (plain `rexec` is taken)
 
 ### Maven Central (Java)
 
 | Secret | Description |
 |--------|-------------|
-| `OSSRH_USERNAME` | Sonatype OSSRH username |
-| `OSSRH_TOKEN` | Sonatype OSSRH token |
+| `OSSRH_USERNAME` | Sonatype Central username |
+| `OSSRH_TOKEN` | Sonatype Central token |
 | `GPG_PRIVATE_KEY` | GPG private key for signing |
 | `GPG_PASSPHRASE` | GPG key passphrase |
 
 **How to get**:
-1. Register at https://issues.sonatype.org/
-2. Create JIRA ticket to claim `io.pipeops` namespace
+1. Register at https://central.sonatype.com/
+2. Claim namespace `io.pipeops` (verify domain or GitHub org)
 3. Generate GPG key: `gpg --full-generate-key`
 4. Export private key: `gpg --export-secret-keys --armor YOUR_KEY_ID`
 5. Publish public key: `gpg --keyserver keyserver.ubuntu.com --send-keys YOUR_KEY_ID`
@@ -86,17 +89,25 @@ Configure these secrets in your repository settings (`Settings → Secrets and v
 | `NUGET_API_KEY` | NuGet.org API key |
 
 **How to get**:
-1. Go to https://www.nuget.org/account/apikeys
-2. Create new API key with push scope for `Rexec` package
+1. Create account at https://www.nuget.org/
+2. Create API key at https://www.nuget.org/account/apikeys with push for **`PipeOps.Rexec`**
 
 ### Packagist (PHP)
 
-PHP packages are automatically updated via GitHub webhook. No secrets required.
+PHP packages are updated via Packagist + GitHub. No Actions secrets required after submit.
 
 **Setup**:
-1. Go to https://packagist.org/
-2. Submit package: https://github.com/PipeOpsHQ/rexec
-3. Enable GitHub Service Hook for automatic updates
+1. Create account at https://packagist.org/
+2. Submit package pointing at the monorepo path or a dedicated repo
+3. Composer package name: **`pipeopshq/rexec`**
+
+### Go SDK sync (optional)
+
+| Secret | Description |
+|--------|-------------|
+| `GO_SDK_PUSH_TOKEN` | GitHub PAT with `repo` scope that can push to `PipeOpsHQ/rexec-go` |
+
+Used by `.github/workflows/sync-go-sdk.yml` so monorepo changes under `sdk/go/` are mirrored to the standalone Go module repo.
 
 ## SDK Package Registry URLs
 
@@ -104,10 +115,10 @@ PHP packages are automatically updated via GitHub webhook. No secrets required.
 |-----|----------|--------------|
 | JavaScript | [npm](https://www.npmjs.com/package/@pipeopshq/rexec) | `@pipeopshq/rexec` |
 | Python | [PyPI](https://pypi.org/project/rexec/) | `rexec` |
-| Rust | [crates.io](https://crates.io/crates/rexec) | `rexec` |
-| Ruby | [RubyGems](https://rubygems.org/gems/rexec) | `rexec` |
+| Rust | [crates.io](https://crates.io/crates/pipeops-rexec) | `pipeops-rexec` |
+| Ruby | [RubyGems](https://rubygems.org/gems/pipeops-rexec) | `pipeops-rexec` |
 | Java | [Maven Central](https://central.sonatype.com/artifact/io.pipeops/rexec) | `io.pipeops:rexec` |
-| .NET | [NuGet](https://www.nuget.org/packages/Rexec) | `Rexec` |
+| .NET | [NuGet](https://www.nuget.org/packages/PipeOps.Rexec) | `PipeOps.Rexec` |
 | PHP | [Packagist](https://packagist.org/packages/pipeopshq/rexec) | `pipeopshq/rexec` |
 | Go | GitHub | `github.com/PipeOpsHQ/rexec-go` |
 

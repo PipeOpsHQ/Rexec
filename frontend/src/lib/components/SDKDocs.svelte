@@ -20,10 +20,10 @@
         { id: "go", name: "Go", install: "go get github.com/PipeOpsHQ/rexec-go", github: "https://github.com/PipeOpsHQ/rexec/tree/main/sdk/go" },
         { id: "javascript", name: "JavaScript / TypeScript", install: "npm install @pipeopshq/rexec", github: "https://github.com/PipeOpsHQ/rexec/tree/main/sdk/js" },
         { id: "python", name: "Python", install: "pip install rexec", github: "https://github.com/PipeOpsHQ/rexec/tree/main/sdk/python" },
-        { id: "rust", name: "Rust", install: "cargo add rexec", github: "https://github.com/PipeOpsHQ/rexec/tree/main/sdk/rust" },
-        { id: "ruby", name: "Ruby", install: "gem install rexec", github: "https://github.com/PipeOpsHQ/rexec/tree/main/sdk/ruby" },
+        { id: "rust", name: "Rust", install: "cargo add pipeops-rexec", github: "https://github.com/PipeOpsHQ/rexec/tree/main/sdk/rust" },
+        { id: "ruby", name: "Ruby", install: "gem install pipeops-rexec", github: "https://github.com/PipeOpsHQ/rexec/tree/main/sdk/ruby" },
         { id: "java", name: "Java", install: "<!-- Maven -->\n<dependency>\n  <groupId>io.pipeops</groupId>\n  <artifactId>rexec</artifactId>\n</dependency>", github: "https://github.com/PipeOpsHQ/rexec/tree/main/sdk/java" },
-        { id: "dotnet", name: "C# / .NET", install: "dotnet add package Rexec", github: "https://github.com/PipeOpsHQ/rexec/tree/main/sdk/dotnet" },
+        { id: "dotnet", name: "C# / .NET", install: "dotnet add package PipeOps.Rexec", github: "https://github.com/PipeOpsHQ/rexec/tree/main/sdk/dotnet" },
         { id: "php", name: "PHP", install: "composer require pipeopshq/rexec", github: "https://github.com/PipeOpsHQ/rexec/tree/main/sdk/php" },
     ];
 
