@@ -28,7 +28,7 @@ require (
 	github.com/pquerna/otp v1.5.0
 	github.com/redis/go-redis/v9 v9.17.2
 	github.com/stripe/stripe-go/v76 v76.25.0
-	golang.org/x/crypto v0.51.0
+	golang.org/x/crypto v0.52.0
 	golang.org/x/term v0.43.0
 )
 
