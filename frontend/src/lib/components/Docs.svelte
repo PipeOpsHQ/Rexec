@@ -347,7 +347,7 @@
                     <div class="sdk-icon"><StatusIcon status="code" size={20} /></div>
                     <div class="sdk-info">
                         <h4>Python</h4>
-                        <code>pip install rexec</code>
+                        <code>pip install pipeops-rexec</code>
                     </div>
                 </a>
                 <a href="/docs/sdk" class="sdk-card">
@@ -1006,7 +1006,7 @@
                     <ul>
                         <li><strong>Go</strong> — <code>go get github.com/PipeOpsHQ/rexec-go</code></li>
                         <li><strong>JavaScript/TypeScript</strong> — <code>npm install @pipeopshq/rexec</code></li>
-                        <li><strong>Python</strong> — <code>pip install rexec</code></li>
+                        <li><strong>Python</strong> — <code>pip install pipeops-rexec</code></li>
                         <li><strong>Rust</strong> — <code>cargo add pipeops-rexec</code></li>
                         <li><strong>Ruby</strong> — <code>gem install pipeops-rexec</code></li>
                         <li><strong>Java</strong> — Maven: <code>io.pipeops:rexec</code></li>

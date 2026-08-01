@@ -94,7 +94,7 @@ jobs:
         run: npm ci
 
       - name: Update version
-        run: npm version ${{ needs.setup.outputs.version }} --no-git-tag-version
+        run: npm version ${{ needs.setup.outputs.version }} --no-git-tag-version --allow-same-version
 
       - name: Build
         run: npm run build
@@ -139,7 +139,7 @@ jobs:
 
       - name: Publish to PyPI
         if: ${{ github.event.inputs.dry_run != 'true' }}
-        run: twine upload dist/*
+        run: twine upload --verbose dist/*
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
@@ -147,7 +147,7 @@ jobs:
       - name: Dry run - would publish
         if: ${{ github.event.inputs.dry_run == 'true' }}
         run: |
-          echo "DRY RUN: Would publish rexec==${{ needs.setup.outputs.version }} to PyPI"
+          echo "DRY RUN: Would publish pipeops-rexec==${{ needs.setup.outputs.version }} to PyPI"
           twine check dist/*
 
   # Rust SDK -> crates.io

@@ -12,7 +12,7 @@ Rexec provides official SDKs for programmatically interacting with your sandboxe
 |-----|---------|---------|---------------|
 | **Go** | `github.com/PipeOpsHQ/rexec-go` | `go get github.com/PipeOpsHQ/rexec-go` | [README](../sdk/go/README.md) |
 | **JavaScript/TypeScript** | `@pipeopshq/rexec` | `npm install @pipeopshq/rexec` | [README](../sdk/js/README.md) |
-| **Python** | `rexec` (PyPI) | `pip install rexec` | [README](../sdk/python/README.md) |
+| **Python** | `pipeops-rexec` (PyPI) | `pip install pipeops-rexec` | [README](../sdk/python/README.md) |
 | **Rust** | `pipeops-rexec` (crates.io) | `cargo add pipeops-rexec` | [README](../sdk/rust/README.md) |
 | **Ruby** | `pipeops-rexec` (RubyGems) | `gem install pipeops-rexec` | [README](../sdk/ruby/README.md) |
 | **Java** | `io.pipeops:rexec` (Maven) | [Maven dependency](#java) | [README](../sdk/java/README.md) |
@@ -98,7 +98,7 @@ terminal.onData((data) => console.log(data));
 ### Python
 
 ```bash
-pip install rexec
+pip install pipeops-rexec
 ```
 
 ```python

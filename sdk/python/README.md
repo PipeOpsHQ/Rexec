@@ -5,7 +5,7 @@ Official Python SDK for [Rexec](https://github.com/PipeOpsHQ/rexec) - Terminal a
 ## Installation
 
 ```bash
-pip install rexec
+pip install pipeops-rexec
 ```
 
 ## Quick Start

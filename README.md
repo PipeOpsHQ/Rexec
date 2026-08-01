@@ -162,7 +162,7 @@ terminal.write('echo hello\n');
 ### Python SDK
 
 ```bash
-pip install rexec
+pip install pipeops-rexec
 ```
 
 ```python

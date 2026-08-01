@@ -114,7 +114,7 @@ Used by `.github/workflows/sync-go-sdk.yml` so monorepo changes under `sdk/go/` 
 | SDK | Registry | Package Name |
 |-----|----------|--------------|
 | JavaScript | [npm](https://www.npmjs.com/package/@pipeopshq/rexec) | `@pipeopshq/rexec` |
-| Python | [PyPI](https://pypi.org/project/rexec/) | `rexec` |
+| Python | [PyPI](https://pypi.org/project/pipeops-rexec/) | `pipeops-rexec` |
 | Rust | [crates.io](https://crates.io/crates/pipeops-rexec) | `pipeops-rexec` |
 | Ruby | [RubyGems](https://rubygems.org/gems/pipeops-rexec) | `pipeops-rexec` |
 | Java | [Maven Central](https://central.sonatype.com/artifact/io.pipeops/rexec) | `io.pipeops:rexec` |

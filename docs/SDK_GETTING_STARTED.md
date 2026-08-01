@@ -28,7 +28,7 @@ export REXEC_TOKEN="your-api-token"
 |----------|----------------|
 | Go | `go get github.com/PipeOpsHQ/rexec-go` |
 | JavaScript/TypeScript | `npm install @pipeopshq/rexec` |
-| Python | `pip install rexec` |
+| Python | `pip install pipeops-rexec` |
 | Rust | `cargo add pipeops-rexec` |
 | Ruby | `gem install pipeops-rexec` |
 | Java | Add Maven dependency (see below) |
