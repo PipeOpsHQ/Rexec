@@ -18,7 +18,7 @@
 
     const sdks = [
         { id: "go", name: "Go", install: "go get github.com/PipeOpsHQ/rexec-go", github: "https://github.com/PipeOpsHQ/rexec/tree/main/sdk/go" },
-        { id: "javascript", name: "JavaScript / TypeScript", install: "npm install @pipeopshq/rexec", github: "https://github.com/PipeOpsHQ/rexec/tree/main/sdk/js" },
+        { id: "javascript", name: "JavaScript / TypeScript", install: "npm install pipeops-rexec", github: "https://github.com/PipeOpsHQ/rexec/tree/main/sdk/js" },
         { id: "python", name: "Python", install: "pip install pipeops-rexec", github: "https://github.com/PipeOpsHQ/rexec/tree/main/sdk/python" },
         { id: "rust", name: "Rust", install: "cargo add pipeops-rexec", github: "https://github.com/PipeOpsHQ/rexec/tree/main/sdk/rust" },
         { id: "ruby", name: "Ruby", install: "gem install pipeops-rexec", github: "https://github.com/PipeOpsHQ/rexec/tree/main/sdk/ruby" },
@@ -52,7 +52,7 @@ func main() {
     term.OnData(func(data string) { fmt.Print(data) })
     term.Write("ls -la\\n")
 }`,
-        javascript: `import { RexecClient } from '@pipeopshq/rexec';
+        javascript: `import { RexecClient } from 'pipeops-rexec';
 
 const client = new RexecClient({ 
   baseURL: 'https://rexec.sh', 

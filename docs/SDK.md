@@ -11,7 +11,7 @@ Rexec provides official SDKs for programmatically interacting with your sandboxe
 | SDK | Package | Install | Documentation |
 |-----|---------|---------|---------------|
 | **Go** | `github.com/PipeOpsHQ/rexec-go` | `go get github.com/PipeOpsHQ/rexec-go` | [README](../sdk/go/README.md) |
-| **JavaScript/TypeScript** | `@pipeopshq/rexec` | `npm install @pipeopshq/rexec` | [README](../sdk/js/README.md) |
+| **JavaScript/TypeScript** | `pipeops-rexec` | `npm install pipeops-rexec` | [README](../sdk/js/README.md) |
 | **Python** | `pipeops-rexec` (PyPI) | `pip install pipeops-rexec` | [README](../sdk/python/README.md) |
 | **Rust** | `pipeops-rexec` (crates.io) | `cargo add pipeops-rexec` | [README](../sdk/rust/README.md) |
 | **Ruby** | `pipeops-rexec` (RubyGems) | `gem install pipeops-rexec` | [README](../sdk/ruby/README.md) |
@@ -73,11 +73,11 @@ func main() {
 ### JavaScript/TypeScript
 
 ```bash
-npm install @pipeopshq/rexec
+npm install pipeops-rexec
 ```
 
 ```typescript
-import { RexecClient } from '@pipeopshq/rexec';
+import { RexecClient } from 'pipeops-rexec';
 
 const client = new RexecClient({
   baseURL: process.env.REXEC_URL,
@@ -673,7 +673,7 @@ Test APIs against real service containers with the [JavaScript SDK](../sdk/js/RE
 
 ```typescript
 // JavaScript - Integration testing with real services
-import { RexecClient } from '@pipeopshq/rexec';
+import { RexecClient } from 'pipeops-rexec';
 import { describe, it, beforeAll, afterAll } from 'vitest';
 
 describe('API Integration Tests', () => {

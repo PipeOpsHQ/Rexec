@@ -31,7 +31,7 @@ Configure these secrets in your repository settings (`Settings → Secrets and v
 1. Create/claim org scope at https://www.npmjs.com/org/create → `pipeopshq` (or use existing)
 2. Go to https://www.npmjs.com/settings/tokens
 3. Create new **Automation** token
-4. Ensure the token can publish `@pipeopshq/rexec`
+4. Ensure the token can publish `pipeops-rexec`
 
 ### PyPI (Python)
 
@@ -113,7 +113,7 @@ Used by `.github/workflows/sync-go-sdk.yml` so monorepo changes under `sdk/go/` 
 
 | SDK | Registry | Package Name |
 |-----|----------|--------------|
-| JavaScript | [npm](https://www.npmjs.com/package/@pipeopshq/rexec) | `@pipeopshq/rexec` |
+| JavaScript | [npm](https://www.npmjs.com/package/pipeops-rexec) | `pipeops-rexec` |
 | Python | [PyPI](https://pypi.org/project/pipeops-rexec/) | `pipeops-rexec` |
 | Rust | [crates.io](https://crates.io/crates/pipeops-rexec) | `pipeops-rexec` |
 | Ruby | [RubyGems](https://rubygems.org/gems/pipeops-rexec) | `pipeops-rexec` |

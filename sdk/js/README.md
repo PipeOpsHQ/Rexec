@@ -5,11 +5,11 @@ Official JavaScript/TypeScript SDK for [Rexec](https://github.com/PipeOpsHQ/rexe
 ## Installation
 
 ```bash
-npm install @pipeopshq/rexec
+npm install pipeops-rexec
 # or
-yarn add @pipeopshq/rexec
+yarn add pipeops-rexec
 # or
-pnpm add @pipeopshq/rexec
+pnpm add pipeops-rexec
 ```
 
 For Node.js environments, you'll also need the `ws` package:
@@ -21,7 +21,7 @@ npm install ws
 ## Quick Start
 
 ```typescript
-import { RexecClient } from '@pipeopshq/rexec';
+import { RexecClient } from 'pipeops-rexec';
 
 const client = new RexecClient({
   baseURL: 'https://your-rexec-instance.com',
@@ -54,7 +54,7 @@ await client.containers.delete(container.id);
 ### RexecClient
 
 ```typescript
-import { RexecClient } from '@pipeopshq/rexec';
+import { RexecClient } from 'pipeops-rexec';
 
 const client = new RexecClient({
   baseURL: 'https://your-rexec-instance.com',
@@ -172,7 +172,7 @@ console.log(output);
 
 ```html
 <script type="module">
-import { RexecClient } from 'https://unpkg.com/@pipeopshq/rexec/dist/index.mjs';
+import { RexecClient } from 'https://unpkg.com/pipeops-rexec/dist/index.mjs';
 
 const client = new RexecClient({
   baseURL: 'https://your-rexec-instance.com',
@@ -189,7 +189,7 @@ console.log(containers);
 
 ```typescript
 import { Terminal } from 'xterm';
-import { RexecClient } from '@pipeopshq/rexec';
+import { RexecClient } from 'pipeops-rexec';
 
 const xterm = new Terminal();
 xterm.open(document.getElementById('terminal'));
@@ -231,7 +231,7 @@ import {
   FileInfo,
   Terminal,
   RexecError 
-} from '@pipeopshq/rexec';
+} from 'pipeops-rexec';
 
 // All types are available
 const request: CreateContainerRequest = {
@@ -243,7 +243,7 @@ const request: CreateContainerRequest = {
 ## Error Handling
 
 ```typescript
-import { RexecClient, RexecError } from '@pipeopshq/rexec';
+import { RexecClient, RexecError } from 'pipeops-rexec';
 
 try {
   await client.containers.get('non-existent-id');

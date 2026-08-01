@@ -27,7 +27,7 @@ export REXEC_TOKEN="your-api-token"
 | Language | Install Command |
 |----------|----------------|
 | Go | `go get github.com/PipeOpsHQ/rexec-go` |
-| JavaScript/TypeScript | `npm install @pipeopshq/rexec` |
+| JavaScript/TypeScript | `npm install pipeops-rexec` |
 | Python | `pip install pipeops-rexec` |
 | Rust | `cargo add pipeops-rexec` |
 | Ruby | `gem install pipeops-rexec` |
@@ -46,7 +46,7 @@ client := rexec.NewClient(os.Getenv("REXEC_URL"), os.Getenv("REXEC_TOKEN"))
 
 ### JavaScript/TypeScript
 ```typescript
-import { RexecClient } from '@pipeopshq/rexec';
+import { RexecClient } from 'pipeops-rexec';
 
 const client = new RexecClient({
   baseURL: process.env.REXEC_URL,

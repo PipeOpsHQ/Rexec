@@ -108,7 +108,7 @@ jobs:
       - name: Dry run - would publish
         if: ${{ github.event.inputs.dry_run == 'true' }}
         run: |
-          echo "DRY RUN: Would publish @pipeopshq/rexec@${{ needs.setup.outputs.version }} to npm"
+          echo "DRY RUN: Would publish pipeops-rexec@${{ needs.setup.outputs.version }} to npm"
           npm pack --dry-run
 
   # Python SDK -> PyPI

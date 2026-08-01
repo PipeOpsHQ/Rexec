@@ -146,7 +146,7 @@ term.Write([]byte("echo hello\n"))
 ### JavaScript/TypeScript SDK
 
 ```bash
-npm install @pipeopshq/rexec
+npm install pipeops-rexec
 ```
 
 ```typescript
