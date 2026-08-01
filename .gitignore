@@ -94,3 +94,5 @@ scripts/sdk-e2e/**/target/
 scripts/sdk-e2e/**/bin/
 scripts/sdk-e2e/**/obj/
 scripts/sdk-e2e/go/go.sum
+__pycache__/
+*.pyc
