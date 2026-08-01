@@ -149,7 +149,14 @@ export class ContainerService {
    * List all containers
    */
   async list(): Promise<Container[]> {
-    return this.client.request<Container[]>('GET', '/api/containers');
+    const data = await this.client.request<Container[] | { containers?: Container[] }>(
+      'GET',
+      '/api/containers'
+    );
+    if (Array.isArray(data)) {
+      return data;
+    }
+    return data?.containers ?? [];
   }
 
   /**

@@ -1,0 +1,7 @@
+[package]
+name = "rust_e2e"
+version = "0.1.0"
+edition = "2021"
+[dependencies]
+pipeops-rexec = { path = "../../../sdk/rust" }
+tokio = { version = "1", features = ["full"] }

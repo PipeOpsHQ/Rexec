@@ -58,10 +58,15 @@ docker/data/
 volumes/
 downloads/
 CLAUDE.md
-rexec
-rexec-cli
-rexec-agent
-rexec-ssh
+# Root binary artifacts (do not ignore sdk/**/rexec packages)
+/rexec
+/rexec-cli
+/rexec-agent
+/rexec-ssh
+/bin/rexec
+/bin/rexec-cli
+/bin/rexec-agent
+/bin/rexec-ssh
 AGENTS.md
 .gocache/
 ./cache/*
@@ -84,3 +89,8 @@ sdk/ruby/*.gem
 sdk/js/dist/
 sdk/dotnet/nupkg/
 sdk/java/target/
+scripts/sdk-e2e/.env
+scripts/sdk-e2e/**/target/
+scripts/sdk-e2e/**/bin/
+scripts/sdk-e2e/**/obj/
+scripts/sdk-e2e/go/go.sum

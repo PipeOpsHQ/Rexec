@@ -33,7 +33,15 @@ impl ContainerService {
     /// # }
     /// ```
     pub async fn list(&self) -> Result<Vec<Container>> {
-        self.client.request(Method::GET, "/api/containers").await
+        // Production API: { "containers": [...], "count": N, "limit": M }
+        // `containers` may be null when empty.
+        #[derive(serde::Deserialize)]
+        struct ListResponse {
+            #[serde(default)]
+            containers: Option<Vec<Container>>,
+        }
+        let resp: ListResponse = self.client.request(Method::GET, "/api/containers").await?;
+        Ok(resp.containers.unwrap_or_default())
     }
 
     /// Get a container by ID.

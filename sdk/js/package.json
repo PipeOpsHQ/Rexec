@@ -1,7 +1,8 @@
 {
   "name": "pipeops-rexec",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Official JavaScript/TypeScript SDK for Rexec - Terminal as a Service",
+  "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",

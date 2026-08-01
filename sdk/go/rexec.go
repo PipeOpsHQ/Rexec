@@ -164,11 +164,23 @@ type ContainerService struct {
 	client *Client
 }
 
+// containerListResponse matches the production API list payload.
+type containerListResponse struct {
+	Containers []Container `json:"containers"`
+	Count      int         `json:"count"`
+	Limit      int         `json:"limit"`
+}
+
 // List returns all containers for the authenticated user.
 func (s *ContainerService) List(ctx context.Context) ([]Container, error) {
-	var containers []Container
-	err := s.client.doRequest(ctx, http.MethodGet, "/api/containers", nil, &containers)
-	return containers, err
+	var wrapped containerListResponse
+	if err := s.client.doRequest(ctx, http.MethodGet, "/api/containers", nil, &wrapped); err != nil {
+		return nil, err
+	}
+	if wrapped.Containers == nil {
+		return []Container{}, nil
+	}
+	return wrapped.Containers, nil
 }
 
 // Get returns a container by ID.

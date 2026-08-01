@@ -21,14 +21,19 @@ pub struct Container {
     /// Container ID.
     pub id: String,
     /// Container name.
+    #[serde(default)]
     pub name: String,
     /// Docker image.
+    #[serde(default)]
     pub image: String,
     /// Current status.
+    #[serde(default)]
     pub status: String,
     /// Creation timestamp.
+    #[serde(default)]
     pub created_at: String,
     /// Start timestamp (if running).
+    #[serde(default)]
     pub started_at: Option<String>,
     /// Container labels.
     #[serde(default)]
