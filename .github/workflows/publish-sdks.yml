@@ -1,5 +1,10 @@
 name: Publish SDKs
 
+# All SDK publishing is managed by this workflow only.
+# Triggers:
+#   1. GitHub Release published (from release.yml or manual release)
+#   2. Manual "Run workflow" (workflow_dispatch)
+#   3. Reusable workflow_call from other workflows
 on:
   release:
     types: [published]
@@ -19,20 +24,61 @@ on:
         required: false
         default: false
         type: boolean
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., 1.0.0)'
+        required: true
+        type: string
+      sdks:
+        description: 'SDKs to publish (comma-separated or all)'
+        required: false
+        default: 'all'
+        type: string
+      dry_run:
+        description: 'Dry run (do not actually publish)'
+        required: false
+        default: false
+        type: boolean
+    secrets:
+      NPM_TOKEN:
+        required: false
+      PYPI_TOKEN:
+        required: false
+      CRATES_IO_TOKEN:
+        required: false
+      RUBYGEMS_API_KEY:
+        required: false
+      NUGET_API_KEY:
+        required: false
+      OSSRH_USERNAME:
+        required: false
+      OSSRH_TOKEN:
+        required: false
+      GPG_PRIVATE_KEY:
+        required: false
+      GPG_PASSPHRASE:
+        required: false
 
 permissions:
   contents: read
   packages: write
 
+concurrency:
+  group: publish-sdks-${{ github.event.inputs.version || github.event.release.tag_name || inputs.version || github.run_id }}
+  cancel-in-progress: false
+
 env:
-  VERSION: ${{ github.event.inputs.version || github.event.release.tag_name }}
+  # Prefer dispatch/call inputs; fall back to release tag
+  VERSION: ${{ github.event.inputs.version || inputs.version || github.event.release.tag_name }}
+  DRY_RUN: ${{ github.event.inputs.dry_run || inputs.dry_run || false }}
 
 jobs:
-  # Determine which SDKs to publish
   setup:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      dry_run: ${{ steps.version.outputs.dry_run }}
       publish_js: ${{ steps.sdks.outputs.js }}
       publish_python: ${{ steps.sdks.outputs.python }}
       publish_rust: ${{ steps.sdks.outputs.rust }}
@@ -45,16 +91,26 @@ jobs:
         id: version
         run: |
           VERSION="${{ env.VERSION }}"
-          # Remove 'v' prefix if present
           VERSION="${VERSION#v}"
+          if [ -z "$VERSION" ]; then
+            echo "::error::No version provided (set workflow input or publish a release tag)"
+            exit 1
+          fi
+          DRY_RUN="${{ env.DRY_RUN }}"
+          # Normalize boolean strings
+          if [ "$DRY_RUN" = "true" ] || [ "$DRY_RUN" = "True" ]; then
+            DRY_RUN=true
+          else
+            DRY_RUN=false
+          fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Publishing version: $VERSION"
+          echo "dry_run=$DRY_RUN" >> $GITHUB_OUTPUT
+          echo "Publishing version: $VERSION (dry_run=$DRY_RUN)"
 
       - name: Determine SDKs to publish
         id: sdks
         run: |
-          SDKS="${{ github.event.inputs.sdks || 'all' }}"
-          
+          SDKS="${{ github.event.inputs.sdks || inputs.sdks || 'all' }}"
           if [ "$SDKS" = "all" ]; then
             echo "js=true" >> $GITHUB_OUTPUT
             echo "python=true" >> $GITHUB_OUTPUT
@@ -64,16 +120,16 @@ jobs:
             echo "dotnet=true" >> $GITHUB_OUTPUT
             echo "php=true" >> $GITHUB_OUTPUT
           else
-            echo "js=$(echo $SDKS | grep -q 'js' && echo 'true' || echo 'false')" >> $GITHUB_OUTPUT
-            echo "python=$(echo $SDKS | grep -q 'python' && echo 'true' || echo 'false')" >> $GITHUB_OUTPUT
-            echo "rust=$(echo $SDKS | grep -q 'rust' && echo 'true' || echo 'false')" >> $GITHUB_OUTPUT
-            echo "ruby=$(echo $SDKS | grep -q 'ruby' && echo 'true' || echo 'false')" >> $GITHUB_OUTPUT
-            echo "java=$(echo $SDKS | grep -q 'java' && echo 'true' || echo 'false')" >> $GITHUB_OUTPUT
-            echo "dotnet=$(echo $SDKS | grep -q 'dotnet' && echo 'true' || echo 'false')" >> $GITHUB_OUTPUT
-            echo "php=$(echo $SDKS | grep -q 'php' && echo 'true' || echo 'false')" >> $GITHUB_OUTPUT
+            echo "js=$(echo "$SDKS" | grep -q 'js' && echo 'true' || echo 'false')" >> $GITHUB_OUTPUT
+            echo "python=$(echo "$SDKS" | grep -q 'python' && echo 'true' || echo 'false')" >> $GITHUB_OUTPUT
+            echo "rust=$(echo "$SDKS" | grep -q 'rust' && echo 'true' || echo 'false')" >> $GITHUB_OUTPUT
+            echo "ruby=$(echo "$SDKS" | grep -q 'ruby' && echo 'true' || echo 'false')" >> $GITHUB_OUTPUT
+            echo "java=$(echo "$SDKS" | grep -q 'java' && echo 'true' || echo 'false')" >> $GITHUB_OUTPUT
+            echo "dotnet=$(echo "$SDKS" | grep -q 'dotnet' && echo 'true' || echo 'false')" >> $GITHUB_OUTPUT
+            echo "php=$(echo "$SDKS" | grep -q 'php' && echo 'true' || echo 'false')" >> $GITHUB_OUTPUT
           fi
 
-  # JavaScript/TypeScript SDK -> npm
+  # JavaScript/TypeScript SDK -> npm (pipeops-rexec)
   publish-js:
     needs: setup
     if: needs.setup.outputs.publish_js == 'true'
@@ -100,18 +156,29 @@ jobs:
         run: npm run build
 
       - name: Publish to npm
-        if: ${{ github.event.inputs.dry_run != 'true' }}
-        run: npm publish --access public
+        if: needs.setup.outputs.dry_run != 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
+            echo "::error::NPM_TOKEN secret is not set"
+            exit 1
+          fi
+          # Skip if this version is already published
+          if npm view "pipeops-rexec@${{ needs.setup.outputs.version }}" version 2>/dev/null; then
+            echo "pipeops-rexec@${{ needs.setup.outputs.version }} already on npm — skipping"
+            exit 0
+          fi
+          npm publish --access public
 
-      - name: Dry run - would publish
-        if: ${{ github.event.inputs.dry_run == 'true' }}
+      - name: Dry run
+        if: needs.setup.outputs.dry_run == 'true'
         run: |
           echo "DRY RUN: Would publish pipeops-rexec@${{ needs.setup.outputs.version }} to npm"
           npm pack --dry-run
 
-  # Python SDK -> PyPI
+  # Python SDK -> PyPI (pipeops-rexec)
   publish-python:
     needs: setup
     if: needs.setup.outputs.publish_python == 'true'
@@ -138,19 +205,30 @@ jobs:
         run: python -m build
 
       - name: Publish to PyPI
-        if: ${{ github.event.inputs.dry_run != 'true' }}
-        run: twine upload --verbose dist/*
+        if: needs.setup.outputs.dry_run != 'true'
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${TWINE_PASSWORD:-}" ]; then
+            echo "::error::PYPI_TOKEN secret is not set"
+            exit 1
+          fi
+          # Skip if already published
+          if curl -fsS "https://pypi.org/pypi/pipeops-rexec/${{ needs.setup.outputs.version }}/json" >/dev/null 2>&1; then
+            echo "pipeops-rexec==${{ needs.setup.outputs.version }} already on PyPI — skipping"
+            exit 0
+          fi
+          twine upload --verbose dist/*
 
-      - name: Dry run - would publish
-        if: ${{ github.event.inputs.dry_run == 'true' }}
+      - name: Dry run
+        if: needs.setup.outputs.dry_run == 'true'
         run: |
           echo "DRY RUN: Would publish pipeops-rexec==${{ needs.setup.outputs.version }} to PyPI"
           twine check dist/*
 
-  # Rust SDK -> crates.io
+  # Rust SDK -> crates.io (pipeops-rexec) via CRATES_IO_TOKEN
   publish-rust:
     needs: setup
     if: needs.setup.outputs.publish_rust == 'true'
@@ -172,18 +250,42 @@ jobs:
         run: cargo package --allow-dirty
 
       - name: Publish to crates.io
-        if: ${{ github.event.inputs.dry_run != 'true' }}
-        run: cargo publish --allow-dirty
+        if: needs.setup.outputs.dry_run != 'true'
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CARGO_REGISTRY_TOKEN:-}" ]; then
+            echo "::error::CRATES_IO_TOKEN secret is not set"
+            exit 1
+          fi
+          # Skip if already published
+          if cargo search pipeops-rexec --limit 1 2>/dev/null | grep -q "pipeops-rexec = \"${{ needs.setup.outputs.version }}\""; then
+            echo "pipeops-rexec@${{ needs.setup.outputs.version }} already on crates.io — skipping"
+            exit 0
+          fi
+          # cargo publish fails with "already uploaded" on re-run; treat as success
+          set +e
+          OUT=$(cargo publish --allow-dirty 2>&1)
+          STATUS=$?
+          set -e
+          echo "$OUT"
+          if [ $STATUS -eq 0 ]; then
+            exit 0
+          fi
+          if echo "$OUT" | grep -qiE 'already exists|already uploaded|crate version .* already'; then
+            echo "Version already on crates.io — treating as success"
+            exit 0
+          fi
+          exit $STATUS
 
-      - name: Dry run - would publish
-        if: ${{ github.event.inputs.dry_run == 'true' }}
+      - name: Dry run
+        if: needs.setup.outputs.dry_run == 'true'
         run: |
           echo "DRY RUN: Would publish pipeops-rexec@${{ needs.setup.outputs.version }} to crates.io"
           cargo package --list --allow-dirty
 
-  # Ruby SDK -> RubyGems
+  # Ruby SDK -> RubyGems (pipeops-rexec)
   publish-ruby:
     needs: setup
     if: needs.setup.outputs.publish_ruby == 'true'
@@ -207,31 +309,66 @@ jobs:
         run: gem build rexec.gemspec
 
       - name: Publish to RubyGems
-        if: ${{ github.event.inputs.dry_run != 'true' }}
+        if: needs.setup.outputs.dry_run != 'true'
+        env:
+          RUBYGEMS_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
         run: |
+          set -euo pipefail
+          if [ -z "${RUBYGEMS_API_KEY:-}" ]; then
+            echo "::error::RUBYGEMS_API_KEY secret is not set"
+            exit 1
+          fi
           mkdir -p ~/.gem
-          echo -e "---\n:rubygems_api_key: ${{ secrets.RUBYGEMS_API_KEY }}" > ~/.gem/credentials
+          echo -e "---\n:rubygems_api_key: ${RUBYGEMS_API_KEY}" > ~/.gem/credentials
           chmod 0600 ~/.gem/credentials
-          gem push pipeops-rexec-${{ needs.setup.outputs.version }}.gem
+          set +e
+          OUT=$(gem push "pipeops-rexec-${{ needs.setup.outputs.version }}.gem" 2>&1)
+          STATUS=$?
+          set -e
+          echo "$OUT"
+          if [ $STATUS -eq 0 ]; then
+            exit 0
+          fi
+          if echo "$OUT" | grep -qiE 'already been pushed|Repushing of gem versions is not allowed'; then
+            echo "Gem already on RubyGems — treating as success"
+            exit 0
+          fi
+          exit $STATUS
 
-      - name: Dry run - would publish
-        if: ${{ github.event.inputs.dry_run == 'true' }}
+      - name: Dry run
+        if: needs.setup.outputs.dry_run == 'true'
         run: |
           echo "DRY RUN: Would publish pipeops-rexec-${{ needs.setup.outputs.version }}.gem to RubyGems"
           ls -la *.gem
 
-  # Java SDK -> Maven Central (via Sonatype OSSRH)
+  # Java SDK -> Maven Central (optional; needs Sonatype + GPG secrets)
   publish-java:
     needs: setup
     if: needs.setup.outputs.publish_java == 'true'
     runs-on: ubuntu-latest
+    continue-on-error: true
     defaults:
       run:
         working-directory: sdk/java
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check secrets
+        id: secrets
+        env:
+          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          OSSRH_TOKEN: ${{ secrets.OSSRH_TOKEN }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          if [ -z "${OSSRH_USERNAME:-}" ] || [ -z "${OSSRH_TOKEN:-}" ] || [ -z "${GPG_PRIVATE_KEY:-}" ]; then
+            echo "configured=false" >> $GITHUB_OUTPUT
+            echo "::warning::Maven Central secrets not configured — skipping Java publish"
+          else
+            echo "configured=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Setup Java
+        if: steps.secrets.outputs.configured == 'true'
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -243,27 +380,23 @@ jobs:
           gpg-passphrase: GPG_PASSPHRASE
 
       - name: Update version
+        if: steps.secrets.outputs.configured == 'true'
         run: |
           mvn versions:set -DnewVersion=${{ needs.setup.outputs.version }} -DgenerateBackupPoms=false
 
       - name: Build and verify
+        if: steps.secrets.outputs.configured == 'true'
         run: mvn clean verify
 
       - name: Publish to Maven Central
-        if: ${{ github.event.inputs.dry_run != 'true' }}
+        if: steps.secrets.outputs.configured == 'true' && needs.setup.outputs.dry_run != 'true'
         run: mvn deploy -P release
         env:
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
-      - name: Dry run - would publish
-        if: ${{ github.event.inputs.dry_run == 'true' }}
-        run: |
-          echo "DRY RUN: Would publish io.pipeops:rexec:${{ needs.setup.outputs.version }} to Maven Central"
-          mvn package -DskipTests
-
-  # .NET SDK -> NuGet
+  # .NET SDK -> NuGet (PipeOps.Rexec)
   publish-dotnet:
     needs: setup
     if: needs.setup.outputs.publish_dotnet == 'true'
@@ -293,16 +426,29 @@ jobs:
         run: dotnet pack --configuration Release --no-build -o ./nupkg
 
       - name: Publish to NuGet
-        if: ${{ github.event.inputs.dry_run != 'true' }}
-        run: dotnet nuget push ./nupkg/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
+        if: needs.setup.outputs.dry_run != 'true'
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NUGET_API_KEY:-}" ]; then
+            echo "::error::NUGET_API_KEY secret is not set"
+            exit 1
+          fi
+          set +e
+          OUT=$(dotnet nuget push ./nupkg/*.nupkg --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate 2>&1)
+          STATUS=$?
+          set -e
+          echo "$OUT"
+          exit $STATUS
 
-      - name: Dry run - would publish
-        if: ${{ github.event.inputs.dry_run == 'true' }}
+      - name: Dry run
+        if: needs.setup.outputs.dry_run == 'true'
         run: |
           echo "DRY RUN: Would publish PipeOps.Rexec.${{ needs.setup.outputs.version }}.nupkg to NuGet"
           ls -la ./nupkg/
 
-  # PHP SDK -> Packagist (via GitHub webhook - just tag)
+  # PHP SDK -> Packagist (webhook; validate only here)
   publish-php:
     needs: setup
     if: needs.setup.outputs.publish_php == 'true'
@@ -319,19 +465,20 @@ jobs:
           php-version: '8.2'
 
       - name: Install dependencies
-        run: composer install --no-dev
+        run: composer install --no-dev --no-interaction
 
       - name: Validate composer.json
-        run: composer validate
+        run: composer validate --strict
 
-      - name: Packagist webhook note
+      - name: Packagist note
         run: |
-          echo "PHP packages are auto-published to Packagist via GitHub webhook."
-          echo "Ensure the repository is connected to Packagist at https://packagist.org/"
-          echo "Package: pipeopshq/rexec"
-          echo "Version: ${{ needs.setup.outputs.version }}"
+          echo "PHP packages sync via Packagist GitHub webhook."
+          echo "Submit once at https://packagist.org/packages/submit"
+          echo "Package: pipeopshq/rexec  Version: ${{ needs.setup.outputs.version }}"
 
-  # Summary job
+  # Go SDK is published via the standalone repo github.com/PipeOpsHQ/rexec-go
+  # (synced by sync-go-sdk.yml). Tag releases there for module versions.
+
   summary:
     needs: [setup, publish-js, publish-python, publish-rust, publish-ruby, publish-java, publish-dotnet, publish-php]
     if: always()
@@ -342,13 +489,15 @@ jobs:
           echo "## SDK Publish Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Version:** ${{ needs.setup.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Dry run:** ${{ needs.setup.outputs.dry_run }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| SDK | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| JavaScript (npm) | ${{ needs.publish-js.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Python (PyPI) | ${{ needs.publish-python.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Rust (crates.io) | ${{ needs.publish-rust.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Ruby (RubyGems) | ${{ needs.publish-ruby.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Java (Maven Central) | ${{ needs.publish-java.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| .NET (NuGet) | ${{ needs.publish-dotnet.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| PHP (Packagist) | ${{ needs.publish-php.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SDK | Registry | Package | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|----------|---------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| JavaScript | npm | \`pipeops-rexec\` | ${{ needs.publish-js.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Python | PyPI | \`pipeops-rexec\` | ${{ needs.publish-python.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Rust | crates.io | \`pipeops-rexec\` | ${{ needs.publish-rust.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Ruby | RubyGems | \`pipeops-rexec\` | ${{ needs.publish-ruby.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Java | Maven Central | \`io.pipeops:rexec\` | ${{ needs.publish-java.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| .NET | NuGet | \`PipeOps.Rexec\` | ${{ needs.publish-dotnet.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| PHP | Packagist | \`pipeopshq/rexec\` | ${{ needs.publish-php.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Go | GitHub | \`github.com/PipeOpsHQ/rexec-go\` | via sync-go-sdk |" >> $GITHUB_STEP_SUMMARY

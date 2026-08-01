@@ -1,21 +1,35 @@
 # SDK Publishing Guide
 
-This document describes how to set up and use the SDK publishing workflow.
+All official SDK publishing is managed **only** through GitHub Actions. Do not publish packages from a laptop except for emergencies.
 
 ## GitHub Actions Workflow
 
-The `publish-sdks.yml` workflow automates publishing all SDKs to their respective package registries.
+Workflow file: [`.github/workflows/publish-sdks.yml`](../.github/workflows/publish-sdks.yml)
+
+| SDK | Registry | Secret | Package |
+|-----|----------|--------|---------|
+| JavaScript | npm | `NPM_TOKEN` | `pipeops-rexec` |
+| Python | PyPI | `PYPI_TOKEN` | `pipeops-rexec` |
+| Rust | crates.io | `CRATES_IO_TOKEN` | `pipeops-rexec` |
+| Ruby | RubyGems | `RUBYGEMS_API_KEY` | `pipeops-rexec` |
+| .NET | NuGet | `NUGET_API_KEY` | `PipeOps.Rexec` |
+| Java | Maven Central | `OSSRH_*` + GPG | `io.pipeops:rexec` (optional) |
+| PHP | Packagist | (webhook) | `pipeopshq/rexec` |
+| Go | GitHub module | — | `github.com/PipeOpsHQ/rexec-go` |
 
 ### Triggers
 
-1. **On Release**: Automatically triggered when a new GitHub release is published
-2. **Manual Dispatch**: Can be triggered manually with custom options
+1. **On Release** — when a GitHub Release is published (`release.yml` or manual release UI)
+2. **Manual dispatch** — Actions → **Publish SDKs** → Run workflow
+3. **workflow_call** — reusable from other workflows
 
-### Manual Trigger Options
+### Manual trigger options
 
 - **version**: Version to publish (e.g., `1.0.0`)
-- **sdks**: Comma-separated list of SDKs to publish (e.g., `js,python`) or `all`
-- **dry_run**: If true, validates packages without publishing
+- **sdks**: Comma-separated list (e.g., `js,python,rust`) or `all`
+- **dry_run**: Validate only, no upload
+
+Re-runs are **idempotent**: if a version already exists on the registry, the job skips or treats that as success.
 
 ## Required Secrets
 

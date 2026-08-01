@@ -66,6 +66,14 @@ jobs:
           draft: false
           prerelease: false
 
+      # Publishing a release fires publish-sdks.yml (on: release.published).
+      # That workflow is the only path for npm / PyPI / crates.io / RubyGems / NuGet.
+      - name: Note SDK publish
+        run: |
+          echo "SDK packages will publish via workflow 'Publish SDKs' (release.published)."
+          echo "Version: ${{ steps.version.outputs.version }}"
+          echo "Track: https://github.com/${{ github.repository }}/actions/workflows/publish-sdks.yml"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
