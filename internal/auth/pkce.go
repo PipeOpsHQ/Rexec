@@ -102,7 +102,9 @@ func NewPKCEOAuthService() *PKCEOAuthService {
 			BaseURL:     baseURL,
 			APIBaseURL:  apiBaseURL,
 			RedirectURI: redirectURI,
-			Scopes:      []string{"user:read"},
+			// PipeOps AS catalog (post scope cleanup). Legacy "user:read" is
+			// rejected with "invalid scope: user:read". Prefer OIDC + read:user.
+			Scopes: []string{"openid", "profile", "email", "read:user"},
 		},
 		client: &http.Client{Timeout: 30 * time.Second},
 	}
