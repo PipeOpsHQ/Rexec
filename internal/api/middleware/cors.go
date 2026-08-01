@@ -61,20 +61,20 @@ func CORSMiddleware() gin.HandlerFunc {
 		allowAnyOrigin := isWebSocketRoute || hasAuthHeader
 
 		if origin != "" {
-			if allowAnyOrigin {
-				// Allow any origin for WebSocket routes and authenticated requests
-				// This is essential for the embed widget which can be loaded from ANY third-party domain
+			if _, ok := allowedOrigins[origin]; ok {
+				// Trusted first-party origin: safe to allow credentials (cookies).
 				c.Header("Access-Control-Allow-Origin", origin)
 				c.Header("Access-Control-Allow-Credentials", "true")
 				c.Header("Vary", "Origin")
-			} else if _, ok := allowedOrigins[origin]; ok {
+			} else if allowAnyOrigin {
+				// Embed widget / WebSocket: auth is via Bearer token in Authorization header,
+				// not cookies. Reflect the origin but do NOT allow credentials, to avoid the
+				// "reflected origin + credentials" CORS misconfiguration.
 				c.Header("Access-Control-Allow-Origin", origin)
-				c.Header("Access-Control-Allow-Credentials", "true")
 				c.Header("Vary", "Origin")
 			} else if !isRelease {
-				// In development, allow any origin
+				// Development only: permissive but without credentials.
 				c.Header("Access-Control-Allow-Origin", origin)
-				c.Header("Access-Control-Allow-Credentials", "true")
 				c.Header("Vary", "Origin")
 			}
 		}
@@ -84,14 +84,16 @@ func CORSMiddleware() gin.HandlerFunc {
 		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, Upgrade, Sec-WebSocket-Key, Sec-WebSocket-Version, Sec-WebSocket-Protocol, Sec-WebSocket-Extensions")
 
 		if c.Request.Method == http.MethodOptions {
-			// For preflight requests, we need to allow the origin if it will be allowed
-			// for the actual request. Since we can't know if the actual request will have
-			// an Authorization header, we allow all origins for preflight to API routes.
+			// Preflight: cannot inspect Authorization header (browsers don't send it on OPTIONS).
+			// Reflect origin for API/WS routes so the embed widget's preflight succeeds, but never
+			// allow credentials on arbitrary reflected origins — trusted origins get credentials
+			// via the block above.
 			isAPIRoute := strings.HasPrefix(path, "/api/") || strings.HasPrefix(path, "/ws/")
 			if isAPIRoute && origin != "" {
-				c.Header("Access-Control-Allow-Origin", origin)
-				c.Header("Access-Control-Allow-Credentials", "true")
-				c.Header("Vary", "Origin")
+				if _, ok := allowedOrigins[origin]; !ok {
+					c.Header("Access-Control-Allow-Origin", origin)
+					c.Header("Vary", "Origin")
+				}
 			}
 			c.AbortWithStatus(http.StatusNoContent)
 			return
