@@ -1,8 +1,8 @@
 # Rexec SDK — API Reference
 
-Official client libraries for the Rexec API (sandboxes, files, and terminals).
+Official client libraries for the Rexec **sandbox** API (files and terminals).
 
-**Product:** Rexec is an AI-native sandbox platform — instant, isolated Linux environments (containers) via API / UI / CLI. SDKs share one REST + WebSocket surface.
+**Product:** Rexec is PipeOps’ **AI-native sandbox** platform — instant, isolated Linux environments via API / UI / CLI. SDKs share one REST + WebSocket surface.
 
 | | |
 |--|--|
@@ -13,9 +13,27 @@ Official client libraries for the Rexec API (sandboxes, files, and terminals).
 | **Publishing** | [SDK_PUBLISHING.md](SDK_PUBLISHING.md) |
 | **Source monorepo** | [github.com/PipeOpsHQ/Rexec](https://github.com/PipeOpsHQ/Rexec) (`sdk/{js,python,go,rust,ruby,dotnet,java,php}`) |
 | **In-app docs** | `/docs/sdk` on the product UI |
+| **PipeOps docs** | [docs.pipeops.io — Rexec Sandboxes](https://docs.pipeops.io/docs/rexec/overview) (when published) |
 | **E2E smoke** | [`scripts/sdk-e2e/`](../scripts/sdk-e2e/) (`test-js.mjs`, `test_py.py`, Go/Rust/Ruby/.NET/Java/PHP runners) |
 
 > **Verified E2E** against a live Rexec instance: `list` → `create` → `get` → `delete`.
+
+---
+
+## Sandboxes (product concept)
+
+A **sandbox** is the isolated Linux workspace you create, use, and delete. In the HTTP API and SDK method names this resource is still called a **container** (`/api/containers`, `client.containers.*`).
+
+| Term | Meaning |
+|------|---------|
+| **Sandbox** | Product / docs language for the isolated environment |
+| **Container** | API resource and SDK service name |
+
+Typical use cases: AI agents running code safely, ephemeral dev shells, demos, and CI-style throwaway environments.
+
+**Lifecycle:** `create` → often `creating` (async) → `running` ⇄ `stopped` → `delete` (or `error`).
+
+There is **no** primary HTTP `exec()` on hosted Rexec — run commands via the [terminal WebSocket](#terminal-websocket).
 
 ---
 
@@ -86,18 +104,20 @@ Catalog: **`GET /api/images`**.
 
 Every SDK exposes roughly three services over the same HTTP/WS endpoints.
 
-### Containers / sandboxes
+### Sandboxes (`containers` service)
+
+SDK methods are named `containers.*` but operate on **sandboxes**.
 
 | Method | HTTP | Notes |
 |--------|------|--------|
-| **List** | `GET /api/containers` | Response is often `{ containers: [...] \| null, count, limit }`. SDKs **normalize to an array**. |
-| **Create** | `POST /api/containers` body `{ image, name? }` | Often returns immediately with `status: "creating"` (**async create**). |
+| **List** | `GET /api/containers` | Response is often `{ containers: [...] \| null, count, limit }`. SDKs **normalize to an array** of sandboxes. |
+| **Create** | `POST /api/containers` body `{ image, name? }` | Creates a sandbox. Often returns immediately with `status: "creating"` (**async**). |
 | **Get** | `GET /api/containers/:id` | Poll until `status === "running"` if you need a ready shell. |
 | **Start** | `POST /api/containers/:id/start` | |
 | **Stop** | `POST /api/containers/:id/stop` | |
-| **Delete** | `DELETE /api/containers/:id` | |
+| **Delete** | `DELETE /api/containers/:id` | Destroys the sandbox |
 
-### Files (per container)
+### Files (per sandbox)
 
 | Method | HTTP |
 |--------|------|
@@ -139,7 +159,7 @@ Optional client options (language-dependent): custom `fetch` (JS), timeouts, TLS
 
 ---
 
-## Container model
+## Sandbox (container) model
 
 Conceptual fields (names may be camelCase or snake_case per language):
 
@@ -173,14 +193,14 @@ SDKs return a plain array so callers never special-case `null`.
 
 ---
 
-## Containers API (detail)
+## Sandboxes API (detail)
 
-Happy path for every language:
+Happy path for every language (via `containers` service):
 
-1. `list()`
-2. `create({ image: "ubuntu", name?: "…" })`
-3. `get(id)` — optionally loop until `status == "running"`
-4. `delete(id)`
+1. `list()` — sandboxes for the current token  
+2. `create({ image: "ubuntu", name?: "…" })` — new sandbox  
+3. `get(id)` — optionally loop until `status == "running"`  
+4. `delete(id)` — destroy sandbox  
 
 Also available: `start(id)`, `stop(id)`.
 
@@ -203,10 +223,10 @@ async function waitRunning(client: RexecClient, id: string, ms = 60_000) {
 
 ## Files API (detail)
 
-Typical flow after the sandbox is `running`:
+Typical flow after the **sandbox** is `running`:
 
 ```typescript
-// JS
+// JS — containerId is the sandbox id
 const entries = await client.files.list(containerId, '/home');
 const bytes = await client.files.read(containerId, '/etc/hostname');
 await client.files.write(containerId, '/tmp/hello.txt', 'hi\n');
@@ -523,6 +543,7 @@ cd scripts/sdk-e2e
 | Publishing / CI | [SDK_PUBLISHING.md](SDK_PUBLISHING.md) |
 | Per-language READMEs | [`sdk/*/README.md`](../sdk/) |
 | Product site | https://rexec.sh |
+| PipeOps docs (sandboxes) | https://docs.pipeops.io/docs/rexec/overview |
 | Monorepo | https://github.com/PipeOpsHQ/Rexec |
 | npm | https://www.npmjs.com/package/pipeops-rexec |
 | PyPI | https://pypi.org/project/pipeops-rexec/ |
