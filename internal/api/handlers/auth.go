@@ -532,6 +532,247 @@ func (h *AuthHandler) OAuthExchange(c *gin.Context) {
 	c.JSON(http.StatusNotImplemented, gin.H{"error": "Use callback endpoint"})
 }
 
+// PipeOpsAssertRequest is a server-to-server identity bridge from PipeOps controller.
+// Auth: header X-PipeOps-Assert-Key must match env PIPEOPS_ASSERT_KEY,
+// or Authorization Bearer is treated as a PipeOps OAuth access token (userinfo).
+type PipeOpsAssertRequest struct {
+	Email              string `json:"email"`
+	PipeOpsID          string `json:"pipeops_id"`
+	Username           string `json:"username,omitempty"`
+	FirstName          string `json:"first_name,omitempty"`
+	LastName           string `json:"last_name,omitempty"`
+	Avatar             string `json:"avatar,omitempty"`
+	EmailVerified      bool   `json:"email_verified"`
+	SubscriptionActive bool   `json:"subscription_active"`
+	// MintAPIToken also returns a short-lived rexec_… API token for SDKs/embed.
+	MintAPIToken bool `json:"mint_api_token,omitempty"`
+	// APITokenExpiresInDays defaults to 1 when minting (Rexec token API unit is days).
+	APITokenExpiresInDays *int `json:"api_token_expires_in_days,omitempty"`
+}
+
+// PipeOpsAssert find-or-creates a Rexec user from a verified PipeOps identity
+// (same email as Login-with-PipeOps OAuth) and returns a Rexec JWT.
+// Used by PipeOps BFF so sandboxes are owned by the human user, not the platform service token.
+func (h *AuthHandler) PipeOpsAssert(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	var req PipeOpsAssertRequest
+	// Mode A: shared secret (PipeOps controller → Rexec)
+	assertKey := strings.TrimSpace(os.Getenv("PIPEOPS_ASSERT_KEY"))
+	providedKey := strings.TrimSpace(c.GetHeader("X-PipeOps-Assert-Key"))
+	usedSecret := assertKey != "" && providedKey != "" && subtleConstantTimeEq(assertKey, providedKey)
+
+	if usedSecret {
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body", "message": "email and pipeops_id required"})
+			return
+		}
+	} else {
+		// Mode B: PipeOps OAuth access token → userinfo
+		authHeader := c.GetHeader("Authorization")
+		if !strings.HasPrefix(strings.ToLower(authHeader), "bearer ") {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error":   "unauthorized",
+				"message": "require X-PipeOps-Assert-Key or Bearer PipeOps access token",
+			})
+			return
+		}
+		accessToken := strings.TrimSpace(authHeader[7:])
+		userInfo, err := h.oauthService.GetUserInfo(accessToken)
+		if err != nil {
+			log.Printf("[Auth] PipeOpsAssert userinfo failed: %v", err)
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid_pipeops_token", "message": "failed to validate PipeOps token"})
+			return
+		}
+		req = PipeOpsAssertRequest{
+			Email:              userInfo.Email,
+			PipeOpsID:          fmt.Sprintf("%d", userInfo.ID),
+			Username:           userInfo.Username,
+			FirstName:          userInfo.FirstName,
+			LastName:           userInfo.LastName,
+			Avatar:             userInfo.Avatar,
+			EmailVerified:      userInfo.Verified,
+			SubscriptionActive: userInfo.SubscriptionActive,
+		}
+		// Allow body to request mint_api_token without overriding identity
+		var bodyOpts struct {
+			MintAPIToken          bool `json:"mint_api_token"`
+			APITokenExpiresInDays *int `json:"api_token_expires_in_days"`
+		}
+		_ = c.ShouldBindJSON(&bodyOpts)
+		req.MintAPIToken = bodyOpts.MintAPIToken
+		req.APITokenExpiresInDays = bodyOpts.APITokenExpiresInDays
+	}
+
+	normalizedEmail := strings.ToLower(strings.TrimSpace(req.Email))
+	if normalizedEmail == "" || !strings.Contains(normalizedEmail, "@") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "email_required"})
+		return
+	}
+	// Refuse to link unverified emails when using secret mode (caller must assert truth).
+	if usedSecret && !req.EmailVerified {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error":   "email_not_verified",
+			"message": "only verified PipeOps emails can be asserted",
+		})
+		return
+	}
+
+	user, created, err := h.ensureUserFromPipeOps(ctx, &req, normalizedEmail)
+	if err != nil {
+		log.Printf("[Auth] PipeOpsAssert ensure user: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to resolve user"})
+		return
+	}
+
+	sessionID, err := h.createUserSession(c, user)
+	if err != nil {
+		log.Printf("[Auth] PipeOpsAssert session: %v", err)
+		sessionID = ""
+	}
+	jwtToken, err := h.generateToken(user, sessionID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to mint jwt"})
+		return
+	}
+
+	// Default JWT TTL advertised to clients (matches generateToken default for non-guest)
+	expiresIn := int((90 * 24 * time.Hour).Seconds())
+	if user.SessionDurationMinutes > 0 {
+		expiresIn = user.SessionDurationMinutes * 60
+	}
+
+	resp := gin.H{
+		"token":       jwtToken,
+		"token_type":  "Bearer",
+		"expires_in":  expiresIn,
+		"user_id":     user.ID,
+		"email":       user.Email,
+		"username":    user.Username,
+		"pipeops_id":  user.PipeOpsID,
+		"tier":        user.Tier,
+		"created":     created,
+		"token_kind":  "jwt",
+	}
+
+	if req.MintAPIToken {
+		days := 1
+		if req.APITokenExpiresInDays != nil && *req.APITokenExpiresInDays > 0 {
+			days = *req.APITokenExpiresInDays
+		}
+		exp := time.Now().AddDate(0, 0, days)
+		name := fmt.Sprintf("pipeops-assert-%d", time.Now().Unix())
+		_, plain, tokenErr := h.store.GenerateAPIToken(ctx, user.ID, name, []string{"read", "write"}, &exp)
+		if tokenErr != nil {
+			log.Printf("[Auth] PipeOpsAssert mint API token: %v", tokenErr)
+		} else {
+			resp["api_token"] = plain
+			resp["api_token_expires_at"] = exp.UTC().Format(time.RFC3339)
+		}
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
+func subtleConstantTimeEq(a, b string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	var v byte
+	for i := 0; i < len(a); i++ {
+		v |= a[i] ^ b[i]
+	}
+	return v == 0
+}
+
+// ensureUserFromPipeOps mirrors OAuthCallback user provisioning (email match).
+func (h *AuthHandler) ensureUserFromPipeOps(ctx context.Context, req *PipeOpsAssertRequest, normalizedEmail string) (*models.User, bool, error) {
+	user, _, err := h.store.GetUserByEmail(ctx, normalizedEmail)
+	if err != nil {
+		return nil, false, err
+	}
+
+	pipeopsID := strings.TrimSpace(req.PipeOpsID)
+	username := strings.TrimSpace(req.Username)
+	if username == "" {
+		username = strings.TrimSpace(req.FirstName)
+	}
+	if username == "" {
+		// Local-part of email
+		if i := strings.Index(normalizedEmail, "@"); i > 0 {
+			username = normalizedEmail[:i]
+		} else {
+			username = normalizedEmail
+		}
+	}
+
+	tier := "free"
+	if req.SubscriptionActive {
+		tier = "pro"
+	}
+
+	if user == nil {
+		user = &models.User{
+			ID:                 uuid.New().String(),
+			Email:              normalizedEmail,
+			Username:           username,
+			FirstName:          req.FirstName,
+			LastName:           req.LastName,
+			Avatar:             req.Avatar,
+			Verified:           true, // only verified emails allowed via assert
+			SubscriptionActive: req.SubscriptionActive,
+			Tier:               tier,
+			PipeOpsID:          pipeopsID,
+			CreatedAt:          time.Now(),
+			UpdatedAt:          time.Now(),
+			IsAdmin:            false,
+		}
+		if err := h.store.CreateUser(ctx, user, ""); err != nil {
+			return nil, false, err
+		}
+		if h.adminEventsHub != nil {
+			h.adminEventsHub.Broadcast("user_created", user)
+		}
+		return user, true, nil
+	}
+
+	// Existing user — sync PipeOps linkage and profile
+	user.FirstName = firstNonEmptyStr(req.FirstName, user.FirstName)
+	user.LastName = firstNonEmptyStr(req.LastName, user.LastName)
+	user.Avatar = firstNonEmptyStr(req.Avatar, user.Avatar)
+	if req.EmailVerified {
+		user.Verified = true
+	}
+	user.SubscriptionActive = req.SubscriptionActive
+	if req.SubscriptionActive {
+		if user.Tier != "pro" && user.Tier != "enterprise" {
+			user.Tier = "pro"
+		}
+	} else if user.Tier == "guest" {
+		user.Tier = "free"
+	}
+	if user.PipeOpsID == "" && pipeopsID != "" {
+		user.PipeOpsID = pipeopsID
+	}
+	user.UpdatedAt = time.Now()
+	if err := h.store.UpdateUser(ctx, user); err != nil {
+		log.Printf("[Auth] PipeOpsAssert update user %s: %v", user.ID, err)
+	}
+	if h.adminEventsHub != nil {
+		h.adminEventsHub.Broadcast("user_updated", user)
+	}
+	return user, false, nil
+}
+
+func firstNonEmptyStr(vals ...string) string {
+	for _, v := range vals {
+		if strings.TrimSpace(v) != "" {
+			return strings.TrimSpace(v)
+		}
+	}
+	return ""
+}
+
 // createUserSession records a new login session and returns its ID.
 // If session tracking fails, caller may choose to proceed without a session ID.
 // If single_session_mode is enabled, this will revoke all other sessions first.
