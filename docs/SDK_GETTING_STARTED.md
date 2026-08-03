@@ -1,8 +1,11 @@
 # Rexec SDK Quick Start
 
-**~5 minutes** to list, create, inspect, and delete a sandbox with an official client.
+**~5 minutes** to list, create, inspect, and delete a **sandbox** with an official client.
 
-**Rexec** is an AI-native sandbox platform: instant, isolated Linux environments (containers) via API, UI, and CLI. Official language SDKs wrap the same REST + WebSocket API so agents and apps can manage sandboxes, files, and interactive terminals.
+**Rexec** is PipeOps’ **AI-native sandbox** platform: instant, isolated Linux environments via API, UI, and CLI. Official language SDKs wrap the same REST + WebSocket API so agents and apps can manage sandboxes, files, and interactive terminals.
+
+> **Sandbox vs container:** product language is **sandbox**. API and SDK methods use **`containers.*`** (`/api/containers`). Same resource.
+
 
 | | |
 |--|--|
@@ -11,6 +14,7 @@
 | **SDK line** | **v1.0.1** |
 | **Full reference** | [SDK.md](SDK.md) |
 | **In-app docs** | `https://rexec.sh` → `/docs/sdk` |
+| **PipeOps docs** | [Rexec Sandboxes](https://docs.pipeops.io/docs/rexec/overview) |
 | **Monorepo** | [github.com/PipeOpsHQ/Rexec](https://github.com/PipeOpsHQ/Rexec) |
 
 > **E2E verified:** `list` → `create` → `get` → `delete` against a live instance.  
