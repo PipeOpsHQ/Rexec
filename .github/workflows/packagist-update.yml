@@ -1,0 +1,60 @@
+name: Packagist update
+
+# After the package is submitted once on Packagist, this pings Packagist to
+# re-crawl when PHP SDK tags/sync land. Requires PACKAGIST_USERNAME + PACKAGIST_TOKEN.
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Sync PHP SDK", "Publish SDKs"]
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - 'sdk/php/**'
+      - '.github/workflows/packagist-update.yml'
+      - '.github/workflows/sync-php-sdk.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    # Only when Packagist secrets exist
+    steps:
+      - name: Check secrets
+        id: secrets
+        env:
+          PACKAGIST_USERNAME: ${{ secrets.PACKAGIST_USERNAME }}
+          PACKAGIST_TOKEN: ${{ secrets.PACKAGIST_TOKEN }}
+        run: |
+          if [ -z "${PACKAGIST_USERNAME:-}" ] || [ -z "${PACKAGIST_TOKEN:-}" ]; then
+            echo "configured=false" >> $GITHUB_OUTPUT
+            echo "::notice::PACKAGIST_USERNAME/TOKEN not set — skip auto-update"
+            echo "Submit once: https://packagist.org/packages/submit"
+            echo "Repo URL: https://github.com/PipeOpsHQ/rexec-php"
+          else
+            echo "configured=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create package if missing
+        if: steps.secrets.outputs.configured == 'true'
+        env:
+          PACKAGIST_USERNAME: ${{ secrets.PACKAGIST_USERNAME }}
+          PACKAGIST_TOKEN: ${{ secrets.PACKAGIST_TOKEN }}
+        run: |
+          set -euo pipefail
+          AUTH="username=${PACKAGIST_USERNAME}&apiToken=${PACKAGIST_TOKEN}"
+          # create-package is idempotent-ish; ignore already-exists failures
+          curl -sS -X POST \
+            -H 'Content-Type: application/json' \
+            "https://packagist.org/api/create-package?${AUTH}" \
+            -d '{"repository":{"url":"https://github.com/PipeOpsHQ/rexec-php"}}' \
+            || true
+          curl -sS -X POST \
+            -H 'Content-Type: application/json' \
+            "https://packagist.org/api/update-package?${AUTH}" \
+            -d '{"repository":{"url":"https://github.com/PipeOpsHQ/rexec-php"}}'
+          echo
+          curl -sS -o /dev/null -w "packagist HTTP %{http_code}\n" \
+            "https://packagist.org/packages/pipeopshq/rexec.json"
