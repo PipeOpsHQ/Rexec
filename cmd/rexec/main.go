@@ -676,6 +676,8 @@ func runServer() {
 		authGroup.GET("/callback", authHandler.OAuthCallback)
 		authGroup.GET("/signin", authHandler.OAuthCallback) // Alternative callback path
 		authGroup.POST("/oauth/exchange", authHandler.OAuthExchange)
+		// Server-to-server identity bridge (PipeOps BFF → per-user Rexec JWT)
+		authGroup.POST("/pipeops/assert", authHandler.PipeOpsAssert)
 	}
 
 	// Internal SSH Gateway routes (called by the SSH gateway, no user auth)
