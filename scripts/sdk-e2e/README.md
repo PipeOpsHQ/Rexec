@@ -28,6 +28,14 @@ URL=$URL TOKEN=$TOKEN ruby test_rb.rb
 
 # .NET
 URL=$URL TOKEN=$TOKEN dotnet run --project dotnet_e2e -f net9.0
+
+# PHP (composer install deps in sdk/php first)
+(cd ../../sdk/php && composer install --no-interaction -q)
+URL=$URL TOKEN=$TOKEN php test_php.php
+
+# Java
+(cd ../../sdk/java && mvn -q install -DskipTests)
+(cd java_e2e && URL=$URL TOKEN=$TOKEN mvn -q compile exec:java)
 ```
 
 Flow exercised: **list → create(image: ubuntu) → list → get → delete**.

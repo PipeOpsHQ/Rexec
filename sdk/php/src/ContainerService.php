@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Rexec;
 
 /**
- * Service for managing containers.
+ * Service for managing sandboxes/containers.
  */
 class ContainerService
 {
@@ -19,15 +19,18 @@ class ContainerService
     /**
      * List all containers.
      *
+     * Handles production payload `{ containers: [...], count, limit }`
+     * (including `containers: null`) and a bare JSON array.
+     *
      * @return Container[]
      * @throws RexecException
      */
     public function list(): array
     {
         $response = $this->client->request('GET', '/api/containers');
-        $containers = $response['containers'] ?? [];
+        $items = self::normalizeList($response);
 
-        return array_map(fn($data) => new Container($data), $containers);
+        return array_map(static fn(array $data) => new Container($data), $items);
     }
 
     /**
@@ -38,20 +41,31 @@ class ContainerService
     public function get(string $containerId): Container
     {
         $response = $this->client->request('GET', "/api/containers/{$containerId}");
+        if (!is_array($response)) {
+            throw new RexecException('Unexpected empty response for get container', 500);
+        }
+
         return new Container($response);
     }
 
     /**
      * Create a new container.
      *
-     * @param string $image Docker image to use
-     * @param array $options Optional: name, environment, labels
+     * Prefer image aliases such as `ubuntu`, `debian`, or `alpine`
+     * (not `ubuntu:24.04` on hosted Rexec).
+     *
+     * @param string $image Image alias or name
+     * @param array{name?: string, environment?: array<string, string>, labels?: array<string, string>} $options
      * @throws RexecException
      */
     public function create(string $image, array $options = []): Container
     {
         $body = array_merge(['image' => $image], $options);
         $response = $this->client->request('POST', '/api/containers', $body);
+        if (!is_array($response)) {
+            throw new RexecException('Unexpected empty response for create container', 500);
+        }
+
         return new Container($response);
     }
 
@@ -86,22 +100,28 @@ class ContainerService
     }
 
     /**
-     * Execute a command in a container.
-     *
-     * @param string $containerId Container ID
-     * @param string|array $command Command to execute
-     * @throws RexecException
+     * @return list<array<string, mixed>>
      */
-    public function exec(string $containerId, string|array $command): ExecResult
+    private static function normalizeList(mixed $response): array
     {
-        if (is_string($command)) {
-            $command = ['/bin/sh', '-c', $command];
+        if ($response === null) {
+            return [];
+        }
+        if (is_array($response) && array_is_list($response)) {
+            /** @var list<array<string, mixed>> $response */
+            return $response;
+        }
+        if (is_array($response) && array_key_exists('containers', $response)) {
+            $containers = $response['containers'];
+            if ($containers === null) {
+                return [];
+            }
+            if (is_array($containers)) {
+                /** @var list<array<string, mixed>> $containers */
+                return array_values($containers);
+            }
         }
 
-        $response = $this->client->request('POST', "/api/containers/{$containerId}/exec", [
-            'command' => $command,
-        ]);
-
-        return new ExecResult($response);
+        return [];
     }
 }

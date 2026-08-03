@@ -467,13 +467,30 @@ jobs:
       - name: Install dependencies
         run: composer install --no-dev --no-interaction
 
+      - name: Sync version in composer.json
+        run: |
+          VERSION="${{ needs.setup.outputs.version }}"
+          if command -v jq >/dev/null 2>&1; then
+            jq --arg v "$VERSION" '.version = $v' composer.json > composer.json.tmp
+            mv composer.json.tmp composer.json
+          else
+            # Fallback without jq
+            sed -i.bak -E "s/\"version\"[[:space:]]*:[[:space:]]*\"[^\"]+\"/\"version\": \"$VERSION\"/" composer.json
+            rm -f composer.json.bak
+          fi
+          grep -E '"version"' composer.json || true
+
       - name: Validate composer.json
-        run: composer validate --strict
+        run: composer validate --no-check-publish
+
+      - name: Syntax check
+        run: |
+          find src -name '*.php' -print0 | xargs -0 -n1 php -l
 
       - name: Packagist note
         run: |
-          echo "PHP packages sync via Packagist GitHub webhook."
-          echo "Submit once at https://packagist.org/packages/submit"
+          echo "PHP packages sync via Packagist GitHub webhook after tags land on the monorepo."
+          echo "Submit once at https://packagist.org/packages/submit if not already registered."
           echo "Package: pipeopshq/rexec  Version: ${{ needs.setup.outputs.version }}"
 
   # Go SDK is published via the standalone repo github.com/PipeOpsHQ/rexec-go

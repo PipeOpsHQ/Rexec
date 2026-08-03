@@ -24,11 +24,22 @@ class FileService
      */
     public function list(string $containerId, string $path): array
     {
-        $encodedPath = urlencode($path);
-        $response = $this->client->request('GET', "/api/containers/{$containerId}/files/list?path={$encodedPath}");
-        $files = $response['files'] ?? [];
+        $encodedPath = rawurlencode($path);
+        $response = $this->client->request(
+            'GET',
+            "/api/containers/{$containerId}/files/list?path={$encodedPath}"
+        );
 
-        return array_map(fn($data) => new FileInfo($data), $files);
+        $files = [];
+        if (is_array($response)) {
+            if (array_is_list($response)) {
+                $files = $response;
+            } elseif (isset($response['files']) && is_array($response['files'])) {
+                $files = $response['files'];
+            }
+        }
+
+        return array_map(static fn(array $data) => new FileInfo($data), $files);
     }
 
     /**
@@ -38,16 +49,16 @@ class FileService
      */
     public function read(string $containerId, string $path): string
     {
-        $encodedPath = urlencode($path);
-        return $this->client->requestBytes('GET', "/api/containers/{$containerId}/files?path={$encodedPath}");
+        $encodedPath = rawurlencode($path);
+        return $this->client->requestBytes(
+            'GET',
+            "/api/containers/{$containerId}/files?path={$encodedPath}"
+        );
     }
 
     /**
-     * Write content to a file.
+     * Write content to a file (content is base64-encoded for transport).
      *
-     * @param string $containerId Container ID
-     * @param string $path File path
-     * @param string $content Content to write
      * @throws RexecException
      */
     public function write(string $containerId, string $path, string $content): void
@@ -65,7 +76,10 @@ class FileService
      */
     public function delete(string $containerId, string $path): void
     {
-        $encodedPath = urlencode($path);
-        $this->client->request('DELETE', "/api/containers/{$containerId}/files?path={$encodedPath}");
+        $encodedPath = rawurlencode($path);
+        $this->client->request(
+            'DELETE',
+            "/api/containers/{$containerId}/files?path={$encodedPath}"
+        );
     }
 }

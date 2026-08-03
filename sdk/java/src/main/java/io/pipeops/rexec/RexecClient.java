@@ -12,14 +12,13 @@ import java.util.concurrent.TimeUnit;
  * Main client for interacting with Rexec API.
  *
  * <pre>{@code
- * RexecClient client = new RexecClient("https://your-instance.com", "your-token");
+ * RexecClient client = new RexecClient("https://rexec.sh", token);
  *
  * Container container = client.containers().create(
- *     new CreateContainerRequest("ubuntu:24.04").setName("my-sandbox")
+ *     new CreateContainerRequest("ubuntu").setName("my-sandbox")
  * );
  *
- * Terminal terminal = client.terminal().connect(container.getId());
- * terminal.write("echo hello\n");
+ * client.containers().delete(container.getId());
  * }</pre>
  */
 public class RexecClient {
@@ -62,7 +61,8 @@ public class RexecClient {
                     Request original = chain.request();
                     Request.Builder builder = original.newBuilder()
                             .header("Authorization", "Bearer " + token)
-                            .header("Accept", "application/json");
+                            .header("Accept", "application/json")
+                            .header("User-Agent", "pipeops-rexec-java/1.0.1");
                     return chain.proceed(builder.build());
                 })
                 .build();
@@ -116,15 +116,31 @@ public class RexecClient {
      */
     String getWebSocketUrl(String path) {
         URI uri = URI.create(baseUrl);
-        String wsScheme = uri.getScheme().equals("https") ? "wss" : "ws";
-        int port = uri.getPort() != -1 ? uri.getPort() : (uri.getScheme().equals("https") ? 443 : 80);
-        return wsScheme + "://" + uri.getHost() + ":" + port + path;
+        String wsScheme = "https".equals(uri.getScheme()) ? "wss" : "ws";
+        StringBuilder sb = new StringBuilder();
+        sb.append(wsScheme).append("://").append(uri.getHost());
+        if (uri.getPort() != -1) {
+            sb.append(':').append(uri.getPort());
+        }
+        sb.append(path);
+        return sb.toString();
     }
 
     /**
-     * Make an API request.
+     * Make an API request and parse JSON into {@code responseType}.
      */
     <T> T request(String method, String path, Object body, Class<T> responseType) throws RexecException {
+        String raw = requestRaw(method, path, body);
+        if (responseType == Void.class || raw == null || raw.isBlank()) {
+            return null;
+        }
+        return gson.fromJson(raw, responseType);
+    }
+
+    /**
+     * Make an API request and return the raw response body.
+     */
+    String requestRaw(String method, String path, Object body) throws RexecException {
         String url = baseUrl + path;
 
         Request.Builder builder = new Request.Builder().url(url);
@@ -134,22 +150,17 @@ public class RexecClient {
             RequestBody requestBody = RequestBody.create(json, MediaType.parse("application/json"));
             builder.method(method, requestBody);
         } else if (method.equals("POST") || method.equals("PUT") || method.equals("PATCH")) {
-            builder.method(method, RequestBody.create("", null));
+            builder.method(method, RequestBody.create(new byte[0], MediaType.parse("application/json")));
         } else {
             builder.method(method, null);
         }
 
         try (Response response = httpClient.newCall(builder.build()).execute()) {
+            String responseBody = response.body() != null ? response.body().string() : "";
             if (!response.isSuccessful()) {
-                String errorBody = response.body() != null ? response.body().string() : "";
-                throw new RexecException(response.code(), extractErrorMessage(errorBody));
+                throw new RexecException(response.code(), extractErrorMessage(responseBody));
             }
-
-            if (responseType == Void.class || response.body() == null) {
-                return null;
-            }
-
-            return gson.fromJson(response.body().string(), responseType);
+            return responseBody;
         } catch (IOException e) {
             throw new RexecException("Request failed: " + e.getMessage(), e);
         }

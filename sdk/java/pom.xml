@@ -6,11 +6,11 @@
 
     <groupId>io.pipeops</groupId>
     <artifactId>rexec</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <packaging>jar</packaging>
 
     <name>Rexec Java SDK</name>
-    <description>Official Java SDK for Rexec - Terminal as a Service</description>
+    <description>Official Java SDK for Rexec - AI-Native Sandbox API</description>
     <url>https://github.com/PipeOpsHQ/rexec</url>
 
     <licenses>

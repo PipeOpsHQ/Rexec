@@ -1,19 +1,29 @@
 # Rexec PHP SDK
 
-Official PHP SDK for [Rexec](https://github.com/PipeOpsHQ/rexec) - Terminal as a Service.
+Official PHP client for the [Rexec](https://rexec.sh) API (sandboxes, files, terminals).
+
+**Package:** [`pipeopshq/rexec`](https://packagist.org/packages/pipeopshq/rexec) · **Version:** 1.0.1
 
 ## Requirements
 
-- PHP 8.1 or later
+- PHP 8.1+
 - Composer
+- ext-json, ext-curl (via Guzzle)
 
-## Installation
+## Install
 
 ```bash
 composer require pipeopshq/rexec
 ```
 
-## Quick Start
+Until Packagist is linked, install from the monorepo path:
+
+```bash
+composer config repositories.rexec path ../path/to/rexec/sdk/php
+composer require pipeopshq/rexec:@dev
+```
+
+## Quick start
 
 ```php
 <?php
@@ -21,136 +31,82 @@ composer require pipeopshq/rexec
 require 'vendor/autoload.php';
 
 use Rexec\RexecClient;
+use Rexec\RexecException;
 
-// Create client
-$client = new RexecClient('https://your-instance.com', 'your-api-token');
+$client = new RexecClient(
+    getenv('REXEC_URL') ?: 'https://rexec.sh',
+    getenv('REXEC_TOKEN') ?: ''
+);
 
-// Create a container
-$container = $client->containers()->create('ubuntu:24.04');
-echo "Created: {$container->id}\n";
+try {
+    $list = $client->containers()->list();
+    echo 'count: ' . count($list) . PHP_EOL;
 
-// Start it
-$client->containers()->start($container->id);
+    // Prefer image aliases: ubuntu, debian, alpine (not ubuntu:24.04 on hosted Rexec)
+    $container = $client->containers()->create('ubuntu', [
+        'name' => 'php-demo',
+    ]);
+    echo "created {$container->id} status={$container->status}\n";
 
-// Execute a command
-$result = $client->containers()->exec($container->id, "echo 'Hello from PHP!'");
-echo $result->stdout;
+    $got = $client->containers()->get($container->id);
+    echo "get {$got->id}\n";
 
-// Clean up
-$client->containers()->delete($container->id);
+    $client->containers()->delete($container->id);
+    echo "deleted\n";
+} catch (RexecException $e) {
+    fwrite(STDERR, $e->getMessage() . PHP_EOL);
+    exit(1);
+}
 ```
 
-## Features
-
-### Container Management
+## Containers
 
 ```php
-// List all containers
 $containers = $client->containers()->list();
-
-// Create with options
-$container = $client->containers()->create('python:3.12', [
-    'name' => 'my-python-sandbox',
-    'environment' => ['PYTHONPATH' => '/app'],
-    'labels' => ['project' => 'demo'],
-]);
-
-// Lifecycle
-$client->containers()->start($containerId);
-$client->containers()->stop($containerId);
-$client->containers()->delete($containerId);
-
-// Execute commands
-$result = $client->containers()->exec($containerId, 'python --version');
-if ($result->isSuccess()) {
-    echo $result->stdout;
-}
-
-// Execute with array command
-$result = $client->containers()->exec($containerId, ['python', '-c', 'print("Hello")']);
+$c = $client->containers()->create('ubuntu', ['name' => 'demo']);
+$client->containers()->get($c->id);
+$client->containers()->start($c->id);
+$client->containers()->stop($c->id);
+$client->containers()->delete($c->id);
 ```
 
-### File Operations
+> There is no HTTP `exec` API on Rexec. Run commands over the terminal WebSocket
+> (`$client->terminal()->connect($id)`).
+
+## Files
 
 ```php
-// List directory
-$files = $client->files()->list($containerId, '/app');
-foreach ($files as $file) {
-    $type = $file->isDir ? 'DIR' : "{$file->size} bytes";
-    echo "{$file->name} - {$type}\n";
-}
-
-// Read file
+$files = $client->files()->list($containerId, '/home');
 $content = $client->files()->read($containerId, '/etc/hostname');
-
-// Write file
-$client->files()->write($containerId, '/app/script.py', "print('Hello!')");
-
-// Delete file
-$client->files()->delete($containerId, '/tmp/scratch.txt');
+$client->files()->write($containerId, '/tmp/hello.txt', "hi\n");
+$client->files()->delete($containerId, '/tmp/hello.txt');
 ```
 
-### Interactive Terminal
+## Terminal (WebSocket)
 
 ```php
 use React\EventLoop\Loop;
 
 $terminal = $client->terminal()->connect($containerId);
-
-// Set up handlers
-$terminal->onData(function ($data) {
-    echo $data;
-});
-
-$terminal->onClose(function () {
-    echo "Disconnected\n";
-});
-
-$terminal->onError(function ($e) {
-    echo "Error: {$e->getMessage()}\n";
-});
-
-// Open connection
+$terminal->onData(fn ($data) => print($data));
 $terminal->open();
-
-// Send commands
-$terminal->write("ls -la\n");
-$terminal->write("cd /app && python main.py\n");
-
-// Resize terminal
-$terminal->resize(120, 40);
-
-// Run the event loop
+$terminal->write("echo hello\n");
 Loop::run();
-
-// Clean up
 $terminal->close();
 ```
 
-## Error Handling
+## Auth
 
-```php
-use Rexec\RexecException;
-
-try {
-    $container = $client->containers()->get('invalid-id');
-} catch (RexecException $e) {
-    if ($e->isApiError()) {
-        echo "API error {$e->getStatusCode()}: {$e->getMessage()}\n";
-    } else {
-        echo "Network error: {$e->getMessage()}\n";
-    }
-}
-```
-
-## Building from Source
+Create an API token in the Rexec UI (**Settings → API Tokens**), or use a guest JWT:
 
 ```bash
-cd sdk/php
-composer install
-composer test
+export REXEC_URL=https://rexec.sh
+export REXEC_TOKEN=$(curl -sS -X POST "$REXEC_URL/api/auth/guest" \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"php_demo","email":"you@example.com"}' \
+  | php -r 'echo json_decode(stream_get_contents(STDIN))->token;')
 ```
 
 ## License
 
-MIT License - see [LICENSE](../../LICENSE) for details.
+MIT — see [LICENSE](LICENSE).
