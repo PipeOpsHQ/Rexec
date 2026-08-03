@@ -17,9 +17,130 @@
     let activeTab: Tab = "stats";
     let selectedStatsRange = "30d";
 
+    type SeriesKey =
+        | "users"
+        | "containers"
+        | "sessions"
+        | "logins"
+        | "agents"
+        | "recordings";
+
+    const seriesMeta: {
+        key: SeriesKey;
+        label: string;
+        field: "newUsers" | "newContainers" | "newSessions" | "newLogins" | "newAgents" | "newRecordings";
+        color: string;
+    }[] = [
+        { key: "users", label: "Users", field: "newUsers", color: "#4aa3ff" },
+        { key: "containers", label: "Containers", field: "newContainers", color: "#f8b84e" },
+        { key: "sessions", label: "Sessions", field: "newSessions", color: "#3ddc97" },
+        { key: "logins", label: "Logins", field: "newLogins", color: "#b38cff" },
+        { key: "agents", label: "Agents", field: "newAgents", color: "#ff7a59" },
+        { key: "recordings", label: "Recordings", field: "newRecordings", color: "#56d4c1" },
+    ];
+
+    /** Hovered timeline bucket index (-1 = none) */
+    let hoveredBucket = -1;
+    /** Click-pinned bucket (persists until another click / leave chart) */
+    let pinnedBucket = -1;
+    /** Legend series hover/filter */
+    let hoveredSeries: SeriesKey | null = null;
+    let focusedSeries: SeriesKey | null = null;
+
+    let chartWrapEl: HTMLDivElement | null = null;
+    let tooltipX = 0;
+    let tooltipY = 0;
+
     function setTab(tab: Tab) {
         activeTab = tab;
+        clearChartInteraction();
     }
+
+    function clearChartInteraction() {
+        hoveredBucket = -1;
+        pinnedBucket = -1;
+        hoveredSeries = null;
+    }
+
+    function pointTotal(point: {
+        newUsers: number;
+        newContainers: number;
+        newSessions: number;
+        newLogins: number;
+        newAgents: number;
+        newRecordings: number;
+    }): number {
+        return (
+            point.newUsers +
+            point.newContainers +
+            point.newSessions +
+            point.newLogins +
+            point.newAgents +
+            point.newRecordings
+        );
+    }
+
+    function seriesValue(
+        point: {
+            newUsers: number;
+            newContainers: number;
+            newSessions: number;
+            newLogins: number;
+            newAgents: number;
+            newRecordings: number;
+        },
+        field: (typeof seriesMeta)[number]["field"],
+    ): number {
+        return point[field] ?? 0;
+    }
+
+    function activeSeriesKey(): SeriesKey | null {
+        return hoveredSeries ?? focusedSeries;
+    }
+
+    function isSeriesDimmed(key: SeriesKey): boolean {
+        const active = activeSeriesKey();
+        return active !== null && active !== key;
+    }
+
+    function onBarPointerMove(e: PointerEvent, index: number) {
+        hoveredBucket = index;
+        if (!chartWrapEl) return;
+        const rect = chartWrapEl.getBoundingClientRect();
+        // Keep tooltip inside the chart card
+        const rawX = e.clientX - rect.left;
+        const rawY = e.clientY - rect.top;
+        tooltipX = Math.min(Math.max(12, rawX), rect.width - 12);
+        tooltipY = Math.min(Math.max(12, rawY), rect.height - 12);
+    }
+
+    function onBarPointerLeave() {
+        hoveredBucket = -1;
+    }
+
+    function onBarClick(index: number) {
+        pinnedBucket = pinnedBucket === index ? -1 : index;
+    }
+
+    function onLegendEnter(key: SeriesKey) {
+        hoveredSeries = key;
+    }
+
+    function onLegendLeave() {
+        hoveredSeries = null;
+    }
+
+    function onLegendClick(key: SeriesKey) {
+        focusedSeries = focusedSeries === key ? null : key;
+    }
+
+    $: activeBucketIndex =
+        hoveredBucket >= 0 ? hoveredBucket : pinnedBucket >= 0 ? pinnedBucket : -1;
+
+    $: activePoint =
+        stats?.timeline && activeBucketIndex >= 0
+            ? stats.timeline[activeBucketIndex]
+            : null;
 
     async function loadData() {
         await Promise.all([
@@ -96,6 +217,8 @@
 
     async function handleStatsRangeChange(range: string) {
         selectedStatsRange = range;
+        clearChartInteraction();
+        focusedSeries = null;
         await admin.fetchStats(range);
     }
 
@@ -298,45 +421,145 @@
                             <div class="chart-header">
                                 <div>
                                     <h3>Usage over time</h3>
-                                    <p>{new Date(stats.from).toLocaleDateString()} - {new Date(stats.to).toLocaleDateString()}</p>
+                                    <p>
+                                        {new Date(stats.from).toLocaleDateString()} - {new Date(stats.to).toLocaleDateString()}
+                                        <span class="chart-hint"> · hover bars · click to pin · click legend to focus a series</span>
+                                    </p>
                                 </div>
-                                <div class="chart-legend">
-                                    <span class="legend-item users">Users</span>
-                                    <span class="legend-item containers">Containers</span>
-                                    <span class="legend-item sessions">Sessions</span>
-                                    <span class="legend-item logins">Logins</span>
-                                    <span class="legend-item agents">Agents</span>
-                                    <span class="legend-item recordings">Recordings</span>
+                                <div class="chart-legend" role="group" aria-label="Series legend">
+                                    {#each seriesMeta as series}
+                                        <button
+                                            type="button"
+                                            class="legend-item {series.key}"
+                                            class:dimmed={isSeriesDimmed(series.key)}
+                                            class:focused={focusedSeries === series.key}
+                                            style={`--series-color: ${series.color}`}
+                                            onmouseenter={() => onLegendEnter(series.key)}
+                                            onmouseleave={onLegendLeave}
+                                            onfocus={() => onLegendEnter(series.key)}
+                                            onblur={onLegendLeave}
+                                            onclick={() => onLegendClick(series.key)}
+                                            title={focusedSeries === series.key
+                                                ? `Showing only ${series.label} (click to clear)`
+                                                : `Highlight ${series.label}`}
+                                        >
+                                            {series.label}
+                                        </button>
+                                    {/each}
                                 </div>
                             </div>
 
-                            <div class="chart-wrap">
+                            <div
+                                class="chart-wrap"
+                                class:has-hover={activeBucketIndex >= 0}
+                                bind:this={chartWrapEl}
+                                role="application"
+                                aria-label="Interactive usage timeline. Hover or focus a bar for details."
+                                onpointerleave={onBarPointerLeave}
+                            >
                                 {#if !stats.timeline?.length}
                                     <div class="chart-empty">No timeline buckets for this range.</div>
                                 {:else if chartMax <= 1 && stats.activity.newUsers === 0 && stats.activity.newContainers === 0 && stats.activity.newSessions === 0 && stats.activity.newLogins === 0 && stats.activity.newAgents === 0 && stats.activity.newRecordings === 0}
                                     <div class="chart-empty">No usage events in this range yet.</div>
                                 {:else}
-                                    <div class="stacked-chart" aria-label="Usage timeline chart">
-                                        {#each stats.timeline as point (point.bucketStart)}
-                                            {@const total = point.newUsers + point.newContainers + point.newSessions + point.newLogins + point.newAgents + point.newRecordings}
-                                            <div class="chart-bar-group" title={`${point.bucketLabel}: ${total} total events`}>
-                                                <div class="chart-bar" style={`height: ${getBarHeight(total)}`}>
-                                                    <span class="bar-segment users" style={`height: ${getSegmentHeight(point.newUsers, total)}`}></span>
-                                                    <span class="bar-segment containers" style={`height: ${getSegmentHeight(point.newContainers, total)}`}></span>
-                                                    <span class="bar-segment sessions" style={`height: ${getSegmentHeight(point.newSessions, total)}`}></span>
-                                                    <span class="bar-segment logins" style={`height: ${getSegmentHeight(point.newLogins, total)}`}></span>
-                                                    <span class="bar-segment agents" style={`height: ${getSegmentHeight(point.newAgents, total)}`}></span>
-                                                    <span class="bar-segment recordings" style={`height: ${getSegmentHeight(point.newRecordings, total)}`}></span>
+                                    <div class="stacked-chart" aria-label="Usage timeline chart" role="list">
+                                        {#each stats.timeline as point, index (point.bucketStart)}
+                                            {@const total = pointTotal(point)}
+                                            {@const isActive = activeBucketIndex === index}
+                                            {@const isDimmedBar =
+                                                activeBucketIndex >= 0 && !isActive}
+                                            <div
+                                                class="chart-bar-group"
+                                                class:active={isActive}
+                                                class:dimmed={isDimmedBar}
+                                                class:pinned={pinnedBucket === index}
+                                                role="button"
+                                                tabindex="0"
+                                                aria-pressed={pinnedBucket === index}
+                                                aria-label={`${point.bucketLabel}: ${total} total events. Click to pin details.`}
+                                                onpointermove={(e) => onBarPointerMove(e, index)}
+                                                onpointerenter={(e) => onBarPointerMove(e, index)}
+                                                onfocus={() => {
+                                                    hoveredBucket = index;
+                                                }}
+                                                onblur={() => {
+                                                    if (hoveredBucket === index) hoveredBucket = -1;
+                                                }}
+                                                onclick={() => onBarClick(index)}
+                                                onkeydown={(e) => {
+                                                    if (e.key === "Enter" || e.key === " ") {
+                                                        e.preventDefault();
+                                                        onBarClick(index);
+                                                    }
+                                                }}
+                                            >
+                                                <div
+                                                    class="chart-bar"
+                                                    style={`height: ${getBarHeight(total)}`}
+                                                >
+                                                    {#each seriesMeta as series}
+                                                        {@const value = seriesValue(point, series.field)}
+                                                        <span
+                                                            class="bar-segment {series.key}"
+                                                            class:dimmed={isSeriesDimmed(series.key)}
+                                                            class:emphasized={activeSeriesKey() === series.key && value > 0}
+                                                            style={`height: ${getSegmentHeight(value, total)}; --series-color: ${series.color}`}
+                                                            title={`${series.label}: ${value}`}
+                                                        ></span>
+                                                    {/each}
                                                 </div>
+                                                {#if total > 0 && stats.timeline.length <= 14}
+                                                    <span class="bar-value" class:visible={isActive}>{total}</span>
+                                                {/if}
                                             </div>
                                         {/each}
                                     </div>
+
+                                    {#if activePoint}
+                                        {@const tipTotal = pointTotal(activePoint)}
+                                        <div
+                                            class="chart-tooltip"
+                                            class:pinned={pinnedBucket >= 0 && hoveredBucket < 0}
+                                            style={`left: ${tooltipX}px; top: ${tooltipY}px;`}
+                                            role="tooltip"
+                                        >
+                                            <div class="tooltip-header">
+                                                <strong>{activePoint.bucketLabel}</strong>
+                                                <span class="tooltip-total">{tipTotal} events</span>
+                                            </div>
+                                            <ul class="tooltip-series">
+                                                {#each seriesMeta as series}
+                                                    {@const value = seriesValue(activePoint, series.field)}
+                                                    <li
+                                                        class:dimmed={isSeriesDimmed(series.key)}
+                                                        class:zero={value === 0}
+                                                        style={`--series-color: ${series.color}`}
+                                                    >
+                                                        <span class="swatch"></span>
+                                                        <span class="series-name">{series.label}</span>
+                                                        <span class="series-value">{value}</span>
+                                                        {#if tipTotal > 0}
+                                                            <span class="series-pct"
+                                                                >{Math.round((value / tipTotal) * 100)}%</span
+                                                            >
+                                                        {/if}
+                                                    </li>
+                                                {/each}
+                                            </ul>
+                                            {#if pinnedBucket >= 0 && hoveredBucket < 0}
+                                                <div class="tooltip-pin-note">Pinned · click bar again to unpin</div>
+                                            {/if}
+                                        </div>
+                                    {/if}
                                 {/if}
                             </div>
 
                             <div class="chart-axis">
-                                {#each stats.timeline as point (point.bucketStart)}
-                                    <span>{point.bucketLabel}</span>
+                                {#each stats.timeline as point, index (point.bucketStart)}
+                                    <span
+                                        class:active={activeBucketIndex === index}
+                                        class:dimmed={activeBucketIndex >= 0 && activeBucketIndex !== index}
+                                    >{point.bucketLabel}</span>
                                 {/each}
                             </div>
                         </div>
@@ -355,15 +578,25 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {#each stats.timeline as point (point.bucketStart)}
-                                        <tr>
+                                    {#each stats.timeline as point, index (point.bucketStart)}
+                                        <tr
+                                            class:row-active={activeBucketIndex === index}
+                                            class:row-dimmed={activeBucketIndex >= 0 && activeBucketIndex !== index}
+                                            onmouseenter={() => {
+                                                hoveredBucket = index;
+                                            }}
+                                            onmouseleave={() => {
+                                                if (hoveredBucket === index) hoveredBucket = -1;
+                                            }}
+                                            onclick={() => onBarClick(index)}
+                                        >
                                             <td>{point.bucketLabel}</td>
-                                            <td>{point.newUsers}</td>
-                                            <td>{point.newContainers}</td>
-                                            <td>{point.newSessions}</td>
-                                            <td>{point.newLogins}</td>
-                                            <td>{point.newAgents}</td>
-                                            <td>{point.newRecordings}</td>
+                                            <td class:series-focus={activeSeriesKey() === "users"}>{point.newUsers}</td>
+                                            <td class:series-focus={activeSeriesKey() === "containers"}>{point.newContainers}</td>
+                                            <td class:series-focus={activeSeriesKey() === "sessions"}>{point.newSessions}</td>
+                                            <td class:series-focus={activeSeriesKey() === "logins"}>{point.newLogins}</td>
+                                            <td class:series-focus={activeSeriesKey() === "agents"}>{point.newAgents}</td>
+                                            <td class:series-focus={activeSeriesKey() === "recordings"}>{point.newRecordings}</td>
                                         </tr>
                                     {/each}
                                 </tbody>
@@ -826,10 +1059,17 @@
         margin-bottom: 20px;
     }
 
+    .chart-hint {
+        color: var(--text-muted);
+        font-size: 12px;
+        font-weight: 400;
+        opacity: 0.85;
+    }
+
     .chart-legend {
         display: flex;
         flex-wrap: wrap;
-        gap: 10px;
+        gap: 8px;
         justify-content: flex-end;
     }
 
@@ -839,6 +1079,17 @@
         gap: 6px;
         font-size: 12px;
         color: var(--text-muted);
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        padding: 4px 10px 4px 8px;
+        cursor: pointer;
+        transition:
+            opacity 0.15s ease,
+            background 0.15s ease,
+            border-color 0.15s ease,
+            color 0.15s ease,
+            transform 0.12s ease;
     }
 
     .legend-item::before {
@@ -846,47 +1097,69 @@
         width: 10px;
         height: 10px;
         border-radius: 50%;
-        background: currentColor;
+        background: var(--series-color, currentColor);
+        box-shadow: 0 0 0 1px color-mix(in srgb, var(--series-color) 35%, transparent);
     }
 
-    .legend-item.users,
-    .bar-segment.users {
+    .legend-item:hover,
+    .legend-item:focus-visible {
+        color: var(--text);
+        background: color-mix(in srgb, var(--series-color) 14%, transparent);
+        border-color: color-mix(in srgb, var(--series-color) 45%, transparent);
+        outline: none;
+        transform: translateY(-1px);
+    }
+
+    .legend-item.focused {
+        color: var(--text);
+        background: color-mix(in srgb, var(--series-color) 18%, transparent);
+        border-color: var(--series-color);
+        box-shadow: 0 0 0 1px color-mix(in srgb, var(--series-color) 30%, transparent);
+    }
+
+    .legend-item.dimmed {
+        opacity: 0.35;
+    }
+
+    .bar-segment.users,
+    .legend-item.users {
+        --series-color: #4aa3ff;
         color: #4aa3ff;
-        background: #4aa3ff;
     }
 
-    .legend-item.containers,
-    .bar-segment.containers {
+    .bar-segment.containers,
+    .legend-item.containers {
+        --series-color: #f8b84e;
         color: #f8b84e;
-        background: #f8b84e;
     }
 
-    .legend-item.sessions,
-    .bar-segment.sessions {
+    .bar-segment.sessions,
+    .legend-item.sessions {
+        --series-color: #3ddc97;
         color: #3ddc97;
-        background: #3ddc97;
     }
 
-    .legend-item.logins,
-    .bar-segment.logins {
+    .bar-segment.logins,
+    .legend-item.logins {
+        --series-color: #b38cff;
         color: #b38cff;
-        background: #b38cff;
     }
 
-    .legend-item.agents,
-    .bar-segment.agents {
+    .bar-segment.agents,
+    .legend-item.agents {
+        --series-color: #ff7a59;
         color: #ff7a59;
-        background: #ff7a59;
     }
 
-    .legend-item.recordings,
-    .bar-segment.recordings {
+    .bar-segment.recordings,
+    .legend-item.recordings {
+        --series-color: #56d4c1;
         color: #56d4c1;
-        background: #56d4c1;
     }
 
     .chart-wrap {
-        height: 240px;
+        position: relative;
+        height: 260px;
         padding: 16px 0 8px;
         border-top: 1px solid var(--border);
         border-bottom: 1px solid var(--border);
@@ -894,6 +1167,7 @@
             linear-gradient(to top, transparent 24%, color-mix(in srgb, var(--border) 70%, transparent) 25%, transparent 26%),
             linear-gradient(to top, transparent 49%, color-mix(in srgb, var(--border) 70%, transparent) 50%, transparent 51%),
             linear-gradient(to top, transparent 74%, color-mix(in srgb, var(--border) 70%, transparent) 75%, transparent 76%);
+        overflow: visible;
     }
 
     .chart-empty,
@@ -928,16 +1202,40 @@
         width: 100%;
         height: 100%;
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(12px, 1fr));
-        gap: 8px;
+        grid-template-columns: repeat(auto-fit, minmax(14px, 1fr));
+        gap: 6px;
         align-items: end;
     }
 
     .chart-bar-group {
+        position: relative;
         min-width: 0;
         height: 100%;
         display: flex;
-        align-items: end;
+        flex-direction: column;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 4px;
+        cursor: pointer;
+        border-radius: 8px;
+        transition: opacity 0.15s ease, transform 0.12s ease;
+        outline: none;
+    }
+
+    .chart-bar-group:hover,
+    .chart-bar-group:focus-visible,
+    .chart-bar-group.active {
+        transform: translateY(-2px);
+    }
+
+    .chart-bar-group.dimmed {
+        opacity: 0.28;
+    }
+
+    .chart-bar-group.pinned .chart-bar {
+        box-shadow:
+            inset 0 0 0 1px color-mix(in srgb, var(--accent) 70%, transparent),
+            0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
     }
 
     .chart-bar {
@@ -949,16 +1247,171 @@
         overflow: hidden;
         background: color-mix(in srgb, var(--bg-tertiary) 88%, transparent);
         box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border) 75%, transparent);
+        transition: box-shadow 0.15s ease, filter 0.15s ease;
+    }
+
+    .chart-bar-group:hover .chart-bar,
+    .chart-bar-group:focus-visible .chart-bar,
+    .chart-bar-group.active .chart-bar {
+        filter: brightness(1.08);
+        box-shadow:
+            inset 0 0 0 1px color-mix(in srgb, var(--border) 40%, white 20%),
+            0 6px 16px color-mix(in srgb, #000 35%, transparent);
     }
 
     .bar-segment {
         width: 100%;
+        background: var(--series-color, currentColor);
+        min-height: 0;
+        transition: opacity 0.15s ease, filter 0.15s ease, flex-grow 0.15s ease;
+    }
+
+    .bar-segment.dimmed {
+        opacity: 0.18;
+        filter: grayscale(0.4);
+    }
+
+    .bar-segment.emphasized {
+        opacity: 1;
+        filter: brightness(1.12);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, #fff 25%, transparent);
+    }
+
+    .bar-value {
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--text-muted);
+        line-height: 1;
+        opacity: 0;
+        transition: opacity 0.12s ease;
+        pointer-events: none;
+    }
+
+    .bar-value.visible {
+        opacity: 1;
+        color: var(--text);
+    }
+
+    /* Floating hover tooltip */
+    .chart-tooltip {
+        position: absolute;
+        z-index: 20;
+        min-width: 200px;
+        max-width: 260px;
+        padding: 12px 14px;
+        border-radius: 10px;
+        border: 1px solid color-mix(in srgb, var(--border) 80%, white 10%);
+        background: color-mix(in srgb, var(--bg-secondary) 92%, #000 8%);
+        backdrop-filter: blur(10px);
+        box-shadow:
+            0 12px 32px color-mix(in srgb, #000 45%, transparent),
+            0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent);
+        pointer-events: none;
+        transform: translate(-50%, calc(-100% - 14px));
+        animation: tooltip-in 0.12s ease-out;
+    }
+
+    .chart-tooltip.pinned {
+        border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+    }
+
+    @keyframes tooltip-in {
+        from {
+            opacity: 0;
+            transform: translate(-50%, calc(-100% - 8px));
+        }
+        to {
+            opacity: 1;
+            transform: translate(-50%, calc(-100% - 14px));
+        }
+    }
+
+    .tooltip-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 12px;
+        margin-bottom: 10px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .tooltip-header strong {
+        font-size: 13px;
+        color: var(--text);
+    }
+
+    .tooltip-total {
+        font-size: 11px;
+        color: var(--text-muted);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .tooltip-series {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 6px;
+    }
+
+    .tooltip-series li {
+        display: grid;
+        grid-template-columns: 10px 1fr auto auto;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: var(--text-secondary);
+        transition: opacity 0.12s ease;
+    }
+
+    .tooltip-series li.dimmed {
+        opacity: 0.35;
+    }
+
+    .tooltip-series li.zero {
+        opacity: 0.45;
+    }
+
+    .tooltip-series .swatch {
+        width: 8px;
+        height: 8px;
+        border-radius: 2px;
+        background: var(--series-color);
+    }
+
+    .tooltip-series .series-name {
+        color: var(--text-muted);
+    }
+
+    .tooltip-series .series-value {
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+        color: var(--text);
+        min-width: 1.5ch;
+        text-align: right;
+    }
+
+    .tooltip-series .series-pct {
+        font-variant-numeric: tabular-nums;
+        color: var(--text-muted);
+        min-width: 3ch;
+        text-align: right;
+        font-size: 11px;
+    }
+
+    .tooltip-pin-note {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid var(--border);
+        font-size: 10px;
+        color: var(--text-muted);
     }
 
     .chart-axis {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(12px, 1fr));
-        gap: 8px;
+        grid-template-columns: repeat(auto-fit, minmax(14px, 1fr));
+        gap: 6px;
         margin-top: 12px;
         color: var(--text-muted);
         font-size: 11px;
@@ -968,6 +1421,35 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        text-align: center;
+        transition: color 0.12s ease, opacity 0.12s ease;
+    }
+
+    .chart-axis span.active {
+        color: var(--text);
+        font-weight: 600;
+    }
+
+    .chart-axis span.dimmed {
+        opacity: 0.35;
+    }
+
+    .stats-table tbody tr {
+        cursor: pointer;
+        transition: background 0.12s ease, opacity 0.12s ease;
+    }
+
+    .stats-table tbody tr.row-active {
+        background: color-mix(in srgb, var(--accent) 12%, var(--bg-secondary));
+    }
+
+    .stats-table tbody tr.row-dimmed {
+        opacity: 0.4;
+    }
+
+    .stats-table td.series-focus {
+        color: var(--accent);
+        font-weight: 600;
     }
 
     .stats-table {
