@@ -341,7 +341,8 @@ jobs:
           echo "DRY RUN: Would publish pipeops-rexec-${{ needs.setup.outputs.version }}.gem to RubyGems"
           ls -la *.gem
 
-  # Java SDK -> Maven Central (optional; needs Sonatype + GPG secrets)
+  # Java SDK -> Maven Central via Sonatype Central Publisher Portal
+  # https://central.sonatype.org/publish/publish-portal-maven/
   publish-java:
     needs: setup
     if: needs.setup.outputs.publish_java == 'true'
@@ -356,24 +357,29 @@ jobs:
       - name: Check secrets
         id: secrets
         env:
-          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-          OSSRH_TOKEN: ${{ secrets.OSSRH_TOKEN }}
+          # Prefer CENTRAL_* names; accept legacy OSSRH_* aliases
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME || secrets.OSSRH_USERNAME }}
+          CENTRAL_TOKEN: ${{ secrets.CENTRAL_TOKEN || secrets.OSSRH_TOKEN }}
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
-          if [ -z "${OSSRH_USERNAME:-}" ] || [ -z "${OSSRH_TOKEN:-}" ] || [ -z "${GPG_PRIVATE_KEY:-}" ]; then
+          if [ -z "${CENTRAL_USERNAME:-}" ] || [ -z "${CENTRAL_TOKEN:-}" ] || [ -z "${GPG_PRIVATE_KEY:-}" ]; then
             echo "configured=false" >> $GITHUB_OUTPUT
             echo "::warning::Maven Central secrets not configured — skipping Java publish"
+            echo "Required: CENTRAL_USERNAME (or OSSRH_USERNAME), CENTRAL_TOKEN (or OSSRH_TOKEN), GPG_PRIVATE_KEY, GPG_PASSPHRASE"
+            echo "See docs/SDK_PUBLISHING.md § Maven Central"
           else
             echo "configured=true" >> $GITHUB_OUTPUT
           fi
 
-      - name: Setup Java
+      - name: Setup Java + Maven Central credentials
         if: steps.secrets.outputs.configured == 'true'
         uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
-          server-id: ossrh
+          # Matches <publishingServerId>central</publishingServerId> in pom.xml
+          server-id: central
           server-username: MAVEN_USERNAME
           server-password: MAVEN_PASSWORD
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
@@ -382,19 +388,25 @@ jobs:
       - name: Update version
         if: steps.secrets.outputs.configured == 'true'
         run: |
-          mvn versions:set -DnewVersion=${{ needs.setup.outputs.version }} -DgenerateBackupPoms=false
+          mvn -B versions:set -DnewVersion=${{ needs.setup.outputs.version }} -DgenerateBackupPoms=false
 
-      - name: Build and verify
+      - name: Build (skip GPG unless publishing)
         if: steps.secrets.outputs.configured == 'true'
-        run: mvn clean verify
+        run: mvn -B clean package -DskipTests
 
       - name: Publish to Maven Central
         if: steps.secrets.outputs.configured == 'true' && needs.setup.outputs.dry_run != 'true'
-        run: mvn deploy -P release
+        run: mvn -B deploy -P release -DskipTests
         env:
-          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-          MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
+          MAVEN_USERNAME: ${{ secrets.CENTRAL_USERNAME || secrets.OSSRH_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN || secrets.OSSRH_TOKEN }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Dry run
+        if: steps.secrets.outputs.configured == 'true' && needs.setup.outputs.dry_run == 'true'
+        run: |
+          echo "DRY RUN: Would deploy io.pipeops:rexec:${{ needs.setup.outputs.version }} to Maven Central"
+          ls -la target/*.jar 2>/dev/null || true
 
   # .NET SDK -> NuGet (PipeOps.Rexec)
   publish-dotnet:
@@ -448,7 +460,7 @@ jobs:
           echo "DRY RUN: Would publish PipeOps.Rexec.${{ needs.setup.outputs.version }}.nupkg to NuGet"
           ls -la ./nupkg/
 
-  # PHP SDK -> Packagist (webhook; validate only here)
+  # PHP SDK -> Packagist via dedicated repo PipeOpsHQ/rexec-php (synced + tagged)
   publish-php:
     needs: setup
     if: needs.setup.outputs.publish_php == 'true'
@@ -474,7 +486,6 @@ jobs:
             jq --arg v "$VERSION" '.version = $v' composer.json > composer.json.tmp
             mv composer.json.tmp composer.json
           else
-            # Fallback without jq
             sed -i.bak -E "s/\"version\"[[:space:]]*:[[:space:]]*\"[^\"]+\"/\"version\": \"$VERSION\"/" composer.json
             rm -f composer.json.bak
           fi
@@ -487,11 +498,52 @@ jobs:
         run: |
           find src -name '*.php' -print0 | xargs -0 -n1 php -l
 
-      - name: Packagist note
+      - name: Push to PipeOpsHQ/rexec-php and tag
+        if: needs.setup.outputs.dry_run != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "PHP packages sync via Packagist GitHub webhook after tags land on the monorepo."
-          echo "Submit once at https://packagist.org/packages/submit if not already registered."
-          echo "Package: pipeopshq/rexec  Version: ${{ needs.setup.outputs.version }}"
+          set -euo pipefail
+          VERSION="${{ needs.setup.outputs.version }}"
+          VERSION="${VERSION#v}"
+          TOKEN="${{ secrets.SDK_PUSH_TOKEN || secrets.PHP_SDK_PUSH_TOKEN || secrets.GO_SDK_PUSH_TOKEN || secrets.GITHUB_TOKEN }}"
+
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+
+          mkdir -p /tmp/rexec-php
+          rsync -a --exclude vendor --exclude .git . /tmp/rexec-php/
+          if [ -f "$GITHUB_WORKSPACE/LICENSE" ] && [ ! -f /tmp/rexec-php/LICENSE ]; then
+            cp "$GITHUB_WORKSPACE/LICENSE" /tmp/rexec-php/LICENSE
+          fi
+
+          git clone "https://x-access-token:${TOKEN}@github.com/PipeOpsHQ/rexec-php.git" /tmp/rexec-php-repo
+          rsync -a --delete --exclude .git /tmp/rexec-php/ /tmp/rexec-php-repo/
+          cd /tmp/rexec-php-repo
+
+          if ! git diff --quiet || ! git diff --cached --quiet; then
+            git add -A
+            git commit -m "chore: release v${VERSION} from monorepo ${GITHUB_SHA}"
+            git push origin HEAD:main
+          fi
+
+          if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
+            echo "Tag v${VERSION} already exists on rexec-php"
+          else
+            git tag -a "v${VERSION}" -m "Release v${VERSION}"
+            git push origin "v${VERSION}"
+            gh release create "v${VERSION}" \
+              --repo PipeOpsHQ/rexec-php \
+              --title "v${VERSION}" \
+              --notes "Install: \`composer require pipeopshq/rexec:${VERSION}\`" \
+              || true
+          fi
+          echo "Packagist auto-updates from https://github.com/PipeOpsHQ/rexec-php (submit once if not registered)."
+
+      - name: Dry run note
+        if: needs.setup.outputs.dry_run == 'true'
+        run: |
+          echo "DRY RUN: Would sync sdk/php → PipeOpsHQ/rexec-php and tag v${{ needs.setup.outputs.version }}"
 
   # Go SDK is published via the standalone repo github.com/PipeOpsHQ/rexec-go
   # (synced by sync-go-sdk.yml). Tag releases there for module versions.

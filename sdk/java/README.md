@@ -93,6 +93,11 @@ client.files().delete(containerId, "/tmp/hello.txt");
 
 Create an API token in the Rexec UI, or use a guest JWT for short tests (see monorepo `docs/SDK.md`).
 
+## Publishing to Maven Central
+
+See monorepo [docs/SDK_PUBLISHING.md](../../docs/SDK_PUBLISHING.md) (Sonatype Central Portal + GPG secrets).  
+CI: **Publish SDKs** workflow with `sdks=java`.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

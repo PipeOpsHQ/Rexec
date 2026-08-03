@@ -2,7 +2,8 @@
 
 Official PHP client for the [Rexec](https://rexec.sh) API (sandboxes, files, terminals).
 
-**Package:** [`pipeopshq/rexec`](https://packagist.org/packages/pipeopshq/rexec) · **Version:** 1.0.1
+**Package:** [`pipeopshq/rexec`](https://packagist.org/packages/pipeopshq/rexec) · **Version:** 1.0.1  
+**Packagist source repo:** [PipeOpsHQ/rexec-php](https://github.com/PipeOpsHQ/rexec-php) (synced from this monorepo path)
 
 ## Requirements
 

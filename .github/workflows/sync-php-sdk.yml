@@ -1,0 +1,104 @@
+name: Sync PHP SDK
+
+# Keep github.com/PipeOpsHQ/rexec-php in sync with sdk/php in this monorepo.
+# Packagist should track PipeOpsHQ/rexec-php (root composer.json), not the monorepo.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'sdk/php/**'
+      - '.github/workflows/sync-php-sdk.yml'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Optional semver tag to create on rexec-php (e.g. 1.0.1). Leave empty to only sync main.'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Prepare publish directory
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/rexec-php
+          rsync -a \
+            --exclude vendor \
+            --exclude .git \
+            --exclude '*.bak' \
+            sdk/php/ /tmp/rexec-php/
+          if [ -f LICENSE ] && [ ! -f /tmp/rexec-php/LICENSE ]; then
+            cp LICENSE /tmp/rexec-php/LICENSE
+          fi
+          cat > /tmp/rexec-php/.gitignore << 'EOF'
+          /vendor/
+          composer.phar
+          .phpunit.result.cache
+          .idea/
+          .vscode/
+          *.log
+          EOF
+          # Ensure Packagist-facing README notes the monorepo source
+          if [ -f /tmp/rexec-php/README.md ] && ! grep -q 'Canonical source' /tmp/rexec-php/README.md; then
+            {
+              echo '> **Canonical source:** [`PipeOpsHQ/Rexec`](https://github.com/PipeOpsHQ/Rexec) monorepo (`sdk/php`).'
+              echo '> This repo is auto-synced for Packagist (`composer require pipeopshq/rexec`).'
+              echo
+              cat /tmp/rexec-php/README.md
+            } > /tmp/rexec-php/README.md.new
+            mv /tmp/rexec-php/README.md.new /tmp/rexec-php/README.md
+          fi
+
+      - name: Push to PipeOpsHQ/rexec-php
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+
+          # Prefer a PAT with cross-repo write (same secret as Go SDK sync is fine).
+          TOKEN="${{ secrets.SDK_PUSH_TOKEN || secrets.PHP_SDK_PUSH_TOKEN || secrets.GO_SDK_PUSH_TOKEN || secrets.GITHUB_TOKEN }}"
+
+          git clone "https://x-access-token:${TOKEN}@github.com/PipeOpsHQ/rexec-php.git" /tmp/rexec-php-repo
+          rsync -a --delete --exclude .git /tmp/rexec-php/ /tmp/rexec-php-repo/
+          cd /tmp/rexec-php-repo
+
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "No changes to sync"
+          else
+            git add -A
+            git commit -m "chore: sync from PipeOpsHQ/Rexec@${GITHUB_SHA}"
+            git push origin HEAD:main
+          fi
+
+          VERSION="${{ github.event.inputs.version }}"
+          if [ -n "${VERSION}" ]; then
+            VERSION="${VERSION#v}"
+            # Stamp composer.json version for this tag
+            if command -v jq >/dev/null 2>&1; then
+              jq --arg v "$VERSION" '.version = $v' composer.json > composer.json.tmp
+              mv composer.json.tmp composer.json
+            else
+              sed -i.bak -E "s/\"version\"[[:space:]]*:[[:space:]]*\"[^\"]+\"/\"version\": \"$VERSION\"/" composer.json || true
+              rm -f composer.json.bak
+            fi
+            if ! git diff --quiet; then
+              git add composer.json
+              git commit -m "chore: release v${VERSION}"
+              git push origin HEAD:main
+            fi
+            git tag -a "v${VERSION}" -m "Release v${VERSION}"
+            git push origin "v${VERSION}"
+            gh release create "v${VERSION}" \
+              --repo PipeOpsHQ/rexec-php \
+              --title "v${VERSION}" \
+              --notes "Synced from monorepo. Install: \`composer require pipeopshq/rexec:${VERSION}\`" \
+              || true
+          fi

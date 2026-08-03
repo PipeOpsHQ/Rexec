@@ -13,9 +13,9 @@ Workflow file: [`.github/workflows/publish-sdks.yml`](../.github/workflows/publi
 | Rust | crates.io | `CRATES_IO_TOKEN` | `pipeops-rexec` |
 | Ruby | RubyGems | `RUBYGEMS_API_KEY` | `pipeops-rexec` |
 | .NET | NuGet | `NUGET_API_KEY` | `PipeOps.Rexec` |
-| Java | Maven Central | `OSSRH_*` + GPG | `io.pipeops:rexec` (optional) |
-| PHP | Packagist | (webhook) | `pipeopshq/rexec` |
-| Go | GitHub module | — | `github.com/PipeOpsHQ/rexec-go` |
+| Java | Maven Central | `CENTRAL_*` + GPG (or legacy `OSSRH_*`) | `io.pipeops:rexec` |
+| PHP | Packagist | `SDK_PUSH_TOKEN` (sync) + Packagist webhook | `pipeopshq/rexec` |
+| Go | GitHub module | `SDK_PUSH_TOKEN` (sync) | `github.com/PipeOpsHQ/rexec-go` |
 
 ### Triggers
 
@@ -80,21 +80,74 @@ Configure these secrets in your repository settings (`Settings → Secrets and v
 2. Create API key at https://rubygems.org/profile/api_keys with **Push rubygem**
 3. Package name: **`pipeops-rexec`** (plain `rexec` is taken)
 
-### Maven Central (Java)
+### Maven Central (Java) — Sonatype Central Publisher Portal
+
+Publishing uses the **Central Publisher Portal** Maven plugin
+(`central-publishing-maven-plugin` in `sdk/java/pom.xml` profile `release`).
 
 | Secret | Description |
 |--------|-------------|
-| `OSSRH_USERNAME` | Sonatype Central username |
-| `OSSRH_TOKEN` | Sonatype Central token |
-| `GPG_PRIVATE_KEY` | GPG private key for signing |
-| `GPG_PASSPHRASE` | GPG key passphrase |
+| `CENTRAL_USERNAME` | Portal **User Token** username (preferred) |
+| `CENTRAL_TOKEN` | Portal **User Token** password/token (preferred) |
+| `OSSRH_USERNAME` | Legacy alias — still accepted if `CENTRAL_USERNAME` unset |
+| `OSSRH_TOKEN` | Legacy alias — still accepted if `CENTRAL_TOKEN` unset |
+| `GPG_PRIVATE_KEY` | ASCII-armored private key used to sign artifacts |
+| `GPG_PASSPHRASE` | Passphrase for that GPG key |
 
-**How to get**:
-1. Register at https://central.sonatype.com/
-2. Claim namespace `io.pipeops` (verify domain or GitHub org)
-3. Generate GPG key: `gpg --full-generate-key`
-4. Export private key: `gpg --export-secret-keys --armor YOUR_KEY_ID`
-5. Publish public key: `gpg --keyserver keyserver.ubuntu.com --send-keys YOUR_KEY_ID`
+#### One-time setup (you do this in the browser)
+
+1. **Create account** at https://central.sonatype.com/ and sign in (GitHub SSO is fine).
+2. **Generate a User Token**  
+   Account → **View Account** / **User Tokens** → **Generate User Token**.  
+   Save the username + password pair — these become `CENTRAL_USERNAME` / `CENTRAL_TOKEN`.
+3. **Register namespace `io.pipeops`**  
+   - Namespaces → **Add Namespace** → `io.pipeops`  
+   - Verify ownership (DNS TXT on `pipeops.io`, or GitHub org verification when offered).  
+   - Wait until the namespace shows as **verified**. You cannot publish until this is done.
+4. **Create a GPG signing key** (on your laptop):
+
+   ```bash
+   gpg --full-generate-key
+   # RSA 4096, no expiry (or long expiry), real name/email matching publisher identity
+   gpg --list-secret-keys --keyid-format LONG
+   # Note the KEY_ID (e.g. ABCD1234EFGH5678)
+
+   gpg --export-secret-keys --armor YOUR_KEY_ID > private-key.asc
+   gpg --export --armor YOUR_KEY_ID > public-key.asc
+   gpg --keyserver keys.openpgp.org --send-keys YOUR_KEY_ID
+   # also try: keyserver.ubuntu.com
+   ```
+
+5. **Add GitHub Actions secrets** on `PipeOpsHQ/Rexec`  
+   Settings → Secrets and variables → Actions:
+
+   | Name | Value |
+   |------|--------|
+   | `CENTRAL_USERNAME` | User token username from step 2 |
+   | `CENTRAL_TOKEN` | User token password from step 2 |
+   | `GPG_PRIVATE_KEY` | Full contents of `private-key.asc` (including BEGIN/END lines) |
+   | `GPG_PASSPHRASE` | Key passphrase |
+
+6. **Publish**  
+   Actions → **Publish SDKs** → Run workflow:
+
+   - version: `1.0.1` (or next)
+   - sdks: `java`
+   - dry_run: `false`
+
+   Or cut a GitHub Release (tags all SDKs). The Java job runs `mvn deploy -P release` and auto-publishes via the portal.
+
+7. **Verify** after ~10–30 minutes:  
+   https://central.sonatype.com/artifact/io.pipeops/rexec  
+   or https://search.maven.org/artifact/io.pipeops/rexec
+
+Local emergency publish (only if Actions is broken):
+
+```bash
+cd sdk/java
+# ~/.m2/settings.xml server id "central" with your portal token
+mvn clean deploy -P release
+```
 
 ### NuGet (.NET)
 
@@ -108,20 +161,61 @@ Configure these secrets in your repository settings (`Settings → Secrets and v
 
 ### Packagist (PHP)
 
-PHP packages are updated via Packagist + GitHub. No Actions secrets required after submit.
+Packagist **cannot** install from a monorepo subdirectory cleanly. We publish from a
+dedicated repo that always has `composer.json` at the root:
 
-**Setup**:
-1. Create account at https://packagist.org/
-2. Submit package pointing at the monorepo path or a dedicated repo
-3. Composer package name: **`pipeopshq/rexec`**
+| Piece | Value |
+|-------|--------|
+| Dedicated repo | https://github.com/PipeOpsHQ/rexec-php |
+| Package name | `pipeopshq/rexec` |
+| Sync workflow | [`.github/workflows/sync-php-sdk.yml`](../.github/workflows/sync-php-sdk.yml) |
+| Install | `composer require pipeopshq/rexec` |
 
-### Go SDK sync (optional)
+#### One-time setup (you do this once)
+
+1. **Confirm the sync repo exists** — `PipeOpsHQ/rexec-php` (already created; re-run
+   **Sync PHP SDK** if empty).
+2. **Cross-repo PAT** (same secret as Go sync):
+   - GitHub → Settings → Developer settings → Personal access tokens  
+   - Classic PAT with `repo` scope (or fine-grained: write to `rexec-php` + `rexec-go`)  
+   - Add as Actions secret **`SDK_PUSH_TOKEN`** on `PipeOpsHQ/Rexec`  
+   - Legacy names still work: `PHP_SDK_PUSH_TOKEN`, `GO_SDK_PUSH_TOKEN`
+3. **Packagist account** at https://packagist.org/ (GitHub login recommended).
+4. **Submit the package**:
+   - https://packagist.org/packages/submit  
+   - Repository URL: **`https://github.com/PipeOpsHQ/rexec-php`**  
+   - **Not** the monorepo URL
+5. Enable **GitHub Service Hook / Auto-Update** on the Packagist package page  
+   (so new tags on `rexec-php` appear on Packagist within minutes).
+6. Optional: GitHub App install for Packagist if prompted.
+
+#### Ongoing releases
+
+| Trigger | What happens |
+|---------|----------------|
+| Push to `main` touching `sdk/php/**` | Syncs files → `rexec-php` main |
+| **Publish SDKs** with `php` / `all` | Syncs + tags `vX.Y.Z` on `rexec-php` |
+| Manual **Sync PHP SDK** + version input | Sync + optional tag |
+
+After Packagist is linked, tags become installable as:
+
+```bash
+composer require pipeopshq/rexec:1.0.1
+```
+
+### Go / PHP SDK sync PAT
 
 | Secret | Description |
 |--------|-------------|
-| `GO_SDK_PUSH_TOKEN` | GitHub PAT with `repo` scope that can push to `PipeOpsHQ/rexec-go` |
+| `SDK_PUSH_TOKEN` | **Preferred** GitHub PAT with `repo` write to `rexec-go` and `rexec-php` |
+| `GO_SDK_PUSH_TOKEN` | Legacy alias for Go only |
+| `PHP_SDK_PUSH_TOKEN` | Legacy alias for PHP only |
 
-Used by `.github/workflows/sync-go-sdk.yml` so monorepo changes under `sdk/go/` are mirrored to the standalone Go module repo.
+Used by:
+
+- [`.github/workflows/sync-go-sdk.yml`](../.github/workflows/sync-go-sdk.yml) → `PipeOpsHQ/rexec-go`
+- [`.github/workflows/sync-php-sdk.yml`](../.github/workflows/sync-php-sdk.yml) → `PipeOpsHQ/rexec-php`
+- Publish SDKs → PHP job (tag release on `rexec-php`)
 
 ## SDK Package Registry URLs
 
@@ -133,8 +227,25 @@ Used by `.github/workflows/sync-go-sdk.yml` so monorepo changes under `sdk/go/` 
 | Ruby | [RubyGems](https://rubygems.org/gems/pipeops-rexec) | `pipeops-rexec` |
 | Java | [Maven Central](https://central.sonatype.com/artifact/io.pipeops/rexec) | `io.pipeops:rexec` |
 | .NET | [NuGet](https://www.nuget.org/packages/PipeOps.Rexec) | `PipeOps.Rexec` |
-| PHP | [Packagist](https://packagist.org/packages/pipeopshq/rexec) | `pipeopshq/rexec` |
-| Go | GitHub | `github.com/PipeOpsHQ/rexec-go` |
+| PHP | [Packagist](https://packagist.org/packages/pipeopshq/rexec) · [source](https://github.com/PipeOpsHQ/rexec-php) | `pipeopshq/rexec` |
+| Go | [GitHub](https://github.com/PipeOpsHQ/rexec-go) | `github.com/PipeOpsHQ/rexec-go` |
+
+## Checklist: publish PHP + Java for the first time
+
+### PHP
+
+- [x] Dedicated repo `PipeOpsHQ/rexec-php` exists and has tagged `v1.0.1`
+- [ ] Secret `SDK_PUSH_TOKEN` set on monorepo (PAT can push to `rexec-php`)
+- [ ] Packagist package submitted with URL `https://github.com/PipeOpsHQ/rexec-php`
+- [ ] Packagist auto-update / GitHub webhook enabled
+- [ ] `composer require pipeopshq/rexec` works
+
+### Java
+
+- [ ] Sonatype Central account + namespace `io.pipeops` **verified**
+- [ ] Secrets: `CENTRAL_USERNAME`, `CENTRAL_TOKEN`, `GPG_PRIVATE_KEY`, `GPG_PASSPHRASE`
+- [ ] Actions → Publish SDKs → version `1.0.1`, sdks `java`
+- [ ] Artifact visible on Maven Central search
 
 ## Version Management
 

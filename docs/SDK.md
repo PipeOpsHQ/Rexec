@@ -258,12 +258,21 @@ val c = client.containers().create(CreateContainerRequest("ubuntu").setName("dem
 client.containers().delete(c.id)
 ```
 
-Install from source until Maven Central is configured: `cd sdk/java && mvn install -DskipTests`.
+Install from source until Maven Central is configured: `cd sdk/java && mvn install -DskipTests`.  
+Publish guide: [SDK_PUBLISHING.md](SDK_PUBLISHING.md#maven-central-java--sonatype-central-publisher-portal).
 
 ## PHP
 
 ```bash
 composer require pipeopshq/rexec
+```
+
+Canonical Packagist repo: [PipeOpsHQ/rexec-php](https://github.com/PipeOpsHQ/rexec-php) (synced from `sdk/php`).  
+If Packagist is not linked yet, install from VCS:
+
+```bash
+composer config repositories.rexec-php vcs https://github.com/PipeOpsHQ/rexec-php
+composer require pipeopshq/rexec:^1.0
 ```
 
 ```php
