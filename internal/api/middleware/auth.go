@@ -321,7 +321,10 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, j
 
 		// --- Server-enforced screen lock ---
 		// If the account is locked after this token was issued, block access with 423.
-		if user.ScreenLockEnabled && user.ScreenLockHash != "" && user.LockRequiredSince != nil {
+		// API tokens (rexec_*) already return early above and never hit this path.
+		// Only enforce for browser sessions (JWT with sid). Automation JWTs without
+		// a session id must keep working for BFF/agent use after screen lock.
+		if sessionID != "" && user.ScreenLockEnabled && user.ScreenLockHash != "" && user.LockRequiredSince != nil {
 			// Allow unlock endpoint to proceed even with a locked token.
 			if c.Request.URL.Path != "/api/security/unlock" {
 				tokenIat := time.Unix(int64(iat), 0)
