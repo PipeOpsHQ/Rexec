@@ -40,7 +40,8 @@ jobs:
 
           # Prefer a PAT with cross-repo write if provided; fall back to GITHUB_TOKEN
           # (GITHUB_TOKEN cannot push to other repos unless a PAT secret is set).
-          TOKEN="${{ secrets.GO_SDK_PUSH_TOKEN || secrets.GITHUB_TOKEN }}"
+          # SDK_PUSH_TOKEN is shared with sync-php-sdk.yml for PipeOpsHQ/rexec-php.
+          TOKEN="${{ secrets.SDK_PUSH_TOKEN || secrets.GO_SDK_PUSH_TOKEN || secrets.GITHUB_TOKEN }}"
 
           git clone "https://x-access-token:${TOKEN}@github.com/PipeOpsHQ/rexec-go.git" /tmp/rexec-go-repo
           rsync -a --delete --exclude .git /tmp/rexec-go/ /tmp/rexec-go-repo/

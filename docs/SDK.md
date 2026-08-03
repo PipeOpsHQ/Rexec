@@ -15,8 +15,8 @@ Official client libraries for the Rexec API (sandboxes, files, and terminals).
 | **Rust** | [pipeops-rexec](https://crates.io/crates/pipeops-rexec) | `cargo add pipeops-rexec` |
 | **Ruby** | [pipeops-rexec](https://rubygems.org/gems/pipeops-rexec) | `gem install pipeops-rexec` |
 | **C# / .NET** | [PipeOps.Rexec](https://www.nuget.org/packages/PipeOps.Rexec) | `dotnet add package PipeOps.Rexec` |
-| Java | `io.pipeops:rexec` (source in repo) | Maven Central optional |
-| PHP | `pipeopshq/rexec` (source in repo) | Packagist optional |
+| **Java / Kotlin** | `io.pipeops:rexec` | Maven/Gradle (source in repo; Maven Central when secrets set) |
+| **PHP** | [pipeopshq/rexec](https://packagist.org/packages/pipeopshq/rexec) | `composer require pipeopshq/rexec` |
 
 Publishing is **GitHub Actions only** — see [SDK_PUBLISHING.md](SDK_PUBLISHING.md).
 
@@ -225,6 +225,73 @@ await client.Containers.GetAsync(c!.Id);
 await client.Containers.DeleteAsync(c.Id);
 ```
 
+## Java / Kotlin
+
+```xml
+<dependency>
+  <groupId>io.pipeops</groupId>
+  <artifactId>rexec</artifactId>
+  <version>1.0.1</version>
+</dependency>
+```
+
+```java
+import io.pipeops.rexec.*;
+
+RexecClient client = new RexecClient(
+    System.getenv("REXEC_URL"),
+    System.getenv("REXEC_TOKEN"));
+
+System.out.println(client.containers().list().size());
+Container c = client.containers().create(
+    new CreateContainerRequest("ubuntu").setName("demo"));
+System.out.println(c.getId() + " " + c.getStatus());
+client.containers().get(c.getId());
+client.containers().delete(c.getId());
+```
+
+Kotlin can use the same JAR:
+
+```kotlin
+val client = RexecClient(System.getenv("REXEC_URL"), System.getenv("REXEC_TOKEN"))
+val c = client.containers().create(CreateContainerRequest("ubuntu").setName("demo"))
+client.containers().delete(c.id)
+```
+
+Install from source until Maven Central is configured: `cd sdk/java && mvn install -DskipTests`.  
+Publish guide: [SDK_PUBLISHING.md](SDK_PUBLISHING.md#maven-central-java--sonatype-central-publisher-portal).
+
+## PHP
+
+```bash
+composer require pipeopshq/rexec
+```
+
+Canonical Packagist repo: [PipeOpsHQ/rexec-php](https://github.com/PipeOpsHQ/rexec-php) (synced from `sdk/php`).  
+If Packagist is not linked yet, install from VCS:
+
+```bash
+composer config repositories.rexec-php vcs https://github.com/PipeOpsHQ/rexec-php
+composer require pipeopshq/rexec:^1.0
+```
+
+```php
+<?php
+require 'vendor/autoload.php';
+
+use Rexec\RexecClient;
+
+$client = new RexecClient(getenv('REXEC_URL'), getenv('REXEC_TOKEN'));
+echo count($client->containers()->list()), PHP_EOL;
+
+$c = $client->containers()->create('ubuntu', ['name' => 'demo']);
+echo $c->id, ' ', $c->status, PHP_EOL;
+$client->containers()->get($c->id);
+$client->containers()->delete($c->id);
+```
+
+Packagist syncs from GitHub once the package is submitted (see [SDK_PUBLISHING.md](SDK_PUBLISHING.md)).
+
 ## Error handling
 
 | SDK | Type |
@@ -235,6 +302,8 @@ await client.Containers.DeleteAsync(c.Id);
 | Rust | `rexec::Error` |
 | Ruby | `Rexec::APIError` |
 | .NET | `RexecException` |
+| Java | `RexecException` |
+| PHP | `RexecException` |
 
 ## End-to-end smoke tests
 

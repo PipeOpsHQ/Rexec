@@ -1,11 +1,20 @@
 package io.pipeops.rexec;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.reflect.TypeToken;
+
+import java.lang.reflect.Type;
+import java.util.Collections;
 import java.util.List;
 
 /**
- * Service for managing containers.
+ * Service for managing sandboxes/containers.
  */
 public class ContainerService {
+    private static final Type CONTAINER_LIST_TYPE = new TypeToken<List<Container>>() {}.getType();
+
     private final RexecClient client;
 
     ContainerService(RexecClient client) {
@@ -14,10 +23,29 @@ public class ContainerService {
 
     /**
      * List all containers.
+     * Handles {@code {containers:[...],count,limit}} (including null list) and a bare array.
      */
     public List<Container> list() throws RexecException {
-        ContainerListResponse response = client.request("GET", "/api/containers", null, ContainerListResponse.class);
-        return response != null ? response.containers : List.of();
+        String raw = client.requestRaw("GET", "/api/containers", null);
+        if (raw == null || raw.isBlank()) {
+            return Collections.emptyList();
+        }
+
+        JsonElement root = JsonParser.parseString(raw);
+        if (root.isJsonArray()) {
+            return client.getGson().fromJson(root, CONTAINER_LIST_TYPE);
+        }
+        if (root.isJsonObject()) {
+            JsonObject obj = root.getAsJsonObject();
+            if (!obj.has("containers") || obj.get("containers").isJsonNull()) {
+                return Collections.emptyList();
+            }
+            JsonElement containers = obj.get("containers");
+            if (containers.isJsonArray()) {
+                return client.getGson().fromJson(containers, CONTAINER_LIST_TYPE);
+            }
+        }
+        return Collections.emptyList();
     }
 
     /**
@@ -35,7 +63,7 @@ public class ContainerService {
     }
 
     /**
-     * Create a new container with just an image name.
+     * Create a new container with just an image alias.
      */
     public Container create(String image) throws RexecException {
         return create(new CreateContainerRequest(image));
@@ -60,57 +88,5 @@ public class ContainerService {
      */
     public void delete(String containerId) throws RexecException {
         client.request("DELETE", "/api/containers/" + containerId, null, Void.class);
-    }
-
-    /**
-     * Execute a command in a container (non-interactive).
-     */
-    public ExecResult exec(String containerId, String[] command) throws RexecException {
-        ExecRequest request = new ExecRequest(command);
-        return client.request("POST", "/api/containers/" + containerId + "/exec", request, ExecResult.class);
-    }
-
-    /**
-     * Execute a shell command in a container.
-     */
-    public ExecResult exec(String containerId, String command) throws RexecException {
-        return exec(containerId, new String[]{"/bin/sh", "-c", command});
-    }
-
-    private static class ContainerListResponse {
-        List<Container> containers;
-    }
-}
-
-class ExecRequest {
-    private final String[] command;
-
-    ExecRequest(String[] command) {
-        this.command = command;
-    }
-}
-
-/**
- * Result of command execution.
- */
-class ExecResult {
-    private int exitCode;
-    private String stdout;
-    private String stderr;
-
-    public int getExitCode() {
-        return exitCode;
-    }
-
-    public String getStdout() {
-        return stdout;
-    }
-
-    public String getStderr() {
-        return stderr;
-    }
-
-    public boolean isSuccess() {
-        return exitCode == 0;
     }
 }

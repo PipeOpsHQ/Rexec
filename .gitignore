@@ -96,3 +96,7 @@ scripts/sdk-e2e/**/obj/
 scripts/sdk-e2e/go/go.sum
 __pycache__/
 *.pyc
+
+# SDK local install trees
+sdk/php/vendor/
+sdk/java/target/

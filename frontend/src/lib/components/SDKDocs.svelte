@@ -68,6 +68,20 @@
             registry: "https://www.nuget.org/packages/PipeOps.Rexec",
             github: "https://github.com/PipeOpsHQ/rexec/tree/main/sdk/dotnet",
         },
+        {
+            id: "java",
+            name: "Java / Kotlin",
+            install: "io.pipeops:rexec:1.0.1 (Maven/Gradle)",
+            registry: "https://github.com/PipeOpsHQ/rexec/tree/main/sdk/java",
+            github: "https://github.com/PipeOpsHQ/rexec/tree/main/sdk/java",
+        },
+        {
+            id: "php",
+            name: "PHP",
+            install: "composer require pipeopshq/rexec",
+            registry: "https://packagist.org/packages/pipeopshq/rexec",
+            github: "https://github.com/PipeOpsHQ/rexec/tree/main/sdk/php",
+        },
     ];
 
     const codeExamples: Record<string, string> = {
@@ -159,6 +173,28 @@ var c = await client.Containers.CreateAsync(new CreateContainerRequest("ubuntu")
 Console.WriteLine($"{c?.Id} {c?.Status}");
 await client.Containers.GetAsync(c!.Id);
 await client.Containers.DeleteAsync(c.Id);`,
+        java: `import io.pipeops.rexec.*;
+
+RexecClient client = new RexecClient(
+    System.getenv("REXEC_URL"),
+    System.getenv("REXEC_TOKEN"));
+
+System.out.println(client.containers().list().size());
+Container c = client.containers().create(
+    new CreateContainerRequest("ubuntu").setName("demo"));
+System.out.println(c.getId() + " " + c.getStatus());
+client.containers().get(c.getId());
+client.containers().delete(c.getId());`,
+        php: `<?php
+require 'vendor/autoload.php';
+use Rexec\\RexecClient;
+
+$client = new RexecClient(getenv('REXEC_URL'), getenv('REXEC_TOKEN'));
+echo count($client->containers()->list()), PHP_EOL;
+$c = $client->containers()->create('ubuntu', ['name' => 'demo']);
+echo $c->id, ' ', $c->status, PHP_EOL;
+$client->containers()->get($c->id);
+$client->containers()->delete($c->id);`,
     };
 
     $: activeSdk = sdks.find((s) => s.id === activeTab) ?? sdks[0];

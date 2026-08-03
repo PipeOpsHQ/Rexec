@@ -23,6 +23,8 @@ export REXEC_TOKEN=$(curl -sS -X POST "$REXEC_URL/api/auth/guest" \
 | Rust | `cargo add pipeops-rexec` |
 | Ruby | `gem install pipeops-rexec` |
 | .NET | `dotnet add package PipeOps.Rexec` |
+| Java / Kotlin | `io.pipeops:rexec:1.0.1` (or `cd sdk/java && mvn install`) |
+| PHP | `composer require pipeopshq/rexec` |
 
 ## Minimal flow (all SDKs)
 

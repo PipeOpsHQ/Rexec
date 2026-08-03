@@ -1,10 +1,15 @@
 {
     "name": "pipeopshq/rexec",
-    "description": "Official PHP SDK for Rexec - Terminal as a Service",
+    "description": "Official PHP SDK for Rexec — AI-Native Sandbox API",
     "type": "library",
     "license": "MIT",
-    "keywords": ["rexec", "terminal", "sandbox", "container", "docker", "devtools"],
+    "version": "1.0.1",
+    "keywords": ["rexec", "terminal", "sandbox", "container", "docker", "devtools", "pipeops"],
     "homepage": "https://github.com/PipeOpsHQ/rexec",
+    "support": {
+        "issues": "https://github.com/PipeOpsHQ/rexec/issues",
+        "source": "https://github.com/PipeOpsHQ/rexec/tree/main/sdk/php"
+    },
     "authors": [
         {
             "name": "PipeOpsHQ",
@@ -28,6 +33,9 @@
         "psr-4": {
             "Rexec\\Tests\\": "tests/"
         }
+    },
+    "scripts": {
+        "test": "phpunit"
     },
     "minimum-stability": "stable"
 }

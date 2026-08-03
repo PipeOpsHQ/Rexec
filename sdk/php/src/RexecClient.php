@@ -6,14 +6,16 @@ namespace Rexec;
 
 use GuzzleHttp\Client as HttpClient;
 use GuzzleHttp\Exception\GuzzleException;
+use GuzzleHttp\Exception\RequestException;
 
 /**
- * Main client for interacting with Rexec API.
+ * Main client for interacting with the Rexec API.
  *
  * @example
- * $client = new RexecClient('https://your-instance.com', 'your-token');
- * $container = $client->containers()->create('ubuntu:24.04');
- * $client->containers()->start($container->id);
+ * $client = new RexecClient('https://rexec.sh', $token);
+ * $list = $client->containers()->list();
+ * $container = $client->containers()->create('ubuntu', ['name' => 'demo']);
+ * $client->containers()->delete($container->id);
  */
 class RexecClient
 {
@@ -26,11 +28,9 @@ class RexecClient
     private TerminalService $terminal;
 
     /**
-     * Create a new Rexec client.
-     *
      * @param string $baseUrl Base URL of your Rexec instance
-     * @param string $token API token for authentication
-     * @param array $options Additional Guzzle options
+     * @param string $token   API token (Bearer)
+     * @param array  $options Additional Guzzle options
      */
     public function __construct(string $baseUrl, string $token, array $options = [])
     {
@@ -38,12 +38,14 @@ class RexecClient
         $this->token = $token;
 
         $defaultOptions = [
-            'base_uri' => $this->baseUrl,
+            'base_uri' => $this->baseUrl . '/',
             'timeout' => 30,
+            'http_errors' => false,
             'headers' => [
                 'Authorization' => 'Bearer ' . $token,
                 'Accept' => 'application/json',
                 'Content-Type' => 'application/json',
+                'User-Agent' => 'pipeops-rexec-php/1.0.1',
             ],
         ];
 
@@ -54,61 +56,50 @@ class RexecClient
         $this->terminal = new TerminalService($this);
     }
 
-    /**
-     * Get the container service.
-     */
     public function containers(): ContainerService
     {
         return $this->containers;
     }
 
-    /**
-     * Get the file service.
-     */
     public function files(): FileService
     {
         return $this->files;
     }
 
-    /**
-     * Get the terminal service.
-     */
     public function terminal(): TerminalService
     {
         return $this->terminal;
     }
 
-    /**
-     * Get the base URL.
-     */
     public function getBaseUrl(): string
     {
         return $this->baseUrl;
     }
 
-    /**
-     * Get the API token.
-     */
     public function getToken(): string
     {
         return $this->token;
     }
 
     /**
-     * Get WebSocket URL for a path.
+     * Build a WebSocket URL for a path (e.g. /ws/terminal/{id}).
      */
     public function getWebSocketUrl(string $path): string
     {
         $parsed = parse_url($this->baseUrl);
         $scheme = ($parsed['scheme'] ?? 'http') === 'https' ? 'wss' : 'ws';
         $host = $parsed['host'] ?? 'localhost';
-        $port = $parsed['port'] ?? (($parsed['scheme'] ?? 'http') === 'https' ? 443 : 80);
+        $port = $parsed['port'] ?? null;
+        $portPart = $port !== null ? ':' . $port : '';
+        if ($path === '' || $path[0] !== '/') {
+            $path = '/' . $path;
+        }
 
-        return "{$scheme}://{$host}:{$port}{$path}";
+        return "{$scheme}://{$host}{$portPart}{$path}";
     }
 
     /**
-     * Make an API request.
+     * Make a JSON API request.
      *
      * @throws RexecException
      */
@@ -120,30 +111,54 @@ class RexecClient
                 $options['json'] = $body;
             }
 
-            $response = $this->httpClient->request($method, $path, $options);
-            $content = $response->getBody()->getContents();
+            $response = $this->httpClient->request($method, ltrim($path, '/'), $options);
+            $status = $response->getStatusCode();
+            $content = (string) $response->getBody();
 
-            if (empty($content)) {
+            if ($status < 200 || $status >= 300) {
+                throw RexecException::fromResponse($status, $content);
+            }
+
+            if ($content === '') {
                 return null;
             }
 
-            return json_decode($content, true);
+            $decoded = json_decode($content, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                throw new RexecException('Invalid JSON response: ' . json_last_error_msg(), $status);
+            }
+
+            return $decoded;
+        } catch (RexecException $e) {
+            throw $e;
+        } catch (RequestException $e) {
+            $status = $e->getResponse()?->getStatusCode() ?? 0;
+            $body = $e->getResponse() ? (string) $e->getResponse()->getBody() : $e->getMessage();
+            throw RexecException::fromResponse($status, $body, $e);
         } catch (GuzzleException $e) {
-            $statusCode = method_exists($e, 'getCode') ? $e->getCode() : 0;
-            throw new RexecException($e->getMessage(), $statusCode, $e);
+            throw new RexecException($e->getMessage(), 0, $e);
         }
     }
 
     /**
-     * Make a request and return raw bytes.
+     * Make a request and return raw response bytes/string.
      *
      * @throws RexecException
      */
     public function requestBytes(string $method, string $path): string
     {
         try {
-            $response = $this->httpClient->request($method, $path);
-            return $response->getBody()->getContents();
+            $response = $this->httpClient->request($method, ltrim($path, '/'));
+            $status = $response->getStatusCode();
+            $content = (string) $response->getBody();
+
+            if ($status < 200 || $status >= 300) {
+                throw RexecException::fromResponse($status, $content);
+            }
+
+            return $content;
+        } catch (RexecException $e) {
+            throw $e;
         } catch (GuzzleException $e) {
             throw new RexecException($e->getMessage(), 0, $e);
         }

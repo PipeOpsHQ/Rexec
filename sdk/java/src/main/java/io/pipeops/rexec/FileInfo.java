@@ -1,5 +1,7 @@
 package io.pipeops.rexec;
 
+import com.google.gson.annotations.SerializedName;
+
 /**
  * Information about a file in a container.
  */
@@ -8,7 +10,11 @@ public class FileInfo {
     private String path;
     private long size;
     private String mode;
+
+    @SerializedName("mod_time")
     private String modTime;
+
+    @SerializedName("is_dir")
     private boolean isDir;
 
     public String getName() {

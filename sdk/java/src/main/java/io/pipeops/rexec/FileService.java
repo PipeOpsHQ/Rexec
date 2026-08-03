@@ -26,7 +26,10 @@ public class FileService {
                 null,
                 FileListResponse.class
         );
-        return response != null ? response.files : List.of();
+        if (response == null || response.files == null) {
+            return List.of();
+        }
+        return response.files;
     }
 
     /**
