@@ -315,12 +315,15 @@ type CreateContainerRequest struct {
 	Image       string `json:"image" binding:"required"` // Image type (ubuntu, debian, etc.) or "custom"
 	CustomImage string `json:"custom_image,omitempty"`   // Required when Image is "custom"
 	Role        string `json:"role,omitempty"`           // Optional role (node, python, etc.)
+	// Labels are merged into container labels (e.g. pipeops.workspace_id for BFF tenancy).
+	// Reserved rexec.* keys set by the platform still take precedence when set after merge.
+	Labels map[string]string `json:"labels,omitempty"`
 	// Shell customization
 	Shell *ShellConfig `json:"shell,omitempty"` // Optional shell config (defaults to enhanced)
 	// Trial resource customization (within limits)
-	MemoryMB  int64  `json:"memory_mb,omitempty"`  // Optional: custom memory (256-1024 MB for trial)
-	CPUShares int64  `json:"cpu_shares,omitempty"` // Optional: custom CPU shares (256-1024 for trial)
-	DiskMB    int64  `json:"disk_mb,omitempty"`    // Optional: custom disk (1024-4096 MB for trial)
+	MemoryMB  int64 `json:"memory_mb,omitempty"`  // Optional: custom memory (256-1024 MB for trial)
+	CPUShares int64 `json:"cpu_shares,omitempty"` // Optional: custom CPU shares (256-1024 for trial)
+	DiskMB    int64 `json:"disk_mb,omitempty"`    // Optional: custom disk (1024-4096 MB for trial)
 }
 
 // TrialResourceLimits defines the min/max resource limits for trial users

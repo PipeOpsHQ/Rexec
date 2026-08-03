@@ -543,6 +543,20 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 		},
 	}
 
+	// Merge caller-provided labels (e.g. pipeops.workspace_id from PipeOps BFF).
+	// Platform rexec.* keys set above win if both set the same key.
+	if len(req.Labels) > 0 {
+		for k, v := range req.Labels {
+			if k == "" || v == "" {
+				continue
+			}
+			if _, reserved := cfg.Labels[k]; reserved && strings.HasPrefix(k, "rexec.") {
+				continue
+			}
+			cfg.Labels[k] = v
+		}
+	}
+
 	// Mark guest containers with special label for cleanup
 	if isGuest || tier == "guest" {
 		cfg.Labels["rexec.tier"] = "guest"
@@ -1926,6 +1940,19 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 			"rexec.user_id":  userID,
 			"rexec.use_tmux": useTmux,
 		},
+	}
+
+	// Merge caller-provided labels (e.g. pipeops.workspace_id).
+	if len(req.Labels) > 0 {
+		for k, v := range req.Labels {
+			if k == "" || v == "" {
+				continue
+			}
+			if _, reserved := cfg.Labels[k]; reserved && strings.HasPrefix(k, "rexec.") {
+				continue
+			}
+			cfg.Labels[k] = v
+		}
 	}
 
 	if isGuest || tier == "guest" {
