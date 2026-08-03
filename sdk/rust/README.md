@@ -34,7 +34,7 @@ async fn main() -> Result<(), rexec::Error> {
 
     // Create a container
     let container = client.containers()
-        .create(CreateContainerRequest::new("ubuntu:24.04")
+        .create(CreateContainerRequest::new("ubuntu")
             .name("my-sandbox"))
         .await?;
 
@@ -87,7 +87,7 @@ let container = client.containers().get("container-id").await?;
 
 // Create a container with builder pattern
 let container = client.containers()
-    .create(CreateContainerRequest::new("ubuntu:24.04")
+    .create(CreateContainerRequest::new("ubuntu")
         .name("my-container")
         .env("MY_VAR", "value")
         .label("project", "demo"))
@@ -187,7 +187,7 @@ async fn create_batch(client: &RexecClient, count: usize) -> Vec<Container> {
     let futures: Vec<_> = (0..count)
         .map(|i| {
             client.containers().create(
-                CreateContainerRequest::new("ubuntu:24.04")
+                CreateContainerRequest::new("ubuntu")
                     .name(format!("worker-{}", i))
             )
         })

@@ -43,7 +43,7 @@ try {
     $list = $client->containers()->list();
     echo 'count: ' . count($list) . PHP_EOL;
 
-    // Prefer image aliases: ubuntu, debian, alpine (not ubuntu:24.04 on hosted Rexec)
+    // Prefer image aliases: ubuntu, debian, alpine (not ubuntu on hosted Rexec)
     $container = $client->containers()->create('ubuntu', [
         'name' => 'php-demo',
     ]);

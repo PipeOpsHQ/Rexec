@@ -5,7 +5,7 @@ Example usage:
     from rexec import RexecClient
 
     async with RexecClient("https://your-instance.com", "your-token") as client:
-        container = await client.containers.create(image="ubuntu:24.04")
+        container = await client.containers.create(image="ubuntu")
         async with client.terminal.connect(container.id) as term:
             await term.write(b"echo hello\\n")
             async for data in term:

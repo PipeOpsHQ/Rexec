@@ -29,7 +29,7 @@ func main() {
 
     // Create a container
     container, err := client.Containers.Create(ctx, &rexec.CreateContainerRequest{
-        Image: "ubuntu:24.04",
+        Image: "ubuntu",
         Name:  "my-sandbox",
     })
     if err != nil {
@@ -79,7 +79,7 @@ container, err := client.Containers.Get(ctx, containerID)
 
 // Create a container
 container, err := client.Containers.Create(ctx, &rexec.CreateContainerRequest{
-    Image: "ubuntu:24.04",
+    Image: "ubuntu",
     Name:  "my-container",
     Environment: map[string]string{
         "MY_VAR": "value",

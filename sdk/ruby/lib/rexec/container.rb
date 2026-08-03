@@ -60,7 +60,7 @@ module Rexec
     #
     # @example
     #   container = client.containers.create(
-    #     image: "ubuntu:24.04",
+    #     image: "ubuntu",
     #     name: "my-sandbox",
     #     environment: { "MY_VAR" => "value" }
     #   )
