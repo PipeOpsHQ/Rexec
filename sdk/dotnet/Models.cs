@@ -3,9 +3,9 @@ using System.Text.Json.Serialization;
 namespace Rexec;
 
 /// <summary>
-/// Represents a Rexec container/sandbox.
+/// Represents a Rexec sandbox (isolated Linux environment).
 /// </summary>
-public class Container
+public class Sandbox
 {
     /// <summary>
     /// Unique container identifier.
@@ -61,9 +61,9 @@ public class Container
 }
 
 /// <summary>
-/// Request to create a new container.
+/// Request to create a new sandbox. Prefer image aliases (e.g. ubuntu).
 /// </summary>
-public class CreateContainerRequest
+public class CreateSandboxRequest
 {
     /// <summary>
     /// Docker image to use.
@@ -88,7 +88,7 @@ public class CreateContainerRequest
     /// <summary>
     /// Create a request with the specified image.
     /// </summary>
-    public CreateContainerRequest(string image)
+    public CreateSandboxRequest(string image)
     {
         Image = image;
     }
@@ -96,7 +96,7 @@ public class CreateContainerRequest
     /// <summary>
     /// Set environment variable.
     /// </summary>
-    public CreateContainerRequest WithEnv(string key, string value)
+    public CreateSandboxRequest WithEnv(string key, string value)
     {
         Environment ??= new Dictionary<string, string>();
         Environment[key] = value;
@@ -106,7 +106,7 @@ public class CreateContainerRequest
     /// <summary>
     /// Set label.
     /// </summary>
-    public CreateContainerRequest WithLabel(string key, string value)
+    public CreateSandboxRequest WithLabel(string key, string value)
     {
         Labels ??= new Dictionary<string, string>();
         Labels[key] = value;
@@ -185,7 +185,7 @@ public class FileInfo
 
 internal class ContainerListResponse
 {
-    public List<Container>? Containers { get; set; }
+    public List<Sandbox>? Containers { get; set; }
 }
 
 internal class FileListResponse
@@ -202,4 +202,22 @@ internal class WriteFileRequest
 {
     public string Path { get; set; } = "";
     public string Content { get; set; } = "";
+}
+
+
+/// <summary>
+/// Deprecated alias for <see cref="Sandbox"/>. Prefer Sandbox.
+/// </summary>
+[Obsolete("Use Sandbox instead")]
+public class Container : Sandbox
+{
+}
+
+/// <summary>
+/// Deprecated alias for <see cref="CreateSandboxRequest"/>. Prefer CreateSandboxRequest.
+/// </summary>
+[Obsolete("Use CreateSandboxRequest instead")]
+public class CreateContainerRequest : CreateSandboxRequest
+{
+    public CreateContainerRequest(string image) : base(image) { }
 }

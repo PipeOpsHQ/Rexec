@@ -7,19 +7,20 @@ require_relative "rexec/container"
 require_relative "rexec/file_service"
 require_relative "rexec/terminal"
 
-# Rexec Ruby SDK - Official SDK for Rexec Terminal as a Service.
+# Rexec Ruby SDK — official client for AI-native sandboxes.
 #
 # @example Basic usage
 #   client = Rexec::Client.new("https://your-instance.com", "your-token")
-#   
-#   container = client.containers.create(image: "ubuntu")
-#   puts "Created: #{container.id}"
-#   
-#   terminal = client.terminal.connect(container.id)
+#
+#   sandbox = client.sandboxes.create(image: "ubuntu")
+#   puts "Created: #{sandbox.id}"
+#
+#   terminal = client.terminal.connect(sandbox.id)
 #   terminal.write("echo hello\n")
 #   terminal.on_data { |data| puts data }
-#   
-#   client.containers.delete(container.id)
+#
+#   client.sandboxes.delete(sandbox.id)
+#   # Legacy: client.containers is the same service
 #
 module Rexec
   class << self

@@ -5,16 +5,16 @@
 //
 // Basic usage:
 //
-//	client := rexec.NewClient("https://your-rexec-instance.com", "your-api-token")
+//	client := rexec.NewClient("https://rexec.sh", "your-api-token")
 //
-//	// Create a container
-//	container, err := client.Containers.Create(ctx, &rexec.CreateContainerRequest{
+//	// Create a sandbox (preferred)
+//	sandbox, err := client.Sandboxes.Create(ctx, &rexec.CreateSandboxRequest{
 //	    Image: "ubuntu",
 //	    Name:  "my-sandbox",
 //	})
+//	// Legacy: client.Containers is the same service
 //
-//	// Connect to terminal
-//	term, err := client.Terminal.Connect(ctx, container.ID)
+//	term, err := client.Terminal.Connect(ctx, sandbox.ID)
 //	term.Write([]byte("echo hello\n"))
 package rexec
 
@@ -38,8 +38,10 @@ type Client struct {
 	token      string
 	httpClient *http.Client
 
-	// Services
-	Containers *ContainerService
+	// Sandboxes is the preferred accessor for sandbox lifecycle APIs.
+	Sandboxes *SandboxService
+	// Containers is a deprecated alias for Sandboxes (same pointer). Prefer Sandboxes.
+	Containers *SandboxService
 	Files      *FileService
 	Terminal   *TerminalService
 }
@@ -56,7 +58,9 @@ func NewClient(baseURL, token string) *Client {
 		},
 	}
 
-	c.Containers = &ContainerService{client: c}
+	svc := &SandboxService{client: c}
+	c.Sandboxes = svc
+	c.Containers = svc
 	c.Files = &FileService{client: c}
 	c.Terminal = &TerminalService{client: c}
 
@@ -139,8 +143,9 @@ func (e *APIError) Error() string {
 	return fmt.Sprintf("API error %d: %s", e.StatusCode, e.Message)
 }
 
-// Container represents a Rexec container/sandbox.
-type Container struct {
+// Sandbox represents a Rexec sandbox (isolated Linux environment).
+// Wire protocol still uses the /api/containers resource.
+type Sandbox struct {
 	ID          string            `json:"id"`
 	Name        string            `json:"name"`
 	Image       string            `json:"image"`
@@ -151,64 +156,78 @@ type Container struct {
 	Environment map[string]string `json:"environment,omitempty"`
 }
 
-// CreateContainerRequest represents a request to create a container.
-type CreateContainerRequest struct {
+// Container is a deprecated alias for Sandbox.
+// Deprecated: use Sandbox.
+type Container = Sandbox
+
+// CreateSandboxRequest represents a request to create a sandbox.
+// Prefer image aliases such as "ubuntu".
+type CreateSandboxRequest struct {
 	Name        string            `json:"name,omitempty"`
 	Image       string            `json:"image"`
 	Environment map[string]string `json:"environment,omitempty"`
 	Labels      map[string]string `json:"labels,omitempty"`
 }
 
-// ContainerService handles container operations.
-type ContainerService struct {
+// CreateContainerRequest is a deprecated alias for CreateSandboxRequest.
+// Deprecated: use CreateSandboxRequest.
+type CreateContainerRequest = CreateSandboxRequest
+
+// SandboxService handles sandbox lifecycle operations.
+// HTTP paths remain /api/containers for backend compatibility.
+type SandboxService struct {
 	client *Client
 }
 
+// ContainerService is a deprecated alias for SandboxService.
+// Deprecated: use SandboxService.
+type ContainerService = SandboxService
+
 // containerListResponse matches the production API list payload.
 type containerListResponse struct {
-	Containers []Container `json:"containers"`
-	Count      int         `json:"count"`
-	Limit      int         `json:"limit"`
+	Containers []Sandbox `json:"containers"`
+	Count      int       `json:"count"`
+	Limit      int       `json:"limit"`
 }
 
-// List returns all containers for the authenticated user.
-func (s *ContainerService) List(ctx context.Context) ([]Container, error) {
+// List returns all sandboxes for the authenticated user.
+func (s *SandboxService) List(ctx context.Context) ([]Sandbox, error) {
 	var wrapped containerListResponse
 	if err := s.client.doRequest(ctx, http.MethodGet, "/api/containers", nil, &wrapped); err != nil {
 		return nil, err
 	}
 	if wrapped.Containers == nil {
-		return []Container{}, nil
+		return []Sandbox{}, nil
 	}
 	return wrapped.Containers, nil
 }
 
-// Get returns a container by ID.
-func (s *ContainerService) Get(ctx context.Context, id string) (*Container, error) {
-	var container Container
-	err := s.client.doRequest(ctx, http.MethodGet, "/api/containers/"+id, nil, &container)
-	return &container, err
+// Get returns a sandbox by ID.
+func (s *SandboxService) Get(ctx context.Context, id string) (*Sandbox, error) {
+	var sandbox Sandbox
+	err := s.client.doRequest(ctx, http.MethodGet, "/api/containers/"+id, nil, &sandbox)
+	return &sandbox, err
 }
 
-// Create creates a new container.
-func (s *ContainerService) Create(ctx context.Context, req *CreateContainerRequest) (*Container, error) {
-	var container Container
-	err := s.client.doRequest(ctx, http.MethodPost, "/api/containers", req, &container)
-	return &container, err
+// Create creates a new sandbox.
+func (s *SandboxService) Create(ctx context.Context, req *CreateSandboxRequest) (*Sandbox, error) {
+	var sandbox Sandbox
+	err := s.client.doRequest(ctx, http.MethodPost, "/api/containers", req, &sandbox)
+	return &sandbox, err
 }
 
-// Delete deletes a container.
-func (s *ContainerService) Delete(ctx context.Context, id string) error {
+// Delete deletes a sandbox.
+func (s *SandboxService) Delete(ctx context.Context, id string) error {
 	return s.client.doRequest(ctx, http.MethodDelete, "/api/containers/"+id, nil, nil)
 }
 
-// Start starts a stopped container.
-func (s *ContainerService) Start(ctx context.Context, id string) error {
+// Start starts a stopped sandbox.
+func (s *SandboxService) Start(ctx context.Context, id string) error {
 	return s.client.doRequest(ctx, http.MethodPost, "/api/containers/"+id+"/start", nil, nil)
 }
 
-// Stop stops a running container.
-func (s *ContainerService) Stop(ctx context.Context, id string) error {
+// Stop stops a running sandbox.
+func (s *SandboxService) Stop(ctx context.Context, id string) error {
 	return s.client.doRequest(ctx, http.MethodPost, "/api/containers/"+id+"/stop", nil, nil)
 }
 

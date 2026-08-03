@@ -123,12 +123,12 @@ const client = new RexecClient({
   token: process.env.REXEC_TOKEN!,
 });
 
-const list = await client.containers.list(); // always an array (SDK normalizes API wrapper)
-const c = await client.containers.create({ image: 'ubuntu', name: 'demo' });
+const list = await client.sandboxes.list(); // preferred (containers still works)
+const c = await client.sandboxes.create({ image: 'ubuntu', name: 'demo' });
 console.log(c.id, c.status); // often "creating" at first
 
-const got = await client.containers.get(c.id);
-await client.containers.delete(c.id);
+const got = await client.sandboxes.get(c.id);
+await client.sandboxes.delete(c.id);
 ```
 
 ### Python (primary)
@@ -144,11 +144,11 @@ from rexec import RexecClient
 
 async def main():
     async with RexecClient(os.environ["REXEC_URL"], os.environ["REXEC_TOKEN"]) as client:
-        print(await client.containers.list())
-        c = await client.containers.create(image="ubuntu", name="demo")
+        print(await client.sandboxes.list())
+        c = await client.sandboxes.create(image="ubuntu", name="demo")
         print(c.id, c.status)
-        await client.containers.get(c.id)
-        await client.containers.delete(c.id)
+        await client.sandboxes.get(c.id)
+        await client.sandboxes.delete(c.id)
 
 asyncio.run(main())
 ```
@@ -159,13 +159,14 @@ asyncio.run(main())
 <summary>Go</summary>
 
 ```bash
-go get github.com/PipeOpsHQ/rexec-go@v1.0.1
+go get github.com/PipeOpsHQ/rexec-go@v1.1.0
 ```
 
 ```go
 client := rexec.NewClient(os.Getenv("REXEC_URL"), os.Getenv("REXEC_TOKEN"))
-c, _ := client.Containers.Create(ctx, &rexec.CreateContainerRequest{Image: "ubuntu", Name: "demo"})
-_ = client.Containers.Delete(ctx, c.ID)
+c, _ := client.Sandboxes.Create(ctx, &rexec.CreateSandboxRequest{Image: "ubuntu", Name: "demo"})
+_ = client.Sandboxes.Delete(ctx, c.ID)
+// Legacy: client.Containers is the same service
 ```
 
 </details>
@@ -178,10 +179,10 @@ cargo add pipeops-rexec
 ```
 
 ```rust
-use rexec::{CreateContainerRequest, RexecClient};
+use rexec::{CreateSandboxRequest, RexecClient};
 let client = RexecClient::new(url, token);
-let c = client.containers().create(CreateContainerRequest::new("ubuntu").name("demo")).await?;
-client.containers().delete(&c.id).await?;
+let c = client.sandboxes().create(CreateSandboxRequest::new("ubuntu").name("demo")).await?;
+client.sandboxes().delete(&c.id).await?;
 ```
 
 </details>
@@ -196,8 +197,8 @@ gem install pipeops-rexec
 ```ruby
 require "rexec"
 client = Rexec::Client.new(ENV["REXEC_URL"], ENV["REXEC_TOKEN"])
-c = client.containers.create(image: "ubuntu", name: "demo")
-client.containers.delete(c.id)
+c = client.sandboxes.create(image: "ubuntu", name: "demo")
+client.sandboxes.delete(c.id)
 ```
 
 </details>
@@ -212,8 +213,8 @@ dotnet add package PipeOps.Rexec
 ```csharp
 using Rexec;
 using var client = new RexecClient(url, token);
-var c = await client.Containers.CreateAsync(new CreateContainerRequest("ubuntu") { Name = "demo" });
-await client.Containers.DeleteAsync(c!.Id);
+var c = await client.Sandboxes.CreateAsync(new CreateSandboxRequest("ubuntu") { Name = "demo" });
+await client.Sandboxes.DeleteAsync(c!.Id);
 ```
 
 </details>
@@ -223,8 +224,8 @@ await client.Containers.DeleteAsync(c!.Id);
 
 ```java
 RexecClient client = new RexecClient(url, token);
-Container c = client.containers().create(new CreateContainerRequest("ubuntu").setName("demo"));
-client.containers().delete(c.getId());
+Sandbox c = client.sandboxes().create(new CreateSandboxRequest("ubuntu").setName("demo"));
+client.sandboxes().delete(c.getId());
 ```
 
 </details>
@@ -238,8 +239,8 @@ composer require pipeopshq/rexec
 
 ```php
 $client = new Rexec\RexecClient(getenv('REXEC_URL'), getenv('REXEC_TOKEN'));
-$c = $client->containers()->create('ubuntu', ['name' => 'demo']);
-$client->containers()->delete($c->id);
+$c = $client->sandboxes()->create('ubuntu', ['name' => 'demo']);
+$client->sandboxes()->delete($c->id);
 ```
 
 </details>
@@ -252,7 +253,7 @@ Full copy-paste samples for every language: [SDK.md](SDK.md#language-examples).
 
 | Surface | Capabilities |
 |---------|----------------|
-| **Containers** | list, create, get, start, stop, delete |
+| **Sandboxes** (`containers` alias) | list, create, get, start, stop, delete |
 | **Files** | list dir, read, write (often base64), mkdir (JS+), delete |
 | **Terminal** | WebSocket connect, `write` / `onData`, resize, close |
 

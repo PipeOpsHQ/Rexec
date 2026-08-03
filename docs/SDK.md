@@ -8,7 +8,7 @@ Official client libraries for the Rexec **sandbox** API (files and terminals).
 |--|--|
 | **Hosted base URL** | `https://rexec.sh` |
 | **Auth header** | `Authorization: Bearer <token>` |
-| **SDK version** | **v1.0.1** |
+| **SDK version** | **v1.1.0** |
 | **Quick start** | [SDK_GETTING_STARTED.md](SDK_GETTING_STARTED.md) |
 | **Publishing** | [SDK_PUBLISHING.md](SDK_PUBLISHING.md) |
 | **Source monorepo** | [github.com/PipeOpsHQ/Rexec](https://github.com/PipeOpsHQ/Rexec) (`sdk/{js,python,go,rust,ruby,dotnet,java,php}`) |
@@ -22,12 +22,12 @@ Official client libraries for the Rexec **sandbox** API (files and terminals).
 
 ## Sandboxes (product concept)
 
-A **sandbox** is the isolated Linux workspace you create, use, and delete. In the HTTP API and SDK method names this resource is still called a **container** (`/api/containers`, `client.containers.*`).
+A **sandbox** is the isolated Linux workspace you create, use, and delete.
 
 | Term | Meaning |
 |------|---------|
-| **Sandbox** | Product / docs language for the isolated environment |
-| **Container** | API resource and SDK service name |
+| **Sandbox** | Product language and preferred SDK names (`client.sandboxes`, `Sandbox`) |
+| **Container** | HTTP wire name (`/api/containers`) and **deprecated** SDK aliases (`client.containers`, `Container`) |
 
 Typical use cases: AI agents running code safely, ephemeral dev shells, demos, and CI-style throwaway environments.
 
@@ -37,17 +37,17 @@ There is **no** primary HTTP `exec()` on hosted Rexec — run commands via the [
 
 ---
 
-## Available SDKs (v1.0.1)
+## Available SDKs (v1.1.0)
 
 | Language | Package / module | Install | Import notes |
 |----------|------------------|---------|--------------|
 | **JS / TS** | [pipeops-rexec](https://www.npmjs.com/package/pipeops-rexec) | `npm install pipeops-rexec` | `import { RexecClient } from 'pipeops-rexec'` |
 | **Python** | [pipeops-rexec](https://pypi.org/project/pipeops-rexec/) | `pip install pipeops-rexec` | `from rexec import RexecClient` |
-| **Go** | [github.com/PipeOpsHQ/rexec-go](https://github.com/PipeOpsHQ/rexec-go) | `go get github.com/PipeOpsHQ/rexec-go@v1.0.1` | `import rexec "github.com/PipeOpsHQ/rexec-go"` |
+| **Go** | [github.com/PipeOpsHQ/rexec-go](https://github.com/PipeOpsHQ/rexec-go) | `go get github.com/PipeOpsHQ/rexec-go@v1.1.0` | `import rexec "github.com/PipeOpsHQ/rexec-go"` |
 | **Rust** | [pipeops-rexec](https://crates.io/crates/pipeops-rexec) | `cargo add pipeops-rexec` | `use rexec::{…}` (crate name ≠ import name) |
 | **Ruby** | [pipeops-rexec](https://rubygems.org/gems/pipeops-rexec) | `gem install pipeops-rexec` | `require "rexec"` |
 | **C# / .NET** | [PipeOps.Rexec](https://www.nuget.org/packages/PipeOps.Rexec) | `dotnet add package PipeOps.Rexec` | `using Rexec;` |
-| **Java / Kotlin** | `io.pipeops:rexec:1.0.1` | Maven/Gradle | `import io.pipeops.rexec.*` |
+| **Java / Kotlin** | `io.pipeops:rexec:1.1.0` | Maven/Gradle | `import io.pipeops.rexec.*` |
 | **PHP** | [pipeopshq/rexec](https://packagist.org/packages/pipeopshq/rexec) | `composer require pipeopshq/rexec` | `use Rexec\RexecClient` |
 
 Publishing is **GitHub Actions only** — see [SDK_PUBLISHING.md](SDK_PUBLISHING.md).
@@ -104,9 +104,9 @@ Catalog: **`GET /api/images`**.
 
 Every SDK exposes roughly three services over the same HTTP/WS endpoints.
 
-### Sandboxes (`containers` service)
+### Sandboxes (`sandboxes` service; wire: `/api/containers`)
 
-SDK methods are named `containers.*` but operate on **sandboxes**.
+Prefer **`client.sandboxes`** (or `Sandboxes` / `sandboxes()`). Legacy **`client.containers`** is the same service.
 
 | Method | HTTP | Notes |
 |--------|------|--------|
@@ -144,16 +144,18 @@ SDK methods are named `containers.*` but operate on **sandboxes**.
 
 ## Client construction
 
-| Lang | Construct | Containers |
-|------|-----------|------------|
-| **JS** | `new RexecClient({ baseURL, token })` | `client.containers.list()` / `.create({ image, name? })` |
-| **Python** | `async with RexecClient(url, token)` | `await client.containers.list()` / `.create(image=…, name=…)` |
-| **Go** | `rexec.NewClient(url, token)` | `client.Containers.List(ctx)` / `.Create(ctx, &CreateContainerRequest{…})` |
-| **Rust** | `RexecClient::new(url, token)` | `client.containers().list().await` / `.create(CreateContainerRequest::new("ubuntu").name(…))` |
-| **Ruby** | `Rexec::Client.new(url, token)` | `client.containers.list` / `.create(image: "ubuntu", name: "demo")` |
-| **.NET** | `new RexecClient(url, token)` | `await client.Containers.ListAsync()` / `CreateAsync(new CreateContainerRequest("ubuntu") { Name = … })` |
-| **Java** | `new RexecClient(url, token)` | `client.containers().list()` / `.create(new CreateContainerRequest("ubuntu").setName(…))` |
-| **PHP** | `new Rexec\RexecClient($url, $token)` | `$client->containers()->list()` / `->create('ubuntu', ['name' => 'demo'])` |
+| Lang | Construct | Sandboxes (preferred) |
+|------|-----------|------------------------|
+| **JS** | `new RexecClient({ baseURL, token })` | `client.sandboxes.list()` / `.create({ image, name? })` |
+| **Python** | `async with RexecClient(url, token)` | `await client.sandboxes.list()` / `.create(image=…, name=…)` |
+| **Go** | `rexec.NewClient(url, token)` | `client.Sandboxes.List(ctx)` / `.Create(ctx, &CreateSandboxRequest{…})` |
+| **Rust** | `RexecClient::new(url, token)` | `client.sandboxes().list().await` / `.create(CreateSandboxRequest::new("ubuntu").name(…))` |
+| **Ruby** | `Rexec::Client.new(url, token)` | `client.sandboxes.list` / `.create(image: "ubuntu", name: "demo")` |
+| **.NET** | `new RexecClient(url, token)` | `await client.Sandboxes.ListAsync()` / `CreateAsync(new CreateSandboxRequest("ubuntu") { Name = … })` |
+| **Java** | `new RexecClient(url, token)` | `client.sandboxes().list()` / `.create(new CreateSandboxRequest("ubuntu").setName(…))` |
+| **PHP** | `new Rexec\RexecClient($url, $token)` | `$client->sandboxes()->list()` / `->create('ubuntu', ['name' => 'demo'])` |
+
+Legacy `containers` / `Container` / `CreateContainerRequest` aliases remain through 1.x.
 
 Optional client options (language-dependent): custom `fetch` (JS), timeouts, TLS. Defaults point at your `baseURL` + Bearer token.
 
@@ -195,7 +197,7 @@ SDKs return a plain array so callers never special-case `null`.
 
 ## Sandboxes API (detail)
 
-Happy path for every language (via `containers` service):
+Happy path for every language (via `sandboxes` service; `containers` alias works):
 
 1. `list()` — sandboxes for the current token  
 2. `create({ image: "ubuntu", name?: "…" })` — new sandbox  
@@ -210,7 +212,7 @@ Also available: `start(id)`, `stop(id)`.
 async function waitRunning(client: RexecClient, id: string, ms = 60_000) {
   const deadline = Date.now() + ms;
   while (Date.now() < deadline) {
-    const c = await client.containers.get(id);
+    const c = await client.sandboxes.get(id);
     if (c.status === 'running') return c;
     if (c.status === 'error') throw new Error('sandbox failed');
     await new Promise((r) => setTimeout(r, 1000));
@@ -305,19 +307,19 @@ const client = new RexecClient({
   token: process.env.REXEC_TOKEN!,
 });
 
-const list = await client.containers.list();
-const container = await client.containers.create({
+const list = await client.sandboxes.list();
+const sandbox = await client.sandboxes.create({
   image: 'ubuntu',
   name: 'demo',
 });
-console.log(container.id, container.status);
+console.log(sandbox.id, sandbox.status);
 
-const got = await client.containers.get(container.id);
-await client.containers.delete(container.id);
+const got = await client.sandboxes.get(sandbox.id);
+await client.sandboxes.delete(sandbox.id);
 
 // Terminal (browser WebSocket or `ws` in Node)
 // Prefer after status === "running"
-const term = await client.terminal.connect(container.id);
+const term = await client.terminal.connect(sandbox.id);
 term.onData((data) => process.stdout.write(String(data)));
 term.write('echo hello\n');
 term.close();
@@ -336,11 +338,11 @@ from rexec import RexecClient
 
 async def main():
     async with RexecClient(os.environ["REXEC_URL"], os.environ["REXEC_TOKEN"]) as client:
-        print(await client.containers.list())
-        c = await client.containers.create(image="ubuntu", name="demo")
+        print(await client.sandboxes.list())
+        c = await client.sandboxes.create(image="ubuntu", name="demo")
         print(c.id, c.status)
-        await client.containers.get(c.id)
-        await client.containers.delete(c.id)
+        await client.sandboxes.get(c.id)
+        await client.sandboxes.delete(c.id)
 
 asyncio.run(main())
 ```
@@ -348,7 +350,7 @@ asyncio.run(main())
 ### Go
 
 ```bash
-go get github.com/PipeOpsHQ/rexec-go@v1.0.1
+go get github.com/PipeOpsHQ/rexec-go@v1.1.0
 ```
 
 ```go
@@ -366,10 +368,10 @@ func main() {
     client := rexec.NewClient(os.Getenv("REXEC_URL"), os.Getenv("REXEC_TOKEN"))
     ctx := context.Background()
 
-    list, _ := client.Containers.List(ctx)
+    list, _ := client.Sandboxes.List(ctx)
     fmt.Println("count", len(list))
 
-    c, err := client.Containers.Create(ctx, &rexec.CreateContainerRequest{
+    c, err := client.Sandboxes.Create(ctx, &rexec.CreateSandboxRequest{
         Image: "ubuntu",
         Name:  "demo",
     })
@@ -377,8 +379,8 @@ func main() {
         panic(err)
     }
     fmt.Println(c.ID, c.Status)
-    _, _ = client.Containers.Get(ctx, c.ID)
-    _ = client.Containers.Delete(ctx, c.ID)
+    _, _ = client.Sandboxes.Get(ctx, c.ID)
+    _ = client.Sandboxes.Delete(ctx, c.ID)
 }
 ```
 
@@ -391,7 +393,7 @@ cargo add pipeops-rexec tokio --features tokio/full
 ```
 
 ```rust
-use rexec::{CreateContainerRequest, RexecClient};
+use rexec::{CreateSandboxRequest, RexecClient};
 
 #[tokio::main]
 async fn main() -> Result<(), rexec::Error> {
@@ -400,16 +402,16 @@ async fn main() -> Result<(), rexec::Error> {
         std::env::var("REXEC_TOKEN").unwrap(),
     );
 
-    let list = client.containers().list().await?;
+    let list = client.sandboxes().list().await?;
     println!("count {}", list.len());
 
     let c = client
-        .containers()
-        .create(CreateContainerRequest::new("ubuntu").name("demo"))
+        .sandboxes()
+        .create(CreateSandboxRequest::new("ubuntu").name("demo"))
         .await?;
     println!("{} {}", c.id, c.status);
-    client.containers().get(&c.id).await?;
-    client.containers().delete(&c.id).await?;
+    client.sandboxes().get(&c.id).await?;
+    client.sandboxes().delete(&c.id).await?;
     Ok(())
 }
 ```
@@ -426,12 +428,12 @@ gem install pipeops-rexec   # Ruby >= 3.0
 require "rexec"
 
 client = Rexec::Client.new(ENV["REXEC_URL"], ENV["REXEC_TOKEN"])
-puts client.containers.list.length
+puts client.sandboxes.list.length
 
-c = client.containers.create(image: "ubuntu", name: "demo")
+c = client.sandboxes.create(image: "ubuntu", name: "demo")
 puts "#{c.id} #{c.status}"
-client.containers.get(c.id)
-client.containers.delete(c.id)
+client.sandboxes.get(c.id)
+client.sandboxes.delete(c.id)
 ```
 
 ### C# / .NET
@@ -447,13 +449,13 @@ using var client = new RexecClient(
     Environment.GetEnvironmentVariable("REXEC_URL")!,
     Environment.GetEnvironmentVariable("REXEC_TOKEN")!);
 
-var list = await client.Containers.ListAsync();
-var c = await client.Containers.CreateAsync(new CreateContainerRequest("ubuntu") {
+var list = await client.Sandboxes.ListAsync();
+var c = await client.Sandboxes.CreateAsync(new CreateSandboxRequest("ubuntu") {
     Name = "demo"
 });
 Console.WriteLine($"{c?.Id} {c?.Status}");
-await client.Containers.GetAsync(c!.Id);
-await client.Containers.DeleteAsync(c.Id);
+await client.Sandboxes.GetAsync(c!.Id);
+await client.Sandboxes.DeleteAsync(c.Id);
 // Run commands via Terminal WebSocket helpers — not a primary HTTP exec() API.
 ```
 
@@ -463,7 +465,7 @@ await client.Containers.DeleteAsync(c.Id);
 <dependency>
   <groupId>io.pipeops</groupId>
   <artifactId>rexec</artifactId>
-  <version>1.0.1</version>
+  <version>1.1.0</version>
 </dependency>
 ```
 
@@ -474,24 +476,24 @@ RexecClient client = new RexecClient(
     System.getenv("REXEC_URL"),
     System.getenv("REXEC_TOKEN"));
 
-System.out.println(client.containers().list().size());
-Container c = client.containers().create(
-    new CreateContainerRequest("ubuntu").setName("demo"));
+System.out.println(client.sandboxes().list().size());
+Sandbox c = client.sandboxes().create(
+    new CreateSandboxRequest("ubuntu").setName("demo"));
 System.out.println(c.getId() + " " + c.getStatus());
-client.containers().get(c.getId());
-client.containers().delete(c.getId());
+client.sandboxes().get(c.getId());
+client.sandboxes().delete(c.getId());
 ```
 
 Kotlin:
 
 ```kotlin
 val client = RexecClient(System.getenv("REXEC_URL"), System.getenv("REXEC_TOKEN"))
-val c = client.containers().create(CreateContainerRequest("ubuntu").setName("demo"))
-client.containers().delete(c.id)
+val c = client.sandboxes().create(CreateSandboxRequest("ubuntu").setName("demo"))
+client.sandboxes().delete(c.id)
 ```
 
 Install from source: `cd sdk/java && mvn install -DskipTests`.  
-Maven Central coordinates: `io.pipeops:rexec:1.0.1` · [repo path](https://repo1.maven.org/maven2/io/pipeops/rexec/).
+Maven Central coordinates: `io.pipeops:rexec:1.1.0` · [repo path](https://repo1.maven.org/maven2/io/pipeops/rexec/).
 
 ### PHP
 
@@ -504,7 +506,7 @@ If Packagist is not linked yet:
 
 ```bash
 composer config repositories.rexec-php vcs https://github.com/PipeOpsHQ/rexec-php
-composer require pipeopshq/rexec:^1.0
+composer require pipeopshq/rexec:^1.1
 ```
 
 ```php
@@ -514,12 +516,13 @@ require 'vendor/autoload.php';
 use Rexec\RexecClient;
 
 $client = new RexecClient(getenv('REXEC_URL'), getenv('REXEC_TOKEN'));
-echo count($client->containers()->list()), PHP_EOL;
+echo count($client->sandboxes()->list()), PHP_EOL;
 
-$c = $client->containers()->create('ubuntu', ['name' => 'demo']);
+$c = $client->sandboxes()->create('ubuntu', ['name' => 'demo']);
 echo $c->id, ' ', $c->status, PHP_EOL;
-$client->containers()->get($c->id);
-$client->containers()->delete($c->id);
+$client->sandboxes()->get($c->id);
+$client->sandboxes()->delete($c->id);
+// Legacy: $client->containers() is the same service
 ```
 
 ---
@@ -531,9 +534,25 @@ cd scripts/sdk-e2e
 # See README.md — list → create → get → delete for each language
 # Runners: test-js.mjs, test_py.py, go/, rust_e2e, test_rb.rb,
 #          dotnet_e2e, java_e2e, test_php.php
+# Legacy containers.* paths still pass (aliases).
 ```
 
 ---
+
+## Migration: `containers` → `sandboxes` (v1.1.0)
+
+Product language is **sandbox**. SDKs expose preferred **`sandboxes`** accessors and **`Sandbox`** types.
+
+| Prefer (1.1+) | Still works (deprecated alias) |
+|---------------|--------------------------------|
+| `client.sandboxes` / `Sandboxes` / `sandboxes()` | `client.containers` / `Containers` / `containers()` |
+| `Sandbox` | `Container` |
+| `CreateSandboxRequest` | `CreateContainerRequest` |
+| `SandboxService` | `ContainerService` |
+
+- **Wire protocol unchanged:** HTTP remains `/api/containers` and list JSON still uses a `containers` array.
+- **Same service instance:** legacy accessors point at the new service (no double clients).
+- **Removal:** aliases may be removed in **2.0.0**.
 
 ## References
 

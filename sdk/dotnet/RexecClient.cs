@@ -10,9 +10,9 @@ namespace Rexec;
 /// </summary>
 /// <example>
 /// <code>
-/// var client = new RexecClient("https://your-instance.com", "your-token");
-/// var container = await client.Containers.CreateAsync("ubuntu");
-/// await client.Containers.StartAsync(container.Id);
+/// var client = new RexecClient("https://rexec.sh", "your-token");
+/// var sandbox = await client.Sandboxes.CreateAsync("ubuntu");
+/// // Legacy: client.Containers is the same service
 /// </code>
 /// </example>
 public class RexecClient : IDisposable
@@ -24,9 +24,15 @@ public class RexecClient : IDisposable
     private bool _disposed;
 
     /// <summary>
-    /// Container management service.
+    /// Sandbox management service (preferred).
     /// </summary>
-    public ContainerService Containers { get; }
+    public SandboxService Sandboxes { get; }
+
+    /// <summary>
+    /// Deprecated alias for <see cref="Sandboxes"/> (same instance).
+    /// </summary>
+    [Obsolete("Use Sandboxes instead")]
+    public SandboxService Containers => Sandboxes;
 
     /// <summary>
     /// File operations service.
@@ -64,7 +70,7 @@ public class RexecClient : IDisposable
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-        Containers = new ContainerService(this);
+        Sandboxes = new SandboxService(this);
         Files = new FileService(this);
         Terminal = new TerminalService(this);
     }

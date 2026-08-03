@@ -7,11 +7,18 @@ module Rexec
   # Main client for interacting with Rexec API.
   #
   # @example
-  #   client = Rexec::Client.new("https://your-instance.com", "your-token")
-  #   containers = client.containers.list
+  #   client = Rexec::Client.new("https://rexec.sh", "your-token")
+  #   sandboxes = client.sandboxes.list
+  #   # Legacy: client.containers is the same service
   #
   class Client
-    attr_reader :base_url, :containers, :files, :terminal
+    attr_reader :base_url, :sandboxes, :files, :terminal
+
+    # Deprecated alias for {#sandboxes}.
+    # @return [SandboxService]
+    def containers
+      sandboxes
+    end
 
     # Initialize a new Rexec client.
     #
@@ -32,7 +39,7 @@ module Rexec
         f.headers["Accept"] = "application/json"
       end
 
-      @containers = ContainerService.new(self)
+      @sandboxes = SandboxService.new(self)
       @files = FileService.new(self)
       @terminal = TerminalService.new(self)
     end

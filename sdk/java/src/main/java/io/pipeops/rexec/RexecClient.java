@@ -14,11 +14,12 @@ import java.util.concurrent.TimeUnit;
  * <pre>{@code
  * RexecClient client = new RexecClient("https://rexec.sh", token);
  *
- * Container container = client.containers().create(
- *     new CreateContainerRequest("ubuntu").setName("my-sandbox")
+ * Sandbox sandbox = client.sandboxes().create(
+ *     new CreateSandboxRequest("ubuntu").setName("my-sandbox")
  * );
+ * // Legacy: client.containers() is the same service
  *
- * client.containers().delete(container.getId());
+ * client.sandboxes().delete(sandbox.getId());
  * }</pre>
  */
 public class RexecClient {
@@ -27,7 +28,7 @@ public class RexecClient {
     private final OkHttpClient httpClient;
     private final Gson gson;
 
-    private final ContainerService containers;
+    private final SandboxService sandboxes;
     private final FileService files;
     private final TerminalService terminal;
 
@@ -62,21 +63,30 @@ public class RexecClient {
                     Request.Builder builder = original.newBuilder()
                             .header("Authorization", "Bearer " + token)
                             .header("Accept", "application/json")
-                            .header("User-Agent", "pipeops-rexec-java/1.0.1");
+                            .header("User-Agent", "pipeops-rexec-java/1.1.0");
                     return chain.proceed(builder.build());
                 })
                 .build();
 
-        this.containers = new ContainerService(this);
+        this.sandboxes = new SandboxService(this);
         this.files = new FileService(this);
         this.terminal = new TerminalService(this);
     }
 
     /**
-     * Get the container service.
+     * Get the sandbox service (preferred).
      */
-    public ContainerService containers() {
-        return containers;
+    public SandboxService sandboxes() {
+        return sandboxes;
+    }
+
+    /**
+     * Get the sandbox service.
+     * @deprecated use {@link #sandboxes()}
+     */
+    @Deprecated
+    public SandboxService containers() {
+        return sandboxes;
     }
 
     /**

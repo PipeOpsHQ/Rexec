@@ -4,7 +4,8 @@ use reqwest::{Client, Response};
 use std::sync::Arc;
 use url::Url;
 
-use crate::containers::ContainerService;
+#[allow(deprecated)]
+use crate::containers::{ContainerService, SandboxService};
 use crate::error::{Error, Result};
 use crate::files::FileService;
 use crate::terminal::TerminalService;
@@ -152,8 +153,8 @@ impl ClientInner {
 /// async fn main() -> Result<(), rexec::Error> {
 ///     let client = RexecClient::new("https://your-instance.com", "your-token");
 ///     
-///     let containers = client.containers().list().await?;
-///     for c in containers {
+///     let sandboxes = client.sandboxes().list().await?;
+///     for c in sandboxes {
 ///         println!("{}: {}", c.name, c.status);
 ///     }
 ///     
@@ -192,9 +193,18 @@ impl RexecClient {
         Self { inner }
     }
 
-    /// Get the container service.
+    /// Get the sandbox service (preferred).
+    pub fn sandboxes(&self) -> SandboxService {
+        SandboxService::new(self.inner.clone())
+    }
+
+    /// Get the sandbox service.
+    ///
+    /// Deprecated: use [`sandboxes`](Self::sandboxes).
+    #[deprecated(since = "1.1.0", note = "use sandboxes()")]
+    #[allow(deprecated)]
     pub fn containers(&self) -> ContainerService {
-        ContainerService::new(self.inner.clone())
+        self.sandboxes()
     }
 
     /// Get the file service.
