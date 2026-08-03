@@ -6,8 +6,8 @@ from typing import Optional
 
 
 @dataclass
-class Container:
-    """Represents a Rexec container/sandbox."""
+class Sandbox:
+    """Represents a Rexec sandbox (isolated Linux environment)."""
 
     id: str
     name: str
@@ -19,8 +19,8 @@ class Container:
     environment: dict[str, str] = field(default_factory=dict)
 
     @classmethod
-    def from_dict(cls, data: dict) -> "Container":
-        """Create Container from API response dict."""
+    def from_dict(cls, data: dict) -> "Sandbox":
+        """Create Sandbox from API response dict."""
         return cls(
             id=data["id"],
             name=data.get("name", ""),
@@ -37,9 +37,13 @@ class Container:
         )
 
 
+# Backward-compatible alias
+Container = Sandbox
+
+
 @dataclass
-class CreateContainerRequest:
-    """Request to create a new container."""
+class CreateSandboxRequest:
+    """Request to create a new sandbox. Prefer image aliases (e.g. ubuntu)."""
 
     image: str
     name: Optional[str] = None
@@ -56,6 +60,10 @@ class CreateContainerRequest:
         if self.labels:
             data["labels"] = self.labels
         return data
+
+
+# Backward-compatible alias
+CreateContainerRequest = CreateSandboxRequest
 
 
 @dataclass

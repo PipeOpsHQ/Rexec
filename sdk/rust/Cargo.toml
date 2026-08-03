@@ -1,9 +1,9 @@
 [package]
 name = "pipeops-rexec"
-version = "1.0.1"
+version = "1.1.0"
 edition = "2021"
 authors = ["PipeOpsHQ <support@pipeops.io>"]
-description = "Official Rust SDK for Rexec - Terminal as a Service"
+description = "Official Rust SDK for Rexec — AI-native sandboxes"
 license = "MIT"
 repository = "https://github.com/PipeOpsHQ/rexec"
 documentation = "https://docs.rs/pipeops-rexec"

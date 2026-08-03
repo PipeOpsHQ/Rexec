@@ -5,14 +5,14 @@ use std::sync::Arc;
 
 use crate::client::ClientInner;
 use crate::error::Result;
-use crate::types::{Container, CreateContainerRequest};
+use crate::types::{CreateSandboxRequest, Sandbox};
 
-/// Service for managing containers.
-pub struct ContainerService {
+/// Service for managing sandboxes.
+pub struct SandboxService {
     client: Arc<ClientInner>,
 }
 
-impl ContainerService {
+impl SandboxService {
     pub(crate) fn new(client: Arc<ClientInner>) -> Self {
         Self { client }
     }
@@ -25,20 +25,20 @@ impl ContainerService {
     /// # use rexec::RexecClient;
     /// # async fn example() -> Result<(), rexec::Error> {
     /// let client = RexecClient::new("https://example.com", "token");
-    /// let containers = client.containers().list().await?;
+    /// let containers = client.sandboxes().list().await?;
     /// for c in containers {
     ///     println!("{}: {}", c.name, c.status);
     /// }
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn list(&self) -> Result<Vec<Container>> {
+    pub async fn list(&self) -> Result<Vec<Sandbox>> {
         // Production API: { "containers": [...], "count": N, "limit": M }
         // `containers` may be null when empty.
         #[derive(serde::Deserialize)]
         struct ListResponse {
             #[serde(default)]
-            containers: Option<Vec<Container>>,
+            containers: Option<Vec<Sandbox>>,
         }
         let resp: ListResponse = self.client.request(Method::GET, "/api/containers").await?;
         Ok(resp.containers.unwrap_or_default())
@@ -49,7 +49,7 @@ impl ContainerService {
     /// # Arguments
     ///
     /// * `id` - Container ID
-    pub async fn get(&self, id: &str) -> Result<Container> {
+    pub async fn get(&self, id: &str) -> Result<Sandbox> {
         self.client
             .request(Method::GET, &format!("/api/containers/{}", id))
             .await
@@ -60,18 +60,18 @@ impl ContainerService {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rexec::{RexecClient, CreateContainerRequest};
+    /// # use rexec::{RexecClient, CreateSandboxRequest};
     /// # async fn example() -> Result<(), rexec::Error> {
     /// let client = RexecClient::new("https://example.com", "token");
-    /// let container = client.containers()
-    ///     .create(CreateContainerRequest::new("ubuntu")
+    /// let container = client.sandboxes()
+    ///     .create(CreateSandboxRequest::new("ubuntu")
     ///         .name("my-sandbox")
     ///         .env("MY_VAR", "value"))
     ///     .await?;
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn create(&self, request: CreateContainerRequest) -> Result<Container> {
+    pub async fn create(&self, request: CreateSandboxRequest) -> Result<Sandbox> {
         self.client
             .request_with_body(Method::POST, "/api/containers", &request)
             .await
@@ -110,3 +110,7 @@ impl ContainerService {
             .await
     }
 }
+
+/// Deprecated alias for [`SandboxService`].
+#[deprecated(since = "1.1.0", note = "use SandboxService")]
+pub type ContainerService = SandboxService;

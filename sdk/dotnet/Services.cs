@@ -3,48 +3,48 @@ using System.Web;
 namespace Rexec;
 
 /// <summary>
-/// Service for managing containers.
+/// Service for managing sandboxes. HTTP paths remain /api/containers.
 /// </summary>
-public class ContainerService
+public class SandboxService
 {
     private readonly RexecClient _client;
 
-    internal ContainerService(RexecClient client)
+    internal SandboxService(RexecClient client)
     {
         _client = client;
     }
 
     /// <summary>
-    /// List all containers.
+    /// List all sandboxes.
     /// </summary>
-    public async Task<List<Container>> ListAsync(CancellationToken cancellationToken = default)
+    public async Task<List<Sandbox>> ListAsync(CancellationToken cancellationToken = default)
     {
         var response = await _client.RequestAsync<ContainerListResponse>(HttpMethod.Get, "/api/containers", null, cancellationToken);
-        return response?.Containers ?? new List<Container>();
+        return response?.Containers ?? new List<Sandbox>();
     }
 
     /// <summary>
-    /// Get a container by ID.
+    /// Get a sandbox by ID.
     /// </summary>
-    public async Task<Container?> GetAsync(string containerId, CancellationToken cancellationToken = default)
+    public async Task<Sandbox?> GetAsync(string sandboxId, CancellationToken cancellationToken = default)
     {
-        return await _client.RequestAsync<Container>(HttpMethod.Get, $"/api/containers/{containerId}", null, cancellationToken);
+        return await _client.RequestAsync<Sandbox>(HttpMethod.Get, $"/api/containers/{sandboxId}", null, cancellationToken);
     }
 
     /// <summary>
-    /// Create a new container.
+    /// Create a new sandbox.
     /// </summary>
-    public async Task<Container?> CreateAsync(CreateContainerRequest request, CancellationToken cancellationToken = default)
+    public async Task<Sandbox?> CreateAsync(CreateSandboxRequest request, CancellationToken cancellationToken = default)
     {
-        return await _client.RequestAsync<Container>(HttpMethod.Post, "/api/containers", request, cancellationToken);
+        return await _client.RequestAsync<Sandbox>(HttpMethod.Post, "/api/containers", request, cancellationToken);
     }
 
     /// <summary>
-    /// Create a new container with just an image name.
+    /// Create a new sandbox with just an image alias.
     /// </summary>
-    public Task<Container?> CreateAsync(string image, CancellationToken cancellationToken = default)
+    public Task<Sandbox?> CreateAsync(string image, CancellationToken cancellationToken = default)
     {
-        return CreateAsync(new CreateContainerRequest(image), cancellationToken);
+        return CreateAsync(new CreateSandboxRequest(image), cancellationToken);
     }
 
     /// <summary>
@@ -90,7 +90,16 @@ public class ContainerService
 }
 
 /// <summary>
-/// Service for file operations within containers.
+/// Deprecated alias for <see cref="SandboxService"/>.
+/// </summary>
+[Obsolete("Use SandboxService / RexecClient.Sandboxes instead")]
+public class ContainerService : SandboxService
+{
+    internal ContainerService(RexecClient client) : base(client) { }
+}
+
+/// <summary>
+/// Service for file operations within sandboxes.
 /// </summary>
 public class FileService
 {

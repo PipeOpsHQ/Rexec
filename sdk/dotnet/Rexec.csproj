@@ -5,10 +5,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <PackageId>PipeOps.Rexec</PackageId>
-    <Version>1.0.1</Version>
+    <Version>1.1.0</Version>
     <Authors>PipeOpsHQ</Authors>
     <Company>PipeOps</Company>
-    <Description>Official .NET SDK for Rexec - Terminal as a Service</Description>
+    <Description>Official .NET SDK for Rexec — AI-native sandboxes</Description>
     <PackageProjectUrl>https://github.com/PipeOpsHQ/rexec</PackageProjectUrl>
     <RepositoryUrl>https://github.com/PipeOpsHQ/rexec</RepositoryUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>

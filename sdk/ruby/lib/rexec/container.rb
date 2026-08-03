@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 module Rexec
-  # Represents a Rexec container/sandbox.
-  class Container
+  # Represents a Rexec sandbox (isolated Linux environment).
+  class Sandbox
     attr_reader :id, :name, :image, :status, :created_at, :started_at, :labels, :environment
 
     def initialize(data)
@@ -25,41 +25,44 @@ module Rexec
     end
   end
 
-  # Service for managing containers.
-  class ContainerService
+  # @deprecated Use {Sandbox}
+  Container = Sandbox
+
+  # Service for managing sandboxes. HTTP paths remain /api/containers.
+  class SandboxService
     def initialize(client)
       @client = client
     end
 
-    # List all containers.
+    # List all sandboxes.
     #
-    # @return [Array<Container>]
+    # @return [Array<Sandbox>]
     def list
       data = @client.request(:get, "/api/containers")
       # API returns { "containers" => [...], "count" => N, "limit" => M }
       items = data.is_a?(Array) ? data : (data && data["containers"]) || []
-      items.map { |c| Container.new(c) }
+      items.map { |c| Sandbox.new(c) }
     end
 
-    # Get a container by ID.
+    # Get a sandbox by ID.
     #
-    # @param id [String] Container ID
-    # @return [Container]
+    # @param id [String] Sandbox ID
+    # @return [Sandbox]
     def get(id)
       data = @client.request(:get, "/api/containers/#{id}")
-      Container.new(data)
+      Sandbox.new(data)
     end
 
-    # Create a new container.
+    # Create a new sandbox.
     #
-    # @param image [String] Docker image to use
-    # @param name [String, nil] Optional container name
+    # @param image [String] Image alias (e.g. "ubuntu")
+    # @param name [String, nil] Optional sandbox name
     # @param environment [Hash] Environment variables
-    # @param labels [Hash] Container labels
-    # @return [Container]
+    # @param labels [Hash] Labels
+    # @return [Sandbox]
     #
     # @example
-    #   container = client.containers.create(
+    #   sandbox = client.sandboxes.create(
     #     image: "ubuntu",
     #     name: "my-sandbox",
     #     environment: { "MY_VAR" => "value" }
@@ -71,31 +74,34 @@ module Rexec
       body[:labels] = labels unless labels.empty?
 
       data = @client.request(:post, "/api/containers", body: body)
-      Container.new(data)
+      Sandbox.new(data)
     end
 
-    # Delete a container.
+    # Delete a sandbox.
     #
-    # @param id [String] Container ID
+    # @param id [String] Sandbox ID
     def delete(id)
       @client.request(:delete, "/api/containers/#{id}")
       nil
     end
 
-    # Start a container.
+    # Start a sandbox.
     #
-    # @param id [String] Container ID
+    # @param id [String] Sandbox ID
     def start(id)
       @client.request(:post, "/api/containers/#{id}/start")
       nil
     end
 
-    # Stop a container.
+    # Stop a sandbox.
     #
-    # @param id [String] Container ID
+    # @param id [String] Sandbox ID
     def stop(id)
       @client.request(:post, "/api/containers/#{id}/stop")
       nil
     end
   end
+
+  # @deprecated Use {SandboxService}
+  ContainerService = SandboxService
 end

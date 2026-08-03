@@ -5,7 +5,7 @@ from urllib.parse import urljoin, urlparse
 
 import httpx
 
-from rexec.containers import ContainerService
+from rexec.containers import SandboxService
 from rexec.exceptions import RexecAPIError, RexecConnectionError
 from rexec.files import FileService
 from rexec.terminal import TerminalService
@@ -18,11 +18,12 @@ class RexecClient:
     Main client for interacting with Rexec API.
 
     Example:
-        async with RexecClient("https://your-instance.com", "your-token") as client:
-            containers = await client.containers.list()
-            container = await client.containers.create(image="ubuntu")
+        async with RexecClient("https://rexec.sh", "your-token") as client:
+            sandboxes = await client.sandboxes.list()
+            sandbox = await client.sandboxes.create(image="ubuntu")
+            # Legacy: client.containers still works (same service)
 
-            async with client.terminal.connect(container.id) as term:
+            async with client.terminal.connect(sandbox.id) as term:
                 await term.write(b"echo hello\\n")
                 async for data in term:
                     print(data.decode(), end="")
@@ -57,8 +58,9 @@ class RexecClient:
             },
         )
 
-        # Initialize services
-        self.containers = ContainerService(self)
+        # Preferred name + legacy alias (same instance)
+        self.sandboxes = SandboxService(self)
+        self.containers = self.sandboxes  # deprecated: use sandboxes
         self.files = FileService(self)
         self.terminal = TerminalService(self)
 

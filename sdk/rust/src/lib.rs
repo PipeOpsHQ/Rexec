@@ -1,36 +1,30 @@
 //! # Rexec Rust SDK
 //!
-//! Official Rust SDK for [Rexec](https://github.com/PipeOpsHQ/rexec) - Terminal as a Service.
+//! Official Rust SDK for [Rexec](https://github.com/PipeOpsHQ/rexec) — AI-native sandboxes.
 //!
 //! ## Quick Start
 //!
 //! ```rust,no_run
-//! use rexec::{RexecClient, CreateContainerRequest};
+//! use rexec::{RexecClient, CreateSandboxRequest};
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), rexec::Error> {
 //!     let client = RexecClient::new(
-//!         "https://your-instance.com",
+//!         "https://rexec.sh",
 //!         "your-api-token"
 //!     );
 //!
-//!     // Create a container
-//!     let container = client.containers()
-//!         .create(CreateContainerRequest {
-//!             image: "ubuntu".into(),
-//!             name: Some("my-sandbox".into()),
-//!             ..Default::default()
-//!         })
+//!     // Create a sandbox (preferred). client.containers() still works.
+//!     let sandbox = client.sandboxes()
+//!         .create(CreateSandboxRequest::new("ubuntu").name("my-sandbox"))
 //!         .await?;
 //!
-//!     println!("Created container: {}", container.id);
+//!     println!("Created sandbox: {}", sandbox.id);
 //!
-//!     // Connect to terminal
-//!     let mut term = client.terminal().connect(&container.id).await?;
+//!     let mut term = client.terminal().connect(&sandbox.id).await?;
 //!     term.write(b"echo hello\n").await?;
 //!
-//!     // Clean up
-//!     client.containers().delete(&container.id).await?;
+//!     client.sandboxes().delete(&sandbox.id).await?;
 //!
 //!     Ok(())
 //! }
@@ -44,8 +38,11 @@ mod terminal;
 mod types;
 
 pub use client::RexecClient;
+pub use containers::SandboxService;
+#[allow(deprecated)]
 pub use containers::ContainerService;
 pub use error::Error;
 pub use files::FileService;
 pub use terminal::{Terminal, TerminalService};
+#[allow(deprecated)]
 pub use types::*;

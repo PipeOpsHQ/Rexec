@@ -14,7 +14,8 @@ export interface RexecConfig {
   fetch?: typeof fetch;
 }
 
-export interface Container {
+/** A Rexec sandbox (isolated Linux environment). */
+export interface Sandbox {
   id: string;
   name: string;
   image: string;
@@ -25,16 +26,27 @@ export interface Container {
   environment?: Record<string, string>;
 }
 
-export interface CreateContainerRequest {
-  /** Container name (optional) */
+/**
+ * @deprecated Use {@link Sandbox}. Kept for backward compatibility.
+ */
+export type Container = Sandbox;
+
+/** Request to create a sandbox. Prefer image aliases (e.g. `ubuntu`). */
+export interface CreateSandboxRequest {
+  /** Sandbox name (optional) */
   name?: string;
-  /** Docker image to use */
+  /** Image alias (e.g. ubuntu, debian, alpine) */
   image: string;
   /** Environment variables */
   environment?: Record<string, string>;
   /** Labels */
   labels?: Record<string, string>;
 }
+
+/**
+ * @deprecated Use {@link CreateSandboxRequest}.
+ */
+export type CreateContainerRequest = CreateSandboxRequest;
 
 export interface FileInfo {
   name: string;
@@ -140,16 +152,15 @@ export class Terminal {
 }
 
 /**
- * Container service for managing sandboxed environments
+ * Service for managing sandboxes (isolated Linux environments).
+ * Wire protocol remains `/api/containers`.
  */
-export class ContainerService {
+export class SandboxService {
   constructor(private client: RexecClient) {}
 
-  /**
-   * List all containers
-   */
-  async list(): Promise<Container[]> {
-    const data = await this.client.request<Container[] | { containers?: Container[] }>(
+  /** List all sandboxes for the authenticated user. */
+  async list(): Promise<Sandbox[]> {
+    const data = await this.client.request<Sandbox[] | { containers?: Sandbox[] }>(
       'GET',
       '/api/containers'
     );
@@ -159,70 +170,69 @@ export class ContainerService {
     return data?.containers ?? [];
   }
 
-  /**
-   * Get a container by ID
-   */
-  async get(id: string): Promise<Container> {
-    return this.client.request<Container>('GET', `/api/containers/${id}`);
+  /** Get a sandbox by ID. */
+  async get(id: string): Promise<Sandbox> {
+    return this.client.request<Sandbox>('GET', `/api/containers/${id}`);
   }
 
-  /**
-   * Create a new container
-   */
-  async create(options: CreateContainerRequest): Promise<Container> {
-    return this.client.request<Container>('POST', '/api/containers', options);
+  /** Create a new sandbox. */
+  async create(options: CreateSandboxRequest): Promise<Sandbox> {
+    return this.client.request<Sandbox>('POST', '/api/containers', options);
   }
 
-  /**
-   * Delete a container
-   */
+  /** Delete a sandbox. */
   async delete(id: string): Promise<void> {
     await this.client.request('DELETE', `/api/containers/${id}`);
   }
 
-  /**
-   * Start a container
-   */
+  /** Start a sandbox. */
   async start(id: string): Promise<void> {
     await this.client.request('POST', `/api/containers/${id}/start`);
   }
 
-  /**
-   * Stop a container
-   */
+  /** Stop a sandbox. */
   async stop(id: string): Promise<void> {
     await this.client.request('POST', `/api/containers/${id}/stop`);
   }
 }
 
 /**
- * File service for managing files in containers
+ * @deprecated Use {@link SandboxService}. Same implementation.
+ */
+export class ContainerService extends SandboxService {}
+
+/**
+ * File service for managing files inside a sandbox.
+ * HTTP paths remain `/api/containers/:id/files...`.
  */
 export class FileService {
   constructor(private client: RexecClient) {}
 
   /**
    * List files in a directory
+   * @param sandboxId Sandbox id (historically called container id)
    */
-  async list(containerId: string, path: string = '/'): Promise<FileInfo[]> {
+  async list(sandboxId: string, path: string = '/'): Promise<FileInfo[]> {
     const encodedPath = encodeURIComponent(path);
-    return this.client.request<FileInfo[]>('GET', `/api/containers/${containerId}/files/list?path=${encodedPath}`);
+    return this.client.request<FileInfo[]>('GET', `/api/containers/${sandboxId}/files/list?path=${encodedPath}`);
   }
 
   /**
    * Download a file
+   * @param sandboxId Sandbox id
    */
-  async download(containerId: string, path: string): Promise<ArrayBuffer> {
+  async download(sandboxId: string, path: string): Promise<ArrayBuffer> {
     const encodedPath = encodeURIComponent(path);
-    const response = await this.client.rawRequest('GET', `/api/containers/${containerId}/files?path=${encodedPath}`);
+    const response = await this.client.rawRequest('GET', `/api/containers/${sandboxId}/files?path=${encodedPath}`);
     return response.arrayBuffer();
   }
 
   /**
    * Create a directory
+   * @param sandboxId Sandbox id
    */
-  async mkdir(containerId: string, path: string): Promise<void> {
-    await this.client.request('POST', `/api/containers/${containerId}/files/mkdir`, { path });
+  async mkdir(sandboxId: string, path: string): Promise<void> {
+    await this.client.request('POST', `/api/containers/${sandboxId}/files/mkdir`, { path });
   }
 }
 
@@ -233,11 +243,12 @@ export class TerminalService {
   constructor(private client: RexecClient) {}
 
   /**
-   * Connect to a container's terminal
+   * Connect to a sandbox terminal
+   * @param sandboxId Sandbox id
    */
-  connect(containerId: string, options?: TerminalOptions): Promise<Terminal> {
+  connect(sandboxId: string, options?: TerminalOptions): Promise<Terminal> {
     return new Promise((resolve, reject) => {
-      const wsURL = this.client.getWebSocketURL(`/ws/terminal/${containerId}`);
+      const wsURL = this.client.getWebSocketURL(`/ws/terminal/${sandboxId}`);
       
       // Use native WebSocket or ws package
       const WebSocketImpl = typeof WebSocket !== 'undefined' 
@@ -267,22 +278,24 @@ export class TerminalService {
 
 /**
  * Main Rexec client
- * 
+ *
  * @example
  * ```typescript
  * const client = new RexecClient({
- *   baseURL: 'https://your-rexec-instance.com',
+ *   baseURL: 'https://rexec.sh',
  *   token: 'your-api-token'
  * });
- * 
- * // Create a container
- * const container = await client.containers.create({
+ *
+ * // Create a sandbox (preferred)
+ * const sandbox = await client.sandboxes.create({
  *   image: 'ubuntu',
  *   name: 'my-sandbox'
  * });
- * 
- * // Connect to terminal
- * const terminal = await client.terminal.connect(container.id);
+ *
+ * // Legacy alias still works:
+ * // await client.containers.create({ image: 'ubuntu' });
+ *
+ * const terminal = await client.terminal.connect(sandbox.id);
  * terminal.write('echo hello\n');
  * terminal.onData((data) => console.log(data));
  * ```
@@ -292,8 +305,12 @@ export class RexecClient {
   private token: string;
   private fetchImpl: typeof fetch;
 
-  /** Container management */
-  public containers: ContainerService;
+  /** Sandbox management (preferred) */
+  public sandboxes: SandboxService;
+  /**
+   * @deprecated Use {@link sandboxes}. Same service instance.
+   */
+  public containers: SandboxService;
   /** File operations */
   public files: FileService;
   /** Terminal connections */
@@ -304,7 +321,8 @@ export class RexecClient {
     this.token = config.token;
     this.fetchImpl = config.fetch || fetch;
 
-    this.containers = new ContainerService(this);
+    this.sandboxes = new SandboxService(this);
+    this.containers = this.sandboxes;
     this.files = new FileService(this);
     this.terminal = new TerminalService(this);
   }

@@ -13,9 +13,10 @@ use GuzzleHttp\Exception\RequestException;
  *
  * @example
  * $client = new RexecClient('https://rexec.sh', $token);
- * $list = $client->containers()->list();
- * $container = $client->containers()->create('ubuntu', ['name' => 'demo']);
- * $client->containers()->delete($container->id);
+ * $list = $client->sandboxes()->list();
+ * $sandbox = $client->sandboxes()->create('ubuntu', ['name' => 'demo']);
+ * $client->sandboxes()->delete($sandbox->id);
+ * // Legacy: containers() is the same service
  */
 class RexecClient
 {
@@ -23,7 +24,7 @@ class RexecClient
     private string $baseUrl;
     private string $token;
 
-    private ContainerService $containers;
+    private SandboxService $sandboxes;
     private FileService $files;
     private TerminalService $terminal;
 
@@ -45,20 +46,29 @@ class RexecClient
                 'Authorization' => 'Bearer ' . $token,
                 'Accept' => 'application/json',
                 'Content-Type' => 'application/json',
-                'User-Agent' => 'pipeops-rexec-php/1.0.1',
+                'User-Agent' => 'pipeops-rexec-php/1.1.0',
             ],
         ];
 
         $this->httpClient = new HttpClient(array_merge($defaultOptions, $options));
 
-        $this->containers = new ContainerService($this);
+        $this->sandboxes = new SandboxService($this);
         $this->files = new FileService($this);
         $this->terminal = new TerminalService($this);
     }
 
-    public function containers(): ContainerService
+    /** Preferred accessor for sandbox lifecycle APIs. */
+    public function sandboxes(): SandboxService
     {
-        return $this->containers;
+        return $this->sandboxes;
+    }
+
+    /**
+     * @deprecated Use sandboxes()
+     */
+    public function containers(): SandboxService
+    {
+        return $this->sandboxes;
     }
 
     public function files(): FileService

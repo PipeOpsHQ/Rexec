@@ -3,10 +3,10 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Container status.
+/// Sandbox status values (string form also used on the wire).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
-pub enum ContainerStatus {
+pub enum SandboxStatus {
     Running,
     Stopped,
     Creating,
@@ -15,15 +15,19 @@ pub enum ContainerStatus {
     Unknown,
 }
 
-/// Represents a Rexec container/sandbox.
+/// Deprecated alias for [`SandboxStatus`].
+#[deprecated(since = "1.1.0", note = "use SandboxStatus")]
+pub type ContainerStatus = SandboxStatus;
+
+/// Represents a Rexec sandbox (isolated Linux environment).
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Container {
-    /// Container ID.
+pub struct Sandbox {
+    /// Sandbox ID.
     pub id: String,
-    /// Container name.
+    /// Sandbox name.
     #[serde(default)]
     pub name: String,
-    /// Docker image.
+    /// Image alias.
     #[serde(default)]
     pub image: String,
     /// Current status.
@@ -35,7 +39,7 @@ pub struct Container {
     /// Start timestamp (if running).
     #[serde(default)]
     pub started_at: Option<String>,
-    /// Container labels.
+    /// Labels.
     #[serde(default)]
     pub labels: HashMap<String, String>,
     /// Environment variables.
@@ -43,24 +47,32 @@ pub struct Container {
     pub environment: HashMap<String, String>,
 }
 
-/// Request to create a new container.
+/// Deprecated alias for [`Sandbox`].
+#[deprecated(since = "1.1.0", note = "use Sandbox")]
+pub type Container = Sandbox;
+
+/// Request to create a new sandbox. Prefer image aliases (e.g. `ubuntu`).
 #[derive(Debug, Clone, Serialize, Default)]
-pub struct CreateContainerRequest {
-    /// Docker image to use.
+pub struct CreateSandboxRequest {
+    /// Image alias to use.
     pub image: String,
-    /// Optional container name.
+    /// Optional sandbox name.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     /// Environment variables.
     #[serde(skip_serializing_if = "HashMap::is_empty", default)]
     pub environment: HashMap<String, String>,
-    /// Container labels.
+    /// Labels.
     #[serde(skip_serializing_if = "HashMap::is_empty", default)]
     pub labels: HashMap<String, String>,
 }
 
-impl CreateContainerRequest {
-    /// Create a new request with the given image.
+/// Deprecated alias for [`CreateSandboxRequest`].
+#[deprecated(since = "1.1.0", note = "use CreateSandboxRequest")]
+pub type CreateContainerRequest = CreateSandboxRequest;
+
+impl CreateSandboxRequest {
+    /// Create a new request with the given image alias.
     pub fn new(image: impl Into<String>) -> Self {
         Self {
             image: image.into(),
@@ -68,7 +80,7 @@ impl CreateContainerRequest {
         }
     }
 
-    /// Set the container name.
+    /// Set the sandbox name.
     pub fn name(mut self, name: impl Into<String>) -> Self {
         self.name = Some(name.into());
         self
