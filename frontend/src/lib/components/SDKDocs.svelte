@@ -71,7 +71,8 @@
         {
             id: "java",
             name: "Java / Kotlin",
-            install: "io.pipeops:rexec:1.0.1",
+            // Maven: <dependency>…</dependency> · Gradle: implementation '…'
+            install: "io.pipeops:rexec:1.0.1 (Maven/Gradle)",
             registry: "https://repo1.maven.org/maven2/io/pipeops/rexec/",
             github: "https://github.com/PipeOpsHQ/Rexec/tree/main/sdk/java",
         },
@@ -79,8 +80,9 @@
             id: "php",
             name: "PHP",
             install: "composer require pipeopshq/rexec",
-            registry: "https://github.com/PipeOpsHQ/rexec-php",
-            github: "https://github.com/PipeOpsHQ/Rexec/tree/main/sdk/php",
+            // Packagist is the registry; monorepo source stays under GitHub Source link
+            registry: "https://packagist.org/packages/pipeopshq/rexec",
+            github: "https://github.com/PipeOpsHQ/rexec-php",
         },
     ];
 
@@ -310,18 +312,21 @@ $client->containers()->delete($c->id);`,
                 manage <strong>sandboxes</strong>.
             </p>
 
-            <div class="sdk-list" role="list">
+            <div class="sdk-list" role="tablist" aria-label="SDK languages">
                 {#each sdks as sdk (sdk.id)}
                     <div
                         class="sdk-row"
                         class:active={activeTab === sdk.id}
-                        role="listitem"
                     >
                         <button
                             type="button"
                             class="sdk-select"
+                            role="tab"
+                            id={`sdk-tab-${sdk.id}`}
+                            aria-selected={activeTab === sdk.id}
+                            aria-controls="sdk-example-panel"
+                            tabindex={activeTab === sdk.id ? 0 : -1}
                             onclick={() => (activeTab = sdk.id)}
-                            aria-pressed={activeTab === sdk.id}
                         >
                             <strong>{sdk.name}</strong>
                             <code>{sdk.install}</code>
@@ -331,7 +336,13 @@ $client->containers()->delete($c->id);`,
                                 type="button"
                                 class="copy-btn"
                                 onclick={() =>
-                                    copyToClipboard(sdk.install, sdk.id)}
+                                    copyToClipboard(
+                                        // Copy bare coordinates for Java (no parenthetical)
+                                        sdk.id === "java"
+                                            ? "io.pipeops:rexec:1.0.1"
+                                            : sdk.install,
+                                        sdk.id,
+                                    )}
                             >
                                 {copiedCommand === sdk.id ? "Copied" : "Copy"}
                             </button>
@@ -355,7 +366,7 @@ $client->containers()->delete($c->id);`,
 
         <section class="docs-section">
             <div class="section-head">
-                <h2>{activeSdk.name} example</h2>
+                <h2 id="sdk-example-heading">{activeSdk.name} example</h2>
                 <button
                     type="button"
                     class="copy-btn"
@@ -364,7 +375,30 @@ $client->containers()->delete($c->id);`,
                     {copiedCommand === "code" ? "Copied" : "Copy code"}
                 </button>
             </div>
-            <div class="code-block">
+            {#if activeSdk.id === "java"}
+                <p class="muted tip">
+                    Maven:
+                    <code
+                        >&lt;dependency&gt;…&lt;artifactId&gt;rexec&lt;/artifactId&gt;…&lt;/dependency&gt;</code
+                    >
+                    · Gradle:
+                    <code>implementation 'io.pipeops:rexec:1.0.1'</code>
+                </p>
+            {/if}
+            {#if activeSdk.id === "php"}
+                <p class="muted tip">
+                    If Packagist is not linked yet:
+                    <code
+                        >composer config repositories.rexec-php vcs https://github.com/PipeOpsHQ/rexec-php</code
+                    >
+                </p>
+            {/if}
+            <div
+                class="code-block"
+                role="tabpanel"
+                id="sdk-example-panel"
+                aria-labelledby={`sdk-tab-${activeSdk.id}`}
+            >
                 <div class="code-toolbar">
                     <span class="code-label">{activeSdk.id}</span>
                 </div>
@@ -601,6 +635,8 @@ $client->containers()->delete($c->id);`,
 
     .sdk-row.active {
         border-color: var(--accent);
+        /* Fallback for browsers without color-mix (e.g. Safari < 16.2) */
+        box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.35);
         box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
     }
 
@@ -651,6 +687,8 @@ $client->containers()->delete($c->id);`,
 
     .link-btn:hover {
         text-decoration: none;
+        border-color: rgba(0, 212, 255, 0.4);
+        background: rgba(0, 212, 255, 0.08);
         border-color: color-mix(in srgb, var(--accent) 40%, transparent);
         background: color-mix(in srgb, var(--accent) 8%, transparent);
     }
@@ -703,6 +741,7 @@ $client->containers()->delete($c->id);`,
         gap: 8px;
         padding: 8px 12px;
         border-bottom: 1px solid var(--border);
+        background: var(--bg-secondary);
         background: color-mix(in srgb, var(--bg) 55%, var(--bg-secondary));
     }
 
@@ -726,13 +765,16 @@ $client->containers()->delete($c->id);`,
         tab-size: 2;
     }
 
-    .code-block code {
-        background: transparent !important;
-        padding: 0 !important;
-        color: inherit !important;
-        font-size: inherit !important;
-        white-space: inherit !important;
+    /* Higher specificity than section-level code styles — avoid !important */
+    .docs-section .code-block pre code {
+        background: transparent;
+        padding: 0;
+        color: inherit;
+        font-size: inherit;
+        white-space: inherit;
         border-radius: 0;
+        word-break: normal;
+        overflow-wrap: normal;
     }
 
     .ref-list {
