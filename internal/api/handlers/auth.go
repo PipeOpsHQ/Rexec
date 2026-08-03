@@ -625,10 +625,18 @@ func (h *AuthHandler) PipeOpsAssert(c *gin.Context) {
 		return
 	}
 
-	sessionID, err := h.createUserSession(c, user)
-	if err != nil {
-		log.Printf("[Auth] PipeOpsAssert session: %v", err)
-		sessionID = ""
+	// Server-to-server (shared secret) asserts are for PipeOps BFF / automation.
+	// Do not create a browser session (sid) — session JWTs hit screen-lock (423
+	// session_locked) after the user locks rexec.sh, which breaks the BFF.
+	// Prefer mint_api_token (rexec_*) which already bypasses screen lock.
+	sessionID := ""
+	if !usedSecret {
+		sid, sessErr := h.createUserSession(c, user)
+		if sessErr != nil {
+			log.Printf("[Auth] PipeOpsAssert session: %v", sessErr)
+		} else {
+			sessionID = sid
+		}
 	}
 	jwtToken, err := h.generateToken(user, sessionID)
 	if err != nil {
