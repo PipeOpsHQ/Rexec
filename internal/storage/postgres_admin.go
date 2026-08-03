@@ -292,8 +292,10 @@ func buildAdminUsageBuckets(from, to time.Time, interval string) ([]models.Admin
 	}
 
 	buckets := make([]models.AdminUsagePoint, 0)
-	cursor := from
-	for cursor.Before(to) {
+	// Normalize to UTC so bucket keys match SQL date_trunc(... AT TIME ZONE 'UTC').
+	cursor := from.UTC()
+	end := to.UTC()
+	for cursor.Before(end) {
 		next := cursor.Add(step)
 		if interval == "month" {
 			next = cursor.AddDate(0, 1, 0)
@@ -311,8 +313,8 @@ func buildAdminUsageBuckets(from, to time.Time, interval string) ([]models.Admin
 
 	if len(buckets) == 0 {
 		buckets = append(buckets, models.AdminUsagePoint{
-			BucketStart: from,
-			BucketLabel: from.Format("Jan 2"),
+			BucketStart: from.UTC(),
+			BucketLabel: from.UTC().Format("Jan 2"),
 		})
 	}
 
@@ -324,35 +326,47 @@ func (s *PostgresStore) fillAdminUsageSeries(ctx context.Context, timeline []mod
 		return nil
 	}
 
+	// Return epoch seconds so assignment never depends on time.Time map-key
+	// equality (lib/pq often scans timestamptz with a non-UTC Location, which
+	// makes Go map lookups miss even when Equal() is true — leaving the chart
+	// all zeros while totals still look fine).
 	query := fmt.Sprintf(`
-		SELECT date_trunc('%s', %s AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' AS bucket, COUNT(*)
+		SELECT EXTRACT(EPOCH FROM date_trunc('%s', %s AT TIME ZONE 'UTC') AT TIME ZONE 'UTC')::bigint AS bucket_unix,
+		       COUNT(*)::int
 		FROM %s
 		WHERE %s >= $1 AND %s < $2
 		GROUP BY 1
 		ORDER BY 1
 	`, interval, column, table, column, column)
 
-	rows, err := s.db.QueryContext(ctx, query, from, to)
+	rows, err := s.db.QueryContext(ctx, query, from.UTC(), to.UTC())
 	if err != nil {
 		return err
 	}
 	defer rows.Close()
 
-	points := make(map[time.Time]*models.AdminUsagePoint, len(timeline))
-	for i := range timeline {
-		points[timeline[i].BucketStart] = &timeline[i]
-	}
+	points := indexAdminUsageTimeline(timeline)
 
 	for rows.Next() {
-		var bucket time.Time
+		var bucketUnix int64
 		var count int
-		if err := rows.Scan(&bucket, &count); err != nil {
+		if err := rows.Scan(&bucketUnix, &count); err != nil {
 			return err
 		}
-		if point, ok := points[bucket]; ok {
+		if point, ok := points[bucketUnix]; ok {
 			assign(point, count)
 		}
 	}
 
 	return rows.Err()
+}
+
+// indexAdminUsageTimeline maps each bucket's UTC unix second to the point so
+// SQL series rows can be merged without time.Location mismatches.
+func indexAdminUsageTimeline(timeline []models.AdminUsagePoint) map[int64]*models.AdminUsagePoint {
+	points := make(map[int64]*models.AdminUsagePoint, len(timeline))
+	for i := range timeline {
+		points[timeline[i].BucketStart.UTC().Unix()] = &timeline[i]
+	}
+	return points
 }
