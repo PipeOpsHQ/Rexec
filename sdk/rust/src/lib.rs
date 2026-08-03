@@ -17,7 +17,7 @@
 //!     // Create a container
 //!     let container = client.containers()
 //!         .create(CreateContainerRequest {
-//!             image: "ubuntu:24.04".into(),
+//!             image: "ubuntu".into(),
 //!             name: Some("my-sandbox".into()),
 //!             ..Default::default()
 //!         })

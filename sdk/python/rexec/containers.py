@@ -62,7 +62,7 @@ class ContainerService:
         Create a new container.
 
         Args:
-            image: Docker image to use (e.g., "ubuntu:24.04").
+            image: Docker image to use (e.g., "ubuntu").
             name: Optional container name.
             environment: Optional environment variables.
             labels: Optional labels.
@@ -72,7 +72,7 @@ class ContainerService:
 
         Example:
             container = await client.containers.create(
-                image="ubuntu:24.04",
+                image="ubuntu",
                 name="my-sandbox",
                 environment={"MY_VAR": "value"}
             )

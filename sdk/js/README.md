@@ -30,7 +30,7 @@ const client = new RexecClient({
 
 // Create a container
 const container = await client.containers.create({
-  image: 'ubuntu:24.04',
+  image: 'ubuntu',
   name: 'my-sandbox'
 });
 
@@ -74,7 +74,7 @@ const container = await client.containers.get(containerId);
 
 // Create a container
 const container = await client.containers.create({
-  image: 'ubuntu:24.04',
+  image: 'ubuntu',
   name: 'my-container',
   environment: {
     MY_VAR: 'value'
@@ -199,7 +199,7 @@ const client = new RexecClient({
   token: 'your-api-token'
 });
 
-const container = await client.containers.create({ image: 'ubuntu:24.04' });
+const container = await client.containers.create({ image: 'ubuntu' });
 const rexecTerminal = await client.terminal.connect(container.id, {
   cols: xterm.cols,
   rows: xterm.rows
@@ -235,7 +235,7 @@ import {
 
 // All types are available
 const request: CreateContainerRequest = {
-  image: 'ubuntu:24.04',
+  image: 'ubuntu',
   name: 'typed-container'
 };
 ```

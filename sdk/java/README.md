@@ -47,7 +47,7 @@ public class Example {
 
         System.out.println("count " + client.containers().list().size());
 
-        // Prefer image aliases: ubuntu, debian, alpine (not ubuntu:24.04 on hosted Rexec)
+        // Prefer image aliases: ubuntu, debian, alpine (not ubuntu on hosted Rexec)
         Container c = client.containers().create(
             new CreateContainerRequest("ubuntu").setName("java-demo")
         );

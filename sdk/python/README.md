@@ -18,7 +18,7 @@ async def main():
     async with RexecClient("https://your-instance.com", "your-token") as client:
         # Create a container
         container = await client.containers.create(
-            image="ubuntu:24.04",
+            image="ubuntu",
             name="my-sandbox"
         )
         print(f"Created container: {container.id}")
@@ -73,7 +73,7 @@ container = await client.containers.get(container_id)
 
 # Create a container
 container = await client.containers.create(
-    image="ubuntu:24.04",
+    image="ubuntu",
     name="my-container",
     environment={"MY_VAR": "value"},
     labels={"project": "demo"}
@@ -172,7 +172,7 @@ async def create_batch(client: RexecClient, count: int) -> list[Container]:
     
     tasks = [
         client.containers.create(
-            image="ubuntu:24.04",
+            image="ubuntu",
             name=f"worker-{i}"
         )
         for i in range(count)
@@ -236,7 +236,7 @@ from rexec import (
     Terminal,
 )
 
-container: Container = await client.containers.create(image="ubuntu:24.04")
+container: Container = await client.containers.create(image="ubuntu")
 files: list[FileInfo] = await client.files.list(container.id, "/")
 ```
 

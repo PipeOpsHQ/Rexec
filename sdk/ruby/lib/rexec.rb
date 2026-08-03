@@ -12,7 +12,7 @@ require_relative "rexec/terminal"
 # @example Basic usage
 #   client = Rexec::Client.new("https://your-instance.com", "your-token")
 #   
-#   container = client.containers.create(image: "ubuntu:24.04")
+#   container = client.containers.create(image: "ubuntu")
 #   puts "Created: #{container.id}"
 #   
 #   terminal = client.terminal.connect(container.id)

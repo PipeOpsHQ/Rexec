@@ -29,15 +29,15 @@ using Rexec;
 var client = new RexecClient("https://your-instance.com", "your-api-token");
 
 // Create a container
-var container = await client.Containers.CreateAsync("ubuntu:24.04");
+var container = await client.Containers.CreateAsync("ubuntu");
 Console.WriteLine($"Created: {container.Id}");
 
 // Start it
 await client.Containers.StartAsync(container.Id);
 
-// Execute a command
-var result = await client.Containers.ExecAsync(container.Id, "echo 'Hello from .NET!'");
-Console.WriteLine(result.Stdout);
+// Run interactive commands via Terminal WebSocket (no primary HTTP exec API)
+// var term = await client.Terminal.ConnectAsync(container.Id);
+// await term.WriteAsync("echo 'Hello from .NET!'\n");
 
 // Clean up
 await client.Containers.DeleteAsync(container.Id);
@@ -64,7 +64,7 @@ await client.Containers.StopAsync(containerId);
 await client.Containers.DeleteAsync(containerId);
 
 // Execute commands
-var result = await client.Containers.ExecAsync(containerId, "python --version");
+// Terminal WebSocket preferred over any exec helper — see monorepo docs/SDK.md
 if (result.IsSuccess)
 {
     Console.WriteLine(result.Stdout);

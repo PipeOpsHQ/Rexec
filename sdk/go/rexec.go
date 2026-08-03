@@ -9,7 +9,7 @@
 //
 //	// Create a container
 //	container, err := client.Containers.Create(ctx, &rexec.CreateContainerRequest{
-//	    Image: "ubuntu:24.04",
+//	    Image: "ubuntu",
 //	    Name:  "my-sandbox",
 //	})
 //

@@ -11,7 +11,7 @@ namespace Rexec;
 /// <example>
 /// <code>
 /// var client = new RexecClient("https://your-instance.com", "your-token");
-/// var container = await client.Containers.CreateAsync("ubuntu:24.04");
+/// var container = await client.Containers.CreateAsync("ubuntu");
 /// await client.Containers.StartAsync(container.Id);
 /// </code>
 /// </example>

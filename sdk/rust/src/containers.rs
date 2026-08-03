@@ -64,7 +64,7 @@ impl ContainerService {
     /// # async fn example() -> Result<(), rexec::Error> {
     /// let client = RexecClient::new("https://example.com", "token");
     /// let container = client.containers()
-    ///     .create(CreateContainerRequest::new("ubuntu:24.04")
+    ///     .create(CreateContainerRequest::new("ubuntu")
     ///         .name("my-sandbox")
     ///         .env("MY_VAR", "value"))
     ///     .await?;

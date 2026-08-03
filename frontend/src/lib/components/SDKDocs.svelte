@@ -199,6 +199,12 @@ $client->containers()->delete($c->id);`,
 
     $: activeSdk = sdks.find((s) => s.id === activeTab) ?? sdks[0];
     $: activeCode = codeExamples[activeTab] ?? "";
+
+    const guestAuthSnippet = `export REXEC_URL=https://rexec.sh
+export REXEC_TOKEN=$(curl -sS -X POST "$REXEC_URL/api/auth/guest" \\
+  -H 'Content-Type: application/json' \\
+  -d '{"username":"docs_demo","email":"you@example.com"}' \\
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])")`;
 </script>
 
 <div class="docs-page">
@@ -215,17 +221,43 @@ $client->containers()->delete($c->id);`,
             <h1>Rexec SDKs</h1>
             <p class="subtitle">
                 Official clients for the Rexec API (v1.0.1) — list, create, get,
-                and delete sandboxes from your code
+                and delete sandboxes from your code. Same REST + WebSocket surface
+                in JS, Python, Go, Rust, Ruby, .NET, Java/Kotlin, and PHP.
             </p>
         </header>
+
+        <section class="docs-section">
+            <h2>Auth</h2>
+            <p>
+                API token: <strong>Settings → API Tokens</strong>. Or guest JWT for
+                smoke tests:
+            </p>
+            <pre class="code-block"><code>{guestAuthSnippet}</code></pre>
+            <p class="muted">
+                Full quick start &amp; reference:
+                <a
+                    href="https://github.com/PipeOpsHQ/Rexec/blob/main/docs/SDK_GETTING_STARTED.md"
+                    target="_blank"
+                    rel="noreferrer">SDK_GETTING_STARTED.md</a
+                >
+                ·
+                <a
+                    href="https://github.com/PipeOpsHQ/Rexec/blob/main/docs/SDK.md"
+                    target="_blank"
+                    rel="noreferrer">SDK.md</a
+                >
+            </p>
+        </section>
 
         <section class="docs-section">
             <h2>Install</h2>
             <p>
                 Use image aliases such as <code>ubuntu</code>,
                 <code>debian</code>, or <code>alpine</code> (not
-                <code>ubuntu:24.04</code> on hosted Rexec). Set
-                <code>REXEC_URL</code> and <code>REXEC_TOKEN</code>.
+                <code>ubuntu:24.04</code> on hosted Rexec). Create may return
+                <code>status: creating</code> — poll <code>get</code> until
+                <code>running</code> if you need a ready shell. There is no primary
+                HTTP <code>exec()</code>; use the terminal WebSocket for commands.
             </p>
 
             <div class="sdk-list">

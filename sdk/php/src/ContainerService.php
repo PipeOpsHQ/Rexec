@@ -52,7 +52,7 @@ class ContainerService
      * Create a new container.
      *
      * Prefer image aliases such as `ubuntu`, `debian`, or `alpine`
-     * (not `ubuntu:24.04` on hosted Rexec).
+     * (not `ubuntu` on hosted Rexec).
      *
      * @param string $image Image alias or name
      * @param array{name?: string, environment?: array<string, string>, labels?: array<string, string>} $options

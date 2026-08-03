@@ -25,7 +25,7 @@ client = Rexec::Client.new("https://your-instance.com", "your-token")
 
 # Create a container
 container = client.containers.create(
-  image: "ubuntu:24.04",
+  image: "ubuntu",
   name: "my-sandbox"
 )
 puts "Created container: #{container.id}"
@@ -74,7 +74,7 @@ container = client.containers.get("container-id")
 
 # Create a container
 container = client.containers.create(
-  image: "ubuntu:24.04",
+  image: "ubuntu",
   name: "my-container",
   environment: { "MY_VAR" => "value" },
   labels: { "project" => "demo" }
@@ -176,7 +176,7 @@ def create_batch(client, count)
   futures = (0...count).map do |i|
     Concurrent::Future.execute do
       client.containers.create(
-        image: "ubuntu:24.04",
+        image: "ubuntu",
         name: "worker-#{i}"
       )
     end

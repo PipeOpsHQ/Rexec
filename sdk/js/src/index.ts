@@ -277,7 +277,7 @@ export class TerminalService {
  * 
  * // Create a container
  * const container = await client.containers.create({
- *   image: 'ubuntu:24.04',
+ *   image: 'ubuntu',
  *   name: 'my-sandbox'
  * });
  * 
