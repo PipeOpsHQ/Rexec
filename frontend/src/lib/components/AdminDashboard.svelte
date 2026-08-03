@@ -245,7 +245,17 @@
                         </div>
                     </div>
 
-                    {#if stats}
+                    {#if !stats}
+                        <div class="empty-state">
+                            <p>Usage stats could not be loaded.</p>
+                            {#if wsError}
+                                <p class="error-text">{wsError}</p>
+                            {/if}
+                            <button class="btn btn-secondary btn-sm" onclick={() => handleStatsRangeChange(selectedStatsRange)}>
+                                Retry
+                            </button>
+                        </div>
+                    {:else}
                         <div class="metric-grid metric-grid-primary">
                             <article class="metric-card">
                                 <span class="metric-label">Total users</span>
@@ -301,21 +311,27 @@
                             </div>
 
                             <div class="chart-wrap">
-                                <div class="stacked-chart" aria-label="Usage timeline chart">
-                                    {#each stats.timeline as point (point.bucketStart)}
-                                        {@const total = point.newUsers + point.newContainers + point.newSessions + point.newLogins + point.newAgents + point.newRecordings}
-                                        <div class="chart-bar-group" title={`${point.bucketLabel}: ${total} total events`}>
-                                            <div class="chart-bar" style={`height: ${getBarHeight(total)}`}>
-                                                <span class="bar-segment users" style={`height: ${getSegmentHeight(point.newUsers, total)}`}></span>
-                                                <span class="bar-segment containers" style={`height: ${getSegmentHeight(point.newContainers, total)}`}></span>
-                                                <span class="bar-segment sessions" style={`height: ${getSegmentHeight(point.newSessions, total)}`}></span>
-                                                <span class="bar-segment logins" style={`height: ${getSegmentHeight(point.newLogins, total)}`}></span>
-                                                <span class="bar-segment agents" style={`height: ${getSegmentHeight(point.newAgents, total)}`}></span>
-                                                <span class="bar-segment recordings" style={`height: ${getSegmentHeight(point.newRecordings, total)}`}></span>
+                                {#if !stats.timeline?.length}
+                                    <div class="chart-empty">No timeline buckets for this range.</div>
+                                {:else if chartMax <= 1 && stats.activity.newUsers === 0 && stats.activity.newContainers === 0 && stats.activity.newSessions === 0 && stats.activity.newLogins === 0 && stats.activity.newAgents === 0 && stats.activity.newRecordings === 0}
+                                    <div class="chart-empty">No usage events in this range yet.</div>
+                                {:else}
+                                    <div class="stacked-chart" aria-label="Usage timeline chart">
+                                        {#each stats.timeline as point (point.bucketStart)}
+                                            {@const total = point.newUsers + point.newContainers + point.newSessions + point.newLogins + point.newAgents + point.newRecordings}
+                                            <div class="chart-bar-group" title={`${point.bucketLabel}: ${total} total events`}>
+                                                <div class="chart-bar" style={`height: ${getBarHeight(total)}`}>
+                                                    <span class="bar-segment users" style={`height: ${getSegmentHeight(point.newUsers, total)}`}></span>
+                                                    <span class="bar-segment containers" style={`height: ${getSegmentHeight(point.newContainers, total)}`}></span>
+                                                    <span class="bar-segment sessions" style={`height: ${getSegmentHeight(point.newSessions, total)}`}></span>
+                                                    <span class="bar-segment logins" style={`height: ${getSegmentHeight(point.newLogins, total)}`}></span>
+                                                    <span class="bar-segment agents" style={`height: ${getSegmentHeight(point.newAgents, total)}`}></span>
+                                                    <span class="bar-segment recordings" style={`height: ${getSegmentHeight(point.newRecordings, total)}`}></span>
+                                                </div>
                                             </div>
-                                        </div>
-                                    {/each}
-                                </div>
+                                        {/each}
+                                    </div>
+                                {/if}
                             </div>
 
                             <div class="chart-axis">
@@ -878,6 +894,34 @@
             linear-gradient(to top, transparent 24%, color-mix(in srgb, var(--border) 70%, transparent) 25%, transparent 26%),
             linear-gradient(to top, transparent 49%, color-mix(in srgb, var(--border) 70%, transparent) 50%, transparent 51%),
             linear-gradient(to top, transparent 74%, color-mix(in srgb, var(--border) 70%, transparent) 75%, transparent 76%);
+    }
+
+    .chart-empty,
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        min-height: 160px;
+        color: var(--text-muted);
+        font-size: 13px;
+        text-align: center;
+    }
+
+    .empty-state {
+        border: 1px dashed var(--border);
+        border-radius: 12px;
+        padding: 24px;
+        background: var(--bg-secondary);
+    }
+
+    .error-text {
+        color: var(--error, #f87171);
+        font-family: var(--font-mono);
+        font-size: 12px;
+        word-break: break-word;
+        max-width: 480px;
     }
 
     .stacked-chart {

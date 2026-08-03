@@ -161,7 +161,10 @@ func (h *AdminHandler) UsageStats(c *gin.Context) {
 
 	stats, err := h.store.GetAdminUsageStats(c.Request.Context(), from, to, interval)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch usage stats"})
+		// Surface the real failure in logs — a missing table or SQL mismatch
+		// previously left the "Usage over time" chart empty with only a generic 500.
+		c.Error(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch usage stats", "detail": err.Error()})
 		return
 	}
 
