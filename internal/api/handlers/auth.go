@@ -17,6 +17,7 @@ import (
 	"github.com/google/uuid"
 	admin_events "github.com/rexec/rexec/internal/api/handlers/admin_events"
 	"github.com/rexec/rexec/internal/auth"
+	"github.com/rexec/rexec/internal/authclaims"
 	"github.com/rexec/rexec/internal/models"
 	"github.com/rexec/rexec/internal/storage"
 )
@@ -557,7 +558,11 @@ func (h *AuthHandler) PipeOpsAssert(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	var req PipeOpsAssertRequest
-	// Mode A: shared secret (PipeOps controller → Rexec)
+	// Mode A: shared secret (PipeOps controller → Rexec).
+	// usedSecret is derived ONLY server-side: constant-time compare of the
+	// X-PipeOps-Assert-Key header against env PIPEOPS_ASSERT_KEY. It is never
+	// taken from the request body or any client-controlled flag — a caller
+	// cannot opt into secret mode without the real assert key.
 	assertKey := strings.TrimSpace(os.Getenv("PIPEOPS_ASSERT_KEY"))
 	providedKey := strings.TrimSpace(c.GetHeader("X-PipeOps-Assert-Key"))
 	usedSecret := assertKey != "" && providedKey != "" && subtleConstantTimeEq(assertKey, providedKey)
@@ -625,23 +630,34 @@ func (h *AuthHandler) PipeOpsAssert(c *gin.Context) {
 		return
 	}
 
-	// Server-to-server (shared secret) asserts are for PipeOps BFF / automation.
-	// Do not create a browser session (sid) — session JWTs hit screen-lock (423
-	// session_locked) after the user locks rexec.sh, which breaks the BFF.
-	// Prefer mint_api_token (rexec_*) which already bypasses screen lock.
-	sessionID := ""
-	if !usedSecret {
+	// Secret-mode (BFF) asserts mint automation JWTs (token_use=automation, no
+	// browser sid). Screen-lock middleware only skips when that claim is present.
+	// Prefer also mint_api_token (rexec_*) which never enters the JWT screen-lock path.
+	var jwtToken string
+	if usedSecret {
+		var mintErr error
+		jwtToken, mintErr = h.generateTokenOpts(user, "", true /* automation */)
+		if mintErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to mint jwt"})
+			return
+		}
+	} else {
+		// Browser / OAuth-token assert: require a real user session.
 		sid, sessErr := h.createUserSession(c, user)
 		if sessErr != nil {
-			log.Printf("[Auth] PipeOpsAssert session: %v", sessErr)
-		} else {
-			sessionID = sid
+			log.Printf("[Auth] PipeOpsAssert session FAILED (non-secret): %v", sessErr)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "session_create_failed",
+				"message": "failed to create browser session",
+			})
+			return
 		}
-	}
-	jwtToken, err := h.generateToken(user, sessionID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to mint jwt"})
-		return
+		var mintErr error
+		jwtToken, mintErr = h.generateToken(user, sid)
+		if mintErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to mint jwt"})
+			return
+		}
 	}
 
 	// Default JWT TTL advertised to clients (matches generateToken default for non-guest)
@@ -651,16 +667,19 @@ func (h *AuthHandler) PipeOpsAssert(c *gin.Context) {
 	}
 
 	resp := gin.H{
-		"token":       jwtToken,
-		"token_type":  "Bearer",
-		"expires_in":  expiresIn,
-		"user_id":     user.ID,
-		"email":       user.Email,
-		"username":    user.Username,
-		"pipeops_id":  user.PipeOpsID,
-		"tier":        user.Tier,
-		"created":     created,
-		"token_kind":  "jwt",
+		"token":      jwtToken,
+		"token_type": "Bearer",
+		"expires_in": expiresIn,
+		"user_id":    user.ID,
+		"email":      user.Email,
+		"username":   user.Username,
+		"pipeops_id": user.PipeOpsID,
+		"tier":       user.Tier,
+		"created":    created,
+		"token_kind": "jwt",
+	}
+	if usedSecret {
+		resp["token_use"] = authclaims.TokenUseAutomation
 	}
 
 	if req.MintAPIToken {
@@ -814,8 +833,15 @@ func (h *AuthHandler) createUserSession(c *gin.Context, user *models.User) (stri
 	return session.ID, nil
 }
 
-// generateToken creates a JWT token for a user and optional session ID.
+// generateToken creates a browser/session JWT for a user and optional session ID.
 func (h *AuthHandler) generateToken(user *models.User, sessionID string) (string, error) {
+	return h.generateTokenOpts(user, sessionID, false)
+}
+
+// generateTokenOpts creates a JWT. When automation is true, the token is marked
+// with token_use=automation (and aud=pipeops-bff) so middleware can skip
+// screen-lock for PipeOps BFF only — not for arbitrary sid-less JWTs.
+func (h *AuthHandler) generateTokenOpts(user *models.User, sessionID string, automation bool) (string, error) {
 	// Guest users get 50-hour tokens
 	// Authenticated users get configurable duration (default 90 days if not set)
 	var expiry time.Duration
@@ -842,7 +868,12 @@ func (h *AuthHandler) generateToken(user *models.User, sessionID string) (string
 		"exp":                 time.Now().Add(expiry).Unix(),
 		"iat":                 time.Now().Unix(),
 	}
-	if sessionID != "" {
+	if automation {
+		// Explicit automation claims — screen-lock bypass keys off these, not sid absence.
+		claims[authclaims.ClaimTokenUse] = authclaims.TokenUseAutomation
+		claims[authclaims.ClaimAudience] = authclaims.AudiencePipeOpsBFF
+		// No browser session id for automation tokens.
+	} else if sessionID != "" {
 		claims["sid"] = sessionID
 	}
 

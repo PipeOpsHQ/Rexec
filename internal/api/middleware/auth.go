@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/rexec/rexec/internal/auth"
+	"github.com/rexec/rexec/internal/authclaims"
 	"github.com/rexec/rexec/internal/models"
 	"github.com/rexec/rexec/internal/storage"
 )
@@ -321,10 +322,14 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, j
 
 		// --- Server-enforced screen lock ---
 		// If the account is locked after this token was issued, block access with 423.
-		// API tokens (rexec_*) already return early above and never hit this path.
-		// Only enforce for browser sessions (JWT with sid). Automation JWTs without
-		// a session id must keep working for BFF/agent use after screen lock.
-		if sessionID != "" && user.ScreenLockEnabled && user.ScreenLockHash != "" && user.LockRequiredSince != nil {
+		//
+		// 1) API tokens (prefix rexec_*) already return early above and never hit
+		//    this JWT path.
+		// 2) JWT screen-lock bypass is NOT implied by missing sid. Only tokens
+		//    with an explicit claim token_use=automation (PipeOps BFF assert)
+		//    are exempt — see authclaims.IsAutomationToken.
+		isAutomationJWT := authclaims.IsAutomationToken(claims)
+		if !isAutomationJWT && user.ScreenLockEnabled && user.ScreenLockHash != "" && user.LockRequiredSince != nil {
 			// Allow unlock endpoint to proceed even with a locked token.
 			if c.Request.URL.Path != "/api/security/unlock" {
 				tokenIat := time.Unix(int64(iat), 0)
