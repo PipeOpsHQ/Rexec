@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/netip"
 	"os"
 	"runtime"
 	"strconv"
@@ -22,6 +23,39 @@ import (
 )
 
 const IsolatedNetworkName = "rexec-isolated"
+
+// defaultContainerDNS is used when CONTAINER_DNS is unset so sandboxes do not
+// inherit a broken host resolver (e.g. systemd-resolved stub 127.0.0.53).
+const defaultContainerDNS = "8.8.8.8,1.1.1.1"
+
+// sandboxDNSServers returns DNS servers for new containers.
+// Override with CONTAINER_DNS (comma-separated IPs), e.g. "8.8.8.8,1.1.1.1".
+func sandboxDNSServers() []netip.Addr {
+	raw := strings.TrimSpace(os.Getenv("CONTAINER_DNS"))
+	if raw == "" {
+		raw = defaultContainerDNS
+	}
+	var out []netip.Addr
+	for _, part := range strings.Split(raw, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		addr, err := netip.ParseAddr(part)
+		if err != nil {
+			log.Printf("[Container] WARNING: ignoring invalid DNS server %q: %v", part, err)
+			continue
+		}
+		out = append(out, addr)
+	}
+	if len(out) == 0 {
+		// Hard fallback if env was only invalid values
+		a, _ := netip.ParseAddr("8.8.8.8")
+		b, _ := netip.ParseAddr("1.1.1.1")
+		return []netip.Addr{a, b}
+	}
+	return out
+}
 
 // ProgressEvent represents a progress update during container creation
 type ProgressEvent struct {
@@ -1252,6 +1286,11 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 		},
 		// Port bindings (optional, for future use)
 		PortBindings: network.PortMap{},
+		// Explicit public DNS so apt/curl work even when the Docker host
+		// only has a loopback resolver (common cause of
+		// "Temporary failure resolving 'archive.ubuntu.com'").
+		// Override via CONTAINER_DNS env (comma-separated IPs).
+		DNS: sandboxDNSServers(),
 	}
 
 	// Special handling for macOS (CUA Lumier / docker-osx style VM images)
