@@ -26,16 +26,24 @@ const IsolatedNetworkName = "rexec-isolated"
 
 // defaultContainerDNS is used when CONTAINER_DNS is unset so sandboxes do not
 // inherit a broken host resolver (e.g. systemd-resolved stub 127.0.0.53).
+//
+// Operators with network-isolation / data-residency requirements should set
+// CONTAINER_DNS to internal resolvers (or resolvers they control) instead of
+// relying on these public defaults.
 const defaultContainerDNS = "8.8.8.8,1.1.1.1"
 
-// sandboxDNSServers returns DNS servers for new containers.
-// Override with CONTAINER_DNS (comma-separated IPs), e.g. "8.8.8.8,1.1.1.1".
-func sandboxDNSServers() []netip.Addr {
+// parseSandboxDNS parses CONTAINER_DNS (or the public default). Call once at
+// manager startup so invalid entries are logged only once.
+//
+// Type is []netip.Addr because github.com/moby/moby/api HostConfig.DNS uses
+// that type (not []string) as of api v1.54.
+func parseSandboxDNS() []netip.Addr {
 	raw := strings.TrimSpace(os.Getenv("CONTAINER_DNS"))
 	if raw == "" {
 		raw = defaultContainerDNS
 	}
 	var out []netip.Addr
+	var invalid []string
 	for _, part := range strings.Split(raw, ",") {
 		part = strings.TrimSpace(part)
 		if part == "" {
@@ -43,10 +51,13 @@ func sandboxDNSServers() []netip.Addr {
 		}
 		addr, err := netip.ParseAddr(part)
 		if err != nil {
-			log.Printf("[Container] WARNING: ignoring invalid DNS server %q: %v", part, err)
+			invalid = append(invalid, part)
 			continue
 		}
 		out = append(out, addr)
+	}
+	if len(invalid) > 0 {
+		log.Printf("[Container] WARNING: ignoring invalid CONTAINER_DNS entries %q (use comma-separated IPs)", strings.Join(invalid, ","))
 	}
 	if len(out) == 0 {
 		// Hard fallback if env was only invalid values
@@ -590,6 +601,8 @@ type Manager struct {
 	diskQuotaCheckMu  sync.Once
 	availableRuntimes []string
 	runtimeCheckMu    sync.Once
+	// dnsServers is resolved once at NewManager (from CONTAINER_DNS or defaults).
+	dnsServers []netip.Addr
 
 	// Stats broadcasting
 	activeStatsStreams map[string]*StatsBroadcaster
@@ -671,6 +684,9 @@ func NewManager(volumePaths ...string) (*Manager, error) {
 		volumePath = volumePaths[0]
 	}
 
+	dnsServers := parseSandboxDNS()
+	log.Printf("[Container] Sandbox DNS servers: %v (override with CONTAINER_DNS)", dnsServers)
+
 	mgr := &Manager{
 		client:             cli,
 		containers:         make(map[string]*ContainerInfo),
@@ -678,6 +694,7 @@ func NewManager(volumePaths ...string) (*Manager, error) {
 		volumePath:         volumePath,
 		diskQuotaEnabled:   false,
 		diskQuotaChecked:   false,
+		dnsServers:         dnsServers,
 		activeStatsStreams: make(map[string]*StatsBroadcaster),
 	}
 
@@ -696,6 +713,16 @@ func NewManager(volumePaths ...string) (*Manager, error) {
 func (m *Manager) checkHostCapabilities() {
 	m.checkRuntimeSupport()
 	m.checkDiskQuotaSupport()
+}
+
+// dnsForCreate returns DNS servers for HostConfig.
+// Prefer the value resolved at NewManager; fall back to parse for partial
+// Manager values used in unit tests.
+func (m *Manager) dnsForCreate() []netip.Addr {
+	if m != nil && len(m.dnsServers) > 0 {
+		return m.dnsServers
+	}
+	return parseSandboxDNS()
 }
 
 // ensureIsolatedNetwork ensures the isolated network exists with ICC disabled
@@ -1286,11 +1313,10 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 		},
 		// Port bindings (optional, for future use)
 		PortBindings: network.PortMap{},
-		// Explicit public DNS so apt/curl work even when the Docker host
-		// only has a loopback resolver (common cause of
-		// "Temporary failure resolving 'archive.ubuntu.com'").
-		// Override via CONTAINER_DNS env (comma-separated IPs).
-		DNS: sandboxDNSServers(),
+		// Explicit DNS so apt/curl work even when the Docker host only has a
+		// loopback resolver. HostConfig.DNS is []netip.Addr (moby/api).
+		// Defaults / CONTAINER_DNS are resolved once in NewManager.
+		DNS: m.dnsForCreate(),
 	}
 
 	// Special handling for macOS (CUA Lumier / docker-osx style VM images)
