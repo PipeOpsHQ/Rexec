@@ -495,6 +495,7 @@ func runServer() {
 	terminalHandler := handlers.NewTerminalHandler(containerManager, store, adminEventsHub)
 	terminalHandler.SetProviderRegistry(providerRegistry) // Enable VM terminal support
 	fileHandler := handlers.NewFileHandler(containerManager, store)
+	execHandler := handlers.NewExecHandler(containerManager)
 	sshHandler := handlers.NewSSHHandler(store, containerManager)
 	collabHandler := handlers.NewCollabHandler(store, containerManager, terminalHandler)
 	recordingHandler := handlers.NewRecordingHandler(store, os.Getenv("RECORDINGS_PATH"), containerManager)
@@ -716,6 +717,8 @@ func runServer() {
 		api.DELETE("/containers/:id", containerHandler.Delete)
 		api.POST("/containers/:id/start", containerHandler.Start)
 		api.POST("/containers/:id/stop", containerHandler.Stop)
+		// Non-interactive command execution (agents / SDK / Cortex)
+		api.POST("/containers/:id/exec", containerLimiter.Middleware(), execHandler.Exec)
 
 		// Shell setup
 		api.GET("/containers/:id/shell/status", containerHandler.GetShellStatus)
