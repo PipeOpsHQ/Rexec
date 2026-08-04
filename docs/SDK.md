@@ -33,7 +33,7 @@ Typical use cases: AI agents running code safely, ephemeral dev shells, demos, a
 
 **Lifecycle:** `create` → often `creating` (async) → `running` ⇄ `stopped` → `delete` (or `error`).
 
-There is **no** primary HTTP `exec()` on hosted Rexec — run commands via the [terminal WebSocket](#terminal-websocket).
+**Interactive commands** use the [terminal WebSocket](#terminal-websocket). **Non-interactive / agent commands** use the [exec API](#exec-api).
 
 ---
 
@@ -116,6 +116,7 @@ Prefer **`client.sandboxes`** (or `Sandboxes` / `sandboxes()`). Legacy **`client
 | **Start** | `POST /api/containers/:id/start` | |
 | **Stop** | `POST /api/containers/:id/stop` | |
 | **Delete** | `DELETE /api/containers/:id` | Destroys the sandbox |
+| **Exec** | `POST /api/containers/:id/exec` | One-shot command; see [Exec API](#exec-api) |
 
 ### Files (per sandbox)
 
@@ -134,11 +135,94 @@ Prefer **`client.sandboxes`** (or `Sandboxes` / `sandboxes()`). Legacy **`client
 | **Connect** | WebSocket `wss://<host>/ws/terminal/:id?cols=&rows=` with Bearer auth |
 | **write / onData / resize / close** | SDK helpers over the socket |
 
-### Explicit non-features
+### Explicit non-features / caveats
 
-- **No first-class `exec()` HTTP API** on hosted Rexec. Do not treat `exec` as the primary way to run commands. Use the **terminal WebSocket** (or raw HTTP if you build your own client).
-- **Create is often async** — poll `get()` until `running` when you need a ready PTY.
+- **Create is often async** — poll `get()` until `running` before terminal or exec.
 - **Hosted images use aliases**, not arbitrary Docker Hub tags.
+- Prefer **exec** for agents; prefer **terminal WebSocket** for interactive shells.
+
+---
+
+## Exec API {#exec-api}
+
+Run a non-interactive command in a **running** sandbox (agent-friendly).
+
+| | |
+|--|--|
+| **HTTP** | `POST /api/containers/:id/exec` |
+| **Auth** | Bearer token (owner of sandbox) |
+| **SDK** | `client.sandboxes.exec(id, …)` (JS / Python) |
+
+### Request body
+
+```json
+{
+  "command": "echo hello && uname -a",
+  "timeout_seconds": 60
+}
+```
+
+Or argv form (takes precedence when non-empty):
+
+```json
+{
+  "cmd": ["uname", "-a"],
+  "workdir": "/home/user",
+  "env": ["FOO=bar"],
+  "user": "root",
+  "timeout_seconds": 30
+}
+```
+
+| Field | Notes |
+|-------|--------|
+| `command` | Shell string → run as `sh -c <command>` when `cmd` is empty |
+| `cmd` | Argv vector |
+| `workdir` | Optional working directory |
+| `env` | Optional `KEY=VALUE` list |
+| `user` | Optional user inside sandbox |
+| `timeout_seconds` | Default **60**, max **300** |
+
+### Response
+
+```json
+{
+  "stdout": "hello\n",
+  "stderr": "",
+  "output": "hello\n",
+  "exit_code": 0,
+  "duration_ms": 42,
+  "command": "echo hello"
+}
+```
+
+| Field | Notes |
+|-------|--------|
+| `stdout` / `stderr` | Demuxed Docker attach streams |
+| `output` | Combined for simple clients |
+| `exit_code` | Process exit code (`-1` on timeout) |
+| `duration_ms` | Wall time |
+| `truncated` | `true` if output hit the 1 MiB cap |
+
+Timeouts return **504** with partial `stdout`/`stderr` when available.
+
+### Examples
+
+```typescript
+const r = await client.sandboxes.exec(sandbox.id, { command: 'echo hello' });
+console.log(r.stdout, r.exit_code);
+
+await client.sandboxes.exec(sandbox.id, { cmd: ['python3', '-c', 'print(1+1)'] });
+// shorthand:
+await client.sandboxes.exec(sandbox.id, 'uname -a');
+```
+
+```python
+r = await client.sandboxes.exec(sandbox.id, "echo hello")
+print(r.stdout, r.exit_code)
+
+r = await client.sandboxes.exec(sandbox.id, cmd=["uname", "-a"])
+```
 
 ---
 

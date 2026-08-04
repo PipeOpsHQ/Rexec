@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	dockerclient "github.com/moby/moby/client"
 	mgr "github.com/rexec/rexec/internal/container"
+	"github.com/rexec/rexec/internal/storage"
 )
 
 // maxExecTimeoutSeconds caps how long a single non-interactive exec may run.
@@ -24,14 +25,16 @@ const defaultExecTimeoutSeconds = 60
 // maxExecOutputBytes truncates captured stdout/stderr to protect the API.
 const maxExecOutputBytes = 1 << 20 // 1 MiB
 
-// ExecHandler runs non-interactive commands inside containers.
+// ExecHandler runs non-interactive commands inside sandboxes (containers).
 type ExecHandler struct {
 	containerManager *mgr.Manager
+	store            *storage.PostgresStore
 }
 
 // NewExecHandler creates an ExecHandler.
-func NewExecHandler(cm *mgr.Manager) *ExecHandler {
-	return &ExecHandler{containerManager: cm}
+// store may be nil (manager lookup only); with store, DB and Docker IDs both work.
+func NewExecHandler(cm *mgr.Manager, store *storage.PostgresStore) *ExecHandler {
+	return &ExecHandler{containerManager: cm, store: store}
 }
 
 // ExecRequest is the body for POST /api/containers/:id/exec.
@@ -100,27 +103,25 @@ func (h *ExecHandler) Exec(c *gin.Context) {
 		timeoutSecs = maxExecTimeoutSeconds
 	}
 
-	// Resolve container: manager is keyed by Docker ID.
-	containerInfo, ok := h.containerManager.GetContainer(containerID)
-	if !ok {
-		// Try partial / alternate match via user map if only short id was given.
-		c.JSON(http.StatusNotFound, gin.H{"error": "container not found"})
+	dockerID, ownerID, status, found := h.resolveExecTarget(c.Request.Context(), userID, containerID)
+	if !found {
+		c.JSON(http.StatusNotFound, gin.H{"error": "sandbox not found"})
 		return
 	}
-	if containerInfo.UserID != userID {
+	if ownerID != "" && ownerID != userID {
 		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
 		return
 	}
-	if !strings.EqualFold(containerInfo.Status, "running") {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "container is not running"})
+	if !strings.EqualFold(status, "running") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "sandbox is not running", "status": status})
+		return
+	}
+	if dockerID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "sandbox is not running", "status": status})
 		return
 	}
 
-	dockerID := containerInfo.ID
-	if dockerID == "" {
-		dockerID = containerID
-	}
-
+	started := time.Now()
 	ctx, cancel := context.WithTimeout(c.Request.Context(), time.Duration(timeoutSecs)*time.Second)
 	defer cancel()
 
@@ -155,12 +156,13 @@ func (h *ExecHandler) Exec(c *gin.Context) {
 		if ctx.Err() != nil {
 			partial := demuxDockerStream(raw)
 			c.JSON(http.StatusGatewayTimeout, gin.H{
-				"error":     "exec timed out",
-				"timeout_s": timeoutSecs,
-				"exit_code": -1,
-				"output":    partial.Combined,
-				"stdout":    partial.Stdout,
-				"stderr":    partial.Stderr,
+				"error":       "exec timed out",
+				"timeout_s":   timeoutSecs,
+				"exit_code":   -1,
+				"output":      partial.Combined,
+				"stdout":      partial.Stdout,
+				"stderr":      partial.Stderr,
+				"duration_ms": time.Since(started).Milliseconds(),
 			})
 			return
 		}
@@ -183,11 +185,12 @@ func (h *ExecHandler) Exec(c *gin.Context) {
 	h.containerManager.TouchContainer(dockerID)
 
 	resp := gin.H{
-		"stdout":    streams.Stdout,
-		"stderr":    streams.Stderr,
-		"output":    streams.Combined,
-		"exit_code": exitCode,
-		"command":   req.Command,
+		"stdout":      streams.Stdout,
+		"stderr":      streams.Stderr,
+		"output":      streams.Combined,
+		"exit_code":   exitCode,
+		"command":     req.Command,
+		"duration_ms": time.Since(started).Milliseconds(),
 	}
 	if len(req.Cmd) > 0 {
 		resp["cmd"] = req.Cmd
@@ -196,6 +199,41 @@ func (h *ExecHandler) Exec(c *gin.Context) {
 		resp["truncated"] = true
 	}
 	c.JSON(http.StatusOK, resp)
+}
+
+// resolveExecTarget maps API id (DB id, Docker id, name, or prefix) to a docker ID.
+func (h *ExecHandler) resolveExecTarget(ctx context.Context, userID, id string) (dockerID, ownerID, status string, found bool) {
+	// Prefer in-memory manager (Docker ID / name / prefix).
+	if info, ok := h.containerManager.GetContainer(id); ok {
+		return info.ID, info.UserID, info.Status, true
+	}
+
+	if h.store == nil {
+		return "", "", "", false
+	}
+
+	// DB id
+	if rec, err := h.store.GetContainerByID(ctx, id); err == nil && rec != nil {
+		if rec.DockerID == "" {
+			return "", rec.UserID, rec.Status, true
+		}
+		if info, ok := h.containerManager.GetContainer(rec.DockerID); ok {
+			return info.ID, info.UserID, info.Status, true
+		}
+		// Manager miss (e.g. multi-replica) — use docker ID from DB.
+		return rec.DockerID, rec.UserID, rec.Status, true
+	}
+
+	// Docker ID via store
+	if rec, err := h.store.GetContainerByDockerID(ctx, id); err == nil && rec != nil {
+		if info, ok := h.containerManager.GetContainer(rec.DockerID); ok {
+			return info.ID, info.UserID, info.Status, true
+		}
+		return rec.DockerID, rec.UserID, rec.Status, true
+	}
+
+	_ = userID // reserved for future ownership-scoped lookups
+	return "", "", "", false
 }
 
 type demuxedStreams struct {

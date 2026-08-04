@@ -495,7 +495,7 @@ func runServer() {
 	terminalHandler := handlers.NewTerminalHandler(containerManager, store, adminEventsHub)
 	terminalHandler.SetProviderRegistry(providerRegistry) // Enable VM terminal support
 	fileHandler := handlers.NewFileHandler(containerManager, store)
-	execHandler := handlers.NewExecHandler(containerManager)
+	execHandler := handlers.NewExecHandler(containerManager, store)
 	sshHandler := handlers.NewSSHHandler(store, containerManager)
 	collabHandler := handlers.NewCollabHandler(store, containerManager, terminalHandler)
 	recordingHandler := handlers.NewRecordingHandler(store, os.Getenv("RECORDINGS_PATH"), containerManager)

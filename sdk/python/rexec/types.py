@@ -67,6 +67,33 @@ CreateContainerRequest = CreateSandboxRequest
 
 
 @dataclass
+class ExecResult:
+    """Result of a non-interactive sandbox exec."""
+
+    stdout: str
+    stderr: str
+    output: str
+    exit_code: int
+    duration_ms: Optional[int] = None
+    truncated: bool = False
+    command: Optional[str] = None
+    cmd: Optional[list] = None
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "ExecResult":
+        return cls(
+            stdout=data.get("stdout") or "",
+            stderr=data.get("stderr") or "",
+            output=data.get("output") or "",
+            exit_code=int(data.get("exit_code") if data.get("exit_code") is not None else 0),
+            duration_ms=data.get("duration_ms"),
+            truncated=bool(data.get("truncated")),
+            command=data.get("command"),
+            cmd=data.get("cmd"),
+        )
+
+
+@dataclass
 class FileInfo:
     """File or directory metadata."""
 

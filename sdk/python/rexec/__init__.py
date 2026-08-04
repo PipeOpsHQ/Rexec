@@ -19,6 +19,7 @@ from rexec.containers import (
     ContainerService,
     CreateContainerRequest,
     CreateSandboxRequest,
+    ExecResult,
     Sandbox,
     SandboxService,
 )
@@ -32,6 +33,7 @@ __all__ = [
     "Sandbox",
     "SandboxService",
     "CreateSandboxRequest",
+    "ExecResult",
     # Backward-compatible aliases
     "Container",
     "ContainerService",

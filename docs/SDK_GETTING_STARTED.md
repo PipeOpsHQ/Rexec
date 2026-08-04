@@ -106,7 +106,8 @@ Every language does the same four steps:
 3. **Get** by id  
 4. **Delete** when finished  
 
-There is **no** first-class `exec()` HTTP API. Run commands via the **terminal WebSocket** (see [SDK.md](SDK.md#terminal-websocket)).
+**Agents:** run one-shot commands with `sandboxes.exec` (see [SDK.md § Exec API](SDK.md#exec-api)).  
+**Interactive shells:** use the **terminal WebSocket** (see [SDK.md](SDK.md#terminal-websocket)).
 
 ### JavaScript / TypeScript (primary)
 
@@ -128,6 +129,10 @@ const c = await client.sandboxes.create({ image: 'ubuntu', name: 'demo' });
 console.log(c.id, c.status); // often "creating" at first
 
 const got = await client.sandboxes.get(c.id);
+
+// Non-interactive command (wait until status === "running")
+// const r = await client.sandboxes.exec(c.id, { command: 'echo hello' });
+
 await client.sandboxes.delete(c.id);
 ```
 
@@ -148,6 +153,7 @@ async def main():
         c = await client.sandboxes.create(image="ubuntu", name="demo")
         print(c.id, c.status)
         await client.sandboxes.get(c.id)
+        # After running: r = await client.sandboxes.exec(c.id, "echo hello")
         await client.sandboxes.delete(c.id)
 
 asyncio.run(main())
@@ -253,7 +259,7 @@ Full copy-paste samples for every language: [SDK.md](SDK.md#language-examples).
 
 | Surface | Capabilities |
 |---------|----------------|
-| **Sandboxes** (`containers` alias) | list, create, get, start, stop, delete |
+| **Sandboxes** (`containers` alias) | list, create, get, start, stop, delete, **exec** |
 | **Files** | list dir, read, write (often base64), mkdir (JS+), delete |
 | **Terminal** | WebSocket connect, `write` / `onData`, resize, close |
 

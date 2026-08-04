@@ -4,12 +4,13 @@ Wire protocol remains ``/api/containers``. Public names prefer *sandbox*;
 ``Container*`` aliases remain for backward compatibility.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Optional
 
 from rexec.types import (
     Container,
     CreateContainerRequest,
     CreateSandboxRequest,
+    ExecResult,
     Sandbox,
 )
 
@@ -23,6 +24,7 @@ __all__ = [
     "Container",
     "CreateSandboxRequest",
     "CreateContainerRequest",
+    "ExecResult",
 ]
 
 
@@ -109,6 +111,60 @@ class SandboxService:
     async def stop(self, sandbox_id: str) -> None:
         """Stop a running sandbox."""
         await self._client._request("POST", f"/api/containers/{sandbox_id}/stop")
+
+    async def exec(
+        self,
+        sandbox_id: str,
+        command: Optional[str] = None,
+        *,
+        cmd: Optional[List[str]] = None,
+        workdir: Optional[str] = None,
+        env: Optional[List[str]] = None,
+        user: Optional[str] = None,
+        timeout_seconds: Optional[int] = None,
+    ) -> ExecResult:
+        """
+        Run a non-interactive command in a running sandbox.
+
+        Wire: ``POST /api/containers/:id/exec``.
+
+        Args:
+            sandbox_id: Sandbox id (Docker or DB id).
+            command: Shell string run via ``sh -c`` (when ``cmd`` is not set).
+            cmd: Argv vector; takes precedence over ``command`` when non-empty.
+            workdir: Working directory inside the sandbox.
+            env: Extra env as ``KEY=VALUE`` strings.
+            user: User to run as inside the sandbox.
+            timeout_seconds: Timeout (default 60, max 300).
+
+        Returns:
+            ExecResult with stdout, stderr, exit_code, etc.
+
+        Example:
+            r = await client.sandboxes.exec(sid, "echo hello")
+            print(r.stdout, r.exit_code)
+            r = await client.sandboxes.exec(sid, cmd=["uname", "-a"])
+        """
+        body: dict = {}
+        if cmd:
+            body["cmd"] = cmd
+        elif command is not None:
+            body["command"] = command
+        else:
+            raise ValueError("exec requires command or cmd")
+        if workdir:
+            body["workdir"] = workdir
+        if env:
+            body["env"] = env
+        if user:
+            body["user"] = user
+        if timeout_seconds is not None:
+            body["timeout_seconds"] = timeout_seconds
+
+        data = await self._client._request(
+            "POST", f"/api/containers/{sandbox_id}/exec", json=body
+        )
+        return ExecResult.from_dict(data or {})
 
 
 # Backward-compatible alias (same class)

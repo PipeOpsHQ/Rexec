@@ -48,6 +48,35 @@ export interface CreateSandboxRequest {
  */
 export type CreateContainerRequest = CreateSandboxRequest;
 
+/** Result of a non-interactive sandbox exec. */
+export interface ExecResult {
+  stdout: string;
+  stderr: string;
+  /** Combined stdout+stderr for simple clients */
+  output: string;
+  exit_code: number;
+  duration_ms?: number;
+  truncated?: boolean;
+  command?: string;
+  cmd?: string[];
+}
+
+/** Options for {@link SandboxService.exec}. */
+export interface ExecOptions {
+  /** Shell command (run via `sh -c`). Prefer this or `cmd`. */
+  command?: string;
+  /** Argv vector; takes precedence over `command` when non-empty. */
+  cmd?: string[];
+  /** Working directory inside the sandbox */
+  workdir?: string;
+  /** Extra env as `KEY=VALUE` strings */
+  env?: string[];
+  /** User to run as inside the sandbox */
+  user?: string;
+  /** Timeout in seconds (default 60, max 300) */
+  timeout_seconds?: number;
+}
+
 export interface FileInfo {
   name: string;
   path: string;
@@ -193,6 +222,27 @@ export class SandboxService {
   /** Stop a sandbox. */
   async stop(id: string): Promise<void> {
     await this.client.request('POST', `/api/containers/${id}/stop`);
+  }
+
+  /**
+   * Run a non-interactive command in a running sandbox.
+   * Wire: `POST /api/containers/:id/exec`
+   *
+   * @example
+   * ```ts
+   * const r = await client.sandboxes.exec(id, { command: 'echo hello' });
+   * console.log(r.stdout, r.exit_code);
+   * // argv form:
+   * await client.sandboxes.exec(id, { cmd: ['uname', '-a'] });
+   * ```
+   */
+  async exec(id: string, options: ExecOptions | string): Promise<ExecResult> {
+    const body: ExecOptions =
+      typeof options === 'string' ? { command: options } : options;
+    if (!body.command && (!body.cmd || body.cmd.length === 0)) {
+      throw new Error('exec requires command or cmd');
+    }
+    return this.client.request<ExecResult>('POST', `/api/containers/${id}/exec`, body);
   }
 }
 

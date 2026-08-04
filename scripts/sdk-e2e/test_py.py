@@ -18,6 +18,19 @@ async def main():
         print("[py] list count", len(after))
         got = await client.containers.get(c.id)
         print("[py] get", got.id, got.status)
+        sid = c.id
+        for _ in range(30):
+            s = await client.sandboxes.get(sid)
+            if s.status == "running":
+                break
+            if s.status == "error":
+                raise RuntimeError("sandbox error")
+            await asyncio.sleep(1)
+        print("[py] exec...")
+        r = await client.sandboxes.exec(sid, "echo rexec-e2e && uname -s")
+        print("[py] exec exit", r.exit_code, "out", (r.stdout or r.output or "")[:80])
+        if r.exit_code != 0:
+            raise RuntimeError(f"exec failed: {r.exit_code}")
         await client.containers.delete(c.id)
         print("[py] OK")
 
