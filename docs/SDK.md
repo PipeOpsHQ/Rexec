@@ -256,9 +256,27 @@ const clone = await client.sandboxes.create({ template_id: tpl.id, name: 'job-2'
 
 | `network_mode` | Behavior |
 |----------------|----------|
-| `default` / omit | Isolated bridge (`rexec-isolated`) with outbound |
+| `default` / omit | Isolated bridge (`rexec-isolated`) with full outbound |
 | `none` | No network (strong isolation for pure compute) |
-| `restricted` | Same as default for now; egress allowlist planned |
+| `restricted` | HTTP(S) **only** via host egress proxy + host allowlist |
+
+### Restricted egress allowlist
+
+When `network_mode` is `restricted`, the sandbox gets `HTTP_PROXY`/`HTTPS_PROXY` pointing at a host-side CONNECT proxy. Raw TCP (SSH, custom ports) is not proxied.
+
+- **Defaults:** package mirrors (Ubuntu/Debian/Alpine), PyPI, npm, GitHub, Go modules, crates.io, Maven, RubyGems (see `DefaultRestrictedEgressAllow`).
+- **Override defaults:** server env `RESTRICTED_EGRESS_ALLOW=host1,*.example.com`
+- **Per create extras:** `egress_allow: ["api.openai.com","*.anthropic.com"]` (union with defaults)
+- **Disable proxy:** `RESTRICTED_EGRESS_ENABLED=false` (restricted then falls back to no network)
+- **Listen:** `RESTRICTED_EGRESS_PROXY_ADDR=:13128`
+
+```json
+{
+  "image": "ubuntu",
+  "network_mode": "restricted",
+  "egress_allow": ["api.openai.com", "api.anthropic.com"]
+}
+```
 
 ```json
 { "image": "ubuntu", "network_mode": "none" }

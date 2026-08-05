@@ -666,6 +666,9 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 	if netMode != "" && netMode != "default" {
 		cfg.Labels["rexec.network_mode"] = netMode
 	}
+	if len(req.EgressAllow) > 0 {
+		cfg.EgressAllow = req.EgressAllow
+	}
 	applyLifecycle(cfg.Labels)
 
 	// Merge caller-provided labels (e.g. pipeops.workspace_id from PipeOps BFF).

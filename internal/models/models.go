@@ -324,8 +324,11 @@ type CreateContainerRequest struct {
 	// NetworkMode controls sandbox networking:
 	//   "default" or "" — isolated bridge with outbound (rexec-isolated)
 	//   "none" — no network (strong isolation for pure compute)
-	//   "restricted" — reserved; currently same as default (allowlist planned)
+	//   "restricted" — HTTP(S) only via allowlist egress proxy
 	NetworkMode string `json:"network_mode,omitempty"`
+	// EgressAllow adds host patterns for restricted mode (union with platform defaults).
+	// Examples: "api.openai.com", "*.example.com"
+	EgressAllow []string `json:"egress_allow,omitempty"`
 	// IdleTimeoutSeconds: stop sandbox after this many seconds idle (Touch on exec/terminal).
 	// 0 = platform default (guests only). Set for agent sandboxes that should auto-stop.
 	IdleTimeoutSeconds int `json:"idle_timeout_seconds,omitempty"`

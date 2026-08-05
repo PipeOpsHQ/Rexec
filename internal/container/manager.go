@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/netip"
 	"os"
 	"runtime"
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
+	"github.com/google/uuid"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/network"
@@ -574,8 +576,10 @@ type ContainerConfig struct {
 	DiskQuota     int64             // in bytes
 	Labels        map[string]string // Custom labels for the container
 	// NetworkMode: ""/"default" → rexec-isolated; "none" → no network;
-	// "restricted" → same as default for now (egress allowlist planned).
+	// "restricted" → isolated bridge + HTTP(S) proxy allowlist egress.
 	NetworkMode string
+	// EgressAllow is extra host patterns for restricted mode (merged with defaults).
+	EgressAllow []string
 }
 
 // ContainerInfo holds information about a running container
@@ -606,10 +610,17 @@ type Manager struct {
 	runtimeCheckMu    sync.Once
 	// dnsServers is resolved once at NewManager (from CONTAINER_DNS or defaults).
 	dnsServers []netip.Addr
+	// egressProxy enforces restricted-mode allowlists (optional).
+	egressProxy *EgressProxy
 
 	// Stats broadcasting
 	activeStatsStreams map[string]*StatsBroadcaster
 	statsMu            sync.Mutex
+}
+
+// SetEgressProxy attaches the shared restricted-egress proxy.
+func (m *Manager) SetEgressProxy(p *EgressProxy) {
+	m.egressProxy = p
 }
 
 // StatsBroadcaster manages a single stats stream from Docker and broadcasts to multiple subscribers
@@ -1438,13 +1449,64 @@ exec tail -f /dev/null`, shell, shell)
 	// Network configuration
 	netMode := strings.ToLower(strings.TrimSpace(cfg.NetworkMode))
 	var networkConfig *network.NetworkingConfig
+	var egressUser, egressPass string
+	var egressAllow []string
 	switch netMode {
 	case "none":
 		hostConfig.NetworkMode = "none" // container.NetworkMode string type
 		networkConfig = nil
 	case "restricted":
-		// v1: same isolated bridge as default; allowlist egress is a follow-up.
-		fallthrough
+		// Reach host proxy via host-gateway; only allowlisted HTTPS/HTTP works.
+		networkConfig = &network.NetworkingConfig{
+			EndpointsConfig: map[string]*network.EndpointSettings{
+				IsolatedNetworkName: {},
+			},
+		}
+		hostConfig.ExtraHosts = append(hostConfig.ExtraHosts, "host.docker.internal:host-gateway")
+		if m.egressProxy != nil && EgressEnabled() {
+			egressUser = "rexec-" + uuid.New().String()[:12]
+			egressPass = uuid.New().String()
+			egressAllow = MergeEgressAllow(cfg.EgressAllow)
+			// Port from proxy listen address
+			proxyHost := "host.docker.internal"
+			proxyPort := "13128"
+			if addr := m.egressProxy.Addr(); addr != "" {
+				if _, port, err := net.SplitHostPort(addr); err == nil && port != "" {
+					proxyPort = port
+				}
+			}
+			proxyURL := fmt.Sprintf("http://%s:%s@%s:%s",
+				egressUser, egressPass, proxyHost, proxyPort)
+			containerConfig.Env = append(containerConfig.Env,
+				"HTTP_PROXY="+proxyURL,
+				"HTTPS_PROXY="+proxyURL,
+				"http_proxy="+proxyURL,
+				"https_proxy="+proxyURL,
+				"ALL_PROXY="+proxyURL,
+				"all_proxy="+proxyURL,
+				"NO_PROXY=localhost,127.0.0.1,::1",
+				"no_proxy=localhost,127.0.0.1,::1",
+				"REXEC_NETWORK_MODE=restricted",
+			)
+			if cfg.Labels == nil {
+				cfg.Labels = map[string]string{}
+			}
+			cfg.Labels["rexec.network_mode"] = "restricted"
+			cfg.Labels["rexec.egress_proxy"] = "true"
+			cfg.Labels["rexec.egress_allow"] = strings.Join(egressAllow, ",")
+			// Re-merge labels onto container config
+			for k, v := range cfg.Labels {
+				if containerConfig.Labels == nil {
+					containerConfig.Labels = map[string]string{}
+				}
+				containerConfig.Labels[k] = v
+			}
+		} else {
+			log.Printf("[Container] WARNING: restricted mode requested but egress proxy not running — denying outbound (use network none semantics for raw TCP)")
+			// Fall back to no network if proxy unavailable
+			hostConfig.NetworkMode = "none"
+			networkConfig = nil
+		}
 	default:
 		networkConfig = &network.NetworkingConfig{
 			EndpointsConfig: map[string]*network.EndpointSettings{
@@ -1492,6 +1554,16 @@ exec tail -f /dev/null`, shell, shell)
 		// Cleanup on failure
 		_, _ = m.client.ContainerRemove(ctx, resp.ID, client.ContainerRemoveOptions{Force: true})
 		return nil, fmt.Errorf("failed to start container: %w", err)
+	}
+
+	// Register restricted egress session after we have a Docker ID
+	if egressUser != "" && m.egressProxy != nil {
+		m.egressProxy.RegisterSession(&EgressSession{
+			SandboxKey: resp.ID,
+			User:       egressUser,
+			Pass:       egressPass,
+			Allow:      egressAllow,
+		})
 	}
 
 	// Get container details
@@ -1692,6 +1764,10 @@ func (m *Manager) RestartContainer(ctx context.Context, dockerID string) error {
 
 // RemoveContainer removes a container by docker ID
 func (m *Manager) RemoveContainer(ctx context.Context, dockerID string) error {
+	// Drop egress session if any (match by sandbox key; username may differ)
+	if m.egressProxy != nil {
+		m.egressProxy.UnregisterBySandbox(dockerID)
+	}
 	m.mu.Lock()
 	info, ok := m.containers[dockerID]
 	if ok {

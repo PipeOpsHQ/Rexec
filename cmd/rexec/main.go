@@ -444,6 +444,19 @@ func runServer() {
 		defer cleanupService.Stop()
 	}
 
+	// Restricted-mode HTTP(S) egress allowlist proxy
+	var egressProxy *container.EgressProxy
+	if container.EgressEnabled() {
+		egressProxy = container.NewEgressProxy(container.ParseEgressListen())
+		if err := egressProxy.Start(); err != nil {
+			log.Printf("⚠️  Egress proxy failed to start (restricted mode will deny network): %v", err)
+			egressProxy = nil
+		} else {
+			containerManager.SetEgressProxy(egressProxy)
+			defer egressProxy.Stop()
+		}
+	}
+
 	// Warm pool of pre-created sandboxes (WARM_POOL=ubuntu:2,debian:1)
 	warmPool := container.NewWarmPoolService(containerManager, container.ParseWarmPoolConfig())
 	warmPool.Start()

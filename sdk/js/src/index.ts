@@ -43,6 +43,8 @@ export interface CreateSandboxRequest {
   template_id?: string;
   /** default | none | restricted */
   network_mode?: 'default' | 'none' | 'restricted';
+  /** Extra egress hosts for restricted mode (union with platform defaults). */
+  egress_allow?: string[];
   /** Stop after N seconds idle (Touch on exec/terminal). */
   idle_timeout_seconds?: number;
   /** Hard TTL from create (sets expires_at). */
