@@ -1,0 +1,48 @@
+{
+  "name": "@pipeops/rexec-mcp",
+  "version": "1.1.0",
+  "description": "MCP server for Rexec — AI agent tools for sandboxes (create, exec, files, templates)",
+  "type": "module",
+  "bin": {
+    "rexec-mcp": "./dist/index.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "rexec",
+    "mcp",
+    "model-context-protocol",
+    "sandbox",
+    "ai-agent",
+    "pipeops"
+  ],
+  "author": "PipeOpsHQ",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PipeOpsHQ/rexec.git",
+    "directory": "sdk/mcp"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "pipeops-rexec": "file:../js",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

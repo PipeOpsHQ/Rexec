@@ -15,6 +15,7 @@ Official client libraries for the Rexec **sandbox** API (files and terminals).
 | **In-app docs** | `/docs/sdk` on the product UI |
 | **PipeOps docs** | [docs.pipeops.io — Rexec Sandboxes](https://docs.pipeops.io/docs/rexec/overview) (when published) |
 | **E2E smoke** | [`scripts/sdk-e2e/`](../scripts/sdk-e2e/) (`test-js.mjs`, `test_py.py`, Go/Rust/Ruby/.NET/Java/PHP runners) |
+| **MCP (agents)** | [`sdk/mcp`](../sdk/mcp/) — `@pipeops/rexec-mcp` (stdio tools for create/exec/templates) |
 
 > **Verified E2E** against a live Rexec instance: `list` → `create` → `get` → `delete`.
 
@@ -659,6 +660,39 @@ cd scripts/sdk-e2e
 #          dotnet_e2e, java_e2e, test_php.php
 # Legacy containers.* paths still pass (aliases).
 ```
+
+---
+
+## MCP server (AI agents) {#mcp}
+
+Official MCP package: **`@pipeops/rexec-mcp`** ([`sdk/mcp`](../sdk/mcp/)).
+
+Exposes tools: `list_sandboxes`, `create_sandbox`, `exec`, `list_files`, `create_template`, `list_templates`, `wait_running`, and more.
+
+```bash
+cd sdk/js && npm run build
+cd ../mcp && npm install && npm run build
+REXEC_URL=https://rexec.sh REXEC_TOKEN=... node dist/index.js
+```
+
+Claude Desktop / Cursor config:
+
+```json
+{
+  "mcpServers": {
+    "rexec": {
+      "command": "node",
+      "args": ["/absolute/path/to/rexec/sdk/mcp/dist/index.js"],
+      "env": {
+        "REXEC_URL": "https://rexec.sh",
+        "REXEC_TOKEN": "your-token"
+      }
+    }
+  }
+}
+```
+
+See [sdk/mcp/README.md](../sdk/mcp/README.md).
 
 ---
 
