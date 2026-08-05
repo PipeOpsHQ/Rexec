@@ -21,8 +21,11 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.24'
+          go-version-file: go.mod
+          cache: true
       - name: Run Tests
+        env:
+          GOTOOLCHAIN: auto
         run: go test -v ./...
 
   test-frontend:
@@ -80,7 +83,8 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.24'
+          go-version-file: go.mod
+          cache: true
 
       - name: Download Frontend Artifact
         uses: actions/download-artifact@v7
