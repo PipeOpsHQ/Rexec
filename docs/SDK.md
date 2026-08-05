@@ -8,7 +8,7 @@ Official client libraries for the Rexec **sandbox** API (files and terminals).
 |--|--|
 | **Hosted base URL** | `https://rexec.sh` |
 | **Auth header** | `Authorization: Bearer <token>` |
-| **SDK version** | **v1.1.0** |
+| **SDK version** | **v1.2.0** |
 | **Quick start** | [SDK_GETTING_STARTED.md](SDK_GETTING_STARTED.md) |
 | **Publishing** | [SDK_PUBLISHING.md](SDK_PUBLISHING.md) |
 | **Source monorepo** | [github.com/PipeOpsHQ/Rexec](https://github.com/PipeOpsHQ/Rexec) (`sdk/{js,python,go,rust,ruby,dotnet,java,php}`) |
@@ -38,17 +38,17 @@ Typical use cases: AI agents running code safely, ephemeral dev shells, demos, a
 
 ---
 
-## Available SDKs (v1.1.0)
+## Available SDKs (v1.2.0)
 
 | Language | Package / module | Install | Import notes |
 |----------|------------------|---------|--------------|
 | **JS / TS** | [pipeops-rexec](https://www.npmjs.com/package/pipeops-rexec) | `npm install pipeops-rexec` | `import { RexecClient } from 'pipeops-rexec'` |
 | **Python** | [pipeops-rexec](https://pypi.org/project/pipeops-rexec/) | `pip install pipeops-rexec` | `from rexec import RexecClient` |
-| **Go** | [github.com/PipeOpsHQ/rexec-go](https://github.com/PipeOpsHQ/rexec-go) | `go get github.com/PipeOpsHQ/rexec-go@v1.1.0` | `import rexec "github.com/PipeOpsHQ/rexec-go"` |
+| **Go** | [github.com/PipeOpsHQ/rexec-go](https://github.com/PipeOpsHQ/rexec-go) | `go get github.com/PipeOpsHQ/rexec-go@v1.2.0` | `import rexec "github.com/PipeOpsHQ/rexec-go"` |
 | **Rust** | [pipeops-rexec](https://crates.io/crates/pipeops-rexec) | `cargo add pipeops-rexec` | `use rexec::{…}` (crate name ≠ import name) |
 | **Ruby** | [pipeops-rexec](https://rubygems.org/gems/pipeops-rexec) | `gem install pipeops-rexec` | `require "rexec"` |
 | **C# / .NET** | [PipeOps.Rexec](https://www.nuget.org/packages/PipeOps.Rexec) | `dotnet add package PipeOps.Rexec` | `using Rexec;` |
-| **Java / Kotlin** | `io.pipeops:rexec:1.1.0` | Maven/Gradle | `import io.pipeops.rexec.*` |
+| **Java / Kotlin** | `io.pipeops:rexec:1.2.0` | Maven/Gradle | `import io.pipeops.rexec.*` |
 | **PHP** | [pipeopshq/rexec](https://packagist.org/packages/pipeopshq/rexec) | `composer require pipeopshq/rexec` | `use Rexec\RexecClient` |
 
 Publishing is **GitHub Actions only** — see [SDK_PUBLISHING.md](SDK_PUBLISHING.md).
@@ -571,7 +571,7 @@ asyncio.run(main())
 ### Go
 
 ```bash
-go get github.com/PipeOpsHQ/rexec-go@v1.1.0
+go get github.com/PipeOpsHQ/rexec-go@v1.2.0
 ```
 
 ```go
@@ -686,7 +686,7 @@ await client.Sandboxes.DeleteAsync(c.Id);
 <dependency>
   <groupId>io.pipeops</groupId>
   <artifactId>rexec</artifactId>
-  <version>1.1.0</version>
+  <version>1.2.0</version>
 </dependency>
 ```
 
@@ -714,7 +714,7 @@ client.sandboxes().delete(c.id)
 ```
 
 Install from source: `cd sdk/java && mvn install -DskipTests`.  
-Maven Central coordinates: `io.pipeops:rexec:1.1.0` · [repo path](https://repo1.maven.org/maven2/io/pipeops/rexec/).
+Maven Central coordinates: `io.pipeops:rexec:1.2.0` · [repo path](https://repo1.maven.org/maven2/io/pipeops/rexec/).
 
 ### PHP
 

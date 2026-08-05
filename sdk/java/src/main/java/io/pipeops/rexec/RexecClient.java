@@ -63,7 +63,7 @@ public class RexecClient {
                     Request.Builder builder = original.newBuilder()
                             .header("Authorization", "Bearer " + token)
                             .header("Accept", "application/json")
-                            .header("User-Agent", "pipeops-rexec-java/1.1.0");
+                            .header("User-Agent", "pipeops-rexec-java/1.2.0");
                     return chain.proceed(builder.build());
                 })
                 .build();

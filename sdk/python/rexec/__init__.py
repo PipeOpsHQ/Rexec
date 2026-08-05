@@ -29,7 +29,7 @@ from rexec.exceptions import RexecError, RexecAPIError, RexecConnectionError
 from rexec.files import FileInfo, FileService
 from rexec.terminal import Terminal, TerminalService
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 __all__ = [
     "RexecClient",
     "Sandbox",

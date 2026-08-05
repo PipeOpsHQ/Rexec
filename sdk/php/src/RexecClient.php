@@ -46,7 +46,7 @@ class RexecClient
                 'Authorization' => 'Bearer ' . $token,
                 'Accept' => 'application/json',
                 'Content-Type' => 'application/json',
-                'User-Agent' => 'pipeops-rexec-php/1.1.0',
+                'User-Agent' => 'pipeops-rexec-php/1.2.0',
             ],
         ];
 

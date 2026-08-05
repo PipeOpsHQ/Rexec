@@ -165,7 +165,7 @@ asyncio.run(main())
 <summary>Go</summary>
 
 ```bash
-go get github.com/PipeOpsHQ/rexec-go@v1.1.0
+go get github.com/PipeOpsHQ/rexec-go@v1.2.0
 ```
 
 ```go
