@@ -34,6 +34,9 @@ npx -y @pipeops/rexec-mcp
 | `create_template` | Commit running sandbox → template |
 | `delete_template` | Remove template |
 | `wait_running` | Poll until running |
+| `snapshot_sandbox` | FS snapshot (docker commit) |
+| `list_snapshots` | List snapshots |
+| `fork_sandbox` | Commit + create new sandbox |
 
 ## Claude Desktop / Cursor
 

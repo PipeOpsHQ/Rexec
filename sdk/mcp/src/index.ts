@@ -107,9 +107,10 @@ async function main() {
       description:
         'Create a Rexec sandbox. Prefer image aliases (ubuntu, debian, alpine). Optionally create from template_id or set network_mode to none for offline compute.',
       inputSchema: {
-        image: z.string().optional().describe('Image alias e.g. ubuntu (omit if template_id set)'),
+        image: z.string().optional().describe('Image alias e.g. ubuntu (omit if template_id/snapshot_id set)'),
         name: z.string().optional().describe('Optional display name'),
         template_id: z.string().optional().describe('Create from a saved template'),
+        snapshot_id: z.string().optional().describe('Create from a filesystem snapshot'),
         network_mode: z
           .enum(['default', 'none', 'restricted'])
           .optional()
@@ -126,6 +127,7 @@ async function main() {
           image: args.image,
           name: args.name,
           template_id: args.template_id,
+          snapshot_id: args.snapshot_id,
           network_mode: args.network_mode,
         });
         if (args.wait_running !== false) {
@@ -310,6 +312,69 @@ async function main() {
       try {
         const s = await waitRunning(client, sandbox_id, timeout_seconds ?? 120);
         return text(s);
+      } catch (e) {
+        return errText(e);
+      }
+    }
+  );
+
+  server.registerTool(
+    'snapshot_sandbox',
+    {
+      description:
+        'Create a point-in-time filesystem snapshot of a sandbox (docker commit). Use snapshot_id later to spawn clones.',
+      inputSchema: {
+        sandbox_id: z.string(),
+        name: z.string().optional(),
+        description: z.string().optional(),
+      },
+    },
+    async ({ sandbox_id, name, description }) => {
+      try {
+        const snap = await client.sandboxes.snapshot(sandbox_id, { name, description });
+        return text(snap);
+      } catch (e) {
+        return errText(e);
+      }
+    }
+  );
+
+  server.registerTool(
+    'list_snapshots',
+    {
+      description: 'List filesystem snapshots for the current user.',
+      inputSchema: {},
+    },
+    async () => {
+      try {
+        const snapshots = await client.sandboxes.listSnapshots();
+        return text({ count: snapshots.length, snapshots });
+      } catch (e) {
+        return errText(e);
+      }
+    }
+  );
+
+  server.registerTool(
+    'fork_sandbox',
+    {
+      description:
+        'Fork a sandbox: commit its filesystem and create a new running sandbox from that image.',
+      inputSchema: {
+        sandbox_id: z.string(),
+        name: z.string().optional(),
+        network_mode: z.enum(['default', 'none', 'restricted']).optional(),
+        save_snapshot: z.boolean().optional(),
+      },
+    },
+    async ({ sandbox_id, name, network_mode, save_snapshot }) => {
+      try {
+        const fork = await client.sandboxes.fork(sandbox_id, {
+          name,
+          network_mode,
+          save_snapshot,
+        });
+        return text(fork);
       } catch (e) {
         return errText(e);
       }

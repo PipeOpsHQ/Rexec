@@ -317,6 +317,8 @@ type CreateContainerRequest struct {
 	// TemplateID creates from a saved sandbox template (docker commit image).
 	// When set, Image/CustomImage may be omitted — the template's docker_image is used.
 	TemplateID string `json:"template_id,omitempty"`
+	// SnapshotID creates from a saved sandbox snapshot (point-in-time docker commit).
+	SnapshotID string `json:"snapshot_id,omitempty"`
 	Role       string `json:"role,omitempty"` // Optional role (node, python, etc.)
 	// Labels are merged into container labels (e.g. pipeops.workspace_id for BFF tenancy).
 	// Reserved rexec.* keys set by the platform still take precedence when set after merge.

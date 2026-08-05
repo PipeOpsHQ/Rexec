@@ -41,6 +41,8 @@ export interface CreateSandboxRequest {
   custom_image?: string;
   /** Create from a saved template (committed image) */
   template_id?: string;
+  /** Create from a point-in-time snapshot */
+  snapshot_id?: string;
   /** default | none | restricted */
   network_mode?: 'default' | 'none' | 'restricted';
   /** Extra egress hosts for restricted mode (union with platform defaults). */
@@ -69,6 +71,20 @@ export interface SandboxTemplate {
   status: string;
   created_at: string;
   updated_at?: string;
+}
+
+/** Point-in-time filesystem snapshot of a sandbox. */
+export interface SandboxSnapshot {
+  id: string;
+  user_id: string;
+  name: string;
+  description?: string;
+  source_container_id?: string;
+  source_docker_id?: string;
+  base_image?: string;
+  docker_image: string;
+  status: string;
+  created_at: string;
 }
 
 /**
@@ -299,6 +315,56 @@ export class SandboxService {
   /** Delete a template. */
   async deleteTemplate(id: string): Promise<void> {
     await this.client.request('DELETE', `/api/templates/${id}`);
+  }
+
+  /** Snapshot a sandbox filesystem (docker commit). */
+  async snapshot(
+    sandboxId: string,
+    options?: { name?: string; description?: string }
+  ): Promise<SandboxSnapshot> {
+    return this.client.request<SandboxSnapshot>(
+      'POST',
+      `/api/containers/${sandboxId}/snapshot`,
+      options ?? {}
+    );
+  }
+
+  /** List snapshots for the current user. */
+  async listSnapshots(): Promise<SandboxSnapshot[]> {
+    const data = await this.client.request<
+      SandboxSnapshot[] | { snapshots?: SandboxSnapshot[] }
+    >('GET', '/api/snapshots');
+    if (Array.isArray(data)) return data;
+    return data?.snapshots ?? [];
+  }
+
+  /** Get a snapshot by id. */
+  async getSnapshot(id: string): Promise<SandboxSnapshot> {
+    return this.client.request<SandboxSnapshot>('GET', `/api/snapshots/${id}`);
+  }
+
+  /** Delete a snapshot. */
+  async deleteSnapshot(id: string): Promise<void> {
+    await this.client.request('DELETE', `/api/snapshots/${id}`);
+  }
+
+  /**
+   * Fork a sandbox: commit current FS and create a new running sandbox from it.
+   */
+  async fork(
+    sandboxId: string,
+    options?: {
+      name?: string;
+      network_mode?: 'default' | 'none' | 'restricted';
+      egress_allow?: string[];
+      idle_timeout_seconds?: number;
+      max_lifetime_seconds?: number;
+      save_snapshot?: boolean;
+      snapshot_name?: string;
+      labels?: Record<string, string>;
+    }
+  ): Promise<Sandbox & { forked?: boolean; db_id?: string; snapshot?: SandboxSnapshot }> {
+    return this.client.request('POST', `/api/containers/${sandboxId}/fork`, options ?? {});
   }
 }
 

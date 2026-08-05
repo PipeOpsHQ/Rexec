@@ -516,6 +516,7 @@ func runServer() {
 	fileHandler := handlers.NewFileHandler(containerManager, store)
 	execHandler := handlers.NewExecHandler(containerManager, store)
 	templateHandler := handlers.NewTemplateHandler(containerManager, store)
+	snapshotHandler := handlers.NewSnapshotHandler(containerManager, store)
 	sshHandler := handlers.NewSSHHandler(store, containerManager)
 	collabHandler := handlers.NewCollabHandler(store, containerManager, terminalHandler)
 	recordingHandler := handlers.NewRecordingHandler(store, os.Getenv("RECORDINGS_PATH"), containerManager)
@@ -745,6 +746,13 @@ func runServer() {
 		api.POST("/templates", containerLimiter.Middleware(), templateHandler.CreateTemplate)
 		api.GET("/templates/:id", templateHandler.GetTemplate)
 		api.DELETE("/templates/:id", templateHandler.DeleteTemplate)
+
+		// Snapshots + fork
+		api.GET("/snapshots", snapshotHandler.ListSnapshots)
+		api.GET("/snapshots/:id", snapshotHandler.GetSnapshot)
+		api.DELETE("/snapshots/:id", snapshotHandler.DeleteSnapshot)
+		api.POST("/containers/:id/snapshot", containerLimiter.Middleware(), snapshotHandler.CreateSnapshot)
+		api.POST("/containers/:id/fork", containerLimiter.Middleware(), snapshotHandler.ForkSandbox)
 
 		// Shell setup
 		api.GET("/containers/:id/shell/status", containerHandler.GetShellStatus)

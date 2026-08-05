@@ -394,6 +394,34 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 
 	ctx := c.Request.Context()
 
+	// Resolve snapshot → custom image when snapshot_id is set
+	if sid := strings.TrimSpace(req.SnapshotID); sid != "" {
+		snap, err := h.store.GetSandboxSnapshotByID(ctx, sid)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load snapshot"})
+			return
+		}
+		if snap == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "snapshot not found"})
+			return
+		}
+		if snap.UserID != userID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+			return
+		}
+		if snap.Status != "ready" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "snapshot is not ready", "status": snap.Status})
+			return
+		}
+		req.Image = "custom"
+		req.CustomImage = snap.DockerImage
+		if req.Labels == nil {
+			req.Labels = map[string]string{}
+		}
+		req.Labels["rexec.snapshot_id"] = snap.ID
+		req.Labels["rexec.snapshot_name"] = snap.Name
+	}
+
 	// Resolve template → custom image when template_id is set
 	if tid := strings.TrimSpace(req.TemplateID); tid != "" {
 		tmpl, err := h.store.GetSandboxTemplateByID(ctx, tid)
@@ -425,7 +453,7 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 	// Handle custom image validation
 	if strings.TrimSpace(req.Image) == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "image or template_id is required",
+			"error": "image, template_id, or snapshot_id is required",
 		})
 		return
 	}
@@ -1924,6 +1952,29 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 
 	// Note: Container limits now unified for all trial users (5 containers)
 
+	// Resolve snapshot → custom image
+	if sid := strings.TrimSpace(req.SnapshotID); sid != "" {
+		snap, err := h.store.GetSandboxSnapshotByID(ctx, sid)
+		if err != nil || snap == nil {
+			sendEvent(container.ProgressEvent{
+				Stage: "validating", Error: "snapshot not found", Complete: true,
+			})
+			return
+		}
+		if snap.UserID != userID {
+			sendEvent(container.ProgressEvent{
+				Stage: "validating", Error: "access denied", Complete: true,
+			})
+			return
+		}
+		req.Image = "custom"
+		req.CustomImage = snap.DockerImage
+		if req.Labels == nil {
+			req.Labels = map[string]string{}
+		}
+		req.Labels["rexec.snapshot_id"] = snap.ID
+	}
+
 	// Resolve template → custom image
 	if tid := strings.TrimSpace(req.TemplateID); tid != "" {
 		tmpl, err := h.store.GetSandboxTemplateByID(ctx, tid)
@@ -1950,7 +2001,7 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 	// Handle custom image validation
 	if strings.TrimSpace(req.Image) == "" {
 		sendEvent(container.ProgressEvent{
-			Stage: "validating", Error: "image or template_id is required", Complete: true,
+			Stage: "validating", Error: "image, template_id, or snapshot_id is required", Complete: true,
 		})
 		return
 	}

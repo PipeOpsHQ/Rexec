@@ -284,6 +284,41 @@ When `network_mode` is `restricted`, the sandbox gets `HTTP_PROXY`/`HTTPS_PROXY`
 
 ---
 
+## Snapshots & fork {#snapshots}
+
+Point-in-time **filesystem** copies via `docker commit` (same underlying mechanism as templates; separate API for agent “branch my env” flows).
+
+| Method | HTTP |
+|--------|------|
+| **Snapshot** | `POST /api/containers/:id/snapshot` `{ name?, description? }` |
+| **List** | `GET /api/snapshots` |
+| **Get** | `GET /api/snapshots/:id` |
+| **Delete** | `DELETE /api/snapshots/:id` |
+| **Fork** | `POST /api/containers/:id/fork` — commit + create new running sandbox |
+| **Create from snapshot** | `POST /api/containers` `{ snapshot_id, name? }` |
+
+```typescript
+const snap = await client.sandboxes.snapshot(id, { name: 'before-refactor' });
+const clone = await client.sandboxes.create({ snapshot_id: snap.id });
+
+// or one-shot fork (new running sandbox from current FS)
+const forked = await client.sandboxes.fork(id, {
+  name: 'experiment',
+  save_snapshot: true,
+  network_mode: 'restricted',
+});
+```
+
+```python
+snap = await client.sandboxes.snapshot(sid, name="before-refactor")
+clone = await client.sandboxes.create(snapshot_id=snap.id)
+forked = await client.sandboxes.fork(sid, name="experiment", save_snapshot=True)
+```
+
+Local image tags: `rexec-snapshot/<user>/<id>:latest` / `rexec-fork/...` (not pushed to a registry in v1).
+
+---
+
 ## Warm pool & lifecycle {#warm-pool}
 
 ### Warm pool (server config)

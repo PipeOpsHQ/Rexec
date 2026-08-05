@@ -12,6 +12,7 @@ from rexec.types import (
     CreateSandboxRequest,
     ExecResult,
     Sandbox,
+    SandboxSnapshot,
     SandboxTemplate,
 )
 
@@ -27,6 +28,7 @@ __all__ = [
     "CreateContainerRequest",
     "ExecResult",
     "SandboxTemplate",
+    "SandboxSnapshot",
 ]
 
 
@@ -74,6 +76,7 @@ class SandboxService:
         environment: Optional[dict] = None,
         labels: Optional[dict] = None,
         template_id: Optional[str] = None,
+        snapshot_id: Optional[str] = None,
         network_mode: Optional[str] = None,
         egress_allow: Optional[List[str]] = None,
         custom_image: Optional[str] = None,
@@ -105,6 +108,7 @@ class SandboxService:
             name=name,
             custom_image=custom_image,
             template_id=template_id,
+            snapshot_id=snapshot_id,
             network_mode=network_mode,
             egress_allow=egress_allow,
             idle_timeout_seconds=idle_timeout_seconds,
@@ -208,6 +212,72 @@ class SandboxService:
 
     async def delete_template(self, template_id: str) -> None:
         await self._client._request("DELETE", f"/api/templates/{template_id}")
+
+    async def snapshot(
+        self,
+        sandbox_id: str,
+        *,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> SandboxSnapshot:
+        """Create a point-in-time filesystem snapshot of a sandbox."""
+        body: dict = {}
+        if name:
+            body["name"] = name
+        if description:
+            body["description"] = description
+        data = await self._client._request(
+            "POST", f"/api/containers/{sandbox_id}/snapshot", json=body
+        )
+        return SandboxSnapshot.from_dict(data or {})
+
+    async def list_snapshots(self) -> List[SandboxSnapshot]:
+        data = await self._client._request("GET", "/api/snapshots")
+        items = data if isinstance(data, list) else (data or {}).get("snapshots") or []
+        return [SandboxSnapshot.from_dict(s) for s in items]
+
+    async def get_snapshot(self, snapshot_id: str) -> SandboxSnapshot:
+        data = await self._client._request("GET", f"/api/snapshots/{snapshot_id}")
+        return SandboxSnapshot.from_dict(data or {})
+
+    async def delete_snapshot(self, snapshot_id: str) -> None:
+        await self._client._request("DELETE", f"/api/snapshots/{snapshot_id}")
+
+    async def fork(
+        self,
+        sandbox_id: str,
+        *,
+        name: Optional[str] = None,
+        network_mode: Optional[str] = None,
+        egress_allow: Optional[List[str]] = None,
+        idle_timeout_seconds: Optional[int] = None,
+        max_lifetime_seconds: Optional[int] = None,
+        save_snapshot: bool = False,
+        snapshot_name: Optional[str] = None,
+        labels: Optional[dict] = None,
+    ) -> Sandbox:
+        """Commit current FS and create a new sandbox from it."""
+        body: dict = {}
+        if name:
+            body["name"] = name
+        if network_mode:
+            body["network_mode"] = network_mode
+        if egress_allow:
+            body["egress_allow"] = egress_allow
+        if idle_timeout_seconds is not None:
+            body["idle_timeout_seconds"] = idle_timeout_seconds
+        if max_lifetime_seconds is not None:
+            body["max_lifetime_seconds"] = max_lifetime_seconds
+        if save_snapshot:
+            body["save_snapshot"] = True
+        if snapshot_name:
+            body["snapshot_name"] = snapshot_name
+        if labels:
+            body["labels"] = labels
+        data = await self._client._request(
+            "POST", f"/api/containers/{sandbox_id}/fork", json=body
+        )
+        return Sandbox.from_dict(data or {})
 
 
 # Backward-compatible alias (same class)
