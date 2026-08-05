@@ -482,6 +482,8 @@ jobs:
       - name: Sync version in composer.json
         run: |
           VERSION="${{ needs.setup.outputs.version }}"
+          # Library packages should not ship a lockfile; stamping version dirties it.
+          rm -f composer.lock
           if command -v jq >/dev/null 2>&1; then
             jq --arg v "$VERSION" '.version = $v' composer.json > composer.json.tmp
             mv composer.json.tmp composer.json
@@ -492,7 +494,8 @@ jobs:
           grep -E '"version"' composer.json || true
 
       - name: Validate composer.json
-        run: composer validate --no-check-publish
+        # --no-check-publish: version field is OK for tagged VCS packages
+        run: composer validate --no-check-publish --no-check-version
 
       - name: Syntax check
         run: |
