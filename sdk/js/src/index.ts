@@ -35,18 +35,91 @@ export type Container = Sandbox;
 export interface CreateSandboxRequest {
   /** Sandbox name (optional) */
   name?: string;
-  /** Image alias (e.g. ubuntu, debian, alpine) */
-  image: string;
+  /** Image alias (e.g. ubuntu, debian, alpine). Optional when template_id is set. */
+  image?: string;
+  /** Full image ref when image is "custom" */
+  custom_image?: string;
+  /** Create from a saved template (committed image) */
+  template_id?: string;
+  /** Create from a point-in-time snapshot */
+  snapshot_id?: string;
+  /** default | none | restricted */
+  network_mode?: 'default' | 'none' | 'restricted';
+  /** Extra egress hosts for restricted mode (union with platform defaults). */
+  egress_allow?: string[];
+  /** Stop after N seconds idle (Touch on exec/terminal). */
+  idle_timeout_seconds?: number;
+  /** Hard TTL from create (sets expires_at). */
+  max_lifetime_seconds?: number;
+  /** Prefer warm-pool claim when stock available (default true if pool enabled). */
+  prefer_warm?: boolean;
   /** Environment variables */
   environment?: Record<string, string>;
   /** Labels */
   labels?: Record<string, string>;
 }
 
+/** Saved sandbox template (docker commit of a running sandbox). */
+export interface SandboxTemplate {
+  id: string;
+  user_id: string;
+  name: string;
+  description?: string;
+  base_image?: string;
+  docker_image: string;
+  source_container_id?: string;
+  status: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+/** Point-in-time filesystem snapshot of a sandbox. */
+export interface SandboxSnapshot {
+  id: string;
+  user_id: string;
+  name: string;
+  description?: string;
+  source_container_id?: string;
+  source_docker_id?: string;
+  base_image?: string;
+  docker_image: string;
+  status: string;
+  created_at: string;
+}
+
 /**
  * @deprecated Use {@link CreateSandboxRequest}.
  */
 export type CreateContainerRequest = CreateSandboxRequest;
+
+/** Result of a non-interactive sandbox exec. */
+export interface ExecResult {
+  stdout: string;
+  stderr: string;
+  /** Combined stdout+stderr for simple clients */
+  output: string;
+  exit_code: number;
+  duration_ms?: number;
+  truncated?: boolean;
+  command?: string;
+  cmd?: string[];
+}
+
+/** Options for {@link SandboxService.exec}. */
+export interface ExecOptions {
+  /** Shell command (run via `sh -c`). Prefer this or `cmd`. */
+  command?: string;
+  /** Argv vector; takes precedence over `command` when non-empty. */
+  cmd?: string[];
+  /** Working directory inside the sandbox */
+  workdir?: string;
+  /** Extra env as `KEY=VALUE` strings */
+  env?: string[];
+  /** User to run as inside the sandbox */
+  user?: string;
+  /** Timeout in seconds (default 60, max 300) */
+  timeout_seconds?: number;
+}
 
 export interface FileInfo {
   name: string;
@@ -193,6 +266,105 @@ export class SandboxService {
   /** Stop a sandbox. */
   async stop(id: string): Promise<void> {
     await this.client.request('POST', `/api/containers/${id}/stop`);
+  }
+
+  /**
+   * Run a non-interactive command in a running sandbox.
+   * Wire: `POST /api/containers/:id/exec`
+   *
+   * @example
+   * ```ts
+   * const r = await client.sandboxes.exec(id, { command: 'echo hello' });
+   * console.log(r.stdout, r.exit_code);
+   * // argv form:
+   * await client.sandboxes.exec(id, { cmd: ['uname', '-a'] });
+   * ```
+   */
+  async exec(id: string, options: ExecOptions | string): Promise<ExecResult> {
+    const body: ExecOptions =
+      typeof options === 'string' ? { command: options } : options;
+    if (!body.command && (!body.cmd || body.cmd.length === 0)) {
+      throw new Error('exec requires command or cmd');
+    }
+    return this.client.request<ExecResult>('POST', `/api/containers/${id}/exec`, body);
+  }
+
+  /** List sandbox templates for the current user. */
+  async listTemplates(): Promise<SandboxTemplate[]> {
+    const data = await this.client.request<
+      SandboxTemplate[] | { templates?: SandboxTemplate[] }
+    >('GET', '/api/templates');
+    if (Array.isArray(data)) return data;
+    return data?.templates ?? [];
+  }
+
+  /** Create a template by committing a running sandbox. */
+  async createTemplate(options: {
+    name: string;
+    from_sandbox_id: string;
+    description?: string;
+  }): Promise<SandboxTemplate> {
+    return this.client.request<SandboxTemplate>('POST', '/api/templates', options);
+  }
+
+  /** Get a template by id. */
+  async getTemplate(id: string): Promise<SandboxTemplate> {
+    return this.client.request<SandboxTemplate>('GET', `/api/templates/${id}`);
+  }
+
+  /** Delete a template. */
+  async deleteTemplate(id: string): Promise<void> {
+    await this.client.request('DELETE', `/api/templates/${id}`);
+  }
+
+  /** Snapshot a sandbox filesystem (docker commit). */
+  async snapshot(
+    sandboxId: string,
+    options?: { name?: string; description?: string }
+  ): Promise<SandboxSnapshot> {
+    return this.client.request<SandboxSnapshot>(
+      'POST',
+      `/api/containers/${sandboxId}/snapshot`,
+      options ?? {}
+    );
+  }
+
+  /** List snapshots for the current user. */
+  async listSnapshots(): Promise<SandboxSnapshot[]> {
+    const data = await this.client.request<
+      SandboxSnapshot[] | { snapshots?: SandboxSnapshot[] }
+    >('GET', '/api/snapshots');
+    if (Array.isArray(data)) return data;
+    return data?.snapshots ?? [];
+  }
+
+  /** Get a snapshot by id. */
+  async getSnapshot(id: string): Promise<SandboxSnapshot> {
+    return this.client.request<SandboxSnapshot>('GET', `/api/snapshots/${id}`);
+  }
+
+  /** Delete a snapshot. */
+  async deleteSnapshot(id: string): Promise<void> {
+    await this.client.request('DELETE', `/api/snapshots/${id}`);
+  }
+
+  /**
+   * Fork a sandbox: commit current FS and create a new running sandbox from it.
+   */
+  async fork(
+    sandboxId: string,
+    options?: {
+      name?: string;
+      network_mode?: 'default' | 'none' | 'restricted';
+      egress_allow?: string[];
+      idle_timeout_seconds?: number;
+      max_lifetime_seconds?: number;
+      save_snapshot?: boolean;
+      snapshot_name?: string;
+      labels?: Record<string, string>;
+    }
+  ): Promise<Sandbox & { forked?: boolean; db_id?: string; snapshot?: SandboxSnapshot }> {
+    return this.client.request('POST', `/api/containers/${sandboxId}/fork`, options ?? {});
   }
 }
 

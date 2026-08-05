@@ -30,6 +30,21 @@ console.log('[js] get...');
 const got = await client.containers.get(c.id);
 console.log('[js] get', got.id, got.status);
 
+// Wait briefly for running if still creating (best-effort)
+let sid = c.id;
+for (let i = 0; i < 30; i++) {
+  const s = await client.sandboxes.get(sid);
+  if (s.status === 'running') break;
+  if (s.status === 'error') throw new Error('sandbox error');
+  await new Promise((r) => setTimeout(r, 1000));
+}
+
+console.log('[js] exec...');
+const execSandboxes = client.sandboxes || client.containers;
+const r = await execSandboxes.exec(sid, { command: 'echo rexec-e2e && uname -s' });
+console.log('[js] exec exit', r.exit_code, 'out', (r.stdout || r.output || '').slice(0, 80));
+if (r.exit_code !== 0) throw new Error('exec failed: ' + r.exit_code);
+
 console.log('[js] delete...');
 await client.containers.delete(c.id);
 console.log('[js] OK');

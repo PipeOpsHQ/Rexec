@@ -444,6 +444,24 @@ func runServer() {
 		defer cleanupService.Stop()
 	}
 
+	// Restricted-mode HTTP(S) egress allowlist proxy
+	var egressProxy *container.EgressProxy
+	if container.EgressEnabled() {
+		egressProxy = container.NewEgressProxy(container.ParseEgressListen())
+		if err := egressProxy.Start(); err != nil {
+			log.Printf("⚠️  Egress proxy failed to start (restricted mode will deny network): %v", err)
+			egressProxy = nil
+		} else {
+			containerManager.SetEgressProxy(egressProxy)
+			defer egressProxy.Stop()
+		}
+	}
+
+	// Warm pool of pre-created sandboxes (WARM_POOL=ubuntu:2,debian:1)
+	warmPool := container.NewWarmPoolService(containerManager, container.ParseWarmPoolConfig())
+	warmPool.Start()
+	defer warmPool.Stop()
+
 	// Start reconciler service to sync DB state with Docker
 	reconcilerService := container.NewReconcilerService(
 		containerManager,
@@ -490,11 +508,15 @@ func runServer() {
 	authHandler := handlers.NewAuthHandler(store, adminEventsHub, jwtSecret)
 	securityHandler := handlers.NewSecurityHandler(store, jwtSecret)
 	containerHandler := handlers.NewContainerHandler(containerManager, store, adminEventsHub)
+	containerHandler.SetWarmPool(warmPool)
 	containerEventsHub := handlers.NewContainerEventsHub(containerManager, store)
 	containerHandler.SetEventsHub(containerEventsHub)
 	terminalHandler := handlers.NewTerminalHandler(containerManager, store, adminEventsHub)
 	terminalHandler.SetProviderRegistry(providerRegistry) // Enable VM terminal support
 	fileHandler := handlers.NewFileHandler(containerManager, store)
+	execHandler := handlers.NewExecHandler(containerManager, store)
+	templateHandler := handlers.NewTemplateHandler(containerManager, store)
+	snapshotHandler := handlers.NewSnapshotHandler(containerManager, store)
 	sshHandler := handlers.NewSSHHandler(store, containerManager)
 	collabHandler := handlers.NewCollabHandler(store, containerManager, terminalHandler)
 	recordingHandler := handlers.NewRecordingHandler(store, os.Getenv("RECORDINGS_PATH"), containerManager)
@@ -716,6 +738,21 @@ func runServer() {
 		api.DELETE("/containers/:id", containerHandler.Delete)
 		api.POST("/containers/:id/start", containerHandler.Start)
 		api.POST("/containers/:id/stop", containerHandler.Stop)
+		// Non-interactive command execution (agents / SDK / Cortex)
+		api.POST("/containers/:id/exec", containerLimiter.Middleware(), execHandler.Exec)
+
+		// Sandbox templates (commit running sandbox → reuse image)
+		api.GET("/templates", templateHandler.ListTemplates)
+		api.POST("/templates", containerLimiter.Middleware(), templateHandler.CreateTemplate)
+		api.GET("/templates/:id", templateHandler.GetTemplate)
+		api.DELETE("/templates/:id", templateHandler.DeleteTemplate)
+
+		// Snapshots + fork
+		api.GET("/snapshots", snapshotHandler.ListSnapshots)
+		api.GET("/snapshots/:id", snapshotHandler.GetSnapshot)
+		api.DELETE("/snapshots/:id", snapshotHandler.DeleteSnapshot)
+		api.POST("/containers/:id/snapshot", containerLimiter.Middleware(), snapshotHandler.CreateSnapshot)
+		api.POST("/containers/:id/fork", containerLimiter.Middleware(), snapshotHandler.ForkSandbox)
 
 		// Shell setup
 		api.GET("/containers/:id/shell/status", containerHandler.GetShellStatus)

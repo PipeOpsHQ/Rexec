@@ -75,6 +75,7 @@ type ContainerHandler struct {
 	eventsHub      *ContainerEventsHub
 	adminEventsHub *admin_events.AdminEventsHub
 	agentHandler   *AgentHandler // Reference to get online agents
+	warmPool       *container.WarmPoolService
 }
 
 // NewContainerHandler creates a new container handler
@@ -84,6 +85,11 @@ func NewContainerHandler(manager *container.Manager, store *storage.PostgresStor
 		store:          store,
 		adminEventsHub: adminEventsHub,
 	}
+}
+
+// SetWarmPool attaches an optional warm-pool service for instant creates.
+func (h *ContainerHandler) SetWarmPool(wp *container.WarmPoolService) {
+	h.warmPool = wp
 }
 
 // SetEventsHub sets the events hub for real-time notifications
@@ -388,7 +394,69 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 
 	ctx := c.Request.Context()
 
+	// Resolve snapshot → custom image when snapshot_id is set
+	if sid := strings.TrimSpace(req.SnapshotID); sid != "" {
+		snap, err := h.store.GetSandboxSnapshotByID(ctx, sid)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load snapshot"})
+			return
+		}
+		if snap == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "snapshot not found"})
+			return
+		}
+		if snap.UserID != userID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+			return
+		}
+		if snap.Status != "ready" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "snapshot is not ready", "status": snap.Status})
+			return
+		}
+		req.Image = "custom"
+		req.CustomImage = snap.DockerImage
+		if req.Labels == nil {
+			req.Labels = map[string]string{}
+		}
+		req.Labels["rexec.snapshot_id"] = snap.ID
+		req.Labels["rexec.snapshot_name"] = snap.Name
+	}
+
+	// Resolve template → custom image when template_id is set
+	if tid := strings.TrimSpace(req.TemplateID); tid != "" {
+		tmpl, err := h.store.GetSandboxTemplateByID(ctx, tid)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load template"})
+			return
+		}
+		if tmpl == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "template not found"})
+			return
+		}
+		if tmpl.UserID != userID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+			return
+		}
+		if tmpl.Status != "ready" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "template is not ready", "status": tmpl.Status})
+			return
+		}
+		req.Image = "custom"
+		req.CustomImage = tmpl.DockerImage
+		if req.Labels == nil {
+			req.Labels = map[string]string{}
+		}
+		req.Labels["rexec.template_id"] = tmpl.ID
+		req.Labels["rexec.template_name"] = tmpl.Name
+	}
+
 	// Handle custom image validation
+	if strings.TrimSpace(req.Image) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "image, template_id, or snapshot_id is required",
+		})
+		return
+	}
 	if req.Image == "custom" {
 		if req.CustomImage == "" {
 			c.JSON(http.StatusBadRequest, gin.H{
@@ -412,6 +480,18 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 			})
 			return
 		}
+	}
+
+	// Network mode validation
+	netMode := strings.ToLower(strings.TrimSpace(req.NetworkMode))
+	switch netMode {
+	case "", "default", "none", "restricted":
+		// ok
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid network_mode: use default, none, or restricted",
+		})
+		return
 	}
 
 	// Auto-generate name if not provided
@@ -496,6 +576,74 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 		}
 	}
 
+	// Apply lifecycle labels helpers
+	applyLifecycle := func(labels map[string]string) {
+		if labels == nil {
+			return
+		}
+		if req.IdleTimeoutSeconds > 0 {
+			labels["rexec.idle_timeout_sec"] = strconv.Itoa(req.IdleTimeoutSeconds)
+		}
+		if req.MaxLifetimeSeconds > 0 {
+			exp := time.Now().Add(time.Duration(req.MaxLifetimeSeconds) * time.Second)
+			labels["rexec.expires_at"] = exp.UTC().Format(time.RFC3339)
+			labels["rexec.max_lifetime_sec"] = strconv.Itoa(req.MaxLifetimeSeconds)
+		}
+	}
+
+	// Try warm pool claim for instant running sandbox (standard image aliases only)
+	preferWarm := req.PreferWarm == nil || *req.PreferWarm
+	if preferWarm && h.warmPool != nil && strings.TrimSpace(req.TemplateID) == "" &&
+		req.Image != "custom" && req.Image != "" {
+		if claimed, err := h.warmPool.Claim(req.Image, userID, containerName); err == nil && claimed != nil {
+			applyLifecycle(claimed.Labels)
+			record := &storage.ContainerRecord{
+				ID:         uuid.New().String(),
+				UserID:     userID,
+				Name:       containerName,
+				Image:      imageName,
+				Role:       req.Role,
+				Status:     "running",
+				DockerID:   claimed.ID,
+				VolumeName: "rexec-" + userID + "-" + containerName,
+				MemoryMB:   limits.MemoryMB,
+				CPUShares:  limits.CPUShares,
+				DiskMB:     limits.DiskMB,
+				CreatedAt:  time.Now(),
+				LastUsedAt: time.Now(),
+			}
+			if err := h.store.CreateContainer(ctx, record); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save claimed sandbox: " + err.Error()})
+				return
+			}
+			if h.adminEventsHub != nil {
+				h.adminEventsHub.Broadcast("container_created", record)
+			}
+			resp := gin.H{
+				"id":         claimed.ID,
+				"db_id":      record.ID,
+				"user_id":    userID,
+				"name":       containerName,
+				"image":      imageName,
+				"role":       req.Role,
+				"status":     "running",
+				"created_at": record.CreatedAt,
+				"warm":       true,
+				"message":    "Claimed from warm pool",
+				"resources": gin.H{
+					"memory_mb":  limits.MemoryMB,
+					"cpu_shares": limits.CPUShares,
+					"disk_mb":    limits.DiskMB,
+				},
+			}
+			if exp, ok := claimed.Labels["rexec.expires_at"]; ok {
+				resp["expires_at"] = exp
+			}
+			c.JSON(http.StatusOK, resp)
+			return
+		}
+	}
+
 	// Store a pending record in database first (async creation)
 	record := &storage.ContainerRecord{
 		ID:         uuid.New().String(),
@@ -535,6 +683,7 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 		ImageType:     req.Image,
 		CustomImage:   req.CustomImage,
 		Role:          req.Role,
+		NetworkMode:   netMode,
 		Labels: map[string]string{
 			"rexec.tier":     tier,
 			"rexec.user_id":  userID,
@@ -542,6 +691,13 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 			"rexec.use_tmux": useTmux,
 		},
 	}
+	if netMode != "" && netMode != "default" {
+		cfg.Labels["rexec.network_mode"] = netMode
+	}
+	if len(req.EgressAllow) > 0 {
+		cfg.EgressAllow = req.EgressAllow
+	}
+	applyLifecycle(cfg.Labels)
 
 	// Merge caller-provided labels (e.g. pipeops.workspace_id from PipeOps BFF).
 	// Platform rexec.* keys set above win if both set the same key.
@@ -562,16 +718,21 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 		cfg.Labels["rexec.tier"] = "guest"
 		cfg.Labels["rexec.guest"] = "true"
 		// Use token expiration if available (more accurate), otherwise calculate from now
-		if tokenExp, exists := c.Get("tokenExp"); exists {
-			expiresAt := time.Unix(tokenExp.(int64), 0)
-			cfg.Labels["rexec.expires_at"] = expiresAt.Format(time.RFC3339)
-		} else {
-			cfg.Labels["rexec.expires_at"] = time.Now().Add(GuestMaxContainerDuration).Format(time.RFC3339)
+		// (do not override explicit max_lifetime_seconds)
+		if _, hasExp := cfg.Labels["rexec.expires_at"]; !hasExp {
+			if tokenExp, exists := c.Get("tokenExp"); exists {
+				expiresAt := time.Unix(tokenExp.(int64), 0)
+				cfg.Labels["rexec.expires_at"] = expiresAt.Format(time.RFC3339)
+			} else {
+				cfg.Labels["rexec.expires_at"] = time.Now().Add(GuestMaxContainerDuration).Format(time.RFC3339)
+			}
 		}
 	} else if (tier == "free" || tier == "trial") && !subscriptionActive {
 		// Enforce 50-hour session limit for free users without active subscription
-		expiresAt := time.Now().Add(models.AuthenticatedSessionDuration)
-		cfg.Labels["rexec.expires_at"] = expiresAt.Format(time.RFC3339)
+		if _, hasExp := cfg.Labels["rexec.expires_at"]; !hasExp {
+			expiresAt := time.Now().Add(models.AuthenticatedSessionDuration)
+			cfg.Labels["rexec.expires_at"] = expiresAt.Format(time.RFC3339)
+		}
 	}
 
 	// Apply resource limits to container config (use validated request values)
@@ -1791,7 +1952,59 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 
 	// Note: Container limits now unified for all trial users (5 containers)
 
+	// Resolve snapshot → custom image
+	if sid := strings.TrimSpace(req.SnapshotID); sid != "" {
+		snap, err := h.store.GetSandboxSnapshotByID(ctx, sid)
+		if err != nil || snap == nil {
+			sendEvent(container.ProgressEvent{
+				Stage: "validating", Error: "snapshot not found", Complete: true,
+			})
+			return
+		}
+		if snap.UserID != userID {
+			sendEvent(container.ProgressEvent{
+				Stage: "validating", Error: "access denied", Complete: true,
+			})
+			return
+		}
+		req.Image = "custom"
+		req.CustomImage = snap.DockerImage
+		if req.Labels == nil {
+			req.Labels = map[string]string{}
+		}
+		req.Labels["rexec.snapshot_id"] = snap.ID
+	}
+
+	// Resolve template → custom image
+	if tid := strings.TrimSpace(req.TemplateID); tid != "" {
+		tmpl, err := h.store.GetSandboxTemplateByID(ctx, tid)
+		if err != nil || tmpl == nil {
+			sendEvent(container.ProgressEvent{
+				Stage: "validating", Error: "template not found", Complete: true,
+			})
+			return
+		}
+		if tmpl.UserID != userID {
+			sendEvent(container.ProgressEvent{
+				Stage: "validating", Error: "access denied", Complete: true,
+			})
+			return
+		}
+		req.Image = "custom"
+		req.CustomImage = tmpl.DockerImage
+		if req.Labels == nil {
+			req.Labels = map[string]string{}
+		}
+		req.Labels["rexec.template_id"] = tmpl.ID
+	}
+
 	// Handle custom image validation
+	if strings.TrimSpace(req.Image) == "" {
+		sendEvent(container.ProgressEvent{
+			Stage: "validating", Error: "image, template_id, or snapshot_id is required", Complete: true,
+		})
+		return
+	}
 	if req.Image == "custom" {
 		if req.CustomImage == "" {
 			sendEvent(container.ProgressEvent{
@@ -1930,16 +2143,22 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 		useTmux = "true"
 	}
 
+	netModeProgress := strings.ToLower(strings.TrimSpace(req.NetworkMode))
 	cfg := container.ContainerConfig{
 		UserID:        userID,
 		ContainerName: containerName,
 		ImageType:     req.Image,
 		CustomImage:   req.CustomImage,
+		NetworkMode:   netModeProgress,
+		EgressAllow:   req.EgressAllow,
 		Labels: map[string]string{
 			"rexec.tier":     tier,
 			"rexec.user_id":  userID,
 			"rexec.use_tmux": useTmux,
 		},
+	}
+	if netModeProgress != "" && netModeProgress != "default" {
+		cfg.Labels["rexec.network_mode"] = netModeProgress
 	}
 
 	// Merge caller-provided labels (e.g. pipeops.workspace_id).

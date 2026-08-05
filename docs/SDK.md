@@ -15,6 +15,7 @@ Official client libraries for the Rexec **sandbox** API (files and terminals).
 | **In-app docs** | `/docs/sdk` on the product UI |
 | **PipeOps docs** | [docs.pipeops.io — Rexec Sandboxes](https://docs.pipeops.io/docs/rexec/overview) (when published) |
 | **E2E smoke** | [`scripts/sdk-e2e/`](../scripts/sdk-e2e/) (`test-js.mjs`, `test_py.py`, Go/Rust/Ruby/.NET/Java/PHP runners) |
+| **MCP (agents)** | [`sdk/mcp`](../sdk/mcp/) — `@pipeops/rexec-mcp` (stdio tools for create/exec/templates) |
 
 > **Verified E2E** against a live Rexec instance: `list` → `create` → `get` → `delete`.
 
@@ -33,7 +34,7 @@ Typical use cases: AI agents running code safely, ephemeral dev shells, demos, a
 
 **Lifecycle:** `create` → often `creating` (async) → `running` ⇄ `stopped` → `delete` (or `error`).
 
-There is **no** primary HTTP `exec()` on hosted Rexec — run commands via the [terminal WebSocket](#terminal-websocket).
+**Interactive commands** use the [terminal WebSocket](#terminal-websocket). **Non-interactive / agent commands** use the [exec API](#exec-api).
 
 ---
 
@@ -116,6 +117,10 @@ Prefer **`client.sandboxes`** (or `Sandboxes` / `sandboxes()`). Legacy **`client
 | **Start** | `POST /api/containers/:id/start` | |
 | **Stop** | `POST /api/containers/:id/stop` | |
 | **Delete** | `DELETE /api/containers/:id` | Destroys the sandbox |
+| **Exec** | `POST /api/containers/:id/exec` | One-shot command; see [Exec API](#exec-api) |
+| **Templates** | `GET/POST /api/templates` | Commit a running sandbox and create from it; see [Templates](#templates) |
+
+Create options: `template_id`, `network_mode` (`default` \| `none` \| `restricted`).
 
 ### Files (per sandbox)
 
@@ -134,11 +139,227 @@ Prefer **`client.sandboxes`** (or `Sandboxes` / `sandboxes()`). Legacy **`client
 | **Connect** | WebSocket `wss://<host>/ws/terminal/:id?cols=&rows=` with Bearer auth |
 | **write / onData / resize / close** | SDK helpers over the socket |
 
-### Explicit non-features
+### Explicit non-features / caveats
 
-- **No first-class `exec()` HTTP API** on hosted Rexec. Do not treat `exec` as the primary way to run commands. Use the **terminal WebSocket** (or raw HTTP if you build your own client).
-- **Create is often async** — poll `get()` until `running` when you need a ready PTY.
+- **Create is often async** — poll `get()` until `running` before terminal or exec.
 - **Hosted images use aliases**, not arbitrary Docker Hub tags.
+- Prefer **exec** for agents; prefer **terminal WebSocket** for interactive shells.
+
+---
+
+## Exec API {#exec-api}
+
+Run a non-interactive command in a **running** sandbox (agent-friendly).
+
+| | |
+|--|--|
+| **HTTP** | `POST /api/containers/:id/exec` |
+| **Auth** | Bearer token (owner of sandbox) |
+| **SDK** | `client.sandboxes.exec(id, …)` (JS / Python) |
+
+### Request body
+
+```json
+{
+  "command": "echo hello && uname -a",
+  "timeout_seconds": 60
+}
+```
+
+Or argv form (takes precedence when non-empty):
+
+```json
+{
+  "cmd": ["uname", "-a"],
+  "workdir": "/home/user",
+  "env": ["FOO=bar"],
+  "user": "root",
+  "timeout_seconds": 30
+}
+```
+
+| Field | Notes |
+|-------|--------|
+| `command` | Shell string → run as `sh -c <command>` when `cmd` is empty |
+| `cmd` | Argv vector |
+| `workdir` | Optional working directory |
+| `env` | Optional `KEY=VALUE` list |
+| `user` | Optional user inside sandbox |
+| `timeout_seconds` | Default **60**, max **300** |
+
+### Response
+
+```json
+{
+  "stdout": "hello\n",
+  "stderr": "",
+  "output": "hello\n",
+  "exit_code": 0,
+  "duration_ms": 42,
+  "command": "echo hello"
+}
+```
+
+| Field | Notes |
+|-------|--------|
+| `stdout` / `stderr` | Demuxed Docker attach streams |
+| `output` | Combined for simple clients |
+| `exit_code` | Process exit code (`-1` on timeout) |
+| `duration_ms` | Wall time |
+| `truncated` | `true` if output hit the 1 MiB cap |
+
+Timeouts return **504** with partial `stdout`/`stderr` when available.
+
+### Examples
+
+```typescript
+const r = await client.sandboxes.exec(sandbox.id, { command: 'echo hello' });
+console.log(r.stdout, r.exit_code);
+
+await client.sandboxes.exec(sandbox.id, { cmd: ['python3', '-c', 'print(1+1)'] });
+// shorthand:
+await client.sandboxes.exec(sandbox.id, 'uname -a');
+```
+
+```python
+r = await client.sandboxes.exec(sandbox.id, "echo hello")
+print(r.stdout, r.exit_code)
+
+r = await client.sandboxes.exec(sandbox.id, cmd=["uname", "-a"])
+```
+
+---
+
+## Templates {#templates}
+
+Save a running sandbox as a **local Docker image** and spawn new sandboxes from it (agent warm-start pattern).
+
+| Method | HTTP |
+|--------|------|
+| **List** | `GET /api/templates` → `{ templates, count }` |
+| **Create** | `POST /api/templates` body `{ name, from_sandbox_id, description? }` |
+| **Get** | `GET /api/templates/:id` |
+| **Delete** | `DELETE /api/templates/:id` |
+| **Create sandbox from template** | `POST /api/containers` body `{ template_id, name? }` |
+
+Create-template requires the source sandbox to be **running** (uses `docker commit`). Images are tagged locally as `rexec-template/<user>/<id>:latest` (not pushed to a registry in v1).
+
+```typescript
+const tpl = await client.sandboxes.createTemplate({
+  name: 'with-deps',
+  from_sandbox_id: sandbox.id,
+});
+const clone = await client.sandboxes.create({ template_id: tpl.id, name: 'job-2' });
+```
+
+### Network mode on create
+
+| `network_mode` | Behavior |
+|----------------|----------|
+| `default` / omit | Isolated bridge (`rexec-isolated`) with full outbound |
+| `none` | No network (strong isolation for pure compute) |
+| `restricted` | HTTP(S) **only** via host egress proxy + host allowlist |
+
+### Restricted egress allowlist
+
+When `network_mode` is `restricted`, the sandbox gets `HTTP_PROXY`/`HTTPS_PROXY` pointing at a host-side CONNECT proxy. Raw TCP (SSH, custom ports) is not proxied.
+
+- **Defaults:** package mirrors (Ubuntu/Debian/Alpine), PyPI, npm, GitHub, Go modules, crates.io, Maven, RubyGems (see `DefaultRestrictedEgressAllow`).
+- **Override defaults:** server env `RESTRICTED_EGRESS_ALLOW=host1,*.example.com`
+- **Per create extras:** `egress_allow: ["api.openai.com","*.anthropic.com"]` (union with defaults)
+- **Disable proxy:** `RESTRICTED_EGRESS_ENABLED=false` (restricted then falls back to no network)
+- **Listen:** `RESTRICTED_EGRESS_PROXY_ADDR=:13128`
+
+```json
+{
+  "image": "ubuntu",
+  "network_mode": "restricted",
+  "egress_allow": ["api.openai.com", "api.anthropic.com"]
+}
+```
+
+```json
+{ "image": "ubuntu", "network_mode": "none" }
+```
+
+---
+
+## Snapshots & fork {#snapshots}
+
+Point-in-time **filesystem** copies via `docker commit` (same underlying mechanism as templates; separate API for agent “branch my env” flows).
+
+| Method | HTTP |
+|--------|------|
+| **Snapshot** | `POST /api/containers/:id/snapshot` `{ name?, description? }` |
+| **List** | `GET /api/snapshots` |
+| **Get** | `GET /api/snapshots/:id` |
+| **Delete** | `DELETE /api/snapshots/:id` |
+| **Fork** | `POST /api/containers/:id/fork` — commit + create new running sandbox |
+| **Create from snapshot** | `POST /api/containers` `{ snapshot_id, name? }` |
+
+```typescript
+const snap = await client.sandboxes.snapshot(id, { name: 'before-refactor' });
+const clone = await client.sandboxes.create({ snapshot_id: snap.id });
+
+// or one-shot fork (new running sandbox from current FS)
+const forked = await client.sandboxes.fork(id, {
+  name: 'experiment',
+  save_snapshot: true,
+  network_mode: 'restricted',
+});
+```
+
+```python
+snap = await client.sandboxes.snapshot(sid, name="before-refactor")
+clone = await client.sandboxes.create(snapshot_id=snap.id)
+forked = await client.sandboxes.fork(sid, name="experiment", save_snapshot=True)
+```
+
+Local image tags: `rexec-snapshot/<user>/<id>:latest` / `rexec-fork/...` (not pushed to a registry in v1).
+
+---
+
+## Warm pool & lifecycle {#warm-pool}
+
+### Warm pool (server config)
+
+Pre-create sandboxes so `create` can return **`status: running`** immediately (`warm: true`).
+
+```bash
+# Host env (rexec server)
+WARM_POOL=ubuntu:2,debian:1
+# WARM_POOL_ENABLED=false
+# WARM_POOL_INTERVAL_SEC=30
+```
+
+Create still works without a pool (async `creating`). With stock available and `prefer_warm` not false:
+
+```json
+{ "image": "ubuntu", "name": "job-1" }
+// → 200 { "status": "running", "warm": true, ... }
+```
+
+```json
+{ "image": "ubuntu", "prefer_warm": false }
+// → always cold create (async)
+```
+
+### Per-sandbox lifecycle (create body)
+
+| Field | Effect |
+|-------|--------|
+| `idle_timeout_seconds` | Stop after N seconds without activity (exec/terminal Touch) |
+| `max_lifetime_seconds` | Hard TTL from create → `rexec.expires_at` |
+
+```json
+{
+  "image": "ubuntu",
+  "idle_timeout_seconds": 600,
+  "max_lifetime_seconds": 3600
+}
+```
+
+Guests still get platform idle/session limits; these fields add **explicit** timeouts for agent workloads on any tier.
 
 ---
 
@@ -536,6 +757,39 @@ cd scripts/sdk-e2e
 #          dotnet_e2e, java_e2e, test_php.php
 # Legacy containers.* paths still pass (aliases).
 ```
+
+---
+
+## MCP server (AI agents) {#mcp}
+
+Official MCP package: **`@pipeops/rexec-mcp`** ([`sdk/mcp`](../sdk/mcp/)).
+
+Exposes tools: `list_sandboxes`, `create_sandbox`, `exec`, `list_files`, `create_template`, `list_templates`, `wait_running`, and more.
+
+```bash
+cd sdk/js && npm run build
+cd ../mcp && npm install && npm run build
+REXEC_URL=https://rexec.sh REXEC_TOKEN=... node dist/index.js
+```
+
+Claude Desktop / Cursor config:
+
+```json
+{
+  "mcpServers": {
+    "rexec": {
+      "command": "node",
+      "args": ["/absolute/path/to/rexec/sdk/mcp/dist/index.js"],
+      "env": {
+        "REXEC_URL": "https://rexec.sh",
+        "REXEC_TOKEN": "your-token"
+      }
+    }
+  }
+}
+```
+
+See [sdk/mcp/README.md](../sdk/mcp/README.md).
 
 ---
 

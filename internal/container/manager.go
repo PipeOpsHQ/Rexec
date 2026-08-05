@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/netip"
 	"os"
 	"runtime"
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
+	"github.com/google/uuid"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/network"
@@ -573,6 +575,11 @@ type ContainerConfig struct {
 	CPULimit      int64             // CPU quota, default 100000 (1 CPU)
 	DiskQuota     int64             // in bytes
 	Labels        map[string]string // Custom labels for the container
+	// NetworkMode: ""/"default" → rexec-isolated; "none" → no network;
+	// "restricted" → isolated bridge + HTTP(S) proxy allowlist egress.
+	NetworkMode string
+	// EgressAllow is extra host patterns for restricted mode (merged with defaults).
+	EgressAllow []string
 }
 
 // ContainerInfo holds information about a running container
@@ -603,10 +610,17 @@ type Manager struct {
 	runtimeCheckMu    sync.Once
 	// dnsServers is resolved once at NewManager (from CONTAINER_DNS or defaults).
 	dnsServers []netip.Addr
+	// egressProxy enforces restricted-mode allowlists (optional).
+	egressProxy *EgressProxy
 
 	// Stats broadcasting
 	activeStatsStreams map[string]*StatsBroadcaster
 	statsMu            sync.Mutex
+}
+
+// SetEgressProxy attaches the shared restricted-egress proxy.
+func (m *Manager) SetEgressProxy(p *EgressProxy) {
+	m.egressProxy = p
 }
 
 // StatsBroadcaster manages a single stats stream from Docker and broadcasts to multiple subscribers
@@ -1433,10 +1447,72 @@ exec tail -f /dev/null`, shell, shell)
 	}
 
 	// Network configuration
-	networkConfig := &network.NetworkingConfig{
-		EndpointsConfig: map[string]*network.EndpointSettings{
-			IsolatedNetworkName: {},
-		},
+	netMode := strings.ToLower(strings.TrimSpace(cfg.NetworkMode))
+	var networkConfig *network.NetworkingConfig
+	var egressUser, egressPass string
+	var egressAllow []string
+	switch netMode {
+	case "none":
+		hostConfig.NetworkMode = "none" // container.NetworkMode string type
+		networkConfig = nil
+	case "restricted":
+		// Reach host proxy via host-gateway; only allowlisted HTTPS/HTTP works.
+		networkConfig = &network.NetworkingConfig{
+			EndpointsConfig: map[string]*network.EndpointSettings{
+				IsolatedNetworkName: {},
+			},
+		}
+		hostConfig.ExtraHosts = append(hostConfig.ExtraHosts, "host.docker.internal:host-gateway")
+		if m.egressProxy != nil && EgressEnabled() {
+			egressUser = "rexec-" + uuid.New().String()[:12]
+			egressPass = uuid.New().String()
+			egressAllow = MergeEgressAllow(cfg.EgressAllow)
+			// Port from proxy listen address
+			proxyHost := "host.docker.internal"
+			proxyPort := "13128"
+			if addr := m.egressProxy.Addr(); addr != "" {
+				if _, port, err := net.SplitHostPort(addr); err == nil && port != "" {
+					proxyPort = port
+				}
+			}
+			proxyURL := fmt.Sprintf("http://%s:%s@%s:%s",
+				egressUser, egressPass, proxyHost, proxyPort)
+			containerConfig.Env = append(containerConfig.Env,
+				"HTTP_PROXY="+proxyURL,
+				"HTTPS_PROXY="+proxyURL,
+				"http_proxy="+proxyURL,
+				"https_proxy="+proxyURL,
+				"ALL_PROXY="+proxyURL,
+				"all_proxy="+proxyURL,
+				"NO_PROXY=localhost,127.0.0.1,::1",
+				"no_proxy=localhost,127.0.0.1,::1",
+				"REXEC_NETWORK_MODE=restricted",
+			)
+			if cfg.Labels == nil {
+				cfg.Labels = map[string]string{}
+			}
+			cfg.Labels["rexec.network_mode"] = "restricted"
+			cfg.Labels["rexec.egress_proxy"] = "true"
+			cfg.Labels["rexec.egress_allow"] = strings.Join(egressAllow, ",")
+			// Re-merge labels onto container config
+			for k, v := range cfg.Labels {
+				if containerConfig.Labels == nil {
+					containerConfig.Labels = map[string]string{}
+				}
+				containerConfig.Labels[k] = v
+			}
+		} else {
+			log.Printf("[Container] WARNING: restricted mode requested but egress proxy not running — denying outbound (use network none semantics for raw TCP)")
+			// Fall back to no network if proxy unavailable
+			hostConfig.NetworkMode = "none"
+			networkConfig = nil
+		}
+	default:
+		networkConfig = &network.NetworkingConfig{
+			EndpointsConfig: map[string]*network.EndpointSettings{
+				IsolatedNetworkName: {},
+			},
+		}
 	}
 
 	// Clean up any existing container with the same name (from failed previous attempts)
@@ -1478,6 +1554,16 @@ exec tail -f /dev/null`, shell, shell)
 		// Cleanup on failure
 		_, _ = m.client.ContainerRemove(ctx, resp.ID, client.ContainerRemoveOptions{Force: true})
 		return nil, fmt.Errorf("failed to start container: %w", err)
+	}
+
+	// Register restricted egress session after we have a Docker ID
+	if egressUser != "" && m.egressProxy != nil {
+		m.egressProxy.RegisterSession(&EgressSession{
+			SandboxKey: resp.ID,
+			User:       egressUser,
+			Pass:       egressPass,
+			Allow:      egressAllow,
+		})
 	}
 
 	// Get container details
@@ -1678,6 +1764,10 @@ func (m *Manager) RestartContainer(ctx context.Context, dockerID string) error {
 
 // RemoveContainer removes a container by docker ID
 func (m *Manager) RemoveContainer(ctx context.Context, dockerID string) error {
+	// Drop egress session if any (match by sandbox key; username may differ)
+	if m.egressProxy != nil {
+		m.egressProxy.UnregisterBySandbox(dockerID)
+	}
 	m.mu.Lock()
 	info, ok := m.containers[dockerID]
 	if ok {
@@ -1835,6 +1925,31 @@ func (m *Manager) UpdateContainerResources(ctx context.Context, dockerID string,
 	return nil
 }
 
+// CommitSandboxImage creates a local Docker image from a running container
+// (docker commit). Reference should be a tag like "rexec-template/user/id:latest".
+func (m *Manager) CommitSandboxImage(ctx context.Context, dockerID, reference, comment string) (string, error) {
+	if strings.TrimSpace(dockerID) == "" {
+		return "", fmt.Errorf("docker id required")
+	}
+	if strings.TrimSpace(reference) == "" {
+		return "", fmt.Errorf("image reference required")
+	}
+	result, err := m.client.ContainerCommit(ctx, dockerID, client.ContainerCommitOptions{
+		Reference: reference,
+		Comment:   comment,
+		Author:    "rexec",
+		NoPause:   true,
+	})
+	if err != nil {
+		return "", fmt.Errorf("container commit: %w", err)
+	}
+	// Prefer the tagged reference for subsequent creates; fall back to image id.
+	if reference != "" {
+		return reference, nil
+	}
+	return result.ID, nil
+}
+
 // ExecInContainer runs a command inside a running container
 func (m *Manager) ExecInContainer(ctx context.Context, dockerID string, cmd []string) error {
 	execConfig := client.ExecCreateOptions{
@@ -1858,8 +1973,9 @@ func (m *Manager) ExecInContainer(ctx context.Context, dockerID string, cmd []st
 	return nil
 }
 
-// GetIdleContainers returns containers that have been idle for longer than the threshold
-// Only returns guest containers - authenticated users don't have idle timeout
+// GetIdleContainers returns containers that have been idle longer than their timeout.
+// Includes: guest containers (global threshold) and any container with
+// label rexec.idle_timeout_sec set (per-sandbox lifecycle).
 func (m *Manager) GetIdleContainers(threshold time.Duration) []*ContainerInfo {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -1871,12 +1987,27 @@ func (m *Manager) GetIdleContainers(threshold time.Duration) []*ContainerInfo {
 		if info.Status != "running" {
 			continue
 		}
-		if now.Sub(info.LastUsedAt) <= threshold {
+		// Skip unclaimed warm-pool stock
+		if info.Labels != nil && info.Labels["rexec.warm_pool"] == "true" && info.Labels["rexec.warm_claimed"] != "true" {
 			continue
 		}
 
-		// Only apply idle timeout to guest containers
-		// Authenticated users don't have idle timeout - their containers run until they stop them
+		idleFor := now.Sub(info.LastUsedAt)
+		limit := threshold
+		useCustom := false
+		if info.Labels != nil {
+			if secStr, ok := info.Labels["rexec.idle_timeout_sec"]; ok {
+				if sec, err := strconv.Atoi(secStr); err == nil && sec > 0 {
+					limit = time.Duration(sec) * time.Second
+					useCustom = true
+				}
+			}
+		}
+		if idleFor <= limit {
+			continue
+		}
+
+		// Default threshold only for guests; per-sandbox idle_timeout_sec for anyone
 		isGuest := false
 		if info.Labels != nil {
 			if tier, ok := info.Labels["rexec.tier"]; ok && tier == "guest" {
@@ -1887,7 +2018,7 @@ func (m *Manager) GetIdleContainers(threshold time.Duration) []*ContainerInfo {
 			}
 		}
 
-		if isGuest {
+		if useCustom || isGuest {
 			result = append(result, info)
 		}
 	}

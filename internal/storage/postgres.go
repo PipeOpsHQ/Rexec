@@ -639,6 +639,41 @@ func (s *PostgresStore) migrate() error {
 		return err
 	}
 
+	// Sandbox templates (committed images / reusable environments)
+	templateTables := `
+	CREATE TABLE IF NOT EXISTS sandbox_templates (
+		id VARCHAR(36) PRIMARY KEY,
+		user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		name VARCHAR(255) NOT NULL,
+		description TEXT DEFAULT '',
+		base_image VARCHAR(255) DEFAULT '',
+		docker_image VARCHAR(512) NOT NULL,
+		source_container_id VARCHAR(64) DEFAULT '',
+		status VARCHAR(50) DEFAULT 'ready',
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+	);
+	CREATE INDEX IF NOT EXISTS idx_sandbox_templates_user_id ON sandbox_templates(user_id);
+
+	CREATE TABLE IF NOT EXISTS sandbox_snapshots (
+		id VARCHAR(36) PRIMARY KEY,
+		user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		name VARCHAR(255) NOT NULL,
+		description TEXT DEFAULT '',
+		source_container_id VARCHAR(64) DEFAULT '',
+		source_docker_id VARCHAR(64) DEFAULT '',
+		base_image VARCHAR(255) DEFAULT '',
+		docker_image VARCHAR(512) NOT NULL,
+		status VARCHAR(50) DEFAULT 'ready',
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+	);
+	CREATE INDEX IF NOT EXISTS idx_sandbox_snapshots_user_id ON sandbox_snapshots(user_id);
+	CREATE INDEX IF NOT EXISTS idx_sandbox_snapshots_source ON sandbox_snapshots(source_container_id);
+	`
+	if _, err := s.db.Exec(templateTables); err != nil {
+		return fmt.Errorf("sandbox_templates migration: %w", err)
+	}
+
 	// Seed example snippets for marketplace
 	return s.seedExampleSnippets()
 }

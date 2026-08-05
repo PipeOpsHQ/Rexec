@@ -24,13 +24,13 @@ type User struct {
 	AllowedIPs         []string `json:"allowed_ips,omitempty"` // Whitelisted IPs/CIDRs
 	SingleSessionMode  bool     `json:"single_session_mode"`   // Hardened: only 1 active session at a time
 	// Screen lock (server-enforced, cross-session)
-	ScreenLockEnabled bool       `json:"screen_lock_enabled,omitempty"`
-	LockAfterMinutes  int        `json:"lock_after_minutes,omitempty"`
-	LockRequiredSince *time.Time `json:"lock_required_since,omitempty"`
-	ScreenLockHash    string     `json:"-"` // Never serialize
-	SessionDurationMinutes int   `json:"session_duration_minutes,omitempty"` // 0 = default (24h)
-	CreatedAt         time.Time  `json:"created_at"`
-	UpdatedAt         time.Time  `json:"updated_at"`
+	ScreenLockEnabled      bool       `json:"screen_lock_enabled,omitempty"`
+	LockAfterMinutes       int        `json:"lock_after_minutes,omitempty"`
+	LockRequiredSince      *time.Time `json:"lock_required_since,omitempty"`
+	ScreenLockHash         string     `json:"-"`                                  // Never serialize
+	SessionDurationMinutes int        `json:"session_duration_minutes,omitempty"` // 0 = default (24h)
+	CreatedAt              time.Time  `json:"created_at"`
+	UpdatedAt              time.Time  `json:"updated_at"`
 }
 
 // UserSession represents an authenticated login session (JWT-backed).
@@ -311,13 +311,35 @@ func MinimalShellConfig() ShellConfig {
 
 // CreateContainerRequest represents a request to create a new container
 type CreateContainerRequest struct {
-	Name        string `json:"name"`                     // Optional - auto-generated if empty
-	Image       string `json:"image" binding:"required"` // Image type (ubuntu, debian, etc.) or "custom"
-	CustomImage string `json:"custom_image,omitempty"`   // Required when Image is "custom"
-	Role        string `json:"role,omitempty"`           // Optional role (node, python, etc.)
+	Name        string `json:"name"`                   // Optional - auto-generated if empty
+	Image       string `json:"image,omitempty"`        // Image type (ubuntu, debian, etc.) or "custom" (required unless template_id)
+	CustomImage string `json:"custom_image,omitempty"` // Required when Image is "custom"
+	// TemplateID creates from a saved sandbox template (docker commit image).
+	// When set, Image/CustomImage may be omitted — the template's docker_image is used.
+	TemplateID string `json:"template_id,omitempty"`
+	// SnapshotID creates from a saved sandbox snapshot (point-in-time docker commit).
+	SnapshotID string `json:"snapshot_id,omitempty"`
+	Role       string `json:"role,omitempty"` // Optional role (node, python, etc.)
 	// Labels are merged into container labels (e.g. pipeops.workspace_id for BFF tenancy).
 	// Reserved rexec.* keys set by the platform still take precedence when set after merge.
 	Labels map[string]string `json:"labels,omitempty"`
+	// NetworkMode controls sandbox networking:
+	//   "default" or "" — isolated bridge with outbound (rexec-isolated)
+	//   "none" — no network (strong isolation for pure compute)
+	//   "restricted" — HTTP(S) only via allowlist egress proxy
+	NetworkMode string `json:"network_mode,omitempty"`
+	// EgressAllow adds host patterns for restricted mode (union with platform defaults).
+	// Examples: "api.openai.com", "*.example.com"
+	EgressAllow []string `json:"egress_allow,omitempty"`
+	// IdleTimeoutSeconds: stop sandbox after this many seconds idle (Touch on exec/terminal).
+	// 0 = platform default (guests only). Set for agent sandboxes that should auto-stop.
+	IdleTimeoutSeconds int `json:"idle_timeout_seconds,omitempty"`
+	// MaxLifetimeSeconds: hard TTL from create time; sets rexec.expires_at.
+	// 0 = no extra TTL beyond tier defaults.
+	MaxLifetimeSeconds int `json:"max_lifetime_seconds,omitempty"`
+	// PreferWarm: if true (default when warm pool has stock), claim a pre-created sandbox.
+	// Set false to always cold-create.
+	PreferWarm *bool `json:"prefer_warm,omitempty"`
 	// Shell customization
 	Shell *ShellConfig `json:"shell,omitempty"` // Optional shell config (defaults to enhanced)
 	// Trial resource customization (within limits)
