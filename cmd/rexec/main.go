@@ -444,6 +444,11 @@ func runServer() {
 		defer cleanupService.Stop()
 	}
 
+	// Warm pool of pre-created sandboxes (WARM_POOL=ubuntu:2,debian:1)
+	warmPool := container.NewWarmPoolService(containerManager, container.ParseWarmPoolConfig())
+	warmPool.Start()
+	defer warmPool.Stop()
+
 	// Start reconciler service to sync DB state with Docker
 	reconcilerService := container.NewReconcilerService(
 		containerManager,
@@ -490,6 +495,7 @@ func runServer() {
 	authHandler := handlers.NewAuthHandler(store, adminEventsHub, jwtSecret)
 	securityHandler := handlers.NewSecurityHandler(store, jwtSecret)
 	containerHandler := handlers.NewContainerHandler(containerManager, store, adminEventsHub)
+	containerHandler.SetWarmPool(warmPool)
 	containerEventsHub := handlers.NewContainerEventsHub(containerManager, store)
 	containerHandler.SetEventsHub(containerEventsHub)
 	terminalHandler := handlers.NewTerminalHandler(containerManager, store, adminEventsHub)

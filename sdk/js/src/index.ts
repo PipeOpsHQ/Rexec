@@ -43,6 +43,12 @@ export interface CreateSandboxRequest {
   template_id?: string;
   /** default | none | restricted */
   network_mode?: 'default' | 'none' | 'restricted';
+  /** Stop after N seconds idle (Touch on exec/terminal). */
+  idle_timeout_seconds?: number;
+  /** Hard TTL from create (sets expires_at). */
+  max_lifetime_seconds?: number;
+  /** Prefer warm-pool claim when stock available (default true if pool enabled). */
+  prefer_warm?: boolean;
   /** Environment variables */
   environment?: Record<string, string>;
   /** Labels */

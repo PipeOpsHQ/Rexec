@@ -75,6 +75,7 @@ type ContainerHandler struct {
 	eventsHub      *ContainerEventsHub
 	adminEventsHub *admin_events.AdminEventsHub
 	agentHandler   *AgentHandler // Reference to get online agents
+	warmPool       *container.WarmPoolService
 }
 
 // NewContainerHandler creates a new container handler
@@ -84,6 +85,11 @@ func NewContainerHandler(manager *container.Manager, store *storage.PostgresStor
 		store:          store,
 		adminEventsHub: adminEventsHub,
 	}
+}
+
+// SetWarmPool attaches an optional warm-pool service for instant creates.
+func (h *ContainerHandler) SetWarmPool(wp *container.WarmPoolService) {
+	h.warmPool = wp
 }
 
 // SetEventsHub sets the events hub for real-time notifications
@@ -542,6 +548,74 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 		}
 	}
 
+	// Apply lifecycle labels helpers
+	applyLifecycle := func(labels map[string]string) {
+		if labels == nil {
+			return
+		}
+		if req.IdleTimeoutSeconds > 0 {
+			labels["rexec.idle_timeout_sec"] = strconv.Itoa(req.IdleTimeoutSeconds)
+		}
+		if req.MaxLifetimeSeconds > 0 {
+			exp := time.Now().Add(time.Duration(req.MaxLifetimeSeconds) * time.Second)
+			labels["rexec.expires_at"] = exp.UTC().Format(time.RFC3339)
+			labels["rexec.max_lifetime_sec"] = strconv.Itoa(req.MaxLifetimeSeconds)
+		}
+	}
+
+	// Try warm pool claim for instant running sandbox (standard image aliases only)
+	preferWarm := req.PreferWarm == nil || *req.PreferWarm
+	if preferWarm && h.warmPool != nil && strings.TrimSpace(req.TemplateID) == "" &&
+		req.Image != "custom" && req.Image != "" {
+		if claimed, err := h.warmPool.Claim(req.Image, userID, containerName); err == nil && claimed != nil {
+			applyLifecycle(claimed.Labels)
+			record := &storage.ContainerRecord{
+				ID:         uuid.New().String(),
+				UserID:     userID,
+				Name:       containerName,
+				Image:      imageName,
+				Role:       req.Role,
+				Status:     "running",
+				DockerID:   claimed.ID,
+				VolumeName: "rexec-" + userID + "-" + containerName,
+				MemoryMB:   limits.MemoryMB,
+				CPUShares:  limits.CPUShares,
+				DiskMB:     limits.DiskMB,
+				CreatedAt:  time.Now(),
+				LastUsedAt: time.Now(),
+			}
+			if err := h.store.CreateContainer(ctx, record); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save claimed sandbox: " + err.Error()})
+				return
+			}
+			if h.adminEventsHub != nil {
+				h.adminEventsHub.Broadcast("container_created", record)
+			}
+			resp := gin.H{
+				"id":         claimed.ID,
+				"db_id":      record.ID,
+				"user_id":    userID,
+				"name":       containerName,
+				"image":      imageName,
+				"role":       req.Role,
+				"status":     "running",
+				"created_at": record.CreatedAt,
+				"warm":       true,
+				"message":    "Claimed from warm pool",
+				"resources": gin.H{
+					"memory_mb":  limits.MemoryMB,
+					"cpu_shares": limits.CPUShares,
+					"disk_mb":    limits.DiskMB,
+				},
+			}
+			if exp, ok := claimed.Labels["rexec.expires_at"]; ok {
+				resp["expires_at"] = exp
+			}
+			c.JSON(http.StatusOK, resp)
+			return
+		}
+	}
+
 	// Store a pending record in database first (async creation)
 	record := &storage.ContainerRecord{
 		ID:         uuid.New().String(),
@@ -592,6 +666,7 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 	if netMode != "" && netMode != "default" {
 		cfg.Labels["rexec.network_mode"] = netMode
 	}
+	applyLifecycle(cfg.Labels)
 
 	// Merge caller-provided labels (e.g. pipeops.workspace_id from PipeOps BFF).
 	// Platform rexec.* keys set above win if both set the same key.
@@ -612,16 +687,21 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 		cfg.Labels["rexec.tier"] = "guest"
 		cfg.Labels["rexec.guest"] = "true"
 		// Use token expiration if available (more accurate), otherwise calculate from now
-		if tokenExp, exists := c.Get("tokenExp"); exists {
-			expiresAt := time.Unix(tokenExp.(int64), 0)
-			cfg.Labels["rexec.expires_at"] = expiresAt.Format(time.RFC3339)
-		} else {
-			cfg.Labels["rexec.expires_at"] = time.Now().Add(GuestMaxContainerDuration).Format(time.RFC3339)
+		// (do not override explicit max_lifetime_seconds)
+		if _, hasExp := cfg.Labels["rexec.expires_at"]; !hasExp {
+			if tokenExp, exists := c.Get("tokenExp"); exists {
+				expiresAt := time.Unix(tokenExp.(int64), 0)
+				cfg.Labels["rexec.expires_at"] = expiresAt.Format(time.RFC3339)
+			} else {
+				cfg.Labels["rexec.expires_at"] = time.Now().Add(GuestMaxContainerDuration).Format(time.RFC3339)
+			}
 		}
 	} else if (tier == "free" || tier == "trial") && !subscriptionActive {
 		// Enforce 50-hour session limit for free users without active subscription
-		expiresAt := time.Now().Add(models.AuthenticatedSessionDuration)
-		cfg.Labels["rexec.expires_at"] = expiresAt.Format(time.RFC3339)
+		if _, hasExp := cfg.Labels["rexec.expires_at"]; !hasExp {
+			expiresAt := time.Now().Add(models.AuthenticatedSessionDuration)
+			cfg.Labels["rexec.expires_at"] = expiresAt.Format(time.RFC3339)
+		}
 	}
 
 	// Apply resource limits to container config (use validated request values)

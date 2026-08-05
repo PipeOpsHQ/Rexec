@@ -326,6 +326,15 @@ type CreateContainerRequest struct {
 	//   "none" — no network (strong isolation for pure compute)
 	//   "restricted" — reserved; currently same as default (allowlist planned)
 	NetworkMode string `json:"network_mode,omitempty"`
+	// IdleTimeoutSeconds: stop sandbox after this many seconds idle (Touch on exec/terminal).
+	// 0 = platform default (guests only). Set for agent sandboxes that should auto-stop.
+	IdleTimeoutSeconds int `json:"idle_timeout_seconds,omitempty"`
+	// MaxLifetimeSeconds: hard TTL from create time; sets rexec.expires_at.
+	// 0 = no extra TTL beyond tier defaults.
+	MaxLifetimeSeconds int `json:"max_lifetime_seconds,omitempty"`
+	// PreferWarm: if true (default when warm pool has stock), claim a pre-created sandbox.
+	// Set false to always cold-create.
+	PreferWarm *bool `json:"prefer_warm,omitempty"`
 	// Shell customization
 	Shell *ShellConfig `json:"shell,omitempty"` // Optional shell config (defaults to enhanced)
 	// Trial resource customization (within limits)

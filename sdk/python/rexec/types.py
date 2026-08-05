@@ -50,6 +50,9 @@ class CreateSandboxRequest:
     custom_image: Optional[str] = None
     template_id: Optional[str] = None
     network_mode: Optional[str] = None  # default | none | restricted
+    idle_timeout_seconds: Optional[int] = None
+    max_lifetime_seconds: Optional[int] = None
+    prefer_warm: Optional[bool] = None
     environment: dict[str, str] = field(default_factory=dict)
     labels: dict[str, str] = field(default_factory=dict)
 
@@ -66,6 +69,12 @@ class CreateSandboxRequest:
             data["template_id"] = self.template_id
         if self.network_mode:
             data["network_mode"] = self.network_mode
+        if self.idle_timeout_seconds is not None:
+            data["idle_timeout_seconds"] = self.idle_timeout_seconds
+        if self.max_lifetime_seconds is not None:
+            data["max_lifetime_seconds"] = self.max_lifetime_seconds
+        if self.prefer_warm is not None:
+            data["prefer_warm"] = self.prefer_warm
         if self.environment:
             data["environment"] = self.environment
         if self.labels:

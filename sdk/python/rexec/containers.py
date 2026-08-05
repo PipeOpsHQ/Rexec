@@ -76,6 +76,9 @@ class SandboxService:
         template_id: Optional[str] = None,
         network_mode: Optional[str] = None,
         custom_image: Optional[str] = None,
+        idle_timeout_seconds: Optional[int] = None,
+        max_lifetime_seconds: Optional[int] = None,
+        prefer_warm: Optional[bool] = None,
     ) -> Sandbox:
         """
         Create a new sandbox.
@@ -102,6 +105,9 @@ class SandboxService:
             custom_image=custom_image,
             template_id=template_id,
             network_mode=network_mode,
+            idle_timeout_seconds=idle_timeout_seconds,
+            max_lifetime_seconds=max_lifetime_seconds,
+            prefer_warm=prefer_warm,
             environment=environment or {},
             labels=labels or {},
         )

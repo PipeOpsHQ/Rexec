@@ -266,6 +266,50 @@ const clone = await client.sandboxes.create({ template_id: tpl.id, name: 'job-2'
 
 ---
 
+## Warm pool & lifecycle {#warm-pool}
+
+### Warm pool (server config)
+
+Pre-create sandboxes so `create` can return **`status: running`** immediately (`warm: true`).
+
+```bash
+# Host env (rexec server)
+WARM_POOL=ubuntu:2,debian:1
+# WARM_POOL_ENABLED=false
+# WARM_POOL_INTERVAL_SEC=30
+```
+
+Create still works without a pool (async `creating`). With stock available and `prefer_warm` not false:
+
+```json
+{ "image": "ubuntu", "name": "job-1" }
+// → 200 { "status": "running", "warm": true, ... }
+```
+
+```json
+{ "image": "ubuntu", "prefer_warm": false }
+// → always cold create (async)
+```
+
+### Per-sandbox lifecycle (create body)
+
+| Field | Effect |
+|-------|--------|
+| `idle_timeout_seconds` | Stop after N seconds without activity (exec/terminal Touch) |
+| `max_lifetime_seconds` | Hard TTL from create → `rexec.expires_at` |
+
+```json
+{
+  "image": "ubuntu",
+  "idle_timeout_seconds": 600,
+  "max_lifetime_seconds": 3600
+}
+```
+
+Guests still get platform idle/session limits; these fields add **explicit** timeouts for agent workloads on any tier.
+
+---
+
 ## Client construction
 
 | Lang | Construct | Sandboxes (preferred) |

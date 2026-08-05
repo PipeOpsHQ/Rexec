@@ -1897,8 +1897,9 @@ func (m *Manager) ExecInContainer(ctx context.Context, dockerID string, cmd []st
 	return nil
 }
 
-// GetIdleContainers returns containers that have been idle for longer than the threshold
-// Only returns guest containers - authenticated users don't have idle timeout
+// GetIdleContainers returns containers that have been idle longer than their timeout.
+// Includes: guest containers (global threshold) and any container with
+// label rexec.idle_timeout_sec set (per-sandbox lifecycle).
 func (m *Manager) GetIdleContainers(threshold time.Duration) []*ContainerInfo {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -1910,12 +1911,27 @@ func (m *Manager) GetIdleContainers(threshold time.Duration) []*ContainerInfo {
 		if info.Status != "running" {
 			continue
 		}
-		if now.Sub(info.LastUsedAt) <= threshold {
+		// Skip unclaimed warm-pool stock
+		if info.Labels != nil && info.Labels["rexec.warm_pool"] == "true" && info.Labels["rexec.warm_claimed"] != "true" {
 			continue
 		}
 
-		// Only apply idle timeout to guest containers
-		// Authenticated users don't have idle timeout - their containers run until they stop them
+		idleFor := now.Sub(info.LastUsedAt)
+		limit := threshold
+		useCustom := false
+		if info.Labels != nil {
+			if secStr, ok := info.Labels["rexec.idle_timeout_sec"]; ok {
+				if sec, err := strconv.Atoi(secStr); err == nil && sec > 0 {
+					limit = time.Duration(sec) * time.Second
+					useCustom = true
+				}
+			}
+		}
+		if idleFor <= limit {
+			continue
+		}
+
+		// Default threshold only for guests; per-sandbox idle_timeout_sec for anyone
 		isGuest := false
 		if info.Labels != nil {
 			if tier, ok := info.Labels["rexec.tier"]; ok && tier == "guest" {
@@ -1926,7 +1942,7 @@ func (m *Manager) GetIdleContainers(threshold time.Duration) []*ContainerInfo {
 			}
 		}
 
-		if isGuest {
+		if useCustom || isGuest {
 			result = append(result, info)
 		}
 	}
