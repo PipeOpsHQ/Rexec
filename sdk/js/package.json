@@ -1,6 +1,6 @@
 {
   "name": "pipeops-rexec",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Official JavaScript/TypeScript SDK for Rexec — AI-native sandboxes",
   "type": "module",
   "main": "dist/index.js",
