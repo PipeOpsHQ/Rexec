@@ -2099,6 +2099,7 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 		ImageType:     req.Image,
 		CustomImage:   req.CustomImage,
 		NetworkMode:   netModeProgress,
+		EgressAllow:   req.EgressAllow,
 		Labels: map[string]string{
 			"rexec.tier":     tier,
 			"rexec.user_id":  userID,
