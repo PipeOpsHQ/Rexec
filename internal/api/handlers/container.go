@@ -388,7 +388,41 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 
 	ctx := c.Request.Context()
 
+	// Resolve template → custom image when template_id is set
+	if tid := strings.TrimSpace(req.TemplateID); tid != "" {
+		tmpl, err := h.store.GetSandboxTemplateByID(ctx, tid)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load template"})
+			return
+		}
+		if tmpl == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "template not found"})
+			return
+		}
+		if tmpl.UserID != userID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+			return
+		}
+		if tmpl.Status != "ready" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "template is not ready", "status": tmpl.Status})
+			return
+		}
+		req.Image = "custom"
+		req.CustomImage = tmpl.DockerImage
+		if req.Labels == nil {
+			req.Labels = map[string]string{}
+		}
+		req.Labels["rexec.template_id"] = tmpl.ID
+		req.Labels["rexec.template_name"] = tmpl.Name
+	}
+
 	// Handle custom image validation
+	if strings.TrimSpace(req.Image) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "image or template_id is required",
+		})
+		return
+	}
 	if req.Image == "custom" {
 		if req.CustomImage == "" {
 			c.JSON(http.StatusBadRequest, gin.H{
@@ -412,6 +446,18 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 			})
 			return
 		}
+	}
+
+	// Network mode validation
+	netMode := strings.ToLower(strings.TrimSpace(req.NetworkMode))
+	switch netMode {
+	case "", "default", "none", "restricted":
+		// ok
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid network_mode: use default, none, or restricted",
+		})
+		return
 	}
 
 	// Auto-generate name if not provided
@@ -535,12 +581,16 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 		ImageType:     req.Image,
 		CustomImage:   req.CustomImage,
 		Role:          req.Role,
+		NetworkMode:   netMode,
 		Labels: map[string]string{
 			"rexec.tier":     tier,
 			"rexec.user_id":  userID,
 			"rexec.role":     req.Role,
 			"rexec.use_tmux": useTmux,
 		},
+	}
+	if netMode != "" && netMode != "default" {
+		cfg.Labels["rexec.network_mode"] = netMode
 	}
 
 	// Merge caller-provided labels (e.g. pipeops.workspace_id from PipeOps BFF).
@@ -1791,7 +1841,36 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 
 	// Note: Container limits now unified for all trial users (5 containers)
 
+	// Resolve template → custom image
+	if tid := strings.TrimSpace(req.TemplateID); tid != "" {
+		tmpl, err := h.store.GetSandboxTemplateByID(ctx, tid)
+		if err != nil || tmpl == nil {
+			sendEvent(container.ProgressEvent{
+				Stage: "validating", Error: "template not found", Complete: true,
+			})
+			return
+		}
+		if tmpl.UserID != userID {
+			sendEvent(container.ProgressEvent{
+				Stage: "validating", Error: "access denied", Complete: true,
+			})
+			return
+		}
+		req.Image = "custom"
+		req.CustomImage = tmpl.DockerImage
+		if req.Labels == nil {
+			req.Labels = map[string]string{}
+		}
+		req.Labels["rexec.template_id"] = tmpl.ID
+	}
+
 	// Handle custom image validation
+	if strings.TrimSpace(req.Image) == "" {
+		sendEvent(container.ProgressEvent{
+			Stage: "validating", Error: "image or template_id is required", Complete: true,
+		})
+		return
+	}
 	if req.Image == "custom" {
 		if req.CustomImage == "" {
 			sendEvent(container.ProgressEvent{
@@ -1930,16 +2009,21 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 		useTmux = "true"
 	}
 
+	netModeProgress := strings.ToLower(strings.TrimSpace(req.NetworkMode))
 	cfg := container.ContainerConfig{
 		UserID:        userID,
 		ContainerName: containerName,
 		ImageType:     req.Image,
 		CustomImage:   req.CustomImage,
+		NetworkMode:   netModeProgress,
 		Labels: map[string]string{
 			"rexec.tier":     tier,
 			"rexec.user_id":  userID,
 			"rexec.use_tmux": useTmux,
 		},
+	}
+	if netModeProgress != "" && netModeProgress != "default" {
+		cfg.Labels["rexec.network_mode"] = netModeProgress
 	}
 
 	// Merge caller-provided labels (e.g. pipeops.workspace_id).

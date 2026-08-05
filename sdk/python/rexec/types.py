@@ -45,21 +45,63 @@ Container = Sandbox
 class CreateSandboxRequest:
     """Request to create a new sandbox. Prefer image aliases (e.g. ubuntu)."""
 
-    image: str
+    image: Optional[str] = None
     name: Optional[str] = None
+    custom_image: Optional[str] = None
+    template_id: Optional[str] = None
+    network_mode: Optional[str] = None  # default | none | restricted
     environment: dict[str, str] = field(default_factory=dict)
     labels: dict[str, str] = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         """Convert to API request dict."""
-        data: dict = {"image": self.image}
+        data: dict = {}
+        if self.image:
+            data["image"] = self.image
         if self.name:
             data["name"] = self.name
+        if self.custom_image:
+            data["custom_image"] = self.custom_image
+        if self.template_id:
+            data["template_id"] = self.template_id
+        if self.network_mode:
+            data["network_mode"] = self.network_mode
         if self.environment:
             data["environment"] = self.environment
         if self.labels:
             data["labels"] = self.labels
         return data
+
+
+@dataclass
+class SandboxTemplate:
+    """Saved sandbox template (committed image)."""
+
+    id: str
+    user_id: str
+    name: str
+    docker_image: str
+    description: str = ""
+    base_image: str = ""
+    source_container_id: str = ""
+    status: str = "ready"
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "SandboxTemplate":
+        return cls(
+            id=data.get("id", ""),
+            user_id=data.get("user_id", ""),
+            name=data.get("name", ""),
+            docker_image=data.get("docker_image", ""),
+            description=data.get("description") or "",
+            base_image=data.get("base_image") or "",
+            source_container_id=data.get("source_container_id") or "",
+            status=data.get("status") or "ready",
+            created_at=data.get("created_at"),
+            updated_at=data.get("updated_at"),
+        )
 
 
 # Backward-compatible alias

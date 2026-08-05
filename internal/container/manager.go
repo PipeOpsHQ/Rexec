@@ -573,6 +573,9 @@ type ContainerConfig struct {
 	CPULimit      int64             // CPU quota, default 100000 (1 CPU)
 	DiskQuota     int64             // in bytes
 	Labels        map[string]string // Custom labels for the container
+	// NetworkMode: ""/"default" → rexec-isolated; "none" → no network;
+	// "restricted" → same as default for now (egress allowlist planned).
+	NetworkMode string
 }
 
 // ContainerInfo holds information about a running container
@@ -1433,10 +1436,21 @@ exec tail -f /dev/null`, shell, shell)
 	}
 
 	// Network configuration
-	networkConfig := &network.NetworkingConfig{
-		EndpointsConfig: map[string]*network.EndpointSettings{
-			IsolatedNetworkName: {},
-		},
+	netMode := strings.ToLower(strings.TrimSpace(cfg.NetworkMode))
+	var networkConfig *network.NetworkingConfig
+	switch netMode {
+	case "none":
+		hostConfig.NetworkMode = "none" // container.NetworkMode string type
+		networkConfig = nil
+	case "restricted":
+		// v1: same isolated bridge as default; allowlist egress is a follow-up.
+		fallthrough
+	default:
+		networkConfig = &network.NetworkingConfig{
+			EndpointsConfig: map[string]*network.EndpointSettings{
+				IsolatedNetworkName: {},
+			},
+		}
 	}
 
 	// Clean up any existing container with the same name (from failed previous attempts)
@@ -1833,6 +1847,31 @@ func (m *Manager) UpdateContainerResources(ctx context.Context, dockerID string,
 
 	log.Printf("[UpdateContainerResources] Successfully updated container %s", dockerID)
 	return nil
+}
+
+// CommitSandboxImage creates a local Docker image from a running container
+// (docker commit). Reference should be a tag like "rexec-template/user/id:latest".
+func (m *Manager) CommitSandboxImage(ctx context.Context, dockerID, reference, comment string) (string, error) {
+	if strings.TrimSpace(dockerID) == "" {
+		return "", fmt.Errorf("docker id required")
+	}
+	if strings.TrimSpace(reference) == "" {
+		return "", fmt.Errorf("image reference required")
+	}
+	result, err := m.client.ContainerCommit(ctx, dockerID, client.ContainerCommitOptions{
+		Reference: reference,
+		Comment:   comment,
+		Author:    "rexec",
+		NoPause:   true,
+	})
+	if err != nil {
+		return "", fmt.Errorf("container commit: %w", err)
+	}
+	// Prefer the tagged reference for subsequent creates; fall back to image id.
+	if reference != "" {
+		return reference, nil
+	}
+	return result.ID, nil
 }
 
 // ExecInContainer runs a command inside a running container

@@ -35,12 +35,32 @@ export type Container = Sandbox;
 export interface CreateSandboxRequest {
   /** Sandbox name (optional) */
   name?: string;
-  /** Image alias (e.g. ubuntu, debian, alpine) */
-  image: string;
+  /** Image alias (e.g. ubuntu, debian, alpine). Optional when template_id is set. */
+  image?: string;
+  /** Full image ref when image is "custom" */
+  custom_image?: string;
+  /** Create from a saved template (committed image) */
+  template_id?: string;
+  /** default | none | restricted */
+  network_mode?: 'default' | 'none' | 'restricted';
   /** Environment variables */
   environment?: Record<string, string>;
   /** Labels */
   labels?: Record<string, string>;
+}
+
+/** Saved sandbox template (docker commit of a running sandbox). */
+export interface SandboxTemplate {
+  id: string;
+  user_id: string;
+  name: string;
+  description?: string;
+  base_image?: string;
+  docker_image: string;
+  source_container_id?: string;
+  status: string;
+  created_at: string;
+  updated_at?: string;
 }
 
 /**
@@ -243,6 +263,34 @@ export class SandboxService {
       throw new Error('exec requires command or cmd');
     }
     return this.client.request<ExecResult>('POST', `/api/containers/${id}/exec`, body);
+  }
+
+  /** List sandbox templates for the current user. */
+  async listTemplates(): Promise<SandboxTemplate[]> {
+    const data = await this.client.request<
+      SandboxTemplate[] | { templates?: SandboxTemplate[] }
+    >('GET', '/api/templates');
+    if (Array.isArray(data)) return data;
+    return data?.templates ?? [];
+  }
+
+  /** Create a template by committing a running sandbox. */
+  async createTemplate(options: {
+    name: string;
+    from_sandbox_id: string;
+    description?: string;
+  }): Promise<SandboxTemplate> {
+    return this.client.request<SandboxTemplate>('POST', '/api/templates', options);
+  }
+
+  /** Get a template by id. */
+  async getTemplate(id: string): Promise<SandboxTemplate> {
+    return this.client.request<SandboxTemplate>('GET', `/api/templates/${id}`);
+  }
+
+  /** Delete a template. */
+  async deleteTemplate(id: string): Promise<void> {
+    await this.client.request('DELETE', `/api/templates/${id}`);
   }
 }
 

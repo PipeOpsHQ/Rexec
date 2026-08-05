@@ -496,6 +496,7 @@ func runServer() {
 	terminalHandler.SetProviderRegistry(providerRegistry) // Enable VM terminal support
 	fileHandler := handlers.NewFileHandler(containerManager, store)
 	execHandler := handlers.NewExecHandler(containerManager, store)
+	templateHandler := handlers.NewTemplateHandler(containerManager, store)
 	sshHandler := handlers.NewSSHHandler(store, containerManager)
 	collabHandler := handlers.NewCollabHandler(store, containerManager, terminalHandler)
 	recordingHandler := handlers.NewRecordingHandler(store, os.Getenv("RECORDINGS_PATH"), containerManager)
@@ -719,6 +720,12 @@ func runServer() {
 		api.POST("/containers/:id/stop", containerHandler.Stop)
 		// Non-interactive command execution (agents / SDK / Cortex)
 		api.POST("/containers/:id/exec", containerLimiter.Middleware(), execHandler.Exec)
+
+		// Sandbox templates (commit running sandbox → reuse image)
+		api.GET("/templates", templateHandler.ListTemplates)
+		api.POST("/templates", containerLimiter.Middleware(), templateHandler.CreateTemplate)
+		api.GET("/templates/:id", templateHandler.GetTemplate)
+		api.DELETE("/templates/:id", templateHandler.DeleteTemplate)
 
 		// Shell setup
 		api.GET("/containers/:id/shell/status", containerHandler.GetShellStatus)

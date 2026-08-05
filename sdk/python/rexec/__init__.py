@@ -22,6 +22,7 @@ from rexec.containers import (
     ExecResult,
     Sandbox,
     SandboxService,
+    SandboxTemplate,
 )
 from rexec.exceptions import RexecError, RexecAPIError, RexecConnectionError
 from rexec.files import FileInfo, FileService
@@ -34,6 +35,7 @@ __all__ = [
     "SandboxService",
     "CreateSandboxRequest",
     "ExecResult",
+    "SandboxTemplate",
     # Backward-compatible aliases
     "Container",
     "ContainerService",

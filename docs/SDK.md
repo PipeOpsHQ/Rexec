@@ -117,6 +117,9 @@ Prefer **`client.sandboxes`** (or `Sandboxes` / `sandboxes()`). Legacy **`client
 | **Stop** | `POST /api/containers/:id/stop` | |
 | **Delete** | `DELETE /api/containers/:id` | Destroys the sandbox |
 | **Exec** | `POST /api/containers/:id/exec` | One-shot command; see [Exec API](#exec-api) |
+| **Templates** | `GET/POST /api/templates` | Commit a running sandbox and create from it; see [Templates](#templates) |
+
+Create options: `template_id`, `network_mode` (`default` \| `none` \| `restricted`).
 
 ### Files (per sandbox)
 
@@ -222,6 +225,42 @@ r = await client.sandboxes.exec(sandbox.id, "echo hello")
 print(r.stdout, r.exit_code)
 
 r = await client.sandboxes.exec(sandbox.id, cmd=["uname", "-a"])
+```
+
+---
+
+## Templates {#templates}
+
+Save a running sandbox as a **local Docker image** and spawn new sandboxes from it (agent warm-start pattern).
+
+| Method | HTTP |
+|--------|------|
+| **List** | `GET /api/templates` → `{ templates, count }` |
+| **Create** | `POST /api/templates` body `{ name, from_sandbox_id, description? }` |
+| **Get** | `GET /api/templates/:id` |
+| **Delete** | `DELETE /api/templates/:id` |
+| **Create sandbox from template** | `POST /api/containers` body `{ template_id, name? }` |
+
+Create-template requires the source sandbox to be **running** (uses `docker commit`). Images are tagged locally as `rexec-template/<user>/<id>:latest` (not pushed to a registry in v1).
+
+```typescript
+const tpl = await client.sandboxes.createTemplate({
+  name: 'with-deps',
+  from_sandbox_id: sandbox.id,
+});
+const clone = await client.sandboxes.create({ template_id: tpl.id, name: 'job-2' });
+```
+
+### Network mode on create
+
+| `network_mode` | Behavior |
+|----------------|----------|
+| `default` / omit | Isolated bridge (`rexec-isolated`) with outbound |
+| `none` | No network (strong isolation for pure compute) |
+| `restricted` | Same as default for now; egress allowlist planned |
+
+```json
+{ "image": "ubuntu", "network_mode": "none" }
 ```
 
 ---

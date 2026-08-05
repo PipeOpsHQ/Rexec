@@ -12,6 +12,7 @@ from rexec.types import (
     CreateSandboxRequest,
     ExecResult,
     Sandbox,
+    SandboxTemplate,
 )
 
 if TYPE_CHECKING:
@@ -25,6 +26,7 @@ __all__ = [
     "CreateSandboxRequest",
     "CreateContainerRequest",
     "ExecResult",
+    "SandboxTemplate",
 ]
 
 
@@ -66,11 +68,14 @@ class SandboxService:
 
     async def create(
         self,
-        image: str,
+        image: Optional[str] = None,
         *,
-        name: str | None = None,
-        environment: dict[str, str] | None = None,
-        labels: dict[str, str] | None = None,
+        name: Optional[str] = None,
+        environment: Optional[dict] = None,
+        labels: Optional[dict] = None,
+        template_id: Optional[str] = None,
+        network_mode: Optional[str] = None,
+        custom_image: Optional[str] = None,
     ) -> Sandbox:
         """
         Create a new sandbox.
@@ -94,6 +99,9 @@ class SandboxService:
         request = CreateSandboxRequest(
             image=image,
             name=name,
+            custom_image=custom_image,
+            template_id=template_id,
+            network_mode=network_mode,
             environment=environment or {},
             labels=labels or {},
         )
@@ -165,6 +173,33 @@ class SandboxService:
             "POST", f"/api/containers/{sandbox_id}/exec", json=body
         )
         return ExecResult.from_dict(data or {})
+
+    async def list_templates(self) -> List[SandboxTemplate]:
+        """List sandbox templates for the current user."""
+        data = await self._client._request("GET", "/api/templates")
+        items = data if isinstance(data, list) else (data or {}).get("templates") or []
+        return [SandboxTemplate.from_dict(t) for t in items]
+
+    async def create_template(
+        self,
+        name: str,
+        from_sandbox_id: str,
+        *,
+        description: Optional[str] = None,
+    ) -> SandboxTemplate:
+        """Commit a running sandbox to a reusable template image."""
+        body: dict = {"name": name, "from_sandbox_id": from_sandbox_id}
+        if description:
+            body["description"] = description
+        data = await self._client._request("POST", "/api/templates", json=body)
+        return SandboxTemplate.from_dict(data or {})
+
+    async def get_template(self, template_id: str) -> SandboxTemplate:
+        data = await self._client._request("GET", f"/api/templates/{template_id}")
+        return SandboxTemplate.from_dict(data or {})
+
+    async def delete_template(self, template_id: str) -> None:
+        await self._client._request("DELETE", f"/api/templates/{template_id}")
 
 
 # Backward-compatible alias (same class)
