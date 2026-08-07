@@ -43,7 +43,7 @@
     "minimatch": "^3.1.5",
     "ajv": "^6.14.0",
     "brace-expansion": "1.1.16",
-    "postcss": "8.5.18"
+    "postcss": "8.5.23"
   },
   "dependencies": {
     "@xterm/xterm": "^5.5.0",
