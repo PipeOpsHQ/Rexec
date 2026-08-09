@@ -7,7 +7,10 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
+	"path"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -532,14 +535,17 @@ func (h *PortForwardHandler) HandleHTTPProxy(c *gin.Context) {
 		return
 	}
 
-	// Build target URL
-	targetURL := fmt.Sprintf("http://%s:%d%s", ipAddress, pf.ContainerPort, proxyPath)
-	if c.Request.URL.RawQuery != "" {
-		targetURL += "?" + c.Request.URL.RawQuery
+	// Build target URL with a fixed host (container IP:port). User input is only allowed
+	// as a sanitized path/query so it cannot rewrite the authority (SSRF / CodeQL go/request-forgery).
+	target, targetAddr, err := buildContainerProxyURL(ipAddress, pf.ContainerPort, proxyPath, c.Request.URL.RawQuery)
+	if err != nil {
+		log.Printf("Invalid proxy target for %s: %v", forwardID, err)
+		h.renderPortForwardError(c, "Bad Request", "The requested path is invalid.", pf.ContainerPort)
+		return
 	}
 
-	// Create proxy request
-	proxyReq, err := http.NewRequestWithContext(c.Request.Context(), c.Request.Method, targetURL, c.Request.Body)
+	// Create proxy request against the validated container URL only.
+	proxyReq, err := http.NewRequestWithContext(c.Request.Context(), c.Request.Method, target.String(), c.Request.Body)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create proxy request"})
 		return
@@ -572,11 +578,17 @@ func (h *PortForwardHandler) HandleHTTPProxy(c *gin.Context) {
 	proxyReq.Header.Set("X-Forwarded-Host", c.Request.Host)
 	proxyReq.Header.Set("X-Real-IP", c.ClientIP())
 
-	// Execute request
+	// Execute request: always dial the validated container address, never a URL-derived host.
 	client := &http.Client{
 		Timeout: 60 * time.Second,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse // Don't follow redirects, let client handle them
+		},
+		Transport: &http.Transport{
+			DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
+				d := net.Dialer{Timeout: 30 * time.Second}
+				return d.DialContext(ctx, network, targetAddr)
+			},
 		},
 	}
 
@@ -600,6 +612,68 @@ func (h *PortForwardHandler) HandleHTTPProxy(c *gin.Context) {
 
 	// Stream response body
 	io.Copy(c.Writer, resp.Body)
+}
+
+// sanitizeProxyPath normalizes a reverse-proxy path so it cannot rewrite request authority
+// when used with url.URL{Host: ...}. Rejects scheme-relative paths and backslash authority tricks.
+func sanitizeProxyPath(p string) (string, error) {
+	if p == "" {
+		return "/", nil
+	}
+	// Backslash can act as a path separator / authority introducer in some HTTP stacks.
+	if strings.Contains(p, "\\") {
+		return "", fmt.Errorf("path must not contain backslashes")
+	}
+	// Scheme-relative paths (//host/...) must never be accepted as path input.
+	if strings.HasPrefix(p, "//") {
+		return "", fmt.Errorf("path must be a relative URL path")
+	}
+	// Absolute URIs belong in the host/scheme fields, not the path.
+	if strings.Contains(p, "://") && !strings.HasPrefix(p, "/") {
+		return "", fmt.Errorf("path must be a relative URL path")
+	}
+	if !strings.HasPrefix(p, "/") {
+		p = "/" + p
+	}
+	cleaned := path.Clean(p)
+	if cleaned == "." {
+		cleaned = "/"
+	}
+	if !strings.HasPrefix(cleaned, "/") {
+		cleaned = "/" + cleaned
+	}
+	// path.Clean("//x") becomes "/x" on most Go versions; keep an explicit guard.
+	if strings.HasPrefix(cleaned, "//") {
+		return "", fmt.Errorf("path must be a relative URL path")
+	}
+	return cleaned, nil
+}
+
+// buildContainerProxyURL builds an HTTP URL whose host is exclusively the validated
+// container IP and port. User-controlled path/query cannot change the authority.
+// Returns the URL and the dial address (host:port) for a locked Transport dialer.
+func buildContainerProxyURL(ip string, port int, proxyPath, rawQuery string) (*url.URL, string, error) {
+	parsedIP := net.ParseIP(ip)
+	if parsedIP == nil {
+		return nil, "", fmt.Errorf("invalid container IP")
+	}
+	if port < 1 || port > 65535 {
+		return nil, "", fmt.Errorf("invalid container port")
+	}
+	cleanedPath, err := sanitizeProxyPath(proxyPath)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// Host is derived only from the Docker-provided IP and stored port (already range-checked).
+	host := net.JoinHostPort(parsedIP.String(), strconv.Itoa(port))
+	u := &url.URL{
+		Scheme:   "http",
+		Host:     host,
+		Path:     cleanedPath,
+		RawQuery: rawQuery,
+	}
+	return u, host, nil
 }
 
 // renderPortForwardError renders a branded HTML error page for port forwarding
