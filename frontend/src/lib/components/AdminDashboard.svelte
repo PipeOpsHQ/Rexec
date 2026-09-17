@@ -252,11 +252,17 @@
         return out;
     }
 
+    function formatCount(value: number | null | undefined): string {
+        const n = Number(value ?? 0);
+        if (!Number.isFinite(n)) return "0";
+        return Math.round(n).toLocaleString("en-US");
+    }
+
     function rangeLabel(page: number, perPage: number, total: number): string {
         if (total === 0) return "0 of 0";
         const start = (page - 1) * perPage + 1;
         const end = Math.min(page * perPage, total);
-        return `${start}–${end} of ${total}`;
+        return `${formatCount(start)}–${formatCount(end)} of ${formatCount(total)}`;
     }
 
     function onUsersSearchInput(value: string) {
@@ -415,35 +421,35 @@
             class:active={activeTab === "users"}
             onclick={() => setTab("users")}
         >
-            Users ({usersTotal})
+            Users ({formatCount(usersTotal)})
         </button>
         <button
             class="tab-btn"
             class:active={activeTab === "subscribers"}
             onclick={() => setTab("subscribers")}
         >
-            Subscribers ({subscribersTotal})
+            Subscribers ({formatCount(subscribersTotal)})
         </button>
         <button
             class="tab-btn"
             class:active={activeTab === "containers"}
             onclick={() => setTab("containers")}
         >
-            Containers ({stats?.totals.containers ?? containers.length})
+            Containers ({formatCount(stats?.totals.containers ?? containers.length)})
         </button>
         <button
             class="tab-btn"
             class:active={activeTab === "terminals"}
             onclick={() => setTab("terminals")}
         >
-            Active Sandboxes ({stats?.totals.activeSessions ?? terminals.length})
+            Active Sandboxes ({formatCount(stats?.totals.activeSessions ?? terminals.length)})
         </button>
         <button
             class="tab-btn"
             class:active={activeTab === "agents"}
             onclick={() => setTab("agents")}
         >
-            Agents ({stats?.totals.agents ?? agents.length})
+            Agents ({formatCount(stats?.totals.agents ?? agents.length)})
         </button>
     </div>
 
@@ -493,38 +499,35 @@
                         <div class="metric-grid metric-grid-primary">
                             <article class="metric-card">
                                 <span class="metric-label">Total users</span>
-                                <strong>{stats.totals.users}</strong>
-                                <span class="metric-note">{stats.activity.newUsers} new in range</span>
+                                <strong>{formatCount(stats.totals.users)}</strong>
+                                <span class="metric-note">{formatCount(stats.activity.newUsers)} new in range</span>
                             </article>
                             <article class="metric-card">
                                 <span class="metric-label">Live terminals</span>
-                                <strong>{stats.totals.activeSessions}</strong>
-                                <span class="metric-note">{stats.activity.newSessions} sessions started</span>
+                                <strong>{formatCount(stats.totals.activeSessions)}</strong>
+                                <span class="metric-note">{formatCount(stats.activity.newSessions)} sessions started</span>
                             </article>
                             <article class="metric-card">
                                 <span class="metric-label">Logins</span>
-                                <strong>{stats.totals.logins}</strong>
-                                <span class="metric-note">{stats.activity.newLogins} in range</span>
+                                <strong>{formatCount(stats.totals.logins)}</strong>
+                                <span class="metric-note">{formatCount(stats.activity.newLogins)} in range</span>
                             </article>
                             <article class="metric-card">
                                 <span class="metric-label">Active containers</span>
-                                <strong>{stats.totals.containers}</strong>
-                                <span class="metric-note">{stats.activity.newContainers} created in range</span>
+                                <strong>{formatCount(stats.totals.containers)}</strong>
+                                <span class="metric-note">{formatCount(stats.activity.newContainers)} created in range</span>
                             </article>
                             <article class="metric-card">
                                 <span class="metric-label">Agents online</span>
-                                <strong>{stats.totals.onlineAgents} / {stats.totals.agents}</strong>
-                                <span class="metric-note">{stats.activity.newAgents} new registrations</span>
+                                <strong>{formatCount(stats.totals.onlineAgents)} / {formatCount(stats.totals.agents)}</strong>
+                                <span class="metric-note">{formatCount(stats.activity.newAgents)} new registrations</span>
                             </article>
                             <article class="metric-card accent-recordings">
                                 <span class="metric-label">Recordings</span>
-                                <strong>{stats.totals.recordings}</strong>
-                                <span class="metric-note">{stats.activity.newRecordings} saved in range</span>
-                            </article>
-                            <article class="metric-card accent-recordings">
-                                <span class="metric-label">Recorded hours</span>
-                                <strong>{stats.totals.recordingHours}</strong>
-                                <span class="metric-note">{stats.activity.recordingHours} hours in range</span>
+                                <strong>{formatCount(stats.totals.recordings)}</strong>
+                                <span class="metric-note">
+                                    {formatCount(stats.activity.newRecordings)} saved · {formatCount(stats.totals.recordingHours)}h total ({formatCount(stats.activity.recordingHours)}h in range)
+                                </span>
                             </article>
                         </div>
 
@@ -587,7 +590,7 @@
                                                 role="button"
                                                 tabindex="0"
                                                 aria-pressed={pinnedBucket === index}
-                                                aria-label={`${point.bucketLabel}: ${total} total events. Click to pin details.`}
+                                                aria-label={`${point.bucketLabel}: ${formatCount(total)} total events. Click to pin details.`}
                                                 onpointermove={(e) => onBarPointerMove(e, index)}
                                                 onpointerenter={(e) => onBarPointerMove(e, index)}
                                                 onfocus={() => {
@@ -615,12 +618,12 @@
                                                             class:dimmed={isSeriesDimmed(series.key)}
                                                             class:emphasized={activeSeriesKey() === series.key && value > 0}
                                                             style={`height: ${getSegmentHeight(value, total)}; --series-color: ${series.color}`}
-                                                            title={`${series.label}: ${value}`}
+                                                            title={`${series.label}: ${formatCount(value)}`}
                                                         ></span>
                                                     {/each}
                                                 </div>
                                                 {#if total > 0 && stats.timeline.length <= 14}
-                                                    <span class="bar-value" class:visible={isActive}>{total}</span>
+                                                    <span class="bar-value" class:visible={isActive}>{formatCount(total)}</span>
                                                 {/if}
                                             </div>
                                         {/each}
@@ -636,7 +639,7 @@
                                         >
                                             <div class="tooltip-header">
                                                 <strong>{activePoint.bucketLabel}</strong>
-                                                <span class="tooltip-total">{tipTotal} events</span>
+                                                <span class="tooltip-total">{formatCount(tipTotal)} events</span>
                                             </div>
                                             <ul class="tooltip-series">
                                                 {#each seriesMeta as series}
@@ -648,7 +651,7 @@
                                                     >
                                                         <span class="swatch"></span>
                                                         <span class="series-name">{series.label}</span>
-                                                        <span class="series-value">{value}</span>
+                                                        <span class="series-value">{formatCount(value)}</span>
                                                         {#if tipTotal > 0}
                                                             <span class="series-pct"
                                                                 >{Math.round((value / tipTotal) * 100)}%</span
@@ -702,12 +705,12 @@
                                             onclick={() => onBarClick(index)}
                                         >
                                             <td>{point.bucketLabel}</td>
-                                            <td class:series-focus={activeSeriesKey() === "users"}>{point.newUsers}</td>
-                                            <td class:series-focus={activeSeriesKey() === "containers"}>{point.newContainers}</td>
-                                            <td class:series-focus={activeSeriesKey() === "sessions"}>{point.newSessions}</td>
-                                            <td class:series-focus={activeSeriesKey() === "logins"}>{point.newLogins}</td>
-                                            <td class:series-focus={activeSeriesKey() === "agents"}>{point.newAgents}</td>
-                                            <td class:series-focus={activeSeriesKey() === "recordings"}>{point.newRecordings}</td>
+                                            <td class:series-focus={activeSeriesKey() === "users"}>{formatCount(point.newUsers)}</td>
+                                            <td class:series-focus={activeSeriesKey() === "containers"}>{formatCount(point.newContainers)}</td>
+                                            <td class:series-focus={activeSeriesKey() === "sessions"}>{formatCount(point.newSessions)}</td>
+                                            <td class:series-focus={activeSeriesKey() === "logins"}>{formatCount(point.newLogins)}</td>
+                                            <td class:series-focus={activeSeriesKey() === "agents"}>{formatCount(point.newAgents)}</td>
+                                            <td class:series-focus={activeSeriesKey() === "recordings"}>{formatCount(point.newRecordings)}</td>
                                         </tr>
                                     {/each}
                                 </tbody>
@@ -1296,12 +1299,23 @@
     }
 
     .metric-card strong {
-        font-size: 28px;
+        font-size: clamp(22px, 2.2vw, 32px);
         line-height: 1;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.03em;
+        font-weight: 700;
     }
 
     .metric-note {
         color: var(--text-secondary);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .stats-table td,
+    .tooltip-series .series-value,
+    .tooltip-total,
+    .bar-value {
+        font-variant-numeric: tabular-nums;
     }
 
     .accent-recordings strong {
