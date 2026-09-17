@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -21,36 +23,65 @@ func NewAdminHandler(store *storage.PostgresStore, adminEventsHub *admin_events.
 	return &AdminHandler{store: store, adminEventsHub: adminEventsHub}
 }
 
-// ListUsers returns all users in the system.
+// ListUsers returns a paginated user list for the admin dashboard.
 func (h *AdminHandler) ListUsers(c *gin.Context) {
-	users, err := h.store.GetAllUsers(c.Request.Context())
+	params := parseAdminListQuery(c)
+	list, err := h.store.GetAdminUsers(c.Request.Context(), params)
 	if err != nil {
+		c.Error(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
 		return
 	}
 
-	containerCounts, err := h.store.GetContainerCountsByUser(c.Request.Context())
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch container counts"})
-		return
+	c.JSON(http.StatusOK, list)
+}
+
+func parseAdminListQuery(c *gin.Context) models.AdminUserListParams {
+	params := models.AdminUserListParams{
+		Page:    1,
+		PerPage: 25,
 	}
 
-	// Define a response struct that includes container count
-	type AdminUserResponse struct {
-		models.User
-		ContainerCount int `json:"containerCount"`
+	if v, err := strconv.Atoi(c.DefaultQuery("page", "1")); err == nil {
+		params.Page = v
 	}
 
-	response := make([]AdminUserResponse, len(users))
-	for i, user := range users {
-		count := containerCounts[user.ID]
-		response[i] = AdminUserResponse{
-			User:           *user, // Dereference the pointer
-			ContainerCount: count,
-		}
+	perPage := c.Query("per_page")
+	if perPage == "" {
+		perPage = c.DefaultQuery("perPage", "25")
+	}
+	if v, err := strconv.Atoi(perPage); err == nil {
+		params.PerPage = v
 	}
 
-	c.JSON(http.StatusOK, response)
+	if params.Page < 1 {
+		params.Page = 1
+	}
+	if params.Page > 10000 {
+		params.Page = 10000
+	}
+	if params.PerPage < 1 {
+		params.PerPage = 25
+	}
+	if params.PerPage > 100 {
+		params.PerPage = 100
+	}
+
+	search := strings.TrimSpace(c.Query("search"))
+	if search == "" {
+		search = strings.TrimSpace(c.Query("q"))
+	}
+	if len(search) > 100 {
+		search = search[:100]
+	}
+	params.Search = search
+
+	switch strings.ToLower(strings.TrimSpace(c.Query("subscribers"))) {
+	case "1", "true", "yes":
+		params.Subscribers = true
+	}
+
+	return params
 }
 
 // ListContainers returns all containers in the system with owner information.

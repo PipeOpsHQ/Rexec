@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -74,6 +75,75 @@ func TestIndexAdminUsageTimelineMatchesDriverLocations(t *testing.T) {
 	localEq := start.In(time.Local)
 	if _, ok := index[localEq.UTC().Unix()]; !ok {
 		t.Fatalf("unix index miss for local equivalent %v", localEq)
+	}
+}
+
+func TestEscapeLikePattern(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		in, want string
+	}{
+		{"alice", "alice"},
+		{`100%`, `100\%`},
+		{`a_b`, `a\_b`},
+		{`foo\bar`, `foo\\bar`},
+		{`%_\\`, `\%\_\\\\`},
+	}
+
+	for _, tt := range tests {
+		if got := escapeLikePattern(tt.in); got != tt.want {
+			t.Errorf("escapeLikePattern(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
+func TestNormalizeAdminUserListParams(t *testing.T) {
+	t.Parallel()
+
+	got := normalizeAdminUserListParams(models.AdminUserListParams{
+		Page:    -1,
+		PerPage: 500,
+		Search:  "  " + strings.Repeat("x", 120) + "  ",
+	})
+	if got.Page != 1 {
+		t.Fatalf("page = %d, want 1", got.Page)
+	}
+	if got.PerPage != 100 {
+		t.Fatalf("perPage = %d, want 100", got.PerPage)
+	}
+	if len(got.Search) != adminUserSearchMaxLen {
+		t.Fatalf("search len = %d, want %d", len(got.Search), adminUserSearchMaxLen)
+	}
+}
+
+func TestAssignAdminUsageCount(t *testing.T) {
+	t.Parallel()
+
+	point := &models.AdminUsagePoint{}
+	assignAdminUsageCount(point, "users", 4)
+	assignAdminUsageCount(point, "containers", 3)
+	assignAdminUsageCount(point, "sessions", 2)
+	assignAdminUsageCount(point, "logins", 9)
+	assignAdminUsageCount(point, "agents", 1)
+	assignAdminUsageCount(point, "recordings", 7)
+	assignAdminUsageCount(point, "unknown", 99)
+	assignAdminUsageCount(nil, "users", 1)
+
+	if point.NewUsers != 4 || point.NewContainers != 3 || point.NewSessions != 2 {
+		t.Fatalf("counts = %+v", point)
+	}
+	if point.NewLogins != 9 || point.NewAgents != 1 || point.NewRecordings != 7 {
+		t.Fatalf("counts = %+v", point)
+	}
+}
+
+func TestAdminUserSearchPattern(t *testing.T) {
+	t.Parallel()
+
+	got := adminUserSearchPattern(`a%b`)
+	if got != `%a\%b%` {
+		t.Fatalf("pattern = %q", got)
 	}
 }
 

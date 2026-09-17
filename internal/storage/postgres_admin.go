@@ -4,32 +4,69 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/rexec/rexec/internal/models"
 )
 
-// GetAllUsers retrieves all users for the admin dashboard
-func (s *PostgresStore) GetAllUsers(ctx context.Context) ([]*models.User, error) {
-	query := `
-		SELECT id, email, username, tier, COALESCE(is_admin, false),
-		       COALESCE(pipeops_id, ''), subscription_active, created_at, updated_at
-		FROM users
-		ORDER BY created_at DESC
-	`
-	rows, err := s.db.QueryContext(ctx, query)
+const adminUserSearchMaxLen = 100
+
+// GetAdminUsers returns a page of users for the admin dashboard.
+func (s *PostgresStore) GetAdminUsers(ctx context.Context, params models.AdminUserListParams) (*models.AdminUserList, error) {
+	params = normalizeAdminUserListParams(params)
+
+	where := "TRUE"
+	args := make([]interface{}, 0, 4)
+	arg := 1
+
+	if params.Search != "" {
+		where += fmt.Sprintf(" AND (u.email ILIKE $%d ESCAPE '\\' OR u.username ILIKE $%d ESCAPE '\\' OR u.id ILIKE $%d ESCAPE '\\')", arg, arg, arg)
+		args = append(args, adminUserSearchPattern(params.Search))
+		arg++
+	}
+	if params.Subscribers {
+		where += " AND u.subscription_active = TRUE"
+	}
+
+	var total int
+	countQuery := `SELECT COUNT(*) FROM users u WHERE ` + where
+	if err := s.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, err
+	}
+
+	if total > 0 && params.Offset() >= total {
+		params.Page = params.TotalPages(total)
+	}
+
+	listQuery := fmt.Sprintf(`
+		SELECT
+			u.id, u.email, u.username, u.tier, COALESCE(u.is_admin, false),
+			COALESCE(u.pipeops_id, ''), COALESCE(u.subscription_active, false),
+			u.created_at, u.updated_at,
+			COALESCE((
+				SELECT COUNT(*)::int
+				FROM containers c
+				WHERE c.user_id = u.id AND c.deleted_at IS NULL
+			), 0) AS container_count
+		FROM users u
+		WHERE %s
+		ORDER BY u.created_at DESC
+		LIMIT $%d OFFSET $%d
+	`, where, arg, arg+1)
+
+	listArgs := append(append([]interface{}{}, args...), params.PerPage, params.Offset())
+	rows, err := s.db.QueryContext(ctx, listQuery, listArgs...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var users []*models.User
+	users := make([]*models.AdminUser, 0, params.PerPage)
 	for rows.Next() {
-		var u models.User
+		var u models.AdminUser
 		var pipeopsID sql.NullString
-		// Assuming SubscriptionActive is a bool in your models.User
-		// If it's a pointer/sql.NullBool, adjust accordingly
-		err := rows.Scan(
+		if err := rows.Scan(
 			&u.ID,
 			&u.Email,
 			&u.Username,
@@ -39,40 +76,55 @@ func (s *PostgresStore) GetAllUsers(ctx context.Context) ([]*models.User, error)
 			&u.SubscriptionActive,
 			&u.CreatedAt,
 			&u.UpdatedAt,
-		)
-		if err != nil {
+			&u.ContainerCount,
+		); err != nil {
 			return nil, err
 		}
 		u.PipeOpsID = pipeopsID.String
 		users = append(users, &u)
 	}
-	return users, nil
-}
-
-// GetContainerCountsByUser returns a map of userID -> active container count.
-func (s *PostgresStore) GetContainerCountsByUser(ctx context.Context) (map[string]int, error) {
-	query := `
-		SELECT user_id, COUNT(*)
-		FROM containers
-		WHERE deleted_at IS NULL
-		GROUP BY user_id
-	`
-	rows, err := s.db.QueryContext(ctx, query)
-	if err != nil {
+	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	counts := make(map[string]int)
-	for rows.Next() {
-		var userID string
-		var count int
-		if err := rows.Scan(&userID, &count); err != nil {
-			return nil, err
-		}
-		counts[userID] = count
+	return &models.AdminUserList{
+		Users:      users,
+		Page:       params.Page,
+		PerPage:    params.PerPage,
+		Total:      total,
+		TotalPages: params.TotalPages(total),
+	}, nil
+}
+
+func normalizeAdminUserListParams(params models.AdminUserListParams) models.AdminUserListParams {
+	if params.Page < 1 {
+		params.Page = 1
 	}
-	return counts, nil
+	if params.Page > 10000 {
+		params.Page = 10000
+	}
+	if params.PerPage < 1 {
+		params.PerPage = 25
+	}
+	if params.PerPage > 100 {
+		params.PerPage = 100
+	}
+	params.Search = strings.TrimSpace(params.Search)
+	if len(params.Search) > adminUserSearchMaxLen {
+		params.Search = params.Search[:adminUserSearchMaxLen]
+	}
+	return params
+}
+
+func adminUserSearchPattern(search string) string {
+	return "%" + escapeLikePattern(search) + "%"
+}
+
+func escapeLikePattern(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `%`, `\%`)
+	s = strings.ReplaceAll(s, `_`, `\_`)
+	return s
 }
 
 // GetAllContainersAdmin retrieves all containers for the admin dashboard
@@ -173,6 +225,7 @@ func (s *PostgresStore) DeleteUser(ctx context.Context, id string) error {
 }
 
 // GetAdminUsageStats returns aggregate usage analytics for the admin dashboard.
+// Totals/activity are one round trip; the timeline is a second UNION ALL query.
 func (s *PostgresStore) GetAdminUsageStats(ctx context.Context, from, to time.Time, interval string) (*models.AdminUsageStats, error) {
 	stats := &models.AdminUsageStats{
 		From:     from,
@@ -180,50 +233,7 @@ func (s *PostgresStore) GetAdminUsageStats(ctx context.Context, from, to time.Ti
 		Interval: interval,
 	}
 
-	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM users`).Scan(&stats.Totals.Users); err != nil {
-		return nil, err
-	}
-	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM containers WHERE deleted_at IS NULL`).Scan(&stats.Totals.Containers); err != nil {
-		return nil, err
-	}
-	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM sessions WHERE last_ping_at > NOW() - INTERVAL '5 minutes'`).Scan(&stats.Totals.ActiveSessions); err != nil {
-		return nil, err
-	}
-	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM user_sessions`).Scan(&stats.Totals.Logins); err != nil {
-		return nil, err
-	}
-	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM agents`).Scan(&stats.Totals.Agents); err != nil {
-		return nil, err
-	}
-	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM agents WHERE last_heartbeat > NOW() - INTERVAL '2 minutes'`).Scan(&stats.Totals.OnlineAgents); err != nil {
-		return nil, err
-	}
-	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM terminal_recordings`).Scan(&stats.Totals.Recordings); err != nil {
-		return nil, err
-	}
-	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(ROUND(SUM(duration_ms) / 3600000.0)::INTEGER, 0) FROM terminal_recordings`).Scan(&stats.Totals.RecordingHours); err != nil {
-		return nil, err
-	}
-
-	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE created_at >= $1 AND created_at < $2`, from, to).Scan(&stats.Activity.NewUsers); err != nil {
-		return nil, err
-	}
-	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM containers WHERE created_at >= $1 AND created_at < $2`, from, to).Scan(&stats.Activity.NewContainers); err != nil {
-		return nil, err
-	}
-	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM sessions WHERE created_at >= $1 AND created_at < $2`, from, to).Scan(&stats.Activity.NewSessions); err != nil {
-		return nil, err
-	}
-	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM user_sessions WHERE created_at >= $1 AND created_at < $2`, from, to).Scan(&stats.Activity.NewLogins); err != nil {
-		return nil, err
-	}
-	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM agents WHERE created_at >= $1 AND created_at < $2`, from, to).Scan(&stats.Activity.NewAgents); err != nil {
-		return nil, err
-	}
-	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM terminal_recordings WHERE created_at >= $1 AND created_at < $2`, from, to).Scan(&stats.Activity.NewRecordings); err != nil {
-		return nil, err
-	}
-	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(ROUND(SUM(duration_ms) / 3600000.0)::INTEGER, 0) FROM terminal_recordings WHERE created_at >= $1 AND created_at < $2`, from, to).Scan(&stats.Activity.RecordingHours); err != nil {
+	if err := s.scanAdminUsageScalars(ctx, stats, from, to); err != nil {
 		return nil, err
 	}
 
@@ -231,41 +241,53 @@ func (s *PostgresStore) GetAdminUsageStats(ctx context.Context, from, to time.Ti
 	if err != nil {
 		return nil, err
 	}
-
 	stats.Timeline = buckets
 
-	if err := s.fillAdminUsageSeries(ctx, stats.Timeline, `users`, `created_at`, interval, from, to, func(point *models.AdminUsagePoint, count int) {
-		point.NewUsers = count
-	}); err != nil {
-		return nil, err
-	}
-	if err := s.fillAdminUsageSeries(ctx, stats.Timeline, `containers`, `created_at`, interval, from, to, func(point *models.AdminUsagePoint, count int) {
-		point.NewContainers = count
-	}); err != nil {
-		return nil, err
-	}
-	if err := s.fillAdminUsageSeries(ctx, stats.Timeline, `sessions`, `created_at`, interval, from, to, func(point *models.AdminUsagePoint, count int) {
-		point.NewSessions = count
-	}); err != nil {
-		return nil, err
-	}
-	if err := s.fillAdminUsageSeries(ctx, stats.Timeline, `user_sessions`, `created_at`, interval, from, to, func(point *models.AdminUsagePoint, count int) {
-		point.NewLogins = count
-	}); err != nil {
-		return nil, err
-	}
-	if err := s.fillAdminUsageSeries(ctx, stats.Timeline, `agents`, `created_at`, interval, from, to, func(point *models.AdminUsagePoint, count int) {
-		point.NewAgents = count
-	}); err != nil {
-		return nil, err
-	}
-	if err := s.fillAdminUsageSeries(ctx, stats.Timeline, `terminal_recordings`, `created_at`, interval, from, to, func(point *models.AdminUsagePoint, count int) {
-		point.NewRecordings = count
-	}); err != nil {
+	if err := s.fillAdminUsageTimeline(ctx, stats.Timeline, interval, from, to); err != nil {
 		return nil, err
 	}
 
 	return stats, nil
+}
+
+func (s *PostgresStore) scanAdminUsageScalars(ctx context.Context, stats *models.AdminUsageStats, from, to time.Time) error {
+	const query = `
+		SELECT
+			(SELECT COUNT(*) FROM users),
+			(SELECT COUNT(*) FROM users WHERE subscription_active = TRUE),
+			(SELECT COUNT(*) FROM containers WHERE deleted_at IS NULL),
+			(SELECT COUNT(*) FROM sessions WHERE last_ping_at > NOW() - INTERVAL '5 minutes'),
+			(SELECT COUNT(*) FROM user_sessions),
+			(SELECT COUNT(*) FROM agents),
+			(SELECT COUNT(*) FROM agents WHERE last_heartbeat > NOW() - INTERVAL '2 minutes'),
+			(SELECT COUNT(*) FROM terminal_recordings),
+			(SELECT COALESCE(ROUND(SUM(duration_ms) / 3600000.0)::INTEGER, 0) FROM terminal_recordings),
+			(SELECT COUNT(*) FROM users WHERE created_at >= $1 AND created_at < $2),
+			(SELECT COUNT(*) FROM containers WHERE created_at >= $1 AND created_at < $2),
+			(SELECT COUNT(*) FROM sessions WHERE created_at >= $1 AND created_at < $2),
+			(SELECT COUNT(*) FROM user_sessions WHERE created_at >= $1 AND created_at < $2),
+			(SELECT COUNT(*) FROM agents WHERE created_at >= $1 AND created_at < $2),
+			(SELECT COUNT(*) FROM terminal_recordings WHERE created_at >= $1 AND created_at < $2),
+			(SELECT COALESCE(ROUND(SUM(duration_ms) / 3600000.0)::INTEGER, 0) FROM terminal_recordings WHERE created_at >= $1 AND created_at < $2)
+	`
+	return s.db.QueryRowContext(ctx, query, from.UTC(), to.UTC()).Scan(
+		&stats.Totals.Users,
+		&stats.Totals.Subscribers,
+		&stats.Totals.Containers,
+		&stats.Totals.ActiveSessions,
+		&stats.Totals.Logins,
+		&stats.Totals.Agents,
+		&stats.Totals.OnlineAgents,
+		&stats.Totals.Recordings,
+		&stats.Totals.RecordingHours,
+		&stats.Activity.NewUsers,
+		&stats.Activity.NewContainers,
+		&stats.Activity.NewSessions,
+		&stats.Activity.NewLogins,
+		&stats.Activity.NewAgents,
+		&stats.Activity.NewRecordings,
+		&stats.Activity.RecordingHours,
+	)
 }
 
 func buildAdminUsageBuckets(from, to time.Time, interval string) ([]models.AdminUsagePoint, error) {
@@ -321,7 +343,7 @@ func buildAdminUsageBuckets(from, to time.Time, interval string) ([]models.Admin
 	return buckets, nil
 }
 
-func (s *PostgresStore) fillAdminUsageSeries(ctx context.Context, timeline []models.AdminUsagePoint, table, column, interval string, from, to time.Time, assign func(point *models.AdminUsagePoint, count int)) error {
+func (s *PostgresStore) fillAdminUsageTimeline(ctx context.Context, timeline []models.AdminUsagePoint, interval string, from, to time.Time) error {
 	if len(timeline) == 0 {
 		return nil
 	}
@@ -330,16 +352,27 @@ func (s *PostgresStore) fillAdminUsageSeries(ctx context.Context, timeline []mod
 	// equality (lib/pq often scans timestamptz with a non-UTC Location, which
 	// makes Go map lookups miss even when Equal() is true — leaving the chart
 	// all zeros while totals still look fine).
-	query := fmt.Sprintf(`
-		SELECT EXTRACT(EPOCH FROM date_trunc('%s', %s AT TIME ZONE 'UTC') AT TIME ZONE 'UTC')::bigint AS bucket_unix,
+	const query = `
+		SELECT series,
+		       EXTRACT(EPOCH FROM date_trunc($3, ts AT TIME ZONE 'UTC') AT TIME ZONE 'UTC')::bigint AS bucket_unix,
 		       COUNT(*)::int
-		FROM %s
-		WHERE %s >= $1 AND %s < $2
-		GROUP BY 1
-		ORDER BY 1
-	`, interval, column, table, column, column)
+		FROM (
+			SELECT 'users'::text AS series, created_at AS ts FROM users WHERE created_at >= $1 AND created_at < $2
+			UNION ALL
+			SELECT 'containers', created_at FROM containers WHERE created_at >= $1 AND created_at < $2
+			UNION ALL
+			SELECT 'sessions', created_at FROM sessions WHERE created_at >= $1 AND created_at < $2
+			UNION ALL
+			SELECT 'logins', created_at FROM user_sessions WHERE created_at >= $1 AND created_at < $2
+			UNION ALL
+			SELECT 'agents', created_at FROM agents WHERE created_at >= $1 AND created_at < $2
+			UNION ALL
+			SELECT 'recordings', created_at FROM terminal_recordings WHERE created_at >= $1 AND created_at < $2
+		) events
+		GROUP BY 1, 2
+	`
 
-	rows, err := s.db.QueryContext(ctx, query, from.UTC(), to.UTC())
+	rows, err := s.db.QueryContext(ctx, query, from.UTC(), to.UTC(), interval)
 	if err != nil {
 		return err
 	}
@@ -348,17 +381,40 @@ func (s *PostgresStore) fillAdminUsageSeries(ctx context.Context, timeline []mod
 	points := indexAdminUsageTimeline(timeline)
 
 	for rows.Next() {
+		var series string
 		var bucketUnix int64
 		var count int
-		if err := rows.Scan(&bucketUnix, &count); err != nil {
+		if err := rows.Scan(&series, &bucketUnix, &count); err != nil {
 			return err
 		}
-		if point, ok := points[bucketUnix]; ok {
-			assign(point, count)
+		point, ok := points[bucketUnix]
+		if !ok {
+			continue
 		}
+		assignAdminUsageCount(point, series, count)
 	}
 
 	return rows.Err()
+}
+
+func assignAdminUsageCount(point *models.AdminUsagePoint, series string, count int) {
+	if point == nil {
+		return
+	}
+	switch series {
+	case "users":
+		point.NewUsers = count
+	case "containers":
+		point.NewContainers = count
+	case "sessions":
+		point.NewSessions = count
+	case "logins":
+		point.NewLogins = count
+	case "agents":
+		point.NewAgents = count
+	case "recordings":
+		point.NewRecordings = count
+	}
 }
 
 // indexAdminUsageTimeline maps each bucket's UTC unix second to the point so
