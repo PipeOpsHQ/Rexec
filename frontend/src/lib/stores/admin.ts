@@ -1,4 +1,4 @@
-import { writable } from "svelte/store";
+import { get, writable } from "svelte/store";
 import { api, getWebSocketUrl } from "../utils/api";
 import { createRexecWebSocket } from "../utils/ws";
 import type { User } from "./auth";
@@ -44,6 +44,7 @@ export interface AdminAgent {
 
 export interface AdminUsageTotals {
   users: number;
+  subscribers: number;
   containers: number;
   activeSessions: number;
   logins: number;
@@ -51,6 +52,20 @@ export interface AdminUsageTotals {
   onlineAgents: number;
   recordings: number;
   recordingHours: number;
+}
+
+export interface AdminUserList {
+  users: AdminUser[];
+  page: number;
+  perPage: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface AdminListQuery {
+  page: number;
+  perPage: number;
+  search: string;
 }
 
 export interface AdminUsageActivity {
@@ -102,11 +117,29 @@ export interface AdminEvent<T = any> {
 
 export interface AdminState {
   users: AdminUser[];
+  usersQuery: AdminListQuery;
+  usersTotal: number;
+  usersTotalPages: number;
+  usersLoading: boolean;
+  usersLoaded: boolean;
+  subscribers: AdminUser[];
+  subscribersQuery: AdminListQuery;
+  subscribersTotal: number;
+  subscribersTotalPages: number;
+  subscribersLoading: boolean;
+  subscribersLoaded: boolean;
   containers: AdminContainer[];
+  containersLoading: boolean;
+  containersLoaded: boolean;
   terminals: AdminTerminal[];
+  terminalsLoading: boolean;
+  terminalsLoaded: boolean;
   agents: AdminAgent[];
+  agentsLoading: boolean;
+  agentsLoaded: boolean;
   stats: AdminUsageStats | null;
-  _loadingCount: number;
+  statsLoading: boolean;
+  statsLoaded: boolean;
   isLoading: boolean;
   error: string | null;
   ws: WebSocket | null;
@@ -116,13 +149,37 @@ export interface AdminState {
   wsReconnectInterval: number; // in milliseconds
 }
 
+const defaultListQuery: AdminListQuery = {
+  page: 1,
+  perPage: 25,
+  search: "",
+};
+
 const initialState: AdminState = {
   users: [],
+  usersQuery: { ...defaultListQuery },
+  usersTotal: 0,
+  usersTotalPages: 0,
+  usersLoading: false,
+  usersLoaded: false,
+  subscribers: [],
+  subscribersQuery: { ...defaultListQuery },
+  subscribersTotal: 0,
+  subscribersTotalPages: 0,
+  subscribersLoading: false,
+  subscribersLoaded: false,
   containers: [],
+  containersLoading: false,
+  containersLoaded: false,
   terminals: [],
+  terminalsLoading: false,
+  terminalsLoaded: false,
   agents: [],
+  agentsLoading: false,
+  agentsLoaded: false,
   stats: null,
-  _loadingCount: 0,
+  statsLoading: false,
+  statsLoaded: false,
   isLoading: false,
   error: null,
   ws: null,
@@ -132,11 +189,37 @@ const initialState: AdminState = {
   wsReconnectInterval: 1000, // 1 second
 };
 
+function anyLoading(state: AdminState): boolean {
+  return (
+    state.statsLoading ||
+    state.usersLoading ||
+    state.subscribersLoading ||
+    state.containersLoading ||
+    state.terminalsLoading ||
+    state.agentsLoading
+  );
+}
+
 function createAdminStore() {
-  const { subscribe, update } = writable<AdminState>(initialState);
+  const store = writable<AdminState>(initialState);
+  const { subscribe, update } = store;
 
   let ws: WebSocket | null = null;
   let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+  let usersRefetchTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function scheduleUsersRefetch() {
+    if (usersRefetchTimer) clearTimeout(usersRefetchTimer);
+    usersRefetchTimer = setTimeout(() => {
+      const state = get(store);
+      if (state.usersLoaded) {
+        void fetchUsersPage(false);
+      }
+      if (state.subscribersLoaded) {
+        void fetchUsersPage(true);
+      }
+    }, 250);
+  }
 
   async function connectWebSocket() {
     update((state) => ({
@@ -175,27 +258,20 @@ function createAdminStore() {
 
     ws.onmessage = (event) => {
       const adminEvent: AdminEvent = JSON.parse(event.data);
+      if (
+        adminEvent.type === "user_created" ||
+        adminEvent.type === "user_updated" ||
+        adminEvent.type === "user_deleted"
+      ) {
+        scheduleUsersRefetch();
+        return;
+      }
+
       update((state) => {
-        let newUsers = [...state.users];
         let newContainers = [...state.containers];
         let newTerminals = [...state.terminals];
 
         switch (adminEvent.type) {
-          case "user_created":
-            newUsers = [...newUsers, adminEvent.payload as AdminUser];
-            break;
-          case "user_updated":
-            newUsers = newUsers.map((u) =>
-              u.id === (adminEvent.payload as AdminUser).id
-                ? (adminEvent.payload as AdminUser)
-                : u,
-            );
-            break;
-          case "user_deleted":
-            newUsers = newUsers.filter(
-              (u) => u.id !== (adminEvent.payload as AdminUser).id,
-            );
-            break;
           case "container_created":
             newContainers = [
               ...newContainers,
@@ -241,7 +317,6 @@ function createAdminStore() {
 
         return {
           ...state,
-          users: newUsers,
           containers: newContainers,
           terminals: newTerminals,
         };
@@ -304,182 +379,189 @@ function createAdminStore() {
       clearTimeout(reconnectTimeout);
       reconnectTimeout = null;
     }
+    if (usersRefetchTimer) {
+      clearTimeout(usersRefetchTimer);
+      usersRefetchTimer = null;
+    }
     update((state) => ({ ...state, wsConnected: false, ws: null }));
+  }
+
+  async function fetchUsersPage(
+    subscribers: boolean,
+    opts: Partial<AdminListQuery> = {},
+  ) {
+    const loadingKey = subscribers ? "subscribersLoading" : "usersLoading";
+    let query: AdminListQuery = { ...defaultListQuery };
+
+    update((state) => {
+      const current = subscribers ? state.subscribersQuery : state.usersQuery;
+      query = {
+        page: opts.page ?? current.page,
+        perPage: opts.perPage ?? current.perPage,
+        search: opts.search ?? current.search,
+      };
+      const next = {
+        ...state,
+        error: null,
+        [loadingKey]: true,
+      } as AdminState;
+      if (subscribers) {
+        next.subscribersQuery = query;
+      } else {
+        next.usersQuery = query;
+      }
+      next.isLoading = anyLoading(next);
+      return next;
+    });
+
+    const params = new URLSearchParams();
+    params.set("page", String(query.page));
+    params.set("per_page", String(query.perPage));
+    if (query.search) params.set("search", query.search);
+    if (subscribers) params.set("subscribers", "true");
+
+    const { data, error } = await api.get<AdminUserList>(
+      `/api/admin/users?${params.toString()}`,
+    );
+
+    update((state) => {
+      const next: AdminState = {
+        ...state,
+        [loadingKey]: false,
+        error: error ?? null,
+      } as AdminState;
+      if (!error && data) {
+        if (subscribers) {
+          next.subscribers = data.users || [];
+          next.subscribersTotal = data.total;
+          next.subscribersTotalPages = data.totalPages;
+          next.subscribersQuery = {
+            page: data.page,
+            perPage: data.perPage,
+            search: query.search,
+          };
+          next.subscribersLoaded = true;
+        } else {
+          next.users = data.users || [];
+          next.usersTotal = data.total;
+          next.usersTotalPages = data.totalPages;
+          next.usersQuery = {
+            page: data.page,
+            perPage: data.perPage,
+            search: query.search,
+          };
+          next.usersLoaded = true;
+        }
+      }
+      next.isLoading = anyLoading(next);
+      return next;
+    });
   }
 
   return {
     subscribe,
-    fetchUsers: async () => {
-      update((state) => ({
-        ...state,
-        _loadingCount: state._loadingCount + 1,
-        isLoading: true,
-        error: null,
-      }));
-      const { data, error } = await api.get<AdminUser[]>("/api/admin/users");
+    fetchUsers: async (opts: Partial<AdminListQuery> = {}) => {
+      await fetchUsersPage(false, opts);
+    },
 
-      if (error) {
-        update((state) => {
-          const count = state._loadingCount - 1;
-          return {
-            ...state,
-            _loadingCount: count,
-            isLoading: count > 0,
-            error,
-          };
-        });
-        return;
-      }
-      update((state) => {
-        const count = state._loadingCount - 1;
-        return {
-          ...state,
-          users: data || [],
-          _loadingCount: count,
-          isLoading: count > 0,
-        };
-      });
+    fetchSubscribers: async (opts: Partial<AdminListQuery> = {}) => {
+      await fetchUsersPage(true, opts);
     },
 
     fetchContainers: async () => {
-      update((state) => ({
-        ...state,
-        _loadingCount: state._loadingCount + 1,
-        isLoading: true,
-        error: null,
-      }));
+      update((state) => {
+        const next = { ...state, containersLoading: true, error: null };
+        next.isLoading = anyLoading(next);
+        return next;
+      });
       const { data, error } = await api.get<AdminContainer[]>(
         "/api/admin/containers",
       );
 
-      if (error) {
-        update((state) => {
-          const count = state._loadingCount - 1;
-          return {
-            ...state,
-            _loadingCount: count,
-            isLoading: count > 0,
-            error,
-          };
-        });
-        return;
-      }
       update((state) => {
-        const count = state._loadingCount - 1;
-        return {
+        const next: AdminState = {
           ...state,
-          containers: data || [],
-          _loadingCount: count,
-          isLoading: count > 0,
+          containersLoading: false,
+          containersLoaded: !error,
+          error: error ?? null,
         };
+        if (!error) next.containers = data || [];
+        next.isLoading = anyLoading(next);
+        return next;
       });
     },
 
     fetchTerminals: async () => {
-      update((state) => ({
-        ...state,
-        _loadingCount: state._loadingCount + 1,
-        isLoading: true,
-        error: null,
-      }));
+      update((state) => {
+        const next = { ...state, terminalsLoading: true, error: null };
+        next.isLoading = anyLoading(next);
+        return next;
+      });
       const { data, error } = await api.get<AdminTerminal[]>(
         "/api/admin/terminals",
       );
 
-      if (error) {
-        update((state) => {
-          const count = state._loadingCount - 1;
-          return {
-            ...state,
-            _loadingCount: count,
-            isLoading: count > 0,
-            error,
-          };
-        });
-        return;
-      }
       update((state) => {
-        const count = state._loadingCount - 1;
-        return {
+        const next: AdminState = {
           ...state,
-          terminals: data || [],
-          _loadingCount: count,
-          isLoading: count > 0,
+          terminalsLoading: false,
+          terminalsLoaded: !error,
+          error: error ?? null,
         };
+        if (!error) next.terminals = data || [];
+        next.isLoading = anyLoading(next);
+        return next;
       });
     },
 
     fetchAgents: async () => {
-      update((state) => ({
-        ...state,
-        _loadingCount: state._loadingCount + 1,
-        isLoading: true,
-        error: null,
-      }));
+      update((state) => {
+        const next = { ...state, agentsLoading: true, error: null };
+        next.isLoading = anyLoading(next);
+        return next;
+      });
       const { data, error } = await api.get<AdminAgent[]>("/api/admin/agents");
 
-      if (error) {
-        update((state) => {
-          const count = state._loadingCount - 1;
-          return {
-            ...state,
-            _loadingCount: count,
-            isLoading: count > 0,
-            error,
-          };
-        });
-        return;
-      }
       update((state) => {
-        const count = state._loadingCount - 1;
-        return {
+        const next: AdminState = {
           ...state,
-          agents: data || [],
-          _loadingCount: count,
-          isLoading: count > 0,
+          agentsLoading: false,
+          agentsLoaded: !error,
+          error: error ?? null,
         };
+        if (!error) next.agents = data || [];
+        next.isLoading = anyLoading(next);
+        return next;
       });
     },
 
     fetchStats: async (range = "30d") => {
-      update((state) => ({
-        ...state,
-        _loadingCount: state._loadingCount + 1,
-        isLoading: true,
-        error: null,
-      }));
+      update((state) => {
+        const next = { ...state, statsLoading: true, error: null };
+        next.isLoading = anyLoading(next);
+        return next;
+      });
       const { data, error } = await api.get<AdminUsageStats>(
         `/api/admin/stats?range=${encodeURIComponent(range)}`,
       );
 
-      if (error) {
-        update((state) => {
-          const count = state._loadingCount - 1;
-          return {
-            ...state,
-            _loadingCount: count,
-            isLoading: count > 0,
-            error,
-          };
-        });
-        return;
-      }
-
       update((state) => {
-        const count = state._loadingCount - 1;
-        return {
+        const next: AdminState = {
           ...state,
-          stats: data || null,
-          _loadingCount: count,
-          isLoading: count > 0,
+          statsLoading: false,
+          statsLoaded: !error,
+          error: error ?? null,
         };
+        if (!error) next.stats = data || null;
+        next.isLoading = anyLoading(next);
+        return next;
       });
     },
 
     deleteUser: async (userId: string) => {
       const { error } = await api.delete(`/api/admin/users/${userId}`);
       if (error) return { success: false, error };
-      // WS event will handle updating the store
+      scheduleUsersRefetch();
       return { success: true };
     },
 

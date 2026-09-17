@@ -16,6 +16,9 @@
     type Tab = "stats" | "users" | "subscribers" | "containers" | "terminals" | "agents";
     let activeTab: Tab = "stats";
     let selectedStatsRange = "30d";
+    let usersSearchInput = "";
+    let subscribersSearchInput = "";
+    let searchTimer: ReturnType<typeof setTimeout> | null = null;
 
     type SeriesKey =
         | "users"
@@ -54,6 +57,45 @@
     function setTab(tab: Tab) {
         activeTab = tab;
         clearChartInteraction();
+        void ensureTabLoaded(tab);
+    }
+
+    async function ensureTabLoaded(tab: Tab, force = false) {
+        if (tab === "stats") {
+            if (force || !$admin.statsLoaded) {
+                await admin.fetchStats(selectedStatsRange);
+            }
+            return;
+        }
+        if (tab === "users") {
+            if (force || !$admin.usersLoaded) {
+                await admin.fetchUsers();
+            }
+            return;
+        }
+        if (tab === "subscribers") {
+            if (force || !$admin.subscribersLoaded) {
+                await admin.fetchSubscribers();
+            }
+            return;
+        }
+        if (tab === "containers") {
+            if (force || !$admin.containersLoaded) {
+                await admin.fetchContainers();
+            }
+            return;
+        }
+        if (tab === "terminals") {
+            if (force || !$admin.terminalsLoaded) {
+                await admin.fetchTerminals();
+            }
+            return;
+        }
+        if (tab === "agents") {
+            if (force || !$admin.agentsLoaded) {
+                await admin.fetchAgents();
+            }
+        }
     }
 
     function clearChartInteraction() {
@@ -143,35 +185,104 @@
             : null;
 
     async function loadData() {
-        await Promise.all([
-            admin.fetchStats(selectedStatsRange),
-            admin.fetchUsers(),
-            admin.fetchContainers(),
-            admin.fetchTerminals(),
-            admin.fetchAgents()
-        ]);
+        await ensureTabLoaded(activeTab, true);
+        if (activeTab !== "stats" && !$admin.statsLoaded) {
+            void admin.fetchStats(selectedStatsRange);
+        }
     }
 
-    // Load initial data on mount and start WebSocket
-    onMount(async () => {
-        await loadData(); // Initial data fetch
-        admin.startAdminEvents(); // Start WebSocket for live updates
+    // Load the default tab immediately; other tabs fetch on first visit.
+    onMount(() => {
+        void ensureTabLoaded(activeTab);
+        admin.startAdminEvents();
     });
 
     // Clean up WebSocket on destroy
     onDestroy(() => {
+        if (searchTimer) clearTimeout(searchTimer);
         admin.stopAdminEvents();
     });
 
     $: users = $admin.users;
-    $: subscribers = users.filter((u) => u.subscriptionActive === true);
+    $: subscribers = $admin.subscribers;
     $: containers = $admin.containers;
     $: terminals = $admin.terminals;
     $: agents = $admin.agents;
     $: stats = $admin.stats;
-    $: isLoading = $admin.isLoading;
+    $: statsLoading = $admin.statsLoading;
+    $: usersLoading = $admin.usersLoading;
+    $: subscribersLoading = $admin.subscribersLoading;
+    $: containersLoading = $admin.containersLoading;
+    $: terminalsLoading = $admin.terminalsLoading;
+    $: agentsLoading = $admin.agentsLoading;
+    $: tabLoading =
+        (activeTab === "stats" && statsLoading && !stats) ||
+        (activeTab === "users" && usersLoading && !$admin.usersLoaded) ||
+        (activeTab === "subscribers" && subscribersLoading && !$admin.subscribersLoaded) ||
+        (activeTab === "containers" && containersLoading && !$admin.containersLoaded) ||
+        (activeTab === "terminals" && terminalsLoading && !$admin.terminalsLoaded) ||
+        (activeTab === "agents" && agentsLoading && !$admin.agentsLoaded);
+    $: refreshBusy =
+        (activeTab === "stats" && statsLoading) ||
+        (activeTab === "users" && usersLoading) ||
+        (activeTab === "subscribers" && subscribersLoading) ||
+        (activeTab === "containers" && containersLoading) ||
+        (activeTab === "terminals" && terminalsLoading) ||
+        (activeTab === "agents" && agentsLoading);
     $: wsConnected = $admin.wsConnected;
     $: wsError = $admin.error;
+    $: usersTotal = stats?.totals.users ?? $admin.usersTotal;
+    $: subscribersTotal = stats?.totals.subscribers ?? $admin.subscribersTotal;
+
+    const perPageOptions = [25, 50, 100];
+
+    function paginationWindow(current: number, total: number): (number | "ellipsis")[] {
+        if (total <= 7) {
+            return Array.from({ length: Math.max(total, 0) }, (_, i) => i + 1);
+        }
+        const pages = new Set<number>([1, total, current, current - 1, current + 1]);
+        const sorted = [...pages].filter((p) => p >= 1 && p <= total).sort((a, b) => a - b);
+        const out: (number | "ellipsis")[] = [];
+        let prev = 0;
+        for (const page of sorted) {
+            if (prev && page - prev > 1) out.push("ellipsis");
+            out.push(page);
+            prev = page;
+        }
+        return out;
+    }
+
+    function rangeLabel(page: number, perPage: number, total: number): string {
+        if (total === 0) return "0 of 0";
+        const start = (page - 1) * perPage + 1;
+        const end = Math.min(page * perPage, total);
+        return `${start}–${end} of ${total}`;
+    }
+
+    function onUsersSearchInput(value: string) {
+        usersSearchInput = value;
+        if (searchTimer) clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+            void admin.fetchUsers({ search: value.trim(), page: 1 });
+        }, 300);
+    }
+
+    function onSubscribersSearchInput(value: string) {
+        subscribersSearchInput = value;
+        if (searchTimer) clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+            void admin.fetchSubscribers({ search: value.trim(), page: 1 });
+        }, 300);
+    }
+
+    function userInitial(user: { username?: string; email?: string }): string {
+        const source = user.username || user.email || "?";
+        return source.charAt(0).toUpperCase();
+    }
+
+    function isUserAdmin(user: { isAdmin?: boolean }): boolean {
+        return user.isAdmin === true;
+    }
     $: chartMax = Math.max(
         1,
         ...((stats?.timeline ?? []).map((point) => (
@@ -272,7 +383,7 @@
             <button
                 class="btn btn-secondary btn-sm"
                 onclick={loadData}
-                disabled={isLoading}
+                disabled={refreshBusy}
             >
                 <svg
                     class="icon"
@@ -304,39 +415,39 @@
             class:active={activeTab === "users"}
             onclick={() => setTab("users")}
         >
-            Users ({users.length})
+            Users ({usersTotal})
         </button>
         <button
             class="tab-btn"
             class:active={activeTab === "subscribers"}
             onclick={() => setTab("subscribers")}
         >
-            Subscribers ({subscribers.length})
+            Subscribers ({subscribersTotal})
         </button>
         <button
             class="tab-btn"
             class:active={activeTab === "containers"}
             onclick={() => setTab("containers")}
         >
-            Containers ({containers.length})
+            Containers ({stats?.totals.containers ?? containers.length})
         </button>
         <button
             class="tab-btn"
             class:active={activeTab === "terminals"}
             onclick={() => setTab("terminals")}
         >
-            Active Sandboxes ({terminals.length})
+            Active Sandboxes ({stats?.totals.activeSessions ?? terminals.length})
         </button>
         <button
             class="tab-btn"
             class:active={activeTab === "agents"}
             onclick={() => setTab("agents")}
         >
-            Agents ({agents.length})
+            Agents ({stats?.totals.agents ?? agents.length})
         </button>
     </div>
 
-    {#if isLoading}
+    {#if tabLoading}
         <div class="loading-state">
             <div class="spinner"></div>
             <p>Loading data...</p>
@@ -344,7 +455,7 @@
     {:else}
         <div class="tab-content">
             {#if activeTab === "stats"}
-                <div class="stats-panel">
+                <div class="stats-panel" class:is-refreshing={statsLoading && !!stats}>
                     <div class="stats-toolbar">
                         <div>
                             <h2>Usage overview</h2>
@@ -605,98 +716,239 @@
                     {/if}
                 </div>
             {:else if activeTab === "users"}
-                <div class="data-table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>User</th>
-                                <th>Email</th>
-                                <th>Role</th>
-                                <th>Tier</th>
-                                <th>Containers</th>
-                                <th>Created</th>
-                                <th>Last Login</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {#each users as user (user.id)}
-                                <tr>
-                                    <td>
-                                        <div class="user-info">
-                                            <div class="avatar">{user.username.charAt(0).toUpperCase()}</div>
-                                            <span>{user.username}</span>
-                                        </div>
-                                    </td>
-                                    <td>{user.email}</td>
-                                    <td>
-                                        {#if user.isAdmin}
-                                            <span class="badge admin">Admin</span>
-                                        {:else}
-                                            <span class="badge user">User</span>
-                                        {/if}
-                                    </td>
-                                    <td><span class="badge tier-{user.tier}">{user.tier}</span></td>
-                                    <td>{user.containerCount}</td>
-                                    <td>{new Date(user.created_at).toLocaleDateString()}</td>
-                                    <td>{user.updated_at ? formatRelativeTime(user.updated_at) : '-'}</td>
-                                    <td>
-                                        <button class="btn-icon danger" onclick={() => handleDeleteUser(user.id)} title="Delete User">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-                                            </svg>
-                                        </button>
-                                    </td>
-                                </tr>
+                <div class="list-panel" class:is-refreshing={usersLoading}>
+                    <div class="list-toolbar">
+                        <label class="search-field">
+                            <span class="sr-only">Search users</span>
+                            <input
+                                type="search"
+                                placeholder="Search name, email, or ID"
+                                value={usersSearchInput}
+                                oninput={(e) => onUsersSearchInput((e.currentTarget as HTMLInputElement).value)}
+                            />
+                        </label>
+                        <div class="list-meta">
+                            {rangeLabel($admin.usersQuery.page, $admin.usersQuery.perPage, $admin.usersTotal)}
+                        </div>
+                        <label class="per-page-field">
+                            <span>Per page</span>
+                            <select
+                                value={$admin.usersQuery.perPage}
+                                onchange={(e) =>
+                                    admin.fetchUsers({
+                                        perPage: Number((e.currentTarget as HTMLSelectElement).value),
+                                        page: 1,
+                                    })}
+                            >
+                                {#each perPageOptions as size}
+                                    <option value={size}>{size}</option>
+                                {/each}
+                            </select>
+                        </label>
+                    </div>
+                    {#if users.length === 0}
+                        <div class="empty-state">
+                            <p>{usersSearchInput ? "No users match that search." : "No users found."}</p>
+                        </div>
+                    {:else}
+                        <div class="data-table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>User</th>
+                                        <th>Email</th>
+                                        <th>Role</th>
+                                        <th>Tier</th>
+                                        <th>Containers</th>
+                                        <th>Created</th>
+                                        <th>Last Login</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {#each users as user (user.id)}
+                                        <tr>
+                                            <td>
+                                                <div class="user-info">
+                                                    <div class="avatar">{userInitial(user)}</div>
+                                                    <span>{user.username}</span>
+                                                </div>
+                                            </td>
+                                            <td>{user.email}</td>
+                                            <td>
+                                                {#if isUserAdmin(user)}
+                                                    <span class="badge admin">Admin</span>
+                                                {:else}
+                                                    <span class="badge user">User</span>
+                                                {/if}
+                                            </td>
+                                            <td><span class="badge tier-{user.tier}">{user.tier}</span></td>
+                                            <td>{user.containerCount}</td>
+                                            <td>{new Date(user.created_at).toLocaleDateString()}</td>
+                                            <td>{user.updated_at ? formatRelativeTime(user.updated_at) : '-'}</td>
+                                            <td>
+                                                <button class="btn-icon danger" onclick={() => handleDeleteUser(user.id)} title="Delete User">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                                                    </svg>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    {/each}
+                                </tbody>
+                            </table>
+                        </div>
+                    {/if}
+                    {#if $admin.usersTotalPages > 1}
+                        <div class="pagination" role="navigation" aria-label="Users pagination">
+                            <button
+                                class="page-btn"
+                                disabled={$admin.usersQuery.page <= 1 || usersLoading}
+                                onclick={() => admin.fetchUsers({ page: $admin.usersQuery.page - 1 })}
+                            >
+                                Prev
+                            </button>
+                            {#each paginationWindow($admin.usersQuery.page, $admin.usersTotalPages) as item}
+                                {#if typeof item === "number"}
+                                    <button
+                                        class="page-btn"
+                                        class:active={item === $admin.usersQuery.page}
+                                        disabled={usersLoading}
+                                        onclick={() => admin.fetchUsers({ page: item })}
+                                    >
+                                        {item}
+                                    </button>
+                                {:else}
+                                    <span class="page-ellipsis">…</span>
+                                {/if}
                             {/each}
-                        </tbody>
-                    </table>
+                            <button
+                                class="page-btn"
+                                disabled={$admin.usersQuery.page >= $admin.usersTotalPages || usersLoading}
+                                onclick={() => admin.fetchUsers({ page: $admin.usersQuery.page + 1 })}
+                            >
+                                Next
+                            </button>
+                        </div>
+                    {/if}
                 </div>
             {:else if activeTab === "subscribers"}
-                <div class="data-table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>User</th>
-                                <th>Email</th>
-                                <th>Tier</th>
-                                <th>Containers</th>
-                                <th>Created</th>
-                                <th>Last Login</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {#each subscribers as user (user.id)}
-                                <tr>
-                                    <td>
-                                        <div class="user-info">
-                                            <div class="avatar">{user.username.charAt(0).toUpperCase()}</div>
-                                            <span>{user.username}</span>
-                                        </div>
-                                    </td>
-                                    <td>{user.email}</td>
-                                    <td><span class="badge tier-{user.tier}">{user.tier}</span></td>
-                                    <td>{user.containerCount}</td>
-                                    <td>{new Date(user.created_at).toLocaleDateString()}</td>
-                                    <td>{user.updated_at ? formatRelativeTime(user.updated_at) : "-"}</td>
-                                    <td>
-                                        <button
-                                            class="btn-icon danger"
-                                            onclick={() => handleDeleteUser(user.id)}
-                                            title="Delete User"
-                                        >
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-                                            </svg>
-                                        </button>
-                                    </td>
-                                </tr>
+                <div class="list-panel" class:is-refreshing={subscribersLoading}>
+                    <div class="list-toolbar">
+                        <label class="search-field">
+                            <span class="sr-only">Search subscribers</span>
+                            <input
+                                type="search"
+                                placeholder="Search subscribers"
+                                value={subscribersSearchInput}
+                                oninput={(e) => onSubscribersSearchInput((e.currentTarget as HTMLInputElement).value)}
+                            />
+                        </label>
+                        <div class="list-meta">
+                            {rangeLabel($admin.subscribersQuery.page, $admin.subscribersQuery.perPage, $admin.subscribersTotal)}
+                        </div>
+                        <label class="per-page-field">
+                            <span>Per page</span>
+                            <select
+                                value={$admin.subscribersQuery.perPage}
+                                onchange={(e) =>
+                                    admin.fetchSubscribers({
+                                        perPage: Number((e.currentTarget as HTMLSelectElement).value),
+                                        page: 1,
+                                    })}
+                            >
+                                {#each perPageOptions as size}
+                                    <option value={size}>{size}</option>
+                                {/each}
+                            </select>
+                        </label>
+                    </div>
+                    {#if subscribers.length === 0}
+                        <div class="empty-state">
+                            <p>{subscribersSearchInput ? "No subscribers match that search." : "No subscribers found."}</p>
+                        </div>
+                    {:else}
+                        <div class="data-table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>User</th>
+                                        <th>Email</th>
+                                        <th>Tier</th>
+                                        <th>Containers</th>
+                                        <th>Created</th>
+                                        <th>Last Login</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {#each subscribers as user (user.id)}
+                                        <tr>
+                                            <td>
+                                                <div class="user-info">
+                                                    <div class="avatar">{userInitial(user)}</div>
+                                                    <span>{user.username}</span>
+                                                </div>
+                                            </td>
+                                            <td>{user.email}</td>
+                                            <td><span class="badge tier-{user.tier}">{user.tier}</span></td>
+                                            <td>{user.containerCount}</td>
+                                            <td>{new Date(user.created_at).toLocaleDateString()}</td>
+                                            <td>{user.updated_at ? formatRelativeTime(user.updated_at) : "-"}</td>
+                                            <td>
+                                                <button
+                                                    class="btn-icon danger"
+                                                    onclick={() => handleDeleteUser(user.id)}
+                                                    title="Delete User"
+                                                >
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                                                    </svg>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    {/each}
+                                </tbody>
+                            </table>
+                        </div>
+                    {/if}
+                    {#if $admin.subscribersTotalPages > 1}
+                        <div class="pagination" role="navigation" aria-label="Subscribers pagination">
+                            <button
+                                class="page-btn"
+                                disabled={$admin.subscribersQuery.page <= 1 || subscribersLoading}
+                                onclick={() => admin.fetchSubscribers({ page: $admin.subscribersQuery.page - 1 })}
+                            >
+                                Prev
+                            </button>
+                            {#each paginationWindow($admin.subscribersQuery.page, $admin.subscribersTotalPages) as item}
+                                {#if typeof item === "number"}
+                                    <button
+                                        class="page-btn"
+                                        class:active={item === $admin.subscribersQuery.page}
+                                        disabled={subscribersLoading}
+                                        onclick={() => admin.fetchSubscribers({ page: item })}
+                                    >
+                                        {item}
+                                    </button>
+                                {:else}
+                                    <span class="page-ellipsis">…</span>
+                                {/if}
                             {/each}
-                        </tbody>
-                    </table>
+                            <button
+                                class="page-btn"
+                                disabled={$admin.subscribersQuery.page >= $admin.subscribersTotalPages || subscribersLoading}
+                                onclick={() => admin.fetchSubscribers({ page: $admin.subscribersQuery.page + 1 })}
+                            >
+                                Next
+                            </button>
+                        </div>
+                    {/if}
                 </div>
             {:else if activeTab === "containers"}
+                {#if containers.length === 0}
+                    <div class="empty-state"><p>No containers found.</p></div>
+                {:else}
                 <div class="data-table-container">
                     <table class="data-table">
                          <thead>
@@ -755,7 +1007,11 @@
                         </tbody>
                     </table>
                 </div>
+                {/if}
             {:else if activeTab === "terminals"}
+                {#if terminals.length === 0}
+                    <div class="empty-state"><p>No active sandboxes.</p></div>
+                {:else}
                 <div class="data-table-container">
                      <table class="data-table">
                         <thead>
@@ -784,7 +1040,11 @@
                         </tbody>
                     </table>
                 </div>
+                {/if}
             {:else if activeTab === "agents"}
+                {#if agents.length === 0}
+                    <div class="empty-state"><p>No agents found.</p></div>
+                {:else}
                 <div class="data-table-container">
                      <table class="data-table">
                         <thead>
@@ -838,6 +1098,7 @@
                         </tbody>
                     </table>
                 </div>
+                {/if}
             {/if}
         </div>
     {/if}
@@ -1456,6 +1717,122 @@
         min-width: 760px;
     }
 
+    .list-panel {
+        display: grid;
+        gap: 12px;
+    }
+
+    .list-panel.is-refreshing,
+    .stats-panel.is-refreshing {
+        opacity: 0.72;
+        transition: opacity 0.15s ease;
+    }
+
+    .list-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .search-field {
+        flex: 1 1 240px;
+        min-width: 200px;
+    }
+
+    .search-field input {
+        width: 100%;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        color: var(--text);
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+
+    .search-field input:focus {
+        outline: none;
+        border-color: var(--accent);
+    }
+
+    .list-meta {
+        color: var(--text-muted);
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .per-page-field {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--text-muted);
+        font-size: 12px;
+    }
+
+    .per-page-field select {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        color: var(--text);
+        border-radius: 8px;
+        padding: 6px 8px;
+        font-size: 12px;
+    }
+
+    .pagination {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+        justify-content: flex-end;
+    }
+
+    .page-btn {
+        min-width: 32px;
+        height: 32px;
+        padding: 0 10px;
+        border: 1px solid var(--border);
+        background: var(--bg-secondary);
+        color: var(--text-muted);
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .page-btn:hover:not(:disabled) {
+        color: var(--text);
+        border-color: var(--accent);
+    }
+
+    .page-btn.active {
+        color: var(--bg);
+        background: var(--accent);
+        border-color: var(--accent);
+    }
+
+    .page-btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+    }
+
+    .page-ellipsis {
+        color: var(--text-muted);
+        padding: 0 4px;
+    }
+
+    .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+    }
+
     /* Table */
     .data-table-container {
         overflow-x: auto;
@@ -1667,9 +2044,14 @@
 
         .stats-toolbar,
         .chart-header,
-        .stats-actions {
+        .stats-actions,
+        .list-toolbar {
             flex-direction: column;
             align-items: stretch;
+        }
+
+        .pagination {
+            justify-content: flex-start;
         }
 
         .metric-grid {

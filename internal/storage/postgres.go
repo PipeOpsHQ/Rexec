@@ -674,8 +674,34 @@ func (s *PostgresStore) migrate() error {
 		return fmt.Errorf("sandbox_templates migration: %w", err)
 	}
 
+	if err := s.ensureAdminDashboardIndexes(); err != nil {
+		log.Printf("Warning: could not create admin dashboard indexes: %v", err)
+	}
+
 	// Seed example snippets for marketplace
 	return s.seedExampleSnippets()
+}
+
+// ensureAdminDashboardIndexes speeds up admin stats aggregates and user pagination.
+func (s *PostgresStore) ensureAdminDashboardIndexes() error {
+	indexes := []string{
+		`CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at DESC)`,
+		`CREATE INDEX IF NOT EXISTS idx_users_subscription_active ON users(subscription_active) WHERE subscription_active = true`,
+		`CREATE INDEX IF NOT EXISTS idx_containers_created_at ON containers(created_at)`,
+		`CREATE INDEX IF NOT EXISTS idx_containers_active_user ON containers(user_id) WHERE deleted_at IS NULL`,
+		`CREATE INDEX IF NOT EXISTS idx_sessions_created_at ON sessions(created_at)`,
+		`CREATE INDEX IF NOT EXISTS idx_sessions_last_ping_at ON sessions(last_ping_at)`,
+		`CREATE INDEX IF NOT EXISTS idx_user_sessions_created_at ON user_sessions(created_at)`,
+		`CREATE INDEX IF NOT EXISTS idx_agents_created_at ON agents(created_at)`,
+		`CREATE INDEX IF NOT EXISTS idx_agents_last_heartbeat ON agents(last_heartbeat)`,
+		`CREATE INDEX IF NOT EXISTS idx_recordings_created_at ON terminal_recordings(created_at)`,
+	}
+	for _, query := range indexes {
+		if _, err := s.db.Exec(query); err != nil {
+			log.Printf("Warning: admin dashboard index failed (%s): %v", query, err)
+		}
+	}
+	return nil
 }
 
 // seedExampleSnippets creates a system user and populates the marketplace with example snippets
