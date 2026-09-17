@@ -10,7 +10,11 @@ import (
 	"github.com/rexec/rexec/internal/models"
 )
 
-const adminUserSearchMaxLen = 100
+const (
+	adminUserSearchMaxLen   = 100
+	adminUserDefaultPerPage = 25
+	adminUserMaxPerPage     = 100
+)
 
 // GetAdminUsers returns a page of users for the admin dashboard.
 func (s *PostgresStore) GetAdminUsers(ctx context.Context, params models.AdminUserListParams) (*models.AdminUserList, error) {
@@ -62,7 +66,9 @@ func (s *PostgresStore) GetAdminUsers(ctx context.Context, params models.AdminUs
 	}
 	defer rows.Close()
 
-	users := make([]*models.AdminUser, 0, params.PerPage)
+	// Capacity is a compile-time bound, not the request's per_page, so a
+	// huge query value cannot drive slice allocation (CodeQL go/uncontrolled-allocation-size).
+	users := make([]*models.AdminUser, 0, adminUserMaxPerPage)
 	for rows.Next() {
 		var u models.AdminUser
 		var pipeopsID sql.NullString
@@ -104,10 +110,10 @@ func normalizeAdminUserListParams(params models.AdminUserListParams) models.Admi
 		params.Page = 10000
 	}
 	if params.PerPage < 1 {
-		params.PerPage = 25
+		params.PerPage = adminUserDefaultPerPage
 	}
-	if params.PerPage > 100 {
-		params.PerPage = 100
+	if params.PerPage > adminUserMaxPerPage {
+		params.PerPage = adminUserMaxPerPage
 	}
 	params.Search = strings.TrimSpace(params.Search)
 	if len(params.Search) > adminUserSearchMaxLen {
