@@ -335,6 +335,7 @@ function createContainersStore() {
           user_id: container.user_id,
           name: container.name || name,
           image: container.image || image,
+          role: container.role || role,
           status: "running",
           created_at: container.created_at || new Date().toISOString(),
           ip_address: container.ip_address,

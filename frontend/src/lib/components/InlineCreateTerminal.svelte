@@ -482,6 +482,12 @@
         }
     }
 
+    $: if (selectedRole === "overemployed") {
+        memoryMB = Math.max(memoryMB, Math.min(2048, resourceLimits.maxMemory));
+        cpuShares = Math.max(cpuShares, Math.min(1000, resourceLimits.maxCPU));
+        diskMB = Math.max(diskMB, Math.min(8192, resourceLimits.maxDisk));
+    }
+
     function getRoleRecommendedOS(roleId: string): string {
         const osMap: Record<string, string> = {
             standard: "Alpine",
