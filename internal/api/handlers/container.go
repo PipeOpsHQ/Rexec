@@ -597,12 +597,13 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 		req.Image != "custom" && req.Image != "" {
 		if claimed, err := h.warmPool.Claim(req.Image, userID, containerName); err == nil && claimed != nil {
 			applyLifecycle(claimed.Labels)
+			role := container.NormalizeRoleID(req.Role)
 			record := &storage.ContainerRecord{
 				ID:         uuid.New().String(),
 				UserID:     userID,
 				Name:       containerName,
 				Image:      imageName,
-				Role:       req.Role,
+				Role:       role,
 				Status:     "running",
 				DockerID:   claimed.ID,
 				VolumeName: "rexec-" + userID + "-" + containerName,
@@ -625,7 +626,7 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 				"user_id":    userID,
 				"name":       containerName,
 				"image":      imageName,
-				"role":       req.Role,
+				"role":       role,
 				"status":     "running",
 				"created_at": record.CreatedAt,
 				"warm":       true,
@@ -640,6 +641,7 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 				resp["expires_at"] = exp
 			}
 			c.JSON(http.StatusOK, resp)
+			go h.runPostStartSetup(claimed.ID, record.ID, userID, role, req.Image, container.DefaultShellSetupConfig())
 			return
 		}
 	}
@@ -650,7 +652,7 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 		UserID:     userID,
 		Name:       containerName,
 		Image:      imageName,
-		Role:       req.Role,
+		Role:       container.NormalizeRoleID(req.Role),
 		Status:     "creating",
 		DockerID:   "", // Will be set when container is created
 		VolumeName: "rexec-" + userID + "-" + containerName,
@@ -682,12 +684,12 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 		ContainerName: containerName,
 		ImageType:     req.Image,
 		CustomImage:   req.CustomImage,
-		Role:          req.Role,
+		Role:          container.NormalizeRoleID(req.Role),
 		NetworkMode:   netMode,
 		Labels: map[string]string{
 			"rexec.tier":     tier,
 			"rexec.user_id":  userID,
-			"rexec.role":     req.Role,
+			"rexec.role":     container.NormalizeRoleID(req.Role),
 			"rexec.use_tmux": useTmux,
 		},
 	}
@@ -780,7 +782,7 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 	go func() {
 		createContainerSem <- struct{}{}
 		defer func() { <-createContainerSem }()
-		h.createContainerAsync(record.ID, cfg, req.Image, req.CustomImage, req.Role, shellCfg, isGuest || tier == "guest")
+		h.createContainerAsync(record.ID, cfg, req.Image, req.CustomImage, container.NormalizeRoleID(req.Role), shellCfg, isGuest || tier == "guest")
 	}()
 
 	// Return immediately with "creating" status
@@ -790,7 +792,7 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 		"user_id":    userID,
 		"name":       containerName,
 		"image":      imageName,
-		"role":       req.Role,
+		"role":       container.NormalizeRoleID(req.Role),
 		"status":     "creating",
 		"created_at": record.CreatedAt,
 		"async":      true,
@@ -1021,120 +1023,9 @@ func (h *ContainerHandler) createContainerAsync(recordID string, cfg container.C
 
 	// Run shell setup, role setup, and metadata caching asynchronously
 	// This dramatically improves perceived startup latency
-	go func(containerID, dbID, userID string, shellCfg container.ShellSetupConfig, role, imageType string) {
-		bgCtx := context.Background()
+	go h.runPostStartSetup(info.ID, recordID, userID, role, imageType, shellCfg)
 
-		// Always drop the in-sandbox `rexec` helper onto PATH, including
-		// barebone. Package/shell setup is still skipped for that role.
-		if err := container.InstallInSandboxCLI(bgCtx, h.manager.GetClient(), containerID); err != nil {
-			log.Printf("[Container] In-sandbox rexec CLI install failed for %s: %v", containerID[:12], err)
-		} else {
-			log.Printf("[Container] In-sandbox rexec CLI installed for %s", containerID[:12])
-		}
-
-		// "barebone" role: skip package/shell setup for fastest possible startup
-		if role == "barebone" {
-			log.Printf("[Container] Barebone role: skipping package setup for %s", containerID[:12])
-			// Just detect shell and update status
-			cacheCtx, cacheCancel := context.WithTimeout(bgCtx, 10*time.Second)
-			shellPath, hasTmux := container.DetectShellAndTmux(cacheCtx, h.manager.GetClient(), containerID)
-			if shellPath != "" {
-				h.store.UpdateContainerShellMetadata(cacheCtx, dbID, shellPath, hasTmux, true)
-			}
-			cacheCancel()
-			// Mark as running immediately
-			h.manager.UpdateContainerStatus(containerID, "running")
-			updateCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			h.store.UpdateContainerStatus(updateCtx, dbID, "running")
-			cancel()
-			if h.eventsHub != nil {
-				h.eventsHub.NotifyContainerUpdated(userID, gin.H{
-					"id":     containerID,
-					"db_id":  dbID,
-					"status": "running",
-				})
-			}
-			return
-		}
-
-		// 1. Run shell setup if enhanced mode is enabled
-		if shellCfg.Enhanced && imageType != "macos" {
-			log.Printf("[Container] Starting async shell setup for %s", containerID[:12])
-			shellCtx, shellCancel := context.WithTimeout(bgCtx, 5*time.Minute)
-			shellResult, shellErr := container.SetupShellWithConfig(shellCtx, h.manager.GetClient(), containerID, shellCfg)
-			shellCancel()
-
-			if shellErr != nil {
-				log.Printf("[Container] Async shell setup error for %s: %v", containerID[:12], shellErr)
-			} else if !shellResult.Success {
-				log.Printf("[Container] Async shell setup incomplete for %s: %s", containerID[:12], shellResult.Message)
-			} else {
-				log.Printf("[Container] Async shell setup complete for %s", containerID[:12])
-			}
-		}
-
-		// 2. Setup role if specified
-		if role != "" {
-			log.Printf("[Container] Starting async role setup for %s (%s)", containerID[:12], role)
-			roleCtx, roleCancel := context.WithTimeout(bgCtx, 5*time.Minute)
-			roleResult, roleErr := container.SetupRole(roleCtx, h.manager.GetClient(), containerID, role)
-			roleCancel()
-
-			if roleErr != nil {
-				log.Printf("[Container] Async role setup error for %s (%s): %v", containerID[:12], role, roleErr)
-			} else if !roleResult.Success {
-				log.Printf("[Container] Async role setup incomplete for %s (%s): %s", containerID[:12], role, roleResult.Message)
-			} else {
-				log.Printf("[Container] Async role setup complete for %s (%s)", containerID[:12], role)
-			}
-		}
-
-		// 3. Detect and cache shell/tmux metadata (after setup so we detect new shell/tmux)
-		cacheCtx, cacheCancel := context.WithTimeout(bgCtx, 30*time.Second)
-		defer cacheCancel()
-
-		shellPath, hasTmux := container.DetectShellAndTmux(cacheCtx, h.manager.GetClient(), containerID)
-		if shellPath != "" {
-			if err := h.store.UpdateContainerShellMetadata(cacheCtx, dbID, shellPath, hasTmux, true); err != nil {
-				log.Printf("[Container] Failed to cache shell metadata for %s: %v", containerID[:12], err)
-			} else {
-				log.Printf("[Container] Cached shell metadata for %s: shell=%s, tmux=%v", containerID[:12], shellPath, hasTmux)
-			}
-
-			// Warm-start tmux session if available (creates detached session)
-			if hasTmux {
-				if err := container.WarmStartTmux(cacheCtx, h.manager.GetClient(), containerID, shellPath); err != nil {
-					log.Printf("[Container] Failed to warm-start tmux for %s: %v", containerID[:12], err)
-				} else {
-					log.Printf("[Container] Warm-started tmux session for %s", containerID[:12])
-				}
-			}
-		}
-
-		// Update status to running now that setup is complete
-		h.manager.UpdateContainerStatus(containerID, "running")
-		// Use a new context for DB update as cacheCtx might be cancelled/timeout
-		updateCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		h.store.UpdateContainerStatus(updateCtx, dbID, "running")
-
-		// Notify frontend that container status changed to running
-		if h.eventsHub != nil {
-			h.eventsHub.NotifyContainerUpdated(userID, gin.H{
-				"id":     containerID,
-				"db_id":  dbID,
-				"status": "running",
-				"role":   role,
-			})
-		}
-	}(info.ID, recordID, userID, shellCfg, role, imageType)
-
-	// Status update moved to goroutine to allow "configuring" state to persist during setup
-	// while still allowing users to connect via the "ready" event below.
-
-	// Notify AdminEventsHub that container status has updated (from creating to running)
 	if h.adminEventsHub != nil {
-		// Fetch the updated record from DB to ensure all fields are current
 		updatedRecord, err := h.store.GetContainerByID(ctx, recordID)
 		if err == nil && updatedRecord != nil {
 			h.adminEventsHub.Broadcast("container_updated", updatedRecord)
@@ -1142,7 +1033,114 @@ func (h *ContainerHandler) createContainerAsync(recordID string, cfg container.C
 			log.Printf("Warning: Failed to fetch updated container record for admin broadcast: %v", err)
 		}
 	}
+}
 
+// runPostStartSetup installs the in-sandbox rexec helper and role tools.
+func (h *ContainerHandler) runPostStartSetup(containerID, dbID, userID, role, imageType string, shellCfg container.ShellSetupConfig) {
+	bgCtx := context.Background()
+
+	// Always drop the in-sandbox `rexec` helper onto PATH, including
+	// barebone. Package/shell setup is still skipped for that role.
+	if err := container.InstallInSandboxCLI(bgCtx, h.manager.GetClient(), containerID, role); err != nil {
+		log.Printf("[Container] In-sandbox rexec CLI install failed for %s: %v", containerID[:12], err)
+	} else {
+		log.Printf("[Container] In-sandbox rexec CLI installed for %s", containerID[:12])
+	}
+
+	// "barebone" role: skip package/shell setup for fastest possible startup
+	if role == "barebone" || role == "" {
+		log.Printf("[Container] Barebone role: skipping package setup for %s", containerID[:12])
+		// Just detect shell and update status
+		cacheCtx, cacheCancel := context.WithTimeout(bgCtx, 10*time.Second)
+		shellPath, hasTmux := container.DetectShellAndTmux(cacheCtx, h.manager.GetClient(), containerID)
+		if shellPath != "" {
+			h.store.UpdateContainerShellMetadata(cacheCtx, dbID, shellPath, hasTmux, true)
+		}
+		cacheCancel()
+		// Mark as running immediately
+		h.manager.UpdateContainerStatus(containerID, "running")
+		updateCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		h.store.UpdateContainerStatus(updateCtx, dbID, "running")
+		cancel()
+		if h.eventsHub != nil {
+			h.eventsHub.NotifyContainerUpdated(userID, gin.H{
+				"id":     containerID,
+				"db_id":  dbID,
+				"status": "running",
+			})
+		}
+		return
+	}
+
+	// Role packages first so `rexec tools` is populated before oh-my-zsh.
+	if role != "" {
+		log.Printf("[Container] Starting async role setup for %s (%s)", containerID[:12], role)
+		roleCtx, roleCancel := context.WithTimeout(bgCtx, 5*time.Minute)
+		roleResult, roleErr := container.SetupRole(roleCtx, h.manager.GetClient(), containerID, role)
+		roleCancel()
+
+		if roleErr != nil {
+			log.Printf("[Container] Async role setup error for %s (%s): %v", containerID[:12], role, roleErr)
+		} else if !roleResult.Success {
+			log.Printf("[Container] Async role setup incomplete for %s (%s): %s", containerID[:12], role, roleResult.Message)
+		} else {
+			log.Printf("[Container] Async role setup complete for %s (%s)", containerID[:12], role)
+		}
+	}
+
+	if shellCfg.Enhanced && imageType != "macos" {
+		log.Printf("[Container] Starting async shell setup for %s", containerID[:12])
+		shellCtx, shellCancel := context.WithTimeout(bgCtx, 5*time.Minute)
+		shellResult, shellErr := container.SetupShellWithConfig(shellCtx, h.manager.GetClient(), containerID, shellCfg)
+		shellCancel()
+
+		if shellErr != nil {
+			log.Printf("[Container] Async shell setup error for %s: %v", containerID[:12], shellErr)
+		} else if !shellResult.Success {
+			log.Printf("[Container] Async shell setup incomplete for %s: %s", containerID[:12], shellResult.Message)
+		} else {
+			log.Printf("[Container] Async shell setup complete for %s", containerID[:12])
+		}
+	}
+
+	// 3. Detect and cache shell/tmux metadata (after setup so we detect new shell/tmux)
+	cacheCtx, cacheCancel := context.WithTimeout(bgCtx, 30*time.Second)
+	defer cacheCancel()
+
+	shellPath, hasTmux := container.DetectShellAndTmux(cacheCtx, h.manager.GetClient(), containerID)
+	if shellPath != "" {
+		if err := h.store.UpdateContainerShellMetadata(cacheCtx, dbID, shellPath, hasTmux, true); err != nil {
+			log.Printf("[Container] Failed to cache shell metadata for %s: %v", containerID[:12], err)
+		} else {
+			log.Printf("[Container] Cached shell metadata for %s: shell=%s, tmux=%v", containerID[:12], shellPath, hasTmux)
+		}
+
+		// Warm-start tmux session if available (creates detached session)
+		if hasTmux {
+			if err := container.WarmStartTmux(cacheCtx, h.manager.GetClient(), containerID, shellPath); err != nil {
+				log.Printf("[Container] Failed to warm-start tmux for %s: %v", containerID[:12], err)
+			} else {
+				log.Printf("[Container] Warm-started tmux session for %s", containerID[:12])
+			}
+		}
+	}
+
+	// Update status to running now that setup is complete
+	h.manager.UpdateContainerStatus(containerID, "running")
+	// Use a new context for DB update as cacheCtx might be cancelled/timeout
+	updateCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	h.store.UpdateContainerStatus(updateCtx, dbID, "running")
+
+	// Notify frontend that container status changed to running
+	if h.eventsHub != nil {
+		h.eventsHub.NotifyContainerUpdated(userID, gin.H{
+			"id":     containerID,
+			"db_id":  dbID,
+			"status": "running",
+			"role":   role,
+		})
+	}
 }
 
 // Get returns a specific container
@@ -2369,7 +2367,7 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 			Detail:   "Installing role-specific tools",
 		})
 
-		roleResult, roleErr := container.SetupRole(ctx, h.manager.GetClient(), info.ID, req.Role)
+		roleResult, roleErr := container.SetupRole(ctx, h.manager.GetClient(), info.ID, container.NormalizeRoleID(req.Role))
 		if roleErr != nil {
 			sendEvent(container.ProgressEvent{
 				Stage:    "configuring",

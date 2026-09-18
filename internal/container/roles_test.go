@@ -43,6 +43,14 @@ func TestGenerateRoleScript(t *testing.T) {
 			},
 		},
 		{
+			name:           "Vibe Coder alias",
+			roleID:         "vibe-coder",
+			checkVibeCoder: true,
+			wantContains: []string{
+				"Installing tools for role: Vibe Coder",
+			},
+		},
+		{
 			name:   "Barebone Role still installs in-sandbox rexec",
 			roleID: "barebone",
 			wantContains: []string{
@@ -87,6 +95,19 @@ func TestGenerateRoleScript(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestRoleDisplayName(t *testing.T) {
+	t.Parallel()
+	if got := RoleDisplayName("overemployed"); got != "Vibe Coder" {
+		t.Fatalf("overemployed display = %q, want Vibe Coder", got)
+	}
+	if got := RoleDisplayName("vibe-coder"); got != "Vibe Coder" {
+		t.Fatalf("vibe-coder display = %q, want Vibe Coder", got)
+	}
+	if NormalizeRoleID("vibe-coder") != "overemployed" {
+		t.Fatal("vibe-coder should normalize to overemployed")
 	}
 }
 

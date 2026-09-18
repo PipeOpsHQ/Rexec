@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/moby/moby/client"
@@ -83,18 +85,32 @@ do_install() {
 
 show_tools() {
     export PATH="$HOME/.local/bin:/root/.local/bin:/usr/local/bin:$PATH"
+    ROLE_NAME=""
+    [ -f /etc/rexec/role ] && ROLE_NAME=$(cat /etc/rexec/role 2>/dev/null)
     printf "${CYAN}=== Installed Tools ===${NC}\n"
+    [ -n "$ROLE_NAME" ] && printf "${YELLOW}Environment:${NC} %s\n" "$ROLE_NAME"
     echo ""
+    if [ -f /tmp/.rexec_installing_system ] || [ -f /tmp/.rexec_installing_ai ]; then
+        printf "${YELLOW}  Environment tools are still installing...${NC}\n"
+        echo "  Run 'rexec tools' again in a moment."
+        echo ""
+    fi
+    found=0
     printf "${YELLOW}System:${NC}\n"
     for cmd in zsh git curl wget vim nano htop jq tmux fzf ripgrep neofetch; do
-        command -v "$cmd" >/dev/null 2>&1 && printf "  ${GREEN}✓${NC} $cmd\n"
+        if command -v "$cmd" >/dev/null 2>&1; then printf "  ${GREEN}✓${NC} $cmd\n"; found=1; fi
     done
     echo ""
     printf "${YELLOW}AI & Dev:${NC}\n"
     for cmd in python3 node go rustc docker kubectl tgpt aichat mods gum aider opencode claude gemini llm; do
-        command -v "$cmd" >/dev/null 2>&1 && printf "  ${GREEN}✓${NC} $cmd\n"
+        if command -v "$cmd" >/dev/null 2>&1; then printf "  ${GREEN}✓${NC} $cmd\n"; found=1; fi
     done
     echo ""
+    if [ "$found" -eq 0 ] && [ ! -f /tmp/.rexec_installing_system ] && [ ! -f /tmp/.rexec_installing_ai ]; then
+        echo "  (none yet)"
+        echo "  Install with: rexec install git"
+        echo ""
+    fi
 }
 
 show_help() {
@@ -145,6 +161,13 @@ cp /root/.local/bin/rexec /home/user/.local/bin/rexec 2>/dev/null || true
 chmod +x /home/user/.local/bin/rexec 2>/dev/null || true
 chown -R user:user /home/user/.local 2>/dev/null || true
 
+mkdir -p /etc/rexec 2>/dev/null || true
+[ -n "$REXEC_ROLE" ] && echo "$REXEC_ROLE" > /etc/rexec/role_id
+[ -n "$REXEC_ROLE_NAME" ] && echo "$REXEC_ROLE_NAME" > /etc/rexec/role
+if [ -n "$REXEC_ROLE" ] && [ "$REXEC_ROLE" != "barebone" ]; then
+    touch /tmp/.rexec_installing_system
+fi
+
 if [ -x /usr/local/bin/rexec ] || [ -x /usr/bin/rexec ]; then
     echo "[[REXEC_STATUS]]rexec CLI ready"
     exit 0
@@ -155,12 +178,19 @@ exit 1
 }
 
 // InstallInSandboxCLI copies the in-sandbox rexec helper onto PATH.
-func InstallInSandboxCLI(ctx context.Context, cli client.APIClient, containerID string) error {
+func InstallInSandboxCLI(ctx context.Context, cli client.APIClient, containerID, roleID string) error {
 	ctx, cancel := context.WithTimeout(ctx, inSandboxCLIInstallTimeout)
 	defer cancel()
 
+	roleID = NormalizeRoleID(roleID)
+	script := inSandboxCLIInstallScript()
+	script = strings.Replace(script, "#!/bin/sh\nset +e\n", fmt.Sprintf(
+		"#!/bin/sh\nset +e\nREXEC_ROLE=%s\nREXEC_ROLE_NAME=%s\n",
+		strconv.Quote(roleID),
+		strconv.Quote(RoleDisplayName(roleID)),
+	), 1)
 	execResp, err := cli.ExecCreate(ctx, containerID, client.ExecCreateOptions{
-		Cmd:          []string{"/bin/sh", "-c", inSandboxCLIInstallScript()},
+		Cmd:          []string{"/bin/sh", "-c", script},
 		AttachStdout: true,
 		AttachStderr: true,
 	})

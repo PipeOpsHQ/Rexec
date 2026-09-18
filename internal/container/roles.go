@@ -13,6 +13,42 @@ type RoleInfo struct {
 	Packages    []string `json:"packages"` // Generic package names
 }
 
+var roleAliases = map[string]string{
+	"vibe-coder": "overemployed",
+	"vibe":       "overemployed",
+}
+
+// NormalizeRoleID maps UI aliases (e.g. vibe-coder) to the stored role id.
+func NormalizeRoleID(id string) string {
+	if alias, ok := roleAliases[id]; ok {
+		return alias
+	}
+	return id
+}
+
+// RoleByID returns a role by id or alias. The caller must not mutate the result.
+func RoleByID(id string) *RoleInfo {
+	id = NormalizeRoleID(id)
+	for _, r := range AvailableRoles() {
+		if r.ID == id {
+			role := r
+			return &role
+		}
+	}
+	return nil
+}
+
+// RoleDisplayName is the user-facing name for a role id (Vibe Coder, not overemployed).
+func RoleDisplayName(id string) string {
+	if r := RoleByID(id); r != nil {
+		return r.Name
+	}
+	if id == "" {
+		return "Barebone"
+	}
+	return id
+}
+
 // AvailableRoles returns the list of supported roles
 func AvailableRoles() []RoleInfo {
 	return []RoleInfo{
@@ -77,14 +113,7 @@ func AvailableRoles() []RoleInfo {
 
 // GenerateRoleScript generates the installation script for a specific role
 func GenerateRoleScript(roleID string) (string, error) {
-	var role *RoleInfo
-	for _, r := range AvailableRoles() {
-		if r.ID == roleID {
-			role = &r
-			break
-		}
-	}
-
+	role := RoleByID(roleID)
 	if role == nil {
 		return "", fmt.Errorf("role not found: %s", roleID)
 	}
@@ -336,10 +365,7 @@ install_role_packages() {
 
     # Check if filesystem is ready for package installation
     if [ "$FS_READY" != "1" ]; then
-        echo "  Skipping package installation - filesystem not ready"
-        echo "  You can manually install packages later with: apt-get update && apt-get install <package>"
-        rm -f /tmp/.rexec_installing_system
-        return 1
+        echo "  Warning: filesystem check failed — trying package install anyway"
     fi
 
     # Fix dpkg and wait for locks before starting

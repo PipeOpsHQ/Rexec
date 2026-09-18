@@ -17,6 +17,8 @@ func TestInSandboxCLIInstallScript(t *testing.T) {
 		"tools|ls",
 		"show_tools",
 		"rexec CLI ready",
+		"Environment tools are still installing",
+		"/etc/rexec/role",
 	} {
 		if !strings.Contains(script, want) {
 			t.Errorf("install script missing %q", want)

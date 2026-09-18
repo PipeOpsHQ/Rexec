@@ -5,6 +5,7 @@
     import { recordings } from "$stores/recordings";
     import { collab } from "$stores/collab";
     import { containers } from "$stores/containers";
+    import { roles } from "$stores/roles";
     import { toast } from "$stores/toast";
     import { token } from "$stores/auth";
     import { formatMemoryBytes } from "$utils/api";
@@ -22,6 +23,9 @@
         (c) => c.id === session.containerId || c.db_id === session.containerId,
     );
     $: containerRole = containerInfo?.role || null;
+    $: containerRoleName =
+        $roles.roles.find((r) => r.id === containerRole)?.name ||
+        (containerRole === "overemployed" ? "Vibe Coder" : containerRole);
 
     // Check if this session has active sharing (for pulsing indicator)
     $: hasActiveSharing =
@@ -228,6 +232,7 @@
     }
 
     onMount(async () => {
+        void roles.load();
         if (containerElement && session) {
             // Connect WebSocket immediately if not already connected
             // This happens first for instant connection (WebSocket handles buffering)
@@ -592,9 +597,9 @@
                 {status}
             </span>
             {#if containerRole}
-                <span class="role-badge" title="Environment: {containerRole}">
+                <span class="role-badge" title="Environment: {containerRoleName}">
                     <PlatformIcon platform={containerRole} size={14} />
-                    <span class="role-name">{containerRole}</span>
+                    <span class="role-name">{containerRoleName}</span>
                 </span>
             {/if}
             {#if isConnected && (session.stats.memoryLimit > 0 || session.stats.memory > 0 || session.stats.cpu > 0)}
