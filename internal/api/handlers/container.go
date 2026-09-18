@@ -1024,9 +1024,17 @@ func (h *ContainerHandler) createContainerAsync(recordID string, cfg container.C
 	go func(containerID, dbID, userID string, shellCfg container.ShellSetupConfig, role, imageType string) {
 		bgCtx := context.Background()
 
-		// "barebone" role: skip ALL setup for fastest possible startup
+		// Always drop the in-sandbox `rexec` helper onto PATH, including
+		// barebone. Package/shell setup is still skipped for that role.
+		if err := container.InstallInSandboxCLI(bgCtx, h.manager.GetClient(), containerID); err != nil {
+			log.Printf("[Container] In-sandbox rexec CLI install failed for %s: %v", containerID[:12], err)
+		} else {
+			log.Printf("[Container] In-sandbox rexec CLI installed for %s", containerID[:12])
+		}
+
+		// "barebone" role: skip package/shell setup for fastest possible startup
 		if role == "barebone" {
-			log.Printf("[Container] Barebone role: skipping all setup for %s", containerID[:12])
+			log.Printf("[Container] Barebone role: skipping package setup for %s", containerID[:12])
 			// Just detect shell and update status
 			cacheCtx, cacheCancel := context.WithTimeout(bgCtx, 10*time.Second)
 			shellPath, hasTmux := container.DetectShellAndTmux(cacheCtx, h.manager.GetClient(), containerID)

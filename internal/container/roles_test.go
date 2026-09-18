@@ -43,6 +43,15 @@ func TestGenerateRoleScript(t *testing.T) {
 			},
 		},
 		{
+			name:   "Barebone Role still installs in-sandbox rexec",
+			roleID: "barebone",
+			wantContains: []string{
+				"/usr/local/bin/rexec",
+				"tools|ls",
+				"[[REXEC_STATUS]]Setup complete.",
+			},
+		},
+		{
 			name:    "Invalid Role",
 			roleID:  "invalid_role_id",
 			wantErr: true,

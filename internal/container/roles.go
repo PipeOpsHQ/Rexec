@@ -89,9 +89,10 @@ func GenerateRoleScript(roleID string) (string, error) {
 		return "", fmt.Errorf("role not found: %s", roleID)
 	}
 
-	// Barebone role: no setup at all - just mark as complete immediately
+	// Barebone: skip packages, but always install the in-sandbox rexec helper
+	// so `rexec tools` works on the default (fast-start) role.
 	if roleID == "barebone" {
-		return `#!/bin/sh
+		return inSandboxCLIInstallScript() + `
 echo "[[REXEC_STATUS]]Setup complete."
 `, nil
 	}
