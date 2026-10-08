@@ -1,4 +1,4 @@
-.PHONY: build run dev clean test docker-build docker-run help images ui ui-dev ui-install cli cli-all agent-all cli-all-platforms tui-all-platforms ssh-gateway ssh-gateway-all dist downloads-dir embed embed-install embed-dev firecracker-setup firecracker-guest-agent firecracker-rootfs
+.PHONY: build run dev clean test docker-build docker-run help images ui ui-dev ui-install cli cli-all agent-all cli-all-platforms tui-all-platforms ssh-gateway ssh-gateway-all mcp dist downloads-dir embed embed-install embed-dev firecracker-setup firecracker-guest-agent firecracker-rootfs
 
 # Variables
 BINARY_NAME=rexec
@@ -6,6 +6,7 @@ CLI_NAME=rexec-cli
 TUI_NAME=rexec-tui
 AGENT_NAME=rexec-agent
 SSH_NAME=rexec-ssh
+MCP_NAME=rexec-mcp
 DOCKER_IMAGE=rexec-api
 VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 
@@ -70,8 +71,12 @@ ssh-gateway:
 	@echo "Building $(SSH_NAME)..."
 	$(GOBUILD) -ldflags "-X main.Version=$(VERSION)" -o bin/$(SSH_NAME) ./cmd/rexec-ssh
 
+mcp:
+	@echo "Building $(MCP_NAME)..."
+	$(GOBUILD) -ldflags "-X main.Version=$(VERSION)" -o bin/$(MCP_NAME) ./cmd/rexec-mcp
+
 # Build all CLI tools
-cli-all: cli tui agent ssh-gateway
+cli-all: cli tui agent ssh-gateway mcp
 	@echo "All CLI tools built!"
 
 # Build multi-arch binaries for distribution
@@ -249,6 +254,7 @@ help:
 	@echo "  make tui          - Build the rexec-tui dashboard"
 	@echo "  make agent        - Build the rexec-agent"
 	@echo "  make ssh-gateway  - Build the rexec-ssh gateway"
+	@echo "  make mcp          - Build the rexec-mcp server for AI clients"
 	@echo "  make cli-all      - Build all CLI tools (local platform)"
 	@echo ""
 	@echo "  make agent-all          - Build agent for all platforms (linux/darwin amd64/arm64)"

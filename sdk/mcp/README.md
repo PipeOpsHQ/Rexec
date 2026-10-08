@@ -2,6 +2,8 @@
 
 **Model Context Protocol (MCP)** server for [Rexec](https://rexec.sh) — give AI agents tools to create sandboxes, run commands, list files, and manage templates.
 
+The Go binary [`rexec-mcp`](../../docs/MCP.md) (`make mcp`, or `rexec mcp` after `rexec login`) is the server that shares the CLI config and can read and write files. This package is the npm stdio server.
+
 ## Install
 
 ```bash

@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure
-Backend Go code lives in `cmd/` (binaries) and `internal/` (packages). Key entrypoints: `cmd/rexec` (API server), `cmd/rexec-cli` (CLI), `cmd/rexec-tui` (Bubble Tea TUI), and `cmd/rexec-agent` (remote agent). The web UI is in `web-ui/` and compiles to static assets in `web/` served by the API. Deployment and dev tooling live in `docker/`, `scripts/`, and `docs/`. Build output goes to `bin/` and `downloads/`.
+Backend Go code lives in `cmd/` (binaries) and `internal/` (packages). Key entrypoints: `cmd/rexec` (API server), `cmd/rexec-cli` (CLI), `cmd/rexec-tui` (Bubble Tea TUI), `cmd/rexec-agent` (remote agent), and `cmd/rexec-mcp` (MCP server for AI clients). The MCP tools live in `internal/mcp`. The web UI is in `web-ui/` and compiles to static assets in `web/` served by the API. Deployment and dev tooling live in `docker/`, `scripts/`, and `docs/`. Build output goes to `bin/` and `downloads/`.
 
 ## Build, Test, and Development
 - `make setup`: install Go deps, pull base images, create `/var/lib/rexec` volumes, and seed `.env`.
