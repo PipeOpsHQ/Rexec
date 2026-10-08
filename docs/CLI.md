@@ -332,12 +332,24 @@ rexec config set host https://custom.rexec.io
 }
 ```
 
+#### mcp
+
+Run the Model Context Protocol server so an AI client can create sandboxes, run commands, and read and write files. It uses the same config file as the rest of the CLI. Logs go to stderr.
+
+```bash
+rexec mcp
+rexec mcp --http 127.0.0.1:8090
+```
+
+See [MCP.md](MCP.md) for client configuration and the tool list.
+
 ## Environment Variables
 
 | Variable         | Description                             |
 | ---------------- | --------------------------------------- |
-| `REXEC_HOST`     | API host URL (overrides config)         |
-| `REXEC_TOKEN`    | Authentication token (overrides config) |
+| `REXEC_HOST`     | API host URL (overrides config). `rexec mcp` also accepts `REXEC_URL` and `REXEC_API` |
+| `REXEC_TOKEN`    | API token (overrides config), including for `rexec mcp` |
+| `REXEC_CONFIG`   | Config file path for `rexec mcp`        |
 | `REXEC_TUI_PATH` | Custom path to TUI binary               |
 
 ## Exit Codes

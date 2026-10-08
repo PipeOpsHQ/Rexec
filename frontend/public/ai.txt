@@ -92,9 +92,10 @@ Rexec supports "Collaborative Intelligence" - a supervised model where AI agents
 - Collaborate with human developers in shared sessions
 
 AI agents can integrate via:
-1. WebSocket API for sandbox access
-2. REST API for container lifecycle management
-3. Remote agent protocol for connecting custom infrastructure
+1. MCP endpoint POST /mcp (Authorization: Bearer) and the rexec-mcp stdio server for sandbox create, exec, and file read/write
+2. WebSocket API for sandbox access
+3. REST API for container lifecycle management
+4. Remote agent protocol for connecting custom infrastructure
 
 ## Security & Privacy
 

@@ -13,7 +13,7 @@ Rexec is an open-source, AI-native platform that gives you instantly-available, 
 
 ## Features
 
-*   **🤖 AI-Native & Headless**: Designed for integration with AI agents (Claude Code, Cursor, Windsurf). Execute commands in secure, remote environments via API.
+*   **🤖 AI-Native & Headless**: Designed for integration with AI agents (Claude Code, Cursor, Windsurf). Execute commands in secure, remote environments via API, or connect an MCP client to `rexec-mcp`.
 *   **Instant Cloud Sandboxes**: Create, start, and destroy disposable Linux sandboxes in seconds (powered by Docker).
 *   **Connect Any Machine (BYOS)**: Install the lightweight Rexec Agent on your laptop, server, or Raspberry Pi to access it securely from the browser without VPNs or SSH port exposure.
 *   **First-Class Terminal UX**: Real-time WebSocket streaming with `xterm.js`, JetBrains Mono fonts, and a native-feeling UI.
@@ -187,6 +187,28 @@ term.write(b"echo hello\n").await?;
 ```
 
 📚 [Full SDK Documentation](docs/SDK.md)
+
+### MCP server for AI clients
+
+`rexec-mcp` lets Claude, Cursor, and other MCP clients create sandboxes, run commands, and edit files with your Rexec login.
+
+```bash
+make mcp
+rexec login
+rexec mcp
+```
+
+```json
+{
+  "mcpServers": {
+    "rexec": {
+      "command": "/absolute/path/to/rexec-mcp"
+    }
+  }
+}
+```
+
+A running server also accepts MCP clients at `/mcp` with the same bearer token. See [docs/MCP.md](docs/MCP.md).
 
 ---
 

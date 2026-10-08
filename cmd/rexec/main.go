@@ -32,6 +32,7 @@ import (
 	"github.com/rexec/rexec/internal/container"
 	"github.com/rexec/rexec/internal/crypto"
 	"github.com/rexec/rexec/internal/firecracker"
+	"github.com/rexec/rexec/internal/mcp"
 	"github.com/rexec/rexec/internal/providers"
 	"github.com/rexec/rexec/internal/pubsub"
 	sshgateway "github.com/rexec/rexec/internal/ssh/gateway"
@@ -593,7 +594,7 @@ func runServer() {
 	}
 
 	// Gzip compression for faster transfers (skip WebSocket)
-	router.Use(gzip.Gzip(gzip.DefaultCompression, gzip.WithExcludedPaths([]string{"/ws/", "/ws/admin/events"})))
+	router.Use(gzip.Gzip(gzip.DefaultCompression, gzip.WithExcludedPaths([]string{"/ws/", "/ws/admin/events", "/mcp"})))
 
 	// Resolve web dir early for cache decisions (same default as static serving below).
 	webDirForCache := os.Getenv("WEB_DIR")
@@ -1548,7 +1549,7 @@ func runServer() {
 		router.NoRoute(func(c *gin.Context) {
 			path := c.Request.URL.Path
 			// Don't mask API/WebSocket 404s with HTML; return JSON instead.
-			if strings.HasPrefix(path, "/api/") || strings.HasPrefix(path, "/ws/") {
+			if strings.HasPrefix(path, "/api/") || strings.HasPrefix(path, "/ws/") || path == "/mcp" || strings.HasPrefix(path, "/mcp/") {
 				c.JSON(404, gin.H{"error": "not found"})
 				return
 			}
@@ -1590,6 +1591,24 @@ func runServer() {
 	if sshPort != "" {
 		go startSSHGateway(sshPort, port)
 	}
+
+	// MCP for AI clients. Tools call this process over loopback with the
+	// caller's bearer token. REXEC_INTERNAL_URL overrides the loopback origin
+	// when the API is not reachable at 127.0.0.1:$PORT.
+	mcpAPI := "http://127.0.0.1:" + port
+	if internal := strings.TrimSpace(os.Getenv("REXEC_INTERNAL_URL")); internal != "" {
+		mcpAPI = strings.TrimRight(internal, "/")
+	}
+	mcpHandler := mcp.HTTPHandler(mcpAPI, "rexec")
+	mcpGroup := router.Group("/mcp")
+	mcpGroup.Use(middleware.AuthMiddleware(store, mfaService, jwtSecret))
+	mcpGroup.Use(func(c *gin.Context) {
+		// Overwrite any client-supplied value with the address Gin already resolved.
+		c.Request.Header.Set(mcp.ClientIPHeader, c.ClientIP())
+		c.Next()
+	})
+	mcpGroup.Any("", gin.WrapH(mcpHandler))
+	mcpGroup.Any("/", gin.WrapH(mcpHandler))
 
 	if err := router.Run(":" + port); err != nil {
 		log.Fatalf("Failed to start server: %v", err)

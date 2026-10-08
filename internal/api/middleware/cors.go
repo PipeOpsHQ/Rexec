@@ -109,14 +109,15 @@ func CORSMiddleware() gin.HandlerFunc {
 
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		// Include Authorization and WebSocket headers
-		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, Upgrade, Sec-WebSocket-Key, Sec-WebSocket-Version, Sec-WebSocket-Protocol, Sec-WebSocket-Extensions")
+		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, Mcp-Session-Id, Mcp-Protocol-Version, Last-Event-ID, Upgrade, Sec-WebSocket-Key, Sec-WebSocket-Version, Sec-WebSocket-Protocol, Sec-WebSocket-Extensions")
+		c.Header("Access-Control-Expose-Headers", "Mcp-Session-Id")
 
 		if c.Request.Method == http.MethodOptions {
 			// Preflight: cannot inspect Authorization header (browsers don't send it on OPTIONS).
 			// Reflect origin for API/WS routes so the embed widget's preflight succeeds, but never
 			// allow credentials on arbitrary reflected origins — trusted origins get credentials
 			// via the block above.
-			isAPIRoute := strings.HasPrefix(path, "/api/") || strings.HasPrefix(path, "/ws/")
+			isAPIRoute := strings.HasPrefix(path, "/api/") || strings.HasPrefix(path, "/ws/") || path == "/mcp" || strings.HasPrefix(path, "/mcp/")
 			if isAPIRoute && origin != "" {
 				if _, ok := allowedOrigins[origin]; !ok {
 					c.Header("Access-Control-Allow-Origin", origin)

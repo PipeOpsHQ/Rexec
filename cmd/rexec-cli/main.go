@@ -20,6 +20,8 @@ import (
 
 	"github.com/gorilla/websocket"
 	"golang.org/x/term"
+
+	"github.com/rexec/rexec/internal/mcp"
 )
 
 const (
@@ -130,6 +132,8 @@ func main() {
 		handleDashboard()
 	case "config":
 		handleConfig(args)
+	case "mcp":
+		handleMCP(args)
 	default:
 		fmt.Printf("%sUnknown command: %s%s\n", Red, cmd, Reset)
 		showHelp()
@@ -180,6 +184,7 @@ func showHelp() {
     -i, tui            Launch interactive TUI dashboard
     dashboard, ui      Open TUI dashboard (alias for -i)
     config             View/edit configuration
+    mcp                Run the MCP server for AI clients (stdio)
     version            Show version info
     help               Show this help message
 
@@ -191,6 +196,7 @@ func showHelp() {
   rexec run "docker-install" --terminal abc123
   rexec agent register --name "my-server"
   rexec dashboard
+  rexec mcp
 
 %sENVIRONMENT:%s
   REXEC_HOST         API host (default: %s)
@@ -219,6 +225,13 @@ func showHelp() {
 func showVersion() {
 	fmt.Printf("%srexec-cli%s v%s\n", Bold, Reset, Version)
 	fmt.Printf("OS: %s/%s\n", runtime.GOOS, runtime.GOARCH)
+}
+
+func handleMCP(args []string) {
+	if err := mcp.Run(Version, args); err != nil {
+		fmt.Fprintf(os.Stderr, "%srexec mcp: %v%s\n", Red, err, Reset)
+		os.Exit(1)
+	}
 }
 
 // Config management

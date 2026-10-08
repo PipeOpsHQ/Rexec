@@ -15,7 +15,7 @@ Official client libraries for the Rexec **sandbox** API (files and terminals).
 | **In-app docs** | `/docs/sdk` on the product UI |
 | **PipeOps docs** | [docs.pipeops.io — Rexec Sandboxes](https://docs.pipeops.io/docs/rexec/overview) (when published) |
 | **E2E smoke** | [`scripts/sdk-e2e/`](../scripts/sdk-e2e/) (`test-js.mjs`, `test_py.py`, Go/Rust/Ruby/.NET/Java/PHP runners) |
-| **MCP (agents)** | [`sdk/mcp`](../sdk/mcp/) — `@pipeops/rexec-mcp` (stdio tools for create/exec/templates) |
+| **MCP (agents)** | `POST /mcp` on the API, or [`rexec-mcp`](MCP.md). npm package: [`sdk/mcp`](../sdk/mcp/) |
 
 > **Verified E2E** against a live Rexec instance: `list` → `create` → `get` → `delete`.
 
@@ -762,9 +762,16 @@ cd scripts/sdk-e2e
 
 ## MCP server (AI agents) {#mcp}
 
-Official MCP package: **`@pipeops/rexec-mcp`** ([`sdk/mcp`](../sdk/mcp/)).
+The Go server **`rexec-mcp`** ([`cmd/rexec-mcp`](../cmd/rexec-mcp/), tools in [`internal/mcp`](../internal/mcp/)) gives an LLM the sandbox tools: create, exec, read and write files, templates, and snapshots. It uses `~/.rexec/config.json` from `rexec login`. Full setup, client config, and the tool list are in [MCP.md](MCP.md).
 
-Exposes tools: `list_sandboxes`, `create_sandbox`, `exec`, `list_files`, `create_template`, `list_templates`, `wait_running`, and more.
+```bash
+make mcp
+REXEC_URL=https://rexec.pipeops.io REXEC_TOKEN=... ./bin/rexec-mcp
+# or, after rexec login:
+rexec mcp
+```
+
+The npm package **`@pipeops/rexec-mcp`** ([`sdk/mcp`](../sdk/mcp/)) is a stdio server on top of the JavaScript SDK.
 
 ```bash
 cd sdk/js && npm run build
@@ -772,16 +779,15 @@ cd ../mcp && npm install && npm run build
 REXEC_URL=https://rexec.sh REXEC_TOKEN=... node dist/index.js
 ```
 
-Claude Desktop / Cursor config:
+Claude Desktop / Cursor config for the Go server:
 
 ```json
 {
   "mcpServers": {
     "rexec": {
-      "command": "node",
-      "args": ["/absolute/path/to/rexec/sdk/mcp/dist/index.js"],
+      "command": "rexec-mcp",
       "env": {
-        "REXEC_URL": "https://rexec.sh",
+        "REXEC_URL": "https://rexec.pipeops.io",
         "REXEC_TOKEN": "your-token"
       }
     }
@@ -789,7 +795,7 @@ Claude Desktop / Cursor config:
 }
 ```
 
-See [sdk/mcp/README.md](../sdk/mcp/README.md).
+See [MCP.md](MCP.md) and [sdk/mcp/README.md](../sdk/mcp/README.md).
 
 ---
 
