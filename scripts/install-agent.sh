@@ -570,6 +570,9 @@ ProtectSystem=false
 ProtectHome=false
 
 # Environment
+# Agent credential. Scope is "agent" after registration. Do not copy this
+# value into Azure VM userData or custom data: IMDS returns that field to
+# any sandbox that can reach the metadata service.
 Environment=REXEC_API=${REXEC_API}
 Environment=REXEC_TOKEN=${TOKEN}
 Environment=REXEC_CONFIG=${CONFIG_DIR}/agent.yaml

@@ -86,6 +86,11 @@ Critical paths are mounted read-only:
 - Containers run in isolated Docker network (`rexec-isolated`)
 - Inter-container communication is restricted
 - Controlled sysctl: `net.ipv4.ip_unprivileged_port_start=0`
+- `default` and `restricted` sandboxes cannot reach cloud instance metadata (`169.254.169.254` and the related link-local addresses) or the Azure wireserver (`168.63.129.16`). The host installs those drops in the `DOCKER-USER` chain via `scripts/block-sandbox-metadata.sh`. Traffic the host itself generates still reaches IMDS, so the host agent can read its region.
+- `network_mode=none` has no network interface
+- `network_mode=restricted` is an HTTP(S) allowlist through the egress proxy. It is not the metadata control. A direct connection ignores `HTTP_PROXY`, which is why the firewall drops metadata addresses for every sandbox that has a network interface
+
+Do not put API tokens in Azure VM custom data or `userData`. The instance metadata service returns that field to any process on the VM that can reach it. Agent credentials belong in the host systemd unit, and an agent token is scoped to `agent` so it cannot call user or admin APIs.
 
 ## Security Verification
 

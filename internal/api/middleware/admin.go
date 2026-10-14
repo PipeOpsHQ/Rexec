@@ -26,6 +26,9 @@ func AdminOnly(store *storage.PostgresStore) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
 			return
 		}
+		if rejectAPITokenWithoutAdmin(c) {
+			return
+		}
 
 		c.Next()
 	}

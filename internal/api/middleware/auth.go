@@ -144,6 +144,11 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, j
 			c.Set("subscription_active", user.SubscriptionActive)
 			c.Set("api_token", true)
 			c.Set("api_token_scopes", apiToken.Scopes)
+			if !APITokenAllowed(c.Request.Method, c.Request.URL.Path, apiToken.Scopes) {
+				c.JSON(http.StatusForbidden, gin.H{"error": "insufficient token scope"})
+				c.Abort()
+				return
+			}
 
 			if isWebSocket {
 				log.Printf("[Auth] WebSocket API token auth successful for %s in %v", path, time.Since(authStart))

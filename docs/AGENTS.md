@@ -272,7 +272,8 @@ working_dir: /root
 
 ## Security Considerations
 
-- **Token Security**: Store tokens securely; use environment variables in production
+- **Token Security**: Store tokens securely; use environment variables in production. Registration returns an API token whose only scope is `agent`. That token can hold the agent websocket and manage that agent record. It cannot call user APIs or the admin API. Mint a separate token with the `admin` scope when an automation client must call admin routes.
+- **Cloud metadata**: Do not place the agent token in Azure VM custom data or `userData`. The instance metadata service serves that field to every process that can reach it, including a sandbox on the same VM. Keep the token in the systemd unit or `/etc/rexec/agent.yaml` on the host, and install `scripts/block-sandbox-metadata.sh` so sandboxes cannot reach IMDS or the Azure wireserver.
 - **Shell Access**: The agent provides full shell access to your configured shell
 - **Network**: All communication is encrypted via WSS (WebSocket Secure)
 - **Firewall**: No inbound ports required; agent initiates outbound connection
