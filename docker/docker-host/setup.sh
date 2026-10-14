@@ -69,6 +69,87 @@ for arg in "$@"; do
     esac
 done
 
+# Drop cloud IMDS and the Azure wireserver from forwarded container traffic.
+# Keep the destination list identical to scripts/block-sandbox-metadata.sh.
+install_sandbox_metadata_guard() {
+    if [ "$USE_PODMAN" = true ]; then
+        echo -e "${YELLOW}Podman mode does not install the Docker metadata guard. Sandboxes on a Podman bridge are not covered by this script.${NC}"
+        return 0
+    fi
+
+    echo -e "${YELLOW}Installing sandbox metadata guard...${NC}"
+    cat > /usr/local/sbin/rexec-block-sandbox-metadata << 'EOF'
+#!/bin/sh
+# Block cloud instance metadata and the Azure wireserver from Docker sandboxes.
+# Host-originated traffic does not traverse DOCKER-USER, so the host agent can
+# still read IMDS. Keep this destination list identical to
+# internal/container/metadata_guard.go and scripts/block-sandbox-metadata.sh.
+set -u
+
+drop_v4="169.254.169.254/32 169.254.169.253/32 169.254.170.2/32 168.63.129.16/32"
+drop_v6="fd00:ec2::254/128"
+
+ensure() {
+    bin=$1
+    dest=$2
+    required=$3
+    if ! command -v "$bin" >/dev/null 2>&1; then
+        echo "rexec-metadata-guard: $bin is not installed" >&2
+        if [ "$required" = "yes" ]; then
+            return 1
+        fi
+        return 0
+    fi
+    i=0
+    while [ "$i" -lt 30 ]; do
+        if "$bin" -C DOCKER-USER -d "$dest" -j DROP >/dev/null 2>&1; then
+            return 0
+        fi
+        if "$bin" -I DOCKER-USER 1 -d "$dest" -j DROP >/dev/null 2>&1; then
+            echo "rexec-metadata-guard: dropped $dest via $bin"
+            return 0
+        fi
+        i=$((i + 1))
+        sleep 1
+    done
+    echo "rexec-metadata-guard: failed to drop $dest via $bin" >&2
+    return 1
+}
+
+fail=0
+for dest in $drop_v4; do
+    ensure iptables "$dest" yes || fail=1
+done
+for dest in $drop_v6; do
+    ensure ip6tables "$dest" no || fail=1
+done
+exit "$fail"
+EOF
+    chmod 755 /usr/local/sbin/rexec-block-sandbox-metadata
+
+    cat > /etc/systemd/system/rexec-metadata-guard.service << 'EOF'
+[Unit]
+Description=Block cloud metadata from Rexec sandboxes
+After=docker.service
+Wants=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/rexec-block-sandbox-metadata
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    systemctl daemon-reload || true
+    systemctl enable rexec-metadata-guard.service || true
+    if /usr/local/sbin/rexec-block-sandbox-metadata; then
+        echo -e "${GREEN}Sandbox metadata guard installed${NC}"
+    else
+        echo -e "${RED}Sandbox metadata guard failed. Sandboxes may still reach cloud IMDS.${NC}"
+    fi
+}
+
 # Auto-detect installed runtimes if not explicitly requested
 if [ "$INSTALL_GVISOR" = false ]; then
     if command -v runsc &> /dev/null; then
@@ -1272,9 +1353,13 @@ EOF
     echo -e "${GREEN}✓ Docker daemon started and responding${NC}"
     echo -e "${GREEN}✓ Local socket access works (SSH/console)${NC}"
 
+    install_sandbox_metadata_guard
+
     echo -e "${GREEN}Docker daemon configured for TLS${NC}"
     echo ""
 fi
+
+install_sandbox_metadata_guard
 
 # =============================================================================
 # Configure Firewall

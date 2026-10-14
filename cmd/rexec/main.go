@@ -349,6 +349,24 @@ func newConfiguredStore(component string) (*storage.PostgresStore, error) {
 	return storage.NewPostgresStore(getDatabaseURL(), encryptor)
 }
 
+// installSandboxMetadataGuard drops cloud IMDS and the Azure wireserver from
+// forwarded sandbox traffic. A remote Docker daemon must run
+// scripts/block-sandbox-metadata.sh on that host. Failure is logged and does
+// not stop the API.
+func installSandboxMetadataGuard() {
+	if !container.DockerHostIsLocal(os.Getenv("DOCKER_HOST")) {
+		log.Printf("CRITICAL: DOCKER_HOST is remote; run scripts/block-sandbox-metadata.sh on the Docker host so sandboxes cannot reach cloud IMDS")
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	if err := container.ApplyMetadataGuard(ctx, nil); err != nil {
+		log.Printf("CRITICAL: sandbox metadata guard failed (containers may reach cloud IMDS): %v", err)
+		return
+	}
+	log.Printf("Sandbox metadata guard installed (IMDS and Azure wireserver dropped from DOCKER-USER)")
+}
+
 func runServer() {
 	// Load .env file if it exists
 	loadEnvFile("server")
@@ -393,6 +411,7 @@ func runServer() {
 		log.Fatalf("Failed to initialize container manager: %v", err)
 	}
 	defer containerManager.Close()
+	installSandboxMetadataGuard()
 
 	// Initialize provider registry
 	providerRegistry := providers.NewRegistry()
