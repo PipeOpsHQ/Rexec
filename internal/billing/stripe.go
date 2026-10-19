@@ -22,6 +22,7 @@ import (
 
 var (
 	ErrInvalidWebhookSignature = errors.New("invalid webhook signature")
+	ErrWebhookNotConfigured    = errors.New("stripe webhook is not configured")
 	ErrCustomerNotFound        = errors.New("customer not found")
 	ErrSubscriptionNotFound    = errors.New("subscription not found")
 )
@@ -269,6 +270,48 @@ func (s *Service) GetCustomerSubscriptionInfo(ctx context.Context, customerID st
 	return info, nil
 }
 
+// usableWebhookSecret trims the signing secret and refuses blank values and
+// published placeholders. An empty secret makes ConstructEvent fail open, and
+// a placeholder from the example env lets anyone forge events.
+func usableWebhookSecret(secret string) (string, error) {
+	secret = strings.TrimSpace(secret)
+	if secret == "" || placeholderWebhookSecret(secret) || !validWebhookSecretShape(secret) {
+		return "", ErrWebhookNotConfigured
+	}
+	return secret, nil
+}
+
+func placeholderWebhookSecret(secret string) bool {
+	switch strings.ToLower(secret) {
+	case "whsec_your_webhook_secret",
+		"whsec_your_webhook_signing_secret",
+		"whsec_...":
+		return true
+	default:
+		return false
+	}
+}
+
+func validWebhookSecretShape(secret string) bool {
+	const prefix = "whsec_"
+	if !strings.HasPrefix(secret, prefix) {
+		return false
+	}
+	rest := secret[len(prefix):]
+	if len(rest) < 16 {
+		return false
+	}
+	for _, c := range rest {
+		switch {
+		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9':
+		case c == '+' || c == '/' || c == '=' || c == '_' || c == '-':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
 // HandleWebhook processes a Stripe webhook event
 func (s *Service) HandleWebhook(r *http.Request) (*WebhookEvent, error) {
 	body, err := io.ReadAll(r.Body)
@@ -276,12 +319,13 @@ func (s *Service) HandleWebhook(r *http.Request) (*WebhookEvent, error) {
 		return nil, fmt.Errorf("failed to read request body: %w", err)
 	}
 
-	if strings.TrimSpace(s.config.WebhookSecret) == "" {
-		return nil, fmt.Errorf("stripe webhook secret is not configured")
+	secret, err := usableWebhookSecret(s.config.WebhookSecret)
+	if err != nil {
+		return nil, err
 	}
 
 	signature := r.Header.Get("Stripe-Signature")
-	event, err := webhook.ConstructEvent(body, signature, s.config.WebhookSecret)
+	event, err := webhook.ConstructEvent(body, signature, secret)
 	if err != nil {
 		return nil, ErrInvalidWebhookSignature
 	}

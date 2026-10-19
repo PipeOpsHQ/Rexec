@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -231,7 +232,11 @@ func (h *BillingHandler) CancelSubscription(c *gin.Context) {
 func (h *BillingHandler) HandleWebhook(c *gin.Context) {
 	event, err := h.billingService.HandleWebhook(c.Request)
 	if err != nil {
-		if err == billing.ErrInvalidWebhookSignature {
+		if errors.Is(err, billing.ErrWebhookNotConfigured) {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "webhook is not configured"})
+			return
+		}
+		if errors.Is(err, billing.ErrInvalidWebhookSignature) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid signature"})
 			return
 		}
