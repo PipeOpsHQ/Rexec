@@ -13,6 +13,8 @@ func TestHandleWebhookRejectsUnusableSecret(t *testing.T) {
 		"   ",
 		"\t",
 		"whsec_your_webhook_secret",
+		"whsec_your_webhook_secret_v2",
+		"whsec_changeme_placeholder",
 		"whsec_...",
 		"whsec_short",
 		"not-a-stripe-secret",

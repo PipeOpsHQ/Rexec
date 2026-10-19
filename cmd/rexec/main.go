@@ -367,19 +367,56 @@ func installSandboxMetadataGuard() {
 	log.Printf("Sandbox metadata guard installed (IMDS and Azure wireserver dropped from DOCKER-USER)")
 }
 
-// insecureJWTSecret is true for placeholders shipped in examples and compose.
-// They are rejected only when GIN_MODE=release so local development can keep
-// using the example file.
-func insecureJWTSecret(secret string) bool {
-	switch secret {
-	case "rexec-dev-secret-change-in-production",
-		"rexec-dev-secret-change-me",
-		"your-super-secret-jwt-key-change-this-in-production",
-		"your-secure-jwt-secret-here":
+// productionMode is true for a release Gin process or an environment marked
+// production. Local development sets GIN_MODE=debug and is not included.
+func productionMode() bool {
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("GIN_MODE")), "release") {
 		return true
-	default:
-		return false
 	}
+	for _, key := range []string{"REXEC_ENV", "APP_ENV", "GO_ENV", "ENV"} {
+		switch strings.ToLower(strings.TrimSpace(os.Getenv(key))) {
+		case "production", "prod":
+			return true
+		}
+	}
+	return false
+}
+
+// insecureJWTSecret matches placeholder secrets shipped in examples and compose,
+// including longer strings that still contain those markers.
+func insecureJWTSecret(secret string) bool {
+	s := strings.ToLower(strings.TrimSpace(secret))
+	if s == "" {
+		return true
+	}
+	for _, marker := range []string{
+		"rexec-dev-secret",
+		"change-in-production",
+		"change-me",
+		"change-this",
+		"changeme",
+		"your-super-secret",
+		"your-secure-jwt-secret",
+		"placeholder",
+	} {
+		if strings.Contains(s, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+// jwtSecretError refuses a missing, short, or placeholder JWT secret in
+// production. Debug and test processes may keep the example secret.
+func jwtSecretError(secret string) error {
+	if !productionMode() {
+		return nil
+	}
+	secret = strings.TrimSpace(secret)
+	if secret == "" || insecureJWTSecret(secret) || len(secret) < 32 {
+		return fmt.Errorf("JWT_SECRET must be a unique secret of at least 32 characters in production; placeholder values are refused")
+	}
+	return nil
 }
 
 func runServer() {
@@ -398,17 +435,17 @@ func runServer() {
 	// Initialize JWT secret for auth
 	jwtSecretStr := os.Getenv("JWT_SECRET")
 	if jwtSecretStr == "" {
-		if os.Getenv("GIN_MODE") == "release" {
+		if productionMode() {
 			log.Fatal("JWT_SECRET must be set in production")
 		}
 		log.Println("⚠️  JWT_SECRET not set, using default dev secret")
 		jwtSecretStr = "rexec-dev-secret-change-in-production"
 	}
-	if os.Getenv("GIN_MODE") == "release" && insecureJWTSecret(jwtSecretStr) {
-		log.Fatal("JWT_SECRET must be a secure production secret in release mode")
+	if err := jwtSecretError(jwtSecretStr); err != nil {
+		log.Fatal(err)
 	}
-	if os.Getenv("GIN_MODE") == "release" && len(jwtSecretStr) < 32 {
-		log.Fatal("JWT_SECRET must be at least 32 characters in release mode")
+	if insecureJWTSecret(jwtSecretStr) {
+		log.Printf("⚠️  JWT_SECRET is a known placeholder; it is refused when GIN_MODE=release or the environment is production")
 	}
 	jwtSecret := []byte(jwtSecretStr)
 

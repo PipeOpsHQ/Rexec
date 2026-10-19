@@ -45,6 +45,18 @@ func MacOSPrivilegedAllowed(userID string, isAdmin bool) bool {
 	return false
 }
 
+// MacOSDenyReason explains why MacOSPrivilegedAllowed returned false.
+// Call it only after that check has failed.
+func MacOSDenyReason(userID string, isAdmin bool) string {
+	if !isAdmin || strings.TrimSpace(userID) == "" {
+		return "macos images require an administrator account"
+	}
+	if !strings.EqualFold(strings.TrimSpace(os.Getenv("ALLOW_MACOS_VM")), "true") {
+		return "macos images are disabled on this server; set ALLOW_MACOS_VM=true to allow an administrator to run them"
+	}
+	return "macos images are restricted; this account is not listed in MACOS_VM_ALLOWLIST"
+}
+
 // macOSHostEnabled is the manager-side gate. The API sets callerAllowed only
 // after MacOSPrivilegedAllowed; the host flag is checked again here so a
 // direct CreateContainer call cannot drop privileges on its own.

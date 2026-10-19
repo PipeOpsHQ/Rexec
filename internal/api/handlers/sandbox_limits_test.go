@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/rexec/rexec/internal/models"
@@ -45,14 +46,22 @@ func TestMacOSImageDenied(t *testing.T) {
 	if msg := macOSImageDenied("user", true, "not-macos-at-all"); msg != "" {
 		t.Fatalf("substring image denied: %s", msg)
 	}
-	if msg := macOSImageDenied("user", true, "macos"); msg == "" {
-		t.Fatal("macos allowed without ALLOW_MACOS_VM")
+	msg := macOSImageDenied("user", true, "macos")
+	if !strings.Contains(msg, "ALLOW_MACOS_VM=true") {
+		t.Fatalf("missing flag guidance: %q", msg)
 	}
 	t.Setenv("ALLOW_MACOS_VM", "true")
-	if msg := macOSImageDenied("admin", false, "macos"); msg == "" {
-		t.Fatal("non-admin allowed")
+	t.Setenv("MACOS_VM_ALLOWLIST", "")
+	msg = macOSImageDenied("admin", false, "macos")
+	if !strings.Contains(msg, "administrator") {
+		t.Fatalf("missing admin guidance: %q", msg)
 	}
 	if msg := macOSImageDenied("admin", true, "macos-legacy"); msg != "" {
 		t.Fatalf("allowlisted admin denied: %s", msg)
+	}
+	t.Setenv("MACOS_VM_ALLOWLIST", "someone-else")
+	msg = macOSImageDenied("admin", true, "macos")
+	if !strings.Contains(msg, "MACOS_VM_ALLOWLIST") {
+		t.Fatalf("missing allowlist guidance: %q", msg)
 	}
 }

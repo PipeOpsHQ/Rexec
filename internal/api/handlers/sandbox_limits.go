@@ -39,7 +39,7 @@ func macOSImageDenied(userID string, isAdmin bool, image string) string {
 	if container.MacOSPrivilegedAllowed(userID, isAdmin) {
 		return ""
 	}
-	return "macos images require ALLOW_MACOS_VM=true and an allowlisted administrator"
+	return container.MacOSDenyReason(userID, isAdmin)
 }
 
 // clampSandboxResources applies the caller's tier cap.

@@ -275,21 +275,31 @@ func (s *Service) GetCustomerSubscriptionInfo(ctx context.Context, customerID st
 // a placeholder from the example env lets anyone forge events.
 func usableWebhookSecret(secret string) (string, error) {
 	secret = strings.TrimSpace(secret)
-	if secret == "" || placeholderWebhookSecret(secret) || !validWebhookSecretShape(secret) {
+	lower := strings.ToLower(secret)
+	// Reject published and lookalike placeholders before signature verification.
+	// A copied example secret is a public HMAC key.
+	for _, marker := range []string{
+		"your_webhook",
+		"your-webhook",
+		"placeholder",
+		"changeme",
+		"change-me",
+		"change_me",
+		"change-this",
+		"replace-me",
+		"replace_me",
+		"whsec_...",
+		"example_secret",
+		"webhook_secret",
+	} {
+		if strings.Contains(lower, marker) {
+			return "", ErrWebhookNotConfigured
+		}
+	}
+	if secret == "" || !validWebhookSecretShape(secret) {
 		return "", ErrWebhookNotConfigured
 	}
 	return secret, nil
-}
-
-func placeholderWebhookSecret(secret string) bool {
-	switch strings.ToLower(secret) {
-	case "whsec_your_webhook_secret",
-		"whsec_your_webhook_signing_secret",
-		"whsec_...":
-		return true
-	default:
-		return false
-	}
 }
 
 func validWebhookSecretShape(secret string) bool {
