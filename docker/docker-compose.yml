@@ -11,7 +11,7 @@ services:
       - "22:22" # SSH Gateway (optional, enable with SSH_GATEWAY_ENABLED=true)
     environment:
       - PORT=8080
-      - JWT_SECRET=${JWT_SECRET:-rexec-dev-secret-change-me}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
       - DATABASE_URL=postgres://rexec:${POSTGRES_PASSWORD:-rexec_dev_password}@postgres:5432/rexec?sslmode=disable
       - REDIS_URL=redis://redis:6379
       # Remote Docker daemon configuration
@@ -20,9 +20,13 @@ services:
       - DOCKER_CA_CERT=${DOCKER_CA_CERT}
       - DOCKER_CLIENT_CERT=${DOCKER_CLIENT_CERT}
       - DOCKER_CLIENT_KEY=${DOCKER_CLIENT_KEY}
-      # SSH Gateway configuration
+      # SSH Gateway configuration. The internal key is required when the gateway
+      # is enabled; the API rejects /api/internal/ssh without it.
       - SSH_GATEWAY_ENABLED=${SSH_GATEWAY_ENABLED:-false}
       - SSH_GATEWAY_HOST_KEY=/app/.ssh/host_key
+      - SSH_GATEWAY_INTERNAL_KEY=${SSH_GATEWAY_INTERNAL_KEY:-}
+      # Privileged macOS VMs stay off unless an allowlisted administrator opts in.
+      - ALLOW_MACOS_VM=${ALLOW_MACOS_VM:-false}
     depends_on:
       postgres:
         condition: service_healthy

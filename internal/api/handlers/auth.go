@@ -24,6 +24,9 @@ import (
 const (
 	// GuestSessionDuration is the maximum session time for guest users (50 hours)
 	GuestSessionDuration = 50 * time.Hour
+	// maxSelfServiceSessionMinutes caps PUT /api/profile. 0 keeps the server default.
+	// 90 days matches the platform default and cannot be extended further by the caller.
+	maxSelfServiceSessionMinutes = 90 * 24 * 60
 )
 
 // AuthHandler handles authentication endpoints
@@ -47,8 +50,9 @@ func NewAuthHandler(store *storage.PostgresStore, adminEventsHub *admin_events.A
 	}
 }
 
-// GuestLogin handles guest login with email (50-hour session limit)
-// If a guest with the same email exists, returns their existing session
+// GuestLogin starts a 50-hour guest session.
+// An email address never adopts an existing account. A previous guest is
+// restored only when the browser sends the httpOnly cookie issued for it.
 func (h *AuthHandler) GuestLogin(c *gin.Context) {
 	var req struct {
 		Email    string `json:"email"`
@@ -75,21 +79,38 @@ func (h *AuthHandler) GuestLogin(c *gin.Context) {
 
 	ctx := context.Background()
 
-	// Determine guest email - use provided email or generate one
+	// An email address is not proof of ownership. A guest session is restored
+	// only when the browser presents the httpOnly cookie issued when that
+	// guest account was created. Otherwise this request gets a fresh identity.
 	var guestEmail string
 	var isReturningGuest bool
 	var existingUser *models.User
 
 	if req.Email != "" && strings.Contains(req.Email, "@") {
-		// User provided an email - check if they're a returning guest
-		// Normalize email to lowercase to avoid duplicate users
 		guestEmail = strings.ToLower(strings.TrimSpace(req.Email))
 		existingUser, _, _ = h.store.GetUserByEmail(ctx, guestEmail)
-		if existingUser != nil && existingUser.Tier == "guest" {
+		restoreID, _ := h.guestRestoreUserID(c)
+		if guestRestoreMatches(existingUser, restoreID) {
 			isReturningGuest = true
 		}
-	} else {
-		// Generate a unique guest email
+	}
+	if !isReturningGuest {
+		if id, ok := h.guestRestoreUserID(c); ok {
+			if restored, err := h.store.GetUserByID(ctx, id); err == nil && guestRestoreMatches(restored, id) {
+				existingUser = restored
+				guestEmail = restored.Email
+				isReturningGuest = true
+			}
+		}
+	}
+	if !isReturningGuest && (guestEmail == "" || (existingUser != nil)) {
+		// Do not adopt an existing account, and do not keep a caller-supplied
+		// address that already belongs to someone.
+		guestID := uuid.New().String()[:8]
+		guestEmail = "guest_" + guestID + "@guest.rexec.local"
+		existingUser = nil
+	}
+	if guestEmail == "" {
 		guestID := uuid.New().String()[:8]
 		guestEmail = "guest_" + guestID + "@guest.rexec.local"
 	}
@@ -175,7 +196,75 @@ func (h *AuthHandler) GuestLogin(c *gin.Context) {
 		response["message"] = "Guest session active for 50 hours. Sign in with PipeOps for unlimited sessions."
 	}
 
+	h.setGuestRestoreCookie(c, user.ID)
 	c.JSON(http.StatusOK, response)
+}
+
+// guestRestoreCookie is an httpOnly session cookie that binds a browser to
+// the guest account created in it. Knowing the email is not enough.
+const guestRestoreCookie = "rexec_guest"
+
+// guestRestoreMatches reports whether existing is a guest account owned by
+// the browser that presented restoreUserID.
+func guestRestoreMatches(existing *models.User, restoreUserID string) bool {
+	if existing == nil || existing.Tier != "guest" || restoreUserID == "" {
+		return false
+	}
+	return existing.ID == restoreUserID
+}
+
+func (h *AuthHandler) guestRestoreUserID(c *gin.Context) (string, bool) {
+	raw, err := c.Cookie(guestRestoreCookie)
+	if err != nil || raw == "" {
+		return "", false
+	}
+	token, err := jwt.Parse(raw, func(token *jwt.Token) (interface{}, error) {
+		if token.Method != jwt.SigningMethodHS256 {
+			return nil, fmt.Errorf("unexpected signing method")
+		}
+		return h.jwtSecret, nil
+	})
+	if err != nil || token == nil || !token.Valid {
+		return "", false
+	}
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return "", false
+	}
+	if purpose, _ := claims["purpose"].(string); purpose != "guest_restore" {
+		return "", false
+	}
+	userID, _ := claims["user_id"].(string)
+	if userID == "" {
+		return "", false
+	}
+	return userID, true
+}
+
+func (h *AuthHandler) setGuestRestoreCookie(c *gin.Context, userID string) {
+	if userID == "" || len(h.jwtSecret) == 0 {
+		return
+	}
+	claims := jwt.MapClaims{
+		"purpose": "guest_restore",
+		"user_id": userID,
+		"exp":     time.Now().Add(GuestSessionDuration).Unix(),
+		"iat":     time.Now().Unix(),
+	}
+	signed, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(h.jwtSecret)
+	if err != nil {
+		return
+	}
+	secure := c.Request.TLS != nil || strings.EqualFold(c.GetHeader("X-Forwarded-Proto"), "https") || os.Getenv("GIN_MODE") == "release"
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     guestRestoreCookie,
+		Value:    signed,
+		Path:     "/api/auth",
+		MaxAge:   int(GuestSessionDuration.Seconds()),
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+	})
 }
 
 // generateGuestToken creates a JWT token for a guest user with 50-hour expiry
@@ -208,13 +297,27 @@ var allowedRedirectHosts = map[string]bool{
 	"127.0.0.1:5173":    true,
 }
 
+// redirectHostAllowed reports whether host may be used as an OAuth redirect.
+// REXEC_EXTRA_REDIRECT_HOSTS adds hosts for development without trusting every Origin.
+func redirectHostAllowed(host string) bool {
+	if allowedRedirectHosts[host] {
+		return true
+	}
+	for _, extra := range strings.Split(os.Getenv("REXEC_EXTRA_REDIRECT_HOSTS"), ",") {
+		if strings.TrimSpace(extra) == host && host != "" {
+			return true
+		}
+	}
+	return false
+}
+
 // getRedirectURI determines the OAuth redirect URI based on the request
 func (h *AuthHandler) getRedirectURI(c *gin.Context) string {
 	// Check Origin header first
 	origin := c.Request.Header.Get("Origin")
 	if origin != "" {
 		if parsed, err := url.Parse(origin); err == nil {
-			if allowedRedirectHosts[parsed.Host] || os.Getenv("GIN_MODE") != "release" {
+			if redirectHostAllowed(parsed.Host) {
 				return origin + "/api/auth/callback"
 			}
 		}
@@ -224,7 +327,7 @@ func (h *AuthHandler) getRedirectURI(c *gin.Context) string {
 	referer := c.Request.Header.Get("Referer")
 	if referer != "" {
 		if parsed, err := url.Parse(referer); err == nil {
-			if allowedRedirectHosts[parsed.Host] || os.Getenv("GIN_MODE") != "release" {
+			if redirectHostAllowed(parsed.Host) {
 				scheme := parsed.Scheme
 				if scheme == "" {
 					scheme = "https"
@@ -240,9 +343,9 @@ func (h *AuthHandler) getRedirectURI(c *gin.Context) string {
 		host = c.Request.Host
 	}
 
-	// Validate host
-	if !allowedRedirectHosts[host] && os.Getenv("GIN_MODE") == "release" {
-		// Default to primary domain in release mode
+	// Validate host. Client-supplied Origin, Referer and X-Forwarded-Host are
+	// accepted only when the host is on the allowlist, including outside release mode.
+	if !redirectHostAllowed(host) {
 		host = "rexec.pipeops.io"
 	}
 
@@ -651,16 +754,16 @@ func (h *AuthHandler) PipeOpsAssert(c *gin.Context) {
 	}
 
 	resp := gin.H{
-		"token":       jwtToken,
-		"token_type":  "Bearer",
-		"expires_in":  expiresIn,
-		"user_id":     user.ID,
-		"email":       user.Email,
-		"username":    user.Username,
-		"pipeops_id":  user.PipeOpsID,
-		"tier":        user.Tier,
-		"created":     created,
-		"token_kind":  "jwt",
+		"token":      jwtToken,
+		"token_type": "Bearer",
+		"expires_in": expiresIn,
+		"user_id":    user.ID,
+		"email":      user.Email,
+		"username":   user.Username,
+		"pipeops_id": user.PipeOpsID,
+		"tier":       user.Tier,
+		"created":    created,
+		"token_kind": "jwt",
 	}
 
 	if req.MintAPIToken {
@@ -990,6 +1093,11 @@ func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 	}
 	if user == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+
+	if req.SessionDurationMinutes < 0 || req.SessionDurationMinutes > maxSelfServiceSessionMinutes {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "session_duration_minutes must be between 0 and 129600 (90 days)"})
 		return
 	}
 
@@ -1894,9 +2002,15 @@ func (h *AuthHandler) VerifyMFA(c *gin.Context) {
 		return
 	}
 
+	if c.GetBool("mfa_pending") {
+		c.JSON(http.StatusForbidden, gin.H{"error": "complete MFA login before changing MFA"})
+		return
+	}
+
 	var req struct {
-		Secret string `json:"secret" binding:"required"`
-		Code   string `json:"code" binding:"required"`
+		Secret      string `json:"secret" binding:"required"`
+		Code        string `json:"code" binding:"required"`
+		CurrentCode string `json:"current_code"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -1904,13 +2018,24 @@ func (h *AuthHandler) VerifyMFA(c *gin.Context) {
 		return
 	}
 
-	// Validate code
+	// Validate code against the secret being enrolled
 	if !h.mfaService.Validate(req.Code, req.Secret) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid code"})
 		return
 	}
 
 	ctx := context.Background()
+
+	existingSecret, err := h.store.GetUserMFASecret(ctx, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to verify"})
+		return
+	}
+	overwrite := existingSecret != ""
+	if overwrite && (strings.TrimSpace(req.CurrentCode) == "" || !h.mfaService.Validate(req.CurrentCode, existingSecret)) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "current authenticator code required"})
+		return
+	}
 
 	// Generate backup codes
 	backupCodes, err := auth.GenerateBackupCodes(10)
@@ -1919,8 +2044,14 @@ func (h *AuthHandler) VerifyMFA(c *gin.Context) {
 		return
 	}
 
-	// Enable MFA for user with backup codes
-	if err := h.store.EnableMFA(ctx, userID, req.Secret, backupCodes); err != nil {
+	// Enable MFA for user with backup codes. An existing secret is replaced
+	// only after the current factor was validated above.
+	if overwrite {
+		err = h.store.ReplaceMFA(ctx, userID, req.Secret, backupCodes)
+	} else {
+		err = h.store.EnableMFA(ctx, userID, req.Secret, backupCodes)
+	}
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to enable MFA"})
 		return
 	}
@@ -2253,20 +2384,20 @@ func (h *AuthHandler) CompleteMFALogin(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"token": authToken,
 		"user": gin.H{
-			"id":                  user.ID,
-			"email":               user.Email,
-			"username":            user.Username,
-			"name":                name,
-			"first_name":          user.FirstName,
-			"last_name":           user.LastName,
-			"avatar":              user.Avatar,
-			"tier":                user.Tier,
-			"isGuest":             isGuest,
-			"isAdmin":             user.IsAdmin,
-			"verified":            user.Verified,
-			"subscription_active": user.SubscriptionActive,
-			"mfa_enabled":         user.MFAEnabled,
-			"allowed_ips":         user.AllowedIPs,
+			"id":                       user.ID,
+			"email":                    user.Email,
+			"username":                 user.Username,
+			"name":                     name,
+			"first_name":               user.FirstName,
+			"last_name":                user.LastName,
+			"avatar":                   user.Avatar,
+			"tier":                     user.Tier,
+			"isGuest":                  isGuest,
+			"isAdmin":                  user.IsAdmin,
+			"verified":                 user.Verified,
+			"subscription_active":      user.SubscriptionActive,
+			"mfa_enabled":              user.MFAEnabled,
+			"allowed_ips":              user.AllowedIPs,
 			"session_duration_minutes": user.SessionDurationMinutes,
 		},
 	})

@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/stripe/stripe-go/v76"
@@ -21,6 +22,7 @@ import (
 
 var (
 	ErrInvalidWebhookSignature = errors.New("invalid webhook signature")
+	ErrWebhookNotConfigured    = errors.New("stripe webhook is not configured")
 	ErrCustomerNotFound        = errors.New("customer not found")
 	ErrSubscriptionNotFound    = errors.New("subscription not found")
 )
@@ -268,6 +270,58 @@ func (s *Service) GetCustomerSubscriptionInfo(ctx context.Context, customerID st
 	return info, nil
 }
 
+// usableWebhookSecret trims the signing secret and refuses blank values and
+// published placeholders. An empty secret makes ConstructEvent fail open, and
+// a placeholder from the example env lets anyone forge events.
+func usableWebhookSecret(secret string) (string, error) {
+	secret = strings.TrimSpace(secret)
+	lower := strings.ToLower(secret)
+	// Reject published and lookalike placeholders before signature verification.
+	// A copied example secret is a public HMAC key.
+	for _, marker := range []string{
+		"your_webhook",
+		"your-webhook",
+		"placeholder",
+		"changeme",
+		"change-me",
+		"change_me",
+		"change-this",
+		"replace-me",
+		"replace_me",
+		"whsec_...",
+		"example_secret",
+		"webhook_secret",
+	} {
+		if strings.Contains(lower, marker) {
+			return "", ErrWebhookNotConfigured
+		}
+	}
+	if secret == "" || !validWebhookSecretShape(secret) {
+		return "", ErrWebhookNotConfigured
+	}
+	return secret, nil
+}
+
+func validWebhookSecretShape(secret string) bool {
+	const prefix = "whsec_"
+	if !strings.HasPrefix(secret, prefix) {
+		return false
+	}
+	rest := secret[len(prefix):]
+	if len(rest) < 16 {
+		return false
+	}
+	for _, c := range rest {
+		switch {
+		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9':
+		case c == '+' || c == '/' || c == '=' || c == '_' || c == '-':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
 // HandleWebhook processes a Stripe webhook event
 func (s *Service) HandleWebhook(r *http.Request) (*WebhookEvent, error) {
 	body, err := io.ReadAll(r.Body)
@@ -275,8 +329,13 @@ func (s *Service) HandleWebhook(r *http.Request) (*WebhookEvent, error) {
 		return nil, fmt.Errorf("failed to read request body: %w", err)
 	}
 
+	secret, err := usableWebhookSecret(s.config.WebhookSecret)
+	if err != nil {
+		return nil, err
+	}
+
 	signature := r.Header.Get("Stripe-Signature")
-	event, err := webhook.ConstructEvent(body, signature, s.config.WebhookSecret)
+	event, err := webhook.ConstructEvent(body, signature, secret)
 	if err != nil {
 		return nil, ErrInvalidWebhookSignature
 	}
@@ -388,18 +447,18 @@ func TierLimits(tier Tier) int {
 
 // Invoice represents a billing invoice
 type Invoice struct {
-	ID              string    `json:"id"`
-	Number          string    `json:"number"`
-	Status          string    `json:"status"`
-	AmountDue       int64     `json:"amount_due"`
-	AmountPaid      int64     `json:"amount_paid"`
-	Currency        string    `json:"currency"`
-	Created         time.Time `json:"created"`
-	PeriodStart     time.Time `json:"period_start"`
-	PeriodEnd       time.Time `json:"period_end"`
-	InvoicePDF      string    `json:"invoice_pdf,omitempty"`
-	HostedInvoiceURL string   `json:"hosted_invoice_url,omitempty"`
-	Description     string    `json:"description,omitempty"`
+	ID               string    `json:"id"`
+	Number           string    `json:"number"`
+	Status           string    `json:"status"`
+	AmountDue        int64     `json:"amount_due"`
+	AmountPaid       int64     `json:"amount_paid"`
+	Currency         string    `json:"currency"`
+	Created          time.Time `json:"created"`
+	PeriodStart      time.Time `json:"period_start"`
+	PeriodEnd        time.Time `json:"period_end"`
+	InvoicePDF       string    `json:"invoice_pdf,omitempty"`
+	HostedInvoiceURL string    `json:"hosted_invoice_url,omitempty"`
+	Description      string    `json:"description,omitempty"`
 }
 
 // ListInvoices retrieves invoices for a customer
@@ -418,18 +477,18 @@ func (s *Service) ListInvoices(ctx context.Context, customerID string, limit int
 	for iter.Next() {
 		inv := iter.Invoice()
 		invoices = append(invoices, Invoice{
-			ID:              inv.ID,
-			Number:          inv.Number,
-			Status:          string(inv.Status),
-			AmountDue:       inv.AmountDue,
-			AmountPaid:      inv.AmountPaid,
-			Currency:        string(inv.Currency),
-			Created:         time.Unix(inv.Created, 0),
-			PeriodStart:     time.Unix(inv.PeriodStart, 0),
-			PeriodEnd:       time.Unix(inv.PeriodEnd, 0),
-			InvoicePDF:      inv.InvoicePDF,
+			ID:               inv.ID,
+			Number:           inv.Number,
+			Status:           string(inv.Status),
+			AmountDue:        inv.AmountDue,
+			AmountPaid:       inv.AmountPaid,
+			Currency:         string(inv.Currency),
+			Created:          time.Unix(inv.Created, 0),
+			PeriodStart:      time.Unix(inv.PeriodStart, 0),
+			PeriodEnd:        time.Unix(inv.PeriodEnd, 0),
+			InvoicePDF:       inv.InvoicePDF,
 			HostedInvoiceURL: inv.HostedInvoiceURL,
-			Description:     inv.Description,
+			Description:      inv.Description,
 		})
 	}
 

@@ -26,7 +26,7 @@ func NewImageManager(basePath string) (*ImageManager, error) {
 // ListImages returns available rootfs images
 func (im *ImageManager) ListImages(ctx context.Context) ([]string, error) {
 	imagesDir := filepath.Join(im.basePath, "images")
-	
+
 	entries, err := os.ReadDir(imagesDir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -60,7 +60,7 @@ func (im *ImageManager) ImageExists(imageName string) bool {
 // GetImageInfo returns information about an image
 func (im *ImageManager) GetImageInfo(imageName string) (map[string]interface{}, error) {
 	path := im.GetImagePath(imageName)
-	
+
 	info, err := os.Stat(path)
 	if err != nil {
 		return nil, fmt.Errorf("image not found: %w", err)
@@ -86,24 +86,19 @@ func SupportedImageTypes() []string {
 	}
 }
 
-// MapImageTypeToFileName maps image type to actual image file name
-func MapImageTypeToFileName(imageType string) string {
-	// Default mapping
+// MapImageTypeToFileName maps a known image type to its rootfs file name.
+// Unknown types are rejected so a caller cannot supply a path.
+func MapImageTypeToFileName(imageType string) (string, bool) {
 	mapping := map[string]string{
-		"ubuntu":      "ubuntu-24.04.ext4",
-		"ubuntu-24":   "ubuntu-24.04.ext4",
+		"ubuntu":       "ubuntu-24.04.ext4",
+		"ubuntu-24":    "ubuntu-24.04.ext4",
 		"ubuntu-24.04": "ubuntu-24.04.ext4",
-		"ubuntu-22":   "ubuntu-22.04.ext4",
+		"ubuntu-22":    "ubuntu-22.04.ext4",
 		"ubuntu-22.04": "ubuntu-22.04.ext4",
-		"debian":      "debian-12.ext4",
-		"debian-12":   "debian-12.ext4",
-		"debian-11":   "debian-11.ext4",
+		"debian":       "debian-12.ext4",
+		"debian-12":    "debian-12.ext4",
+		"debian-11":    "debian-11.ext4",
 	}
-
-	if filename, ok := mapping[imageType]; ok {
-		return filename
-	}
-
-	// Default: assume image type is the filename
-	return fmt.Sprintf("%s.ext4", imageType)
+	filename, ok := mapping[imageType]
+	return filename, ok
 }

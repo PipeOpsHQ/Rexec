@@ -367,6 +367,58 @@ func installSandboxMetadataGuard() {
 	log.Printf("Sandbox metadata guard installed (IMDS and Azure wireserver dropped from DOCKER-USER)")
 }
 
+// productionMode is true for a release Gin process or an environment marked
+// production. Local development sets GIN_MODE=debug and is not included.
+func productionMode() bool {
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("GIN_MODE")), "release") {
+		return true
+	}
+	for _, key := range []string{"REXEC_ENV", "APP_ENV", "GO_ENV", "ENV"} {
+		switch strings.ToLower(strings.TrimSpace(os.Getenv(key))) {
+		case "production", "prod":
+			return true
+		}
+	}
+	return false
+}
+
+// insecureJWTSecret matches placeholder secrets shipped in examples and compose,
+// including longer strings that still contain those markers.
+func insecureJWTSecret(secret string) bool {
+	s := strings.ToLower(strings.TrimSpace(secret))
+	if s == "" {
+		return true
+	}
+	for _, marker := range []string{
+		"rexec-dev-secret",
+		"change-in-production",
+		"change-me",
+		"change-this",
+		"changeme",
+		"your-super-secret",
+		"your-secure-jwt-secret",
+		"placeholder",
+	} {
+		if strings.Contains(s, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+// jwtSecretError refuses a missing, short, or placeholder JWT secret in
+// production. Debug and test processes may keep the example secret.
+func jwtSecretError(secret string) error {
+	if !productionMode() {
+		return nil
+	}
+	secret = strings.TrimSpace(secret)
+	if secret == "" || insecureJWTSecret(secret) || len(secret) < 32 {
+		return fmt.Errorf("JWT_SECRET must be a unique secret of at least 32 characters in production; placeholder values are refused")
+	}
+	return nil
+}
+
 func runServer() {
 	// Load .env file if it exists
 	loadEnvFile("server")
@@ -383,17 +435,17 @@ func runServer() {
 	// Initialize JWT secret for auth
 	jwtSecretStr := os.Getenv("JWT_SECRET")
 	if jwtSecretStr == "" {
-		if os.Getenv("GIN_MODE") == "release" {
+		if productionMode() {
 			log.Fatal("JWT_SECRET must be set in production")
 		}
 		log.Println("⚠️  JWT_SECRET not set, using default dev secret")
 		jwtSecretStr = "rexec-dev-secret-change-in-production"
 	}
-	if os.Getenv("GIN_MODE") == "release" && jwtSecretStr == "rexec-dev-secret-change-in-production" {
-		log.Fatal("JWT_SECRET must be a secure production secret in release mode")
+	if err := jwtSecretError(jwtSecretStr); err != nil {
+		log.Fatal(err)
 	}
-	if os.Getenv("GIN_MODE") == "release" && len(jwtSecretStr) < 32 {
-		log.Fatal("JWT_SECRET must be at least 32 characters in release mode")
+	if insecureJWTSecret(jwtSecretStr) {
+		log.Printf("⚠️  JWT_SECRET is a known placeholder; it is refused when GIN_MODE=release or the environment is production")
 	}
 	jwtSecret := []byte(jwtSecretStr)
 
@@ -544,6 +596,7 @@ func runServer() {
 	terminalHandler.SetRecordingHandler(recordingHandler)
 	// Connect collab handler to terminal handler for shared session access
 	terminalHandler.SetCollabHandler(collabHandler)
+	recordingHandler.SetCollabHandler(collabHandler)
 
 	billingHandler := handlers.NewBillingHandler(billingService, store)
 
@@ -572,7 +625,7 @@ func runServer() {
 	containerHandler.SetAgentHandler(agentHandler)
 
 	// Initialize VM handler with provider registry
-	vmHandler := handlers.NewVMHandler(providerRegistry)
+	vmHandler := handlers.NewVMHandler(providerRegistry, store)
 
 	// Connect events hub to agent handler for real-time updates
 	agentHandler.SetEventsHub(containerEventsHub)
@@ -726,14 +779,12 @@ func runServer() {
 	// These should only be accessible from localhost or with an internal API key
 	internalSSH := router.Group("/api/internal/ssh")
 	internalSSH.Use(func(c *gin.Context) {
-		// Only allow requests from localhost or with valid internal key
-		internalKey := os.Getenv("SSH_GATEWAY_INTERNAL_KEY")
-		if internalKey != "" {
-			providedKey := c.GetHeader("X-Internal-Key")
-			if providedKey != internalKey {
-				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid internal key"})
-				return
-			}
+		// Fail closed: the shared key must be configured, must match, and the
+		// TCP peer must be loopback or private. RemoteAddr is used because
+		// ClientIP trusts X-Forwarded-For from any proxy.
+		if !middleware.InternalSSHAuthorized(c.Request.RemoteAddr, c.GetHeader("X-Internal-Key"), os.Getenv("SSH_GATEWAY_INTERNAL_KEY")) {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			return
 		}
 		c.Next()
 	})
@@ -1608,6 +1659,9 @@ func runServer() {
 		sshPort = "22" // Default SSH port
 	}
 	if sshPort != "" {
+		if strings.TrimSpace(os.Getenv("SSH_GATEWAY_INTERNAL_KEY")) == "" {
+			log.Printf("⚠️  SSH_GATEWAY_INTERNAL_KEY is not set; gateway API calls will be rejected")
+		}
 		go startSSHGateway(sshPort, port)
 	}
 

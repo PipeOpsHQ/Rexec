@@ -26,6 +26,13 @@ func TestAPITokenAllowed(t *testing.T) {
 		{"agent cannot open admin", http.MethodGet, "/api/admin/users", []string{"agent"}, false},
 		{"agent path traversal into admin", http.MethodGet, "/api/agents/../admin/users", []string{"agent"}, false},
 		{"read write user api", http.MethodPost, "/api/containers", []string{"read", "write"}, true},
+		{"read alone cannot create", http.MethodPost, "/api/containers", []string{"read"}, false},
+		{"read alone cannot delete", http.MethodDelete, "/api/containers/abc", []string{"read"}, false},
+		{"read alone cannot exec", http.MethodPost, "/api/containers/abc/exec", []string{"read"}, false},
+		{"read can list", http.MethodGet, "/api/containers", []string{"read"}, true},
+		{"write can delete", http.MethodDelete, "/api/containers/abc", []string{"write"}, true},
+		{"admin can post", http.MethodPost, "/api/containers", []string{"admin"}, true},
+		{"unknown scope fails closed", http.MethodGet, "/api/profile", []string{"superuser"}, false},
 		{"read write blocked from admin", http.MethodGet, "/api/admin/users", []string{"read", "write"}, false},
 		{"admin scope on admin", http.MethodDelete, "/api/admin/users/1", []string{"admin"}, true},
 		{"admin scope on user api", http.MethodGet, "/api/profile", []string{"admin"}, true},
@@ -38,6 +45,20 @@ func TestAPITokenAllowed(t *testing.T) {
 				t.Fatalf("APITokenAllowed(%s %s %v)=%v", tc.method, tc.path, tc.scopes, got)
 			}
 		})
+	}
+}
+
+func TestNormalizeAPITokenScopes(t *testing.T) {
+	got, err := NormalizeAPITokenScopes(nil)
+	if err != nil || len(got) != 2 || got[0] != "read" || got[1] != "write" {
+		t.Fatalf("default = %v err=%v", got, err)
+	}
+	got, err = NormalizeAPITokenScopes([]string{" Write ", "read", "write"})
+	if err != nil || len(got) != 2 {
+		t.Fatalf("dedup = %v err=%v", got, err)
+	}
+	if _, err := NormalizeAPITokenScopes([]string{"root", "read"}); err == nil {
+		t.Fatal("expected unknown scope to be rejected")
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -302,11 +303,23 @@ func (g *Gateway) lookupOrCreateSession(fingerprint, username string) (*Session,
 	return session, nil
 }
 
+// apiGet calls the internal SSH API with the shared key when one is configured.
+func (g *Gateway) apiGet(url string) (*http.Response, error) {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	if key := strings.TrimSpace(os.Getenv("SSH_GATEWAY_INTERNAL_KEY")); key != "" {
+		req.Header.Set("X-Internal-Key", key)
+	}
+	return g.client.Do(req)
+}
+
 // lookupFingerprint looks up a user by SSH fingerprint
 func (g *Gateway) lookupFingerprint(fingerprint string) (*Session, error) {
 	url := fmt.Sprintf("%s/api/internal/ssh/fingerprint/%s", g.config.APIURL, fingerprint)
 
-	resp, err := g.client.Get(url)
+	resp, err := g.apiGet(url)
 	if err != nil {
 		return nil, err
 	}
@@ -348,7 +361,7 @@ func (g *Gateway) lookupFingerprint(fingerprint string) (*Session, error) {
 func (g *Gateway) lookupUsername(username string) (*UserInfo, error) {
 	url := fmt.Sprintf("%s/api/internal/ssh/user/%s", g.config.APIURL, username)
 
-	resp, err := g.client.Get(url)
+	resp, err := g.apiGet(url)
 	if err != nil {
 		return nil, err
 	}

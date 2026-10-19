@@ -12,9 +12,9 @@ import (
 
 // GuestAgentClient handles communication with the guest agent via vsock
 type GuestAgentClient struct {
-	conn   net.Conn
-	reqID  int64
-	mu     sync.Mutex
+	conn  net.Conn
+	reqID int64
+	mu    sync.Mutex
 }
 
 // GuestAgentRequest represents a JSON-RPC request
@@ -27,23 +27,23 @@ type GuestAgentRequest struct {
 
 // GuestAgentResponse represents a JSON-RPC response
 type GuestAgentResponse struct {
-	JSONRPC string          `json:"jsonrpc"`
-	ID      int64           `json:"id"`
-	Result  json.RawMessage `json:"result,omitempty"`
+	JSONRPC string           `json:"jsonrpc"`
+	ID      int64            `json:"id"`
+	Result  json.RawMessage  `json:"result,omitempty"`
 	Error   *GuestAgentError `json:"error,omitempty"`
 }
 
 // GuestAgentError represents a JSON-RPC error
 type GuestAgentError struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
+	Code    int         `json:"code"`
+	Message string      `json:"message"`
 	Data    interface{} `json:"data,omitempty"`
 }
 
 // ExecParams holds parameters for exec command
 type ExecParams struct {
-	Command []string `json:"command"`
-	Timeout int      `json:"timeout,omitempty"` // seconds
+	Command []string          `json:"command"`
+	Timeout int               `json:"timeout,omitempty"` // seconds
 	Env     map[string]string `json:"env,omitempty"`
 }
 
@@ -71,9 +71,9 @@ type CopyResult struct {
 
 // MetricsResult holds VM metrics
 type MetricsResult struct {
-	CPU    CPUMetrics    `json:"cpu"`
-	Memory MemoryMetrics `json:"memory"`
-	Disk   DiskMetrics   `json:"disk"`
+	CPU     CPUMetrics     `json:"cpu"`
+	Memory  MemoryMetrics  `json:"memory"`
+	Disk    DiskMetrics    `json:"disk"`
 	Network NetworkMetrics `json:"network"`
 }
 
@@ -85,15 +85,15 @@ type CPUMetrics struct {
 
 // MemoryMetrics holds memory usage metrics
 type MemoryMetrics struct {
-	Used  int64 `json:"used"`  // bytes
-	Total int64 `json:"total"` // bytes
+	Used    int64   `json:"used"`  // bytes
+	Total   int64   `json:"total"` // bytes
 	Percent float64 `json:"percent"`
 }
 
 // DiskMetrics holds disk usage metrics
 type DiskMetrics struct {
-	Used  int64 `json:"used"`  // bytes
-	Total int64 `json:"total"` // bytes
+	Used    int64   `json:"used"`  // bytes
+	Total   int64   `json:"total"` // bytes
 	Percent float64 `json:"percent"`
 }
 
@@ -156,7 +156,7 @@ func dialVsock(ctx context.Context, cid, port uint32) (net.Conn, error) {
 	// TODO: Implement actual vsock dialing
 	// For now, return an error indicating vsock is not yet implemented
 	// In production, this would use the vsock package or a TCP fallback
-	
+
 	// Placeholder: Try TCP fallback if vsock is not available
 	// Guest agent could listen on both vsock and a TCP port forwarded via Firecracker
 	tcpAddr := fmt.Sprintf("127.0.0.1:%d", 9000+port) // Use port mapping
@@ -164,7 +164,7 @@ func dialVsock(ctx context.Context, cid, port uint32) (net.Conn, error) {
 	if err != nil {
 		return nil, fmt.Errorf("vsock not implemented, TCP fallback failed: %w", err)
 	}
-	
+
 	return conn, nil
 }
 
@@ -306,8 +306,8 @@ func (c *GuestAgentClient) GetMetrics(ctx context.Context) (*MetricsResult, erro
 func (c *GuestAgentClient) Shell(ctx context.Context, shell string, cols, rows uint16) (io.ReadWriteCloser, error) {
 	params := map[string]interface{}{
 		"shell": shell,
-		"cols":   cols,
-		"rows":   rows,
+		"cols":  cols,
+		"rows":  rows,
 	}
 
 	_, err := c.Call(ctx, "shell", params)

@@ -5,19 +5,22 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/rexec/rexec/internal/container"
 	"github.com/rexec/rexec/internal/providers"
+	"github.com/rexec/rexec/internal/storage"
 )
 
 // VMHandler handles VM-related HTTP requests
 type VMHandler struct {
 	providerRegistry *providers.Registry
-	store            interface{} // Will use storage.PostgresStore when needed
+	store            *storage.PostgresStore
 }
 
 // NewVMHandler creates a new VM handler
-func NewVMHandler(registry *providers.Registry) *VMHandler {
+func NewVMHandler(registry *providers.Registry, store *storage.PostgresStore) *VMHandler {
 	return &VMHandler{
 		providerRegistry: registry,
+		store:            store,
 	}
 }
 
@@ -131,28 +134,52 @@ func (h *VMHandler) Create(c *gin.Context) {
 		return
 	}
 
-	// Set defaults based on tier
-	if req.MemoryMB == 0 {
-		req.MemoryMB = 512 // Default
+	if strings.TrimSpace(req.Name) == "" {
+		req.Name = generateContainerName()
 	}
-	if req.CPUShares == 0 {
-		req.CPUShares = 500 // 0.5 CPU
-	}
-	if req.DiskMB == 0 {
-		req.DiskMB = 2048 // 2GB
+	if !isValidContainerName(req.Name) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid container name: must be 1-64 characters, alphanumeric and hyphens only",
+		})
+		return
 	}
 
+	if msg := macOSImageDenied(userID, callerIsAdmin(c), req.Image); msg != "" {
+		c.JSON(http.StatusForbidden, gin.H{"error": msg})
+		return
+	}
+
+	subscriptionActive := c.GetBool("subscription_active")
+	count, err := countUserSandboxes(c.Request.Context(), h.store, h.providerRegistry, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check container limit"})
+		return
+	}
+	limit := container.UserContainerLimit(tier)
+	if count >= limit {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error":   "container limit reached",
+			"current": count,
+			"limit":   limit,
+			"tier":    tier,
+		})
+		return
+	}
+
+	memoryMB, cpuShares, diskMB := clampSandboxResources(req.MemoryMB, req.CPUShares, req.DiskMB, tier, subscriptionActive)
+
 	cfg := providers.CreateConfig{
-		UserID:      userID,
-		Name:        req.Name,
-		Image:       req.Image,
-		CustomImage: req.CustomImage,
-		Role:        req.Role,
-		MemoryMB:    req.MemoryMB,
-		CPUShares:   req.CPUShares,
-		DiskMB:      req.DiskMB,
-		UserData:    req.UserData,
-		Labels:      req.Labels,
+		UserID:               userID,
+		Name:                 req.Name,
+		Image:                req.Image,
+		CustomImage:          req.CustomImage,
+		Role:                 req.Role,
+		MemoryMB:             memoryMB,
+		CPUShares:            cpuShares,
+		DiskMB:               diskMB,
+		UserData:             req.UserData,
+		Labels:               req.Labels,
+		AllowPrivilegedMacOS: container.MacOSPrivilegedAllowed(userID, callerIsAdmin(c)),
 	}
 
 	// Add tier to labels

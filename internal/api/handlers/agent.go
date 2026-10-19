@@ -981,6 +981,19 @@ func (h *AgentHandler) HandleAgentWebSocket(c *gin.Context) {
 	}
 }
 
+// agentInputAllowed reports whether a user websocket may start a shell or send
+// input and exec. Owners may. Collaborators may only as editor or owner.
+// A missing or failed role lookup fails closed. Viewers may still receive output.
+func agentInputAllowed(isOwner bool, role string, hasRole bool) bool {
+	if isOwner {
+		return true
+	}
+	if !hasRole {
+		return false
+	}
+	return role == "owner" || role == "editor"
+}
+
 // HandleUserWebSocket handles the WebSocket connection from a user to an agent
 func (h *AgentHandler) HandleUserWebSocket(c *gin.Context) {
 	agentID := c.Param("id")
@@ -1033,6 +1046,17 @@ func (h *AgentHandler) HandleUserWebSocket(c *gin.Context) {
 			return
 		}
 		log.Printf("[Agent] User %s connected to agent %s as collaborator", userID, agentID)
+	}
+
+	// Viewers stay connected for output. They must not start a shell or send input.
+	canInput := isOwner
+	if !isOwner {
+		var role string
+		var hasRole bool
+		if h.collabHandler != nil {
+			role, hasRole = h.collabHandler.ParticipantRole(ctx, userID, "agent:"+agentID)
+		}
+		canInput = agentInputAllowed(false, role, hasRole)
 	}
 
 	// Enforce concurrent agent terminal limits (admins are exempt).
@@ -1135,14 +1159,16 @@ func (h *AgentHandler) HandleUserWebSocket(c *gin.Context) {
 			})
 		}
 
-		// Tell agent to start shell
-		agentConn.conn.WriteJSON(map[string]interface{}{
-			"type": "shell_start",
-			"data": map[string]interface{}{
-				"session_id":  agentSessionID,
-				"new_session": newSession,
-			},
-		})
+		// Viewers receive output from a shell someone else started.
+		if canInput {
+			agentConn.conn.WriteJSON(map[string]interface{}{
+				"type": "shell_start",
+				"data": map[string]interface{}{
+					"session_id":  agentSessionID,
+					"new_session": newSession,
+				},
+			})
+		}
 
 		defer func() {
 			agentConn.sessionsMu.Lock()
@@ -1193,14 +1219,15 @@ func (h *AgentHandler) HandleUserWebSocket(c *gin.Context) {
 			}
 
 			if messageType == websocket.BinaryMessage {
-				// Forward input to agent
-				agentConn.conn.WriteJSON(map[string]interface{}{
-					"type": "shell_input",
-					"data": map[string]interface{}{
-						"session_id": agentSessionID,
-						"data":       message,
-					},
-				})
+				if canInput {
+					agentConn.conn.WriteJSON(map[string]interface{}{
+						"type": "shell_input",
+						"data": map[string]interface{}{
+							"session_id": agentSessionID,
+							"data":       message,
+						},
+					})
+				}
 			} else {
 				// Parse JSON message
 				var msg struct {
@@ -1214,6 +1241,9 @@ func (h *AgentHandler) HandleUserWebSocket(c *gin.Context) {
 
 				switch msg.Type {
 				case "input":
+					if !canInput {
+						continue
+					}
 					var inputStr string
 					if err := json.Unmarshal(msg.Data, &inputStr); err != nil {
 						continue
@@ -1243,6 +1273,9 @@ func (h *AgentHandler) HandleUserWebSocket(c *gin.Context) {
 					}
 
 				case "exec":
+					if !canInput {
+						continue
+					}
 					agentConn.conn.WriteJSON(map[string]interface{}{
 						"type": "exec",
 						"data": msg.Data,
@@ -1280,7 +1313,7 @@ func (h *AgentHandler) HandleUserWebSocket(c *gin.Context) {
 			previous.UserConn.Close()
 		}
 
-		if shouldStart {
+		if shouldStart && canInput {
 			h.pubsubHub.ProxyTerminalData(agentID, agentSessionID, "start_session", nil, 0, 0, newSession)
 		}
 
@@ -1314,7 +1347,9 @@ func (h *AgentHandler) HandleUserWebSocket(c *gin.Context) {
 			}
 
 			if messageType == websocket.BinaryMessage {
-				h.pubsubHub.ProxyTerminalData(agentID, agentSessionID, "input", message, 0, 0, false)
+				if canInput {
+					h.pubsubHub.ProxyTerminalData(agentID, agentSessionID, "input", message, 0, 0, false)
+				}
 			} else {
 				var msg struct {
 					Type string          `json:"type"`
@@ -1326,6 +1361,9 @@ func (h *AgentHandler) HandleUserWebSocket(c *gin.Context) {
 
 				switch msg.Type {
 				case "input":
+					if !canInput {
+						continue
+					}
 					var inputStr string
 					if err := json.Unmarshal(msg.Data, &inputStr); err == nil {
 						h.pubsubHub.ProxyTerminalData(agentID, agentSessionID, "input", []byte(inputStr), 0, 0, false)
@@ -1345,9 +1383,23 @@ func (h *AgentHandler) HandleUserWebSocket(c *gin.Context) {
 	}
 }
 
-// GetAgentStatus returns the status of an agent
+// GetAgentStatus returns the status of an agent owned by the caller.
 func (h *AgentHandler) GetAgentStatus(c *gin.Context) {
+	userID := c.GetString("userID")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
 	agentID := c.Param("id")
+
+	// Ownership is checked before either the local cache or the heartbeat path
+	// so a non-owner cannot read OS, stats, or online state.
+	ctx := c.Request.Context()
+	dbAgent, err := h.store.GetAgent(ctx, agentID)
+	if err != nil || dbAgent == nil || dbAgent.UserID != userID {
+		c.JSON(http.StatusNotFound, gin.H{"error": "agent not found"})
+		return
+	}
 
 	// Check local cache first
 	h.agentsMu.RLock()
@@ -1372,14 +1424,6 @@ func (h *AgentHandler) GetAgentStatus(c *gin.Context) {
 		}
 
 		c.JSON(http.StatusOK, response)
-		return
-	}
-
-	// Not local, check DB
-	ctx := c.Request.Context()
-	dbAgent, err := h.store.GetAgent(ctx, agentID)
-	if err != nil || dbAgent == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "agent not found"})
 		return
 	}
 

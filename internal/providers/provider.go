@@ -43,6 +43,8 @@ type CreateConfig struct {
 	DiskMB      int64             // Disk quota in MB
 	Labels      map[string]string // Custom labels
 	UserData    string            // Cloud-init userdata (for VMs)
+	// AllowPrivilegedMacOS is set by the API only after the admin allowlist check.
+	AllowPrivilegedMacOS bool
 }
 
 // TerminalConnection represents an active terminal connection

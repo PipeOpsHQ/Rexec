@@ -24,11 +24,17 @@ func NewStorageManager(rootfsBasePath string) (*StorageManager, error) {
 	}, nil
 }
 
-// GetRootfsPath returns the path to a rootfs image for the given image type
+// GetRootfsPath returns the path to a rootfs image for the given image type.
+// The image type must be on the allowlist, and the result must stay under the rootfs directory.
 func (sm *StorageManager) GetRootfsPath(ctx context.Context, imageType string) (string, error) {
-	// Map image type to filename
-	rootfsName := MapImageTypeToFileName(imageType)
-	rootfsPath := filepath.Join(sm.rootfsBasePath, "images", rootfsName)
+	rootfsName, ok := MapImageTypeToFileName(imageType)
+	if !ok {
+		return "", fmt.Errorf("unsupported image type %q", imageType)
+	}
+	rootfsPath, err := containedJoin(filepath.Join(sm.rootfsBasePath, "images"), rootfsName)
+	if err != nil {
+		return "", fmt.Errorf("invalid rootfs path: %w", err)
+	}
 
 	// Check if rootfs exists
 	if _, err := os.Stat(rootfsPath); err != nil {

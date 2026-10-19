@@ -36,8 +36,11 @@ func tokenFromWebSocketSubprotocolHeader(headerVal string) string {
 	return ""
 }
 
-// AuthMiddleware validates JWT or API tokens and extracts user info, enforcing MFA if enabled.
-// jwtSecret must be the server's signing key.
+// AuthMiddleware validates JWT or API tokens and extracts user info.
+// A token with mfa_pending is accepted only on the MFA completion route, and
+// only after session revocation, screen lock and the IP allowlist. Factor
+// checks themselves live on the MFA handlers. jwtSecret must be the server's
+// signing key.
 func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, jwtSecret []byte) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authStart := time.Now()
@@ -213,14 +216,23 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, j
 			return
 		}
 
+		// Guest-restore cookies are not API credentials.
+		if purpose, _ := claims["purpose"].(string); purpose == "guest_restore" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
+			c.Abort()
+			return
+		}
+
 		// Extract claims and set user info in context
 		userID, userID_ok := claims["user_id"].(string)
 		email, email_ok := claims["email"].(string)
 		exp, exp_ok := claims["exp"].(float64)
 		iat, _ := claims["iat"].(float64)
 		sessionID, _ := claims["sid"].(string)
+		var username string
 
-		// Check if this is an MFA pending token
+		// Check if this is an MFA pending token. Do not return yet: revocation,
+		// screen lock and the IP allowlist run before the route allowlist.
 		mfaPending, _ := claims["mfa_pending"].(bool)
 		if mfaPending {
 			// MFA pending tokens only have user_id, email, exp, and mfa_pending
@@ -233,46 +245,47 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, j
 			c.Set("email", email)
 			c.Set("tokenExp", int64(exp))
 			c.Set("mfa_pending", true)
-			c.Next()
-			return
-		}
+			username = email
+		} else {
 
-		// Regular token - needs all claims
-		username, username_ok := claims["username"].(string)
-		tier, tier_ok := claims["tier"].(string)
-		guest, guest_ok := claims["guest"].(bool)
-		subActive, subActive_ok := claims["subscription_active"].(bool)
+			// Regular token - needs all claims
+			var username_ok bool
+			username, username_ok = claims["username"].(string)
+			tier, tier_ok := claims["tier"].(string)
+			guest, guest_ok := claims["guest"].(bool)
+			subActive, subActive_ok := claims["subscription_active"].(bool)
 
-		if !userID_ok || !email_ok || !username_ok || !tier_ok || !guest_ok || !subActive_ok || !exp_ok {
-			if isWebSocket {
-				log.Printf("[Auth] WebSocket JWT claims structure invalid for %s after %v", path, time.Since(authStart))
+			if !userID_ok || !email_ok || !username_ok || !tier_ok || !guest_ok || !subActive_ok || !exp_ok {
+				if isWebSocket {
+					log.Printf("[Auth] WebSocket JWT claims structure invalid for %s after %v", path, time.Since(authStart))
+				}
+				// Don't block on audit log
+				go func() {
+					auditCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+					defer cancel()
+					store.CreateAuditLog(auditCtx, &models.AuditLog{
+						ID:        uuid.New().String(),
+						UserID:    &userID,
+						Action:    "authentication_failed",
+						IPAddress: c.ClientIP(),
+						UserAgent: c.Request.UserAgent(),
+						Details:   "Invalid token claims structure",
+						CreatedAt: time.Now(),
+					})
+				}()
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
+				c.Abort()
+				return
 			}
-			// Don't block on audit log
-			go func() {
-				auditCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-				defer cancel()
-				store.CreateAuditLog(auditCtx, &models.AuditLog{
-					ID:        uuid.New().String(),
-					UserID:    &userID,
-					Action:    "authentication_failed",
-					IPAddress: c.ClientIP(),
-					UserAgent: c.Request.UserAgent(),
-					Details:   "Invalid token claims structure",
-					CreatedAt: time.Now(),
-				})
-			}()
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
-			c.Abort()
-			return
-		}
 
-		c.Set("userID", userID)
-		c.Set("email", email)
-		c.Set("username", username)
-		c.Set("tier", tier)
-		c.Set("guest", guest)
-		c.Set("subscription_active", subActive)
-		c.Set("tokenExp", int64(exp))
+			c.Set("userID", userID)
+			c.Set("email", email)
+			c.Set("username", username)
+			c.Set("tier", tier)
+			c.Set("guest", guest)
+			c.Set("subscription_active", subActive)
+			c.Set("tokenExp", int64(exp))
+		}
 
 		// Fetch user from DB to check MFA status (with timeout)
 		userLookupStart := time.Now()
@@ -327,11 +340,13 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, j
 		// --- Server-enforced screen lock ---
 		// If the account is locked after this token was issued, block access with 423.
 		// API tokens (rexec_*) already return early above and never hit this path.
-		// Only enforce for browser sessions (JWT with sid). Automation JWTs without
-		// a session id must keep working for BFF/agent use after screen lock.
-		if sessionID != "" && user.ScreenLockEnabled && user.ScreenLockHash != "" && user.LockRequiredSince != nil {
-			// Allow unlock endpoint to proceed even with a locked token.
-			if c.Request.URL.Path != "/api/security/unlock" {
+		// Browser sessions (JWT with sid) and MFA-pending tokens are locked.
+		// Automation JWTs without a session id must keep working for BFF/agent use.
+		if (sessionID != "" || mfaPending) && user.ScreenLockEnabled && user.ScreenLockHash != "" && user.LockRequiredSince != nil {
+			// Allow the unlock endpoint, and allow an MFA-pending token to
+			// finish login. Every other route stays locked.
+			completingMFA := mfaPending && MFAPendingRequestAllowed(c.Request.Method, c.Request.URL.Path)
+			if c.Request.URL.Path != "/api/security/unlock" && !completingMFA {
 				tokenIat := time.Unix(int64(iat), 0)
 				if tokenIat.Before(*user.LockRequiredSince) {
 					c.JSON(http.StatusLocked, gin.H{"error": "session_locked"})
@@ -366,6 +381,14 @@ func AuthMiddleware(store *storage.PostgresStore, mfaService *auth.MFAService, j
 				c.Abort()
 				return
 			}
+		}
+
+		// MFA-pending tokens may only finish login. Checked after revocation,
+		// screen lock and the IP allowlist so those controls are not skipped.
+		if mfaPending && !MFAPendingRequestAllowed(c.Request.Method, c.Request.URL.Path) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "mfa_required"})
+			c.Abort()
+			return
 		}
 
 		// Log successful authentication (don't block on this)

@@ -888,7 +888,7 @@ func (h *TerminalHandler) runTerminalSessionWithRestart(session *TerminalSession
 
 	// macOS containers are VMs - they have their own internal shell management
 	// Don't aggressively restart shells for macOS as it causes instability
-	isMacOS := strings.Contains(strings.ToLower(imageType), "macos") || strings.Contains(strings.ToLower(imageType), "osx")
+	isMacOS := mgr.IsMacOSImage(imageType)
 
 	maxRestarts := 10 // Prevent infinite restart loops
 	if isMacOS {
@@ -994,7 +994,7 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 	client := h.containerManager.GetClient()
 
 	// Check if this is a macOS container
-	isMacOS := strings.Contains(strings.ToLower(imageType), "macos") || strings.Contains(strings.ToLower(imageType), "osx")
+	isMacOS := mgr.IsMacOSImage(imageType)
 
 	// For standard Linux containers, attach to tmux session for persistence
 	// This allows users to reconnect and see output that happened while disconnected
@@ -1381,7 +1381,7 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 						return
 					}
 
-					if h.recordingHandler != nil {
+					if h.recordingHandler != nil && h.recordingHandler.IsRecording(session.ContainerID) {
 						h.recordingHandler.AddEvent(session.ContainerID, "o", outputData, 0, 0)
 					}
 				}
@@ -1425,7 +1425,7 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 					// Touch container on input
 					h.containerManager.TouchContainer(session.ContainerID)
 					// Record input if recording is active
-					if h.recordingHandler != nil {
+					if h.recordingHandler != nil && h.recordingHandler.IsRecording(session.ContainerID) {
 						h.recordingHandler.AddEvent(session.ContainerID, "i", msg.Data, 0, 0)
 					}
 
@@ -1443,7 +1443,7 @@ func (h *TerminalHandler) runTerminalSession(session *TerminalSession, imageType
 							log.Printf("Failed to resize terminal: %v", err)
 						}
 						// Record resize if recording is active
-						if h.recordingHandler != nil {
+						if h.recordingHandler != nil && h.recordingHandler.IsRecording(session.ContainerID) {
 							h.recordingHandler.AddEvent(session.ContainerID, "r", "", int(msg.Cols), int(msg.Rows))
 						}
 					}
@@ -1506,7 +1506,7 @@ func (h *TerminalHandler) detectShell(ctx context.Context, containerID, imageTyp
 
 	if shell == "" {
 		// Check if this is a macOS container
-		isMacOS := strings.Contains(strings.ToLower(imageType), "macos") || strings.Contains(strings.ToLower(imageType), "osx")
+		isMacOS := mgr.IsMacOSImage(imageType)
 
 		// Define shell preference order based on image type
 		var shells []string

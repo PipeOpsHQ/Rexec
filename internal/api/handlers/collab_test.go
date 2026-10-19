@@ -19,22 +19,22 @@ func init() {
 // TestGenerateShareCode tests share code generation
 func TestGenerateShareCode(t *testing.T) {
 	codes := make(map[string]bool)
-	
+
 	// Generate 100 codes and ensure uniqueness
 	for i := 0; i < 100; i++ {
 		code := generateShareCode()
-		
+
 		// Check length
 		if len(code) != 6 {
 			t.Errorf("Expected code length 6, got %d: %s", len(code), code)
 		}
-		
+
 		// Check for uniqueness
 		if codes[code] {
 			t.Errorf("Duplicate code generated: %s", code)
 		}
 		codes[code] = true
-		
+
 		// Check that code is uppercase
 		if code != strings.ToUpper(code) {
 			t.Errorf("Code should be uppercase: %s", code)
@@ -52,10 +52,10 @@ func TestGetParticipantColor(t *testing.T) {
 		{1, "#4ECDC4"},
 		{2, "#45B7D1"},
 		{7, "#F7DC6F"},
-		{8, "#FF6B6B"}, // Should wrap around
+		{8, "#FF6B6B"},  // Should wrap around
 		{16, "#FF6B6B"}, // Should wrap around twice
 	}
-	
+
 	for _, tt := range tests {
 		color := getParticipantColor(tt.index)
 		if color != tt.expected {
@@ -77,21 +77,21 @@ func TestCollabSessionBroadcast(t *testing.T) {
 		Participants: make(map[string]*CollabParticipant),
 		broadcast:    make(chan CollabMessage, 1024),
 	}
-	
+
 	// Test non-blocking send
 	msg := CollabMessage{
 		Type:      "test",
 		UserID:    "user-1",
 		Timestamp: time.Now().UnixMilli(),
 	}
-	
+
 	select {
 	case session.broadcast <- msg:
 		// Success
 	default:
 		t.Error("Failed to send message to broadcast channel")
 	}
-	
+
 	// Verify message received
 	select {
 	case received := <-session.broadcast:
@@ -113,17 +113,17 @@ func TestCollabMessageJSON(t *testing.T) {
 		Color:     "#FF6B6B",
 		Timestamp: 1234567890,
 	}
-	
+
 	data, err := json.Marshal(msg)
 	if err != nil {
 		t.Fatalf("Failed to marshal message: %v", err)
 	}
-	
+
 	var decoded CollabMessage
 	if err := json.Unmarshal(data, &decoded); err != nil {
 		t.Fatalf("Failed to unmarshal message: %v", err)
 	}
-	
+
 	if decoded.Type != msg.Type {
 		t.Errorf("Type mismatch: got %s, expected %s", decoded.Type, msg.Type)
 	}
@@ -142,17 +142,17 @@ func TestCollabSessionExpiration(t *testing.T) {
 		ID:        "expired",
 		ExpiresAt: time.Now().Add(-time.Hour), // Expired 1 hour ago
 	}
-	
+
 	if !time.Now().After(expiredSession.ExpiresAt) {
 		t.Error("Session should be expired")
 	}
-	
+
 	// Create a valid session
 	validSession := &CollabSession{
 		ID:        "valid",
 		ExpiresAt: time.Now().Add(time.Hour), // Expires in 1 hour
 	}
-	
+
 	if time.Now().After(validSession.ExpiresAt) {
 		t.Error("Session should not be expired")
 	}
@@ -164,16 +164,16 @@ func TestCollabParticipantLimit(t *testing.T) {
 		MaxUsers:     3,
 		Participants: make(map[string]*CollabParticipant),
 	}
-	
+
 	// Add participants up to limit
 	session.Participants["user-1"] = &CollabParticipant{UserID: "user-1"}
 	session.Participants["user-2"] = &CollabParticipant{UserID: "user-2"}
 	session.Participants["user-3"] = &CollabParticipant{UserID: "user-3"}
-	
+
 	if len(session.Participants) < session.MaxUsers {
 		t.Error("Should have reached max users")
 	}
-	
+
 	// Verify at capacity
 	if len(session.Participants) != session.MaxUsers {
 		t.Errorf("Expected %d participants, got %d", session.MaxUsers, len(session.Participants))
@@ -186,7 +186,7 @@ func TestCollabRoleAssignment(t *testing.T) {
 		OwnerID: "owner-123",
 		Mode:    "control",
 	}
-	
+
 	tests := []struct {
 		userID   string
 		expected string
@@ -194,7 +194,7 @@ func TestCollabRoleAssignment(t *testing.T) {
 		{"owner-123", "owner"},
 		{"other-user", "editor"}, // control mode gives editor
 	}
-	
+
 	for _, tt := range tests {
 		var role string
 		if tt.userID == session.OwnerID {
@@ -204,12 +204,12 @@ func TestCollabRoleAssignment(t *testing.T) {
 		} else {
 			role = "viewer"
 		}
-		
+
 		if role != tt.expected {
 			t.Errorf("Role for %s: got %s, expected %s", tt.userID, role, tt.expected)
 		}
 	}
-	
+
 	// Test view mode
 	session.Mode = "view"
 	for _, tt := range tests {
@@ -221,12 +221,12 @@ func TestCollabRoleAssignment(t *testing.T) {
 		} else {
 			role = "viewer"
 		}
-		
+
 		expected := tt.expected
 		if tt.userID != session.OwnerID {
 			expected = "viewer" // In view mode, non-owners are viewers
 		}
-		
+
 		if role != expected {
 			t.Errorf("Role for %s in view mode: got %s, expected %s", tt.userID, role, expected)
 		}
@@ -256,7 +256,7 @@ func TestStartSessionValidation(t *testing.T) {
 			expectedStatus: http.StatusBadRequest,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a mock handler (without actual store/manager)
@@ -267,14 +267,14 @@ func TestStartSessionValidation(t *testing.T) {
 			c.Request.Header.Set("Content-Type", "application/json")
 			c.Set("userID", "test-user")
 			c.Set("username", "testuser")
-			
+
 			// We can't fully test without mocking the store,
 			// but we can verify the request parsing logic
 			var req struct {
 				ContainerID string `json:"container_id" binding:"required"`
 				Mode        string `json:"mode"`
 			}
-			
+
 			if err := c.ShouldBindJSON(&req); err != nil {
 				if tt.expectedStatus != http.StatusBadRequest {
 					t.Errorf("Unexpected binding error: %v", err)
@@ -287,11 +287,11 @@ func TestStartSessionValidation(t *testing.T) {
 // TestCollabMessageTypes tests all message type constants
 func TestCollabMessageTypes(t *testing.T) {
 	validTypes := []string{
-		"join", "leave", "cursor", "selection", 
+		"join", "leave", "cursor", "selection",
 		"input", "output", "sync", "participants",
 		"ended", "expired",
 	}
-	
+
 	for _, msgType := range validTypes {
 		msg := CollabMessage{Type: msgType}
 		if msg.Type != msgType {
@@ -305,9 +305,9 @@ func TestConcurrentParticipantAccess(t *testing.T) {
 	session := &CollabSession{
 		Participants: make(map[string]*CollabParticipant),
 	}
-	
+
 	done := make(chan bool, 10)
-	
+
 	// Concurrent writes
 	for i := 0; i < 5; i++ {
 		go func(id int) {
@@ -319,7 +319,7 @@ func TestConcurrentParticipantAccess(t *testing.T) {
 			done <- true
 		}(i)
 	}
-	
+
 	// Concurrent reads
 	for i := 0; i < 5; i++ {
 		go func() {
@@ -329,12 +329,12 @@ func TestConcurrentParticipantAccess(t *testing.T) {
 			done <- true
 		}()
 	}
-	
+
 	// Wait for all goroutines
 	for i := 0; i < 10; i++ {
 		<-done
 	}
-	
+
 	if len(session.Participants) != 5 {
 		t.Errorf("Expected 5 participants, got %d", len(session.Participants))
 	}
@@ -352,18 +352,18 @@ func BenchmarkBroadcast(b *testing.B) {
 	session := &CollabSession{
 		broadcast: make(chan CollabMessage, 1024),
 	}
-	
+
 	// Drain the channel in background
 	go func() {
 		for range session.broadcast {
 		}
 	}()
-	
+
 	msg := CollabMessage{
 		Type:      "cursor",
 		Timestamp: time.Now().UnixMilli(),
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		select {
@@ -377,10 +377,10 @@ func BenchmarkBroadcast(b *testing.B) {
 func TestCollabFlowIntegration(t *testing.T) {
 	// This is a pseudo-integration test that validates the flow
 	// without actual WebSocket connections
-	
+
 	ctx := context.Background()
 	_ = ctx // Would be used with actual store
-	
+
 	// 1. Create session
 	session := &CollabSession{
 		ID:           "integration-test",
@@ -393,7 +393,7 @@ func TestCollabFlowIntegration(t *testing.T) {
 		Participants: make(map[string]*CollabParticipant),
 		broadcast:    make(chan CollabMessage, 1024),
 	}
-	
+
 	// 2. Add owner
 	session.Participants["owner-user"] = &CollabParticipant{
 		UserID:   "owner-user",
@@ -401,7 +401,7 @@ func TestCollabFlowIntegration(t *testing.T) {
 		Role:     "owner",
 		Color:    getParticipantColor(0),
 	}
-	
+
 	// 3. Add participant
 	session.mu.Lock()
 	if len(session.Participants) < session.MaxUsers {
@@ -413,20 +413,20 @@ func TestCollabFlowIntegration(t *testing.T) {
 		}
 	}
 	session.mu.Unlock()
-	
+
 	// 4. Verify state
 	session.mu.RLock()
 	defer session.mu.RUnlock()
-	
+
 	if len(session.Participants) != 2 {
 		t.Errorf("Expected 2 participants, got %d", len(session.Participants))
 	}
-	
+
 	owner := session.Participants["owner-user"]
 	if owner == nil || owner.Role != "owner" {
 		t.Error("Owner not properly set")
 	}
-	
+
 	guest := session.Participants["guest-user"]
 	if guest == nil || guest.Role != "editor" {
 		t.Error("Guest not properly set as editor in control mode")

@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"net/http"
 	"path"
 	"strings"
@@ -36,7 +37,47 @@ func APITokenAllowed(method, rawPath string, scopes []string) bool {
 	_, read := have["read"]
 	_, write := have["write"]
 	_, admin := have["admin"]
+	// Mutating methods need write or admin. read is safe methods only.
+	if method != http.MethodGet && method != http.MethodHead && method != http.MethodOptions {
+		return write || admin
+	}
 	return read || write || admin
+}
+
+// AllowedAPITokenScopes is the closed set accepted at token creation.
+var AllowedAPITokenScopes = map[string]struct{}{
+	"read":  {},
+	"write": {},
+	"admin": {},
+	"agent": {},
+}
+
+// NormalizeAPITokenScopes lowercases, de-duplicates, and rejects unknown scopes.
+// An empty input defaults to read and write.
+func NormalizeAPITokenScopes(scopes []string) ([]string, error) {
+	if len(scopes) == 0 {
+		return []string{"read", "write"}, nil
+	}
+	seen := make(map[string]struct{}, len(scopes))
+	out := make([]string, 0, len(scopes))
+	for _, scope := range scopes {
+		scope = strings.ToLower(strings.TrimSpace(scope))
+		if scope == "" {
+			continue
+		}
+		if _, ok := AllowedAPITokenScopes[scope]; !ok {
+			return nil, fmt.Errorf("invalid scope %q", scope)
+		}
+		if _, ok := seen[scope]; ok {
+			continue
+		}
+		seen[scope] = struct{}{}
+		out = append(out, scope)
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("no valid scopes")
+	}
+	return out, nil
 }
 
 func cleanRequestPath(raw string) string {
