@@ -3083,8 +3083,20 @@ func (s *PostgresStore) GetAuditLogsByUserID(ctx context.Context, userID string,
 	return logs, nil
 }
 
-// EnableMFA enables MFA for a user with backup codes
+// EnableMFA enables MFA for a user who does not already have a secret.
+// It refuses to overwrite an enrolled factor. Use ReplaceMFA after the
+// caller has proved the current factor.
 func (s *PostgresStore) EnableMFA(ctx context.Context, userID, secret string, backupCodes []string) error {
+	return s.writeMFA(ctx, userID, secret, backupCodes, false)
+}
+
+// ReplaceMFA overwrites an enrolled TOTP secret. Callers must authenticate
+// the current factor before calling this.
+func (s *PostgresStore) ReplaceMFA(ctx context.Context, userID, secret string, backupCodes []string) error {
+	return s.writeMFA(ctx, userID, secret, backupCodes, true)
+}
+
+func (s *PostgresStore) writeMFA(ctx context.Context, userID, secret string, backupCodes []string, overwrite bool) error {
 	// Encrypt secret
 	encryptedSecret, err := s.encryptor.Encrypt(secret)
 	if err != nil {
@@ -3099,8 +3111,23 @@ func (s *PostgresStore) EnableMFA(ctx context.Context, userID, secret string, ba
 	}
 
 	query := `UPDATE users SET mfa_enabled = true, mfa_secret = $2, mfa_backup_codes = $3, updated_at = $4 WHERE id = $1`
-	_, err = s.db.ExecContext(ctx, query, userID, encryptedSecret, encryptedBackupCodes, time.Now())
-	return err
+	if !overwrite {
+		query += ` AND (mfa_enabled = false OR mfa_secret IS NULL OR mfa_secret = '')`
+	}
+	res, err := s.db.ExecContext(ctx, query, userID, encryptedSecret, encryptedBackupCodes, time.Now())
+	if err != nil {
+		return err
+	}
+	if !overwrite {
+		n, err := res.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return fmt.Errorf("mfa already enabled")
+		}
+	}
+	return nil
 }
 
 // DisableMFA disables MFA for a user

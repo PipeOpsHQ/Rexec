@@ -1,9 +1,9 @@
 package handlers
 
 import (
+	"github.com/rexec/rexec/internal/container"
 	"strings"
 	"testing"
-	"github.com/rexec/rexec/internal/container"
 )
 
 func TestGenerateContainerName(t *testing.T) {
@@ -99,7 +99,7 @@ func TestGetImageNames(t *testing.T) {
 	if len(names) == 0 {
 		t.Error("getImageNames() returned empty list")
 	}
-	
+
 	// Check against container.SupportedImages to ensure consistency
 	if len(names) != len(container.SupportedImages) {
 		t.Errorf("getImageNames() returned %d names, want %d", len(names), len(container.SupportedImages))
@@ -108,9 +108,9 @@ func TestGetImageNames(t *testing.T) {
 
 func TestFormatDiskQuota(t *testing.T) {
 	tests := []struct {
-		name   string
-		input  int64
-		want   string
+		name  string
+		input int64
+		want  string
 	}{
 		{"Megabytes", 512, "512M"},
 		{"Gigabytes", 2048, "2G"},

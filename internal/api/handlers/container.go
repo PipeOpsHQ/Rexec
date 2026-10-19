@@ -482,6 +482,11 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 		}
 	}
 
+	if msg := macOSImageDenied(userID, callerIsAdmin(c), req.Image); msg != "" {
+		c.JSON(http.StatusForbidden, gin.H{"error": msg})
+		return
+	}
+
 	// Network mode validation
 	netMode := strings.ToLower(strings.TrimSpace(req.NetworkMode))
 	switch netMode {
@@ -680,12 +685,13 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 	}
 
 	cfg := container.ContainerConfig{
-		UserID:        userID,
-		ContainerName: containerName,
-		ImageType:     req.Image,
-		CustomImage:   req.CustomImage,
-		Role:          container.NormalizeRoleID(req.Role),
-		NetworkMode:   netMode,
+		UserID:               userID,
+		ContainerName:        containerName,
+		ImageType:            req.Image,
+		CustomImage:          req.CustomImage,
+		Role:                 container.NormalizeRoleID(req.Role),
+		NetworkMode:          netMode,
+		AllowPrivilegedMacOS: container.MacOSPrivilegedAllowed(userID, callerIsAdmin(c)),
 		Labels: map[string]string{
 			"rexec.tier":     tier,
 			"rexec.user_id":  userID,
@@ -2039,6 +2045,15 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 		}
 	}
 
+	if msg := macOSImageDenied(userID, callerIsAdmin(c), req.Image); msg != "" {
+		sendEvent(container.ProgressEvent{
+			Stage:    "validating",
+			Error:    msg,
+			Complete: true,
+		})
+		return
+	}
+
 	// Auto-generate name if not provided
 	containerName := strings.TrimSpace(req.Name)
 	if containerName == "" {
@@ -2151,12 +2166,13 @@ func (h *ContainerHandler) CreateWithProgress(c *gin.Context) {
 
 	netModeProgress := strings.ToLower(strings.TrimSpace(req.NetworkMode))
 	cfg := container.ContainerConfig{
-		UserID:        userID,
-		ContainerName: containerName,
-		ImageType:     req.Image,
-		CustomImage:   req.CustomImage,
-		NetworkMode:   netModeProgress,
-		EgressAllow:   req.EgressAllow,
+		UserID:               userID,
+		ContainerName:        containerName,
+		ImageType:            req.Image,
+		CustomImage:          req.CustomImage,
+		NetworkMode:          netModeProgress,
+		EgressAllow:          req.EgressAllow,
+		AllowPrivilegedMacOS: container.MacOSPrivilegedAllowed(userID, callerIsAdmin(c)),
 		Labels: map[string]string{
 			"rexec.tier":     tier,
 			"rexec.user_id":  userID,
@@ -2585,16 +2601,19 @@ func (h *ContainerHandler) ListRoles(c *gin.Context) {
 	})
 }
 
-// Stats returns container statistics (admin endpoint)
+// Stats returns container statistics. Per-tenant counts are admin-only.
 func (h *ContainerHandler) Stats(c *gin.Context) {
 	stats := h.manager.GetContainerStats()
-	c.JSON(http.StatusOK, gin.H{
+	resp := gin.H{
 		"total":    stats.Total,
 		"running":  stats.Running,
 		"stopped":  stats.Stopped,
-		"by_user":  stats.ByUser,
 		"by_image": stats.ByImage,
-	})
+	}
+	if callerIsAdmin(c) {
+		resp["by_user"] = stats.ByUser
+	}
+	c.JSON(http.StatusOK, resp)
 }
 
 // Helper functions

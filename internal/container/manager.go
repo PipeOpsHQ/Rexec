@@ -580,6 +580,9 @@ type ContainerConfig struct {
 	NetworkMode string
 	// EgressAllow is extra host patterns for restricted mode (merged with defaults).
 	EgressAllow []string
+	// AllowPrivilegedMacOS is set by the API only after MacOSPrivilegedAllowed.
+	// The manager still requires ALLOW_MACOS_VM=true before dropping isolation.
+	AllowPrivilegedMacOS bool
 }
 
 // ContainerInfo holds information about a running container
@@ -1066,7 +1069,7 @@ func (m *Manager) IsRuntimeAvailable(name string) bool {
 }
 
 func (m *Manager) selectOCIRuntime(cfg ContainerConfig, diskQuotaEnabled bool) string {
-	isMacOS := strings.Contains(strings.ToLower(cfg.ImageType), "macos") || strings.Contains(strings.ToLower(cfg.ImageType), "osx")
+	isMacOS := IsMacOSImage(cfg.ImageType)
 
 	requestedRuntime := strings.TrimSpace(os.Getenv("OCI_RUNTIME"))
 	if requestedRuntime != "" {
@@ -1153,7 +1156,10 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 		shell = "/bin/sh" // Default fallback - always available
 	}
 
-	isMacOS := strings.Contains(strings.ToLower(cfg.ImageType), "macos") || strings.Contains(strings.ToLower(cfg.ImageType), "osx")
+	isMacOS := IsMacOSImage(cfg.ImageType)
+	if isMacOS && !macOSHostEnabled(cfg.AllowPrivilegedMacOS) {
+		return nil, errMacOSNotAllowed
+	}
 
 	// Generate a short container hostname (first 12 chars of container name hash)
 	containerHostname := cfg.ContainerName
@@ -1333,7 +1339,8 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 		DNS: m.dnsForCreate(),
 	}
 
-	// Special handling for macOS (CUA Lumier / docker-osx style VM images)
+	// Special handling for macOS (CUA Lumier / docker-osx style VM images).
+	// Reached only when macOSHostEnabled already allowed this caller.
 	if isMacOS {
 		// Do NOT override Entrypoint - let the VM boot script run
 		// Do NOT use /home/user working dir - use default
@@ -1355,23 +1362,10 @@ func (m *Manager) CreateContainer(ctx context.Context, cfg ContainerConfig) (*Co
 			"EXTRA=-display none -vnc 0.0.0.0:0,websocket=on -global ICH9-LPC.disable_s3=1 -global ICH9-LPC.disable_s4=1", // VNC + disable deep sleep states that cause issues
 		)
 
-		hostConfig.Privileged = true
-		hostConfig.SecurityOpt = nil      // Clear security opts to allow KVM
-		hostConfig.CapDrop = nil          // Don't drop caps
-		hostConfig.CapAdd = nil           // Allow all caps
-		hostConfig.ReadonlyRootfs = false // macOS needs writable root
-		hostConfig.Tmpfs = nil            // Clear tmpfs for macOS
-
-		// Map /dev/kvm if available
-		if _, err := os.Stat("/dev/kvm"); err == nil {
-			hostConfig.Devices = []container.DeviceMapping{
-				{
-					PathOnHost:        "/dev/kvm",
-					PathInContainer:   "/dev/kvm",
-					CgroupPermissions: "rwm",
-				},
-			}
-		} else {
+		if err := configureMacOSIsolation(hostConfig, cfg.AllowPrivilegedMacOS); err != nil {
+			return nil, err
+		}
+		if len(hostConfig.Devices) == 0 {
 			log.Printf("[Container] WARNING: /dev/kvm not found. macOS VM will be extremely slow.")
 		}
 	} else {
@@ -1617,6 +1611,18 @@ exec tail -f /dev/null`, shell, shell)
 	return info, nil
 }
 
+// NewMemoryManager returns a manager whose inventory is only the supplied map.
+// It has no Docker client and is used by tests that authorize against known containers.
+func NewMemoryManager(containers map[string]*ContainerInfo) *Manager {
+	if containers == nil {
+		containers = map[string]*ContainerInfo{}
+	}
+	return &Manager{
+		containers: containers,
+		userIndex:  map[string][]string{},
+	}
+}
+
 // GetContainer returns container info by docker ID
 func (m *Manager) GetContainer(idOrName string) (*ContainerInfo, bool) {
 	m.mu.RLock()
@@ -1795,6 +1801,30 @@ func (m *Manager) RemoveContainer(ctx context.Context, dockerID string) error {
 		RemoveVolumes: false, // Keep volumes for data persistence
 	})
 	return err
+}
+
+// RemoveWarmSandbox removes an unclaimed warm container and its named volume
+// so a later claim cannot reuse another tenant's filesystem. Named volumes
+// are not removed by ContainerRemove.
+func (m *Manager) RemoveWarmSandbox(ctx context.Context, dockerID string) error {
+	m.mu.RLock()
+	info, ok := m.containers[dockerID]
+	volumeName := ""
+	if ok && info != nil {
+		volumeName = fmt.Sprintf("rexec-%s-%s", info.UserID, info.ContainerName)
+	}
+	m.mu.RUnlock()
+
+	if err := m.RemoveContainer(ctx, dockerID); err != nil {
+		return err
+	}
+	if volumeName == "" {
+		return nil
+	}
+	if _, err := m.client.VolumeRemove(ctx, volumeName, client.VolumeRemoveOptions{Force: true}); err != nil && !cerrdefs.IsNotFound(err) {
+		log.Printf("[WarmPool] failed to remove volume %s: %v", volumeName, err)
+	}
+	return nil
 }
 
 // RemoveContainerByUserID removes the first container for a user (backward compatibility)

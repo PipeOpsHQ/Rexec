@@ -11,21 +11,21 @@ import (
 // TestGenerateRecordingToken tests token generation
 func TestGenerateRecordingToken(t *testing.T) {
 	tokens := make(map[string]bool)
-	
+
 	// Generate 100 tokens and check uniqueness
 	for i := 0; i < 100; i++ {
 		token := generateRecordingToken()
-		
+
 		// Should be URL-safe (no = padding)
 		if strings.Contains(token, "=") {
 			t.Errorf("Token should not contain padding: %s", token)
 		}
-		
+
 		// Check length (16 bytes base64 = ~22 chars without padding)
 		if len(token) < 20 {
 			t.Errorf("Token too short: %d chars", len(token))
 		}
-		
+
 		// Check uniqueness
 		if tokens[token] {
 			t.Errorf("Duplicate token: %s", token)
@@ -48,7 +48,7 @@ func TestFormatDuration(t *testing.T) {
 		{60 * time.Second, "1m 0s"},
 		{3600 * time.Second, "1h 0m 0s"},
 	}
-	
+
 	for _, tt := range tests {
 		result := formatDuration(tt.duration)
 		if result != tt.expected {
@@ -64,13 +64,13 @@ func TestRecordingEvent(t *testing.T) {
 		Type: "o",
 		Data: "Hello, World!",
 	}
-	
+
 	// Test JSON serialization
 	data, err := json.Marshal(event)
 	if err != nil {
 		t.Fatalf("Failed to marshal event: %v", err)
 	}
-	
+
 	// Verify field names are short
 	if !bytes.Contains(data, []byte(`"t":`)) {
 		t.Error("Expected short field name 't' for time")
@@ -81,7 +81,7 @@ func TestRecordingEvent(t *testing.T) {
 	if !bytes.Contains(data, []byte(`"d":`)) {
 		t.Error("Expected short field name 'd' for data")
 	}
-	
+
 	// Test resize event
 	resizeEvent := RecordingEvent{
 		Time: 5678,
@@ -90,12 +90,12 @@ func TestRecordingEvent(t *testing.T) {
 		Cols: 120,
 		Rows: 30,
 	}
-	
+
 	resizeData, err := json.Marshal(resizeEvent)
 	if err != nil {
 		t.Fatalf("Failed to marshal resize event: %v", err)
 	}
-	
+
 	if !bytes.Contains(resizeData, []byte(`"c":120`)) {
 		t.Error("Expected cols in resize event")
 	}
@@ -114,12 +114,12 @@ func TestRecordingMetadata(t *testing.T) {
 		Duration:  60.5,
 		Title:     "Test Recording",
 	}
-	
+
 	data, err := json.Marshal(meta)
 	if err != nil {
 		t.Fatalf("Failed to marshal metadata: %v", err)
 	}
-	
+
 	// Verify required fields
 	if !bytes.Contains(data, []byte(`"version":2`)) {
 		t.Error("Expected version field")
@@ -145,7 +145,7 @@ func TestActiveRecording(t *testing.T) {
 		StartedAt:   time.Now(),
 		Events:      make([]RecordingEvent, 0),
 	}
-	
+
 	// Test adding events
 	recording.mu.Lock()
 	recording.Events = append(recording.Events, RecordingEvent{
@@ -159,11 +159,11 @@ func TestActiveRecording(t *testing.T) {
 		Data: "Second output",
 	})
 	recording.mu.Unlock()
-	
+
 	recording.mu.Lock()
 	eventCount := len(recording.Events)
 	recording.mu.Unlock()
-	
+
 	if eventCount != 2 {
 		t.Errorf("Expected 2 events, got %d", eventCount)
 	}
@@ -176,14 +176,14 @@ func TestEventTypes(t *testing.T) {
 		"i": "input",
 		"r": "resize",
 	}
-	
+
 	for typeCode, description := range validTypes {
 		event := RecordingEvent{
 			Time: 0,
 			Type: typeCode,
 			Data: "test",
 		}
-		
+
 		if event.Type != typeCode {
 			t.Errorf("Event type %s (%s) not set correctly", typeCode, description)
 		}
@@ -202,9 +202,9 @@ func TestAsciicastFormat(t *testing.T) {
 			{Time: 100, Type: "o", Data: "World"},
 		},
 	}
-	
+
 	var buf bytes.Buffer
-	
+
 	// Write header
 	header := RecordingMetadata{
 		Version:   2,
@@ -214,11 +214,11 @@ func TestAsciicastFormat(t *testing.T) {
 		Duration:  0.1,
 		Title:     recording.Title,
 	}
-	
+
 	headerJSON, _ := json.Marshal(header)
 	buf.Write(headerJSON)
 	buf.WriteByte('\n')
-	
+
 	// Write events
 	for _, event := range recording.Events {
 		timeInSeconds := float64(event.Time) / 1000.0
@@ -227,31 +227,31 @@ func TestAsciicastFormat(t *testing.T) {
 		buf.Write(eventJSON)
 		buf.WriteByte('\n')
 	}
-	
+
 	output := buf.String()
 	lines := strings.Split(strings.TrimSpace(output), "\n")
-	
+
 	// Should have header + 2 events = 3 lines
 	if len(lines) != 3 {
 		t.Errorf("Expected 3 lines, got %d", len(lines))
 	}
-	
+
 	// First line should be valid JSON header
 	var parsedHeader map[string]interface{}
 	if err := json.Unmarshal([]byte(lines[0]), &parsedHeader); err != nil {
 		t.Errorf("Failed to parse header: %v", err)
 	}
-	
+
 	if parsedHeader["version"].(float64) != 2 {
 		t.Error("Header version should be 2")
 	}
-	
+
 	// Event lines should be arrays
 	var event1 []interface{}
 	if err := json.Unmarshal([]byte(lines[1]), &event1); err != nil {
 		t.Errorf("Failed to parse event 1: %v", err)
 	}
-	
+
 	if len(event1) != 3 {
 		t.Errorf("Event should have 3 elements, got %d", len(event1))
 	}
@@ -262,12 +262,12 @@ func TestRecordingHandler_IsRecording(t *testing.T) {
 	handler := &RecordingHandler{
 		recordings: make(map[string]*ActiveRecording),
 	}
-	
+
 	// Should return false for non-existent container
 	if handler.IsRecording("nonexistent") {
 		t.Error("Should return false for non-existent container")
 	}
-	
+
 	// Add a recording
 	handler.mu.Lock()
 	handler.recordings["container-1"] = &ActiveRecording{
@@ -275,12 +275,12 @@ func TestRecordingHandler_IsRecording(t *testing.T) {
 		ContainerID: "container-1",
 	}
 	handler.mu.Unlock()
-	
+
 	// Should return true now
 	if !handler.IsRecording("container-1") {
 		t.Error("Should return true for recording container")
 	}
-	
+
 	// Different container should still be false
 	if handler.IsRecording("container-2") {
 		t.Error("Should return false for different container")
@@ -292,9 +292,9 @@ func TestConcurrentEventAddition(t *testing.T) {
 	recording := &ActiveRecording{
 		Events: make([]RecordingEvent, 0),
 	}
-	
+
 	done := make(chan bool, 10)
-	
+
 	// Concurrent writes
 	for i := 0; i < 10; i++ {
 		go func(idx int) {
@@ -308,16 +308,16 @@ func TestConcurrentEventAddition(t *testing.T) {
 			done <- true
 		}(i)
 	}
-	
+
 	// Wait for all
 	for i := 0; i < 10; i++ {
 		<-done
 	}
-	
+
 	recording.mu.Lock()
 	count := len(recording.Events)
 	recording.mu.Unlock()
-	
+
 	if count != 10 {
 		t.Errorf("Expected 10 events, got %d", count)
 	}
@@ -345,7 +345,7 @@ func BenchmarkEventSerialization(b *testing.B) {
 		Type: "o",
 		Data: "This is some terminal output that needs to be recorded",
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		json.Marshal(event)

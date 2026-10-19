@@ -42,6 +42,9 @@ func NewFirecrackerClient(socketPath string) *FirecrackerClient {
 
 // StartFirecrackerProcess starts the Firecracker process
 func StartFirecrackerProcess(ctx context.Context, socketPath, kernelPath, rootfsPath string, config *VMConfig) (*FirecrackerClient, error) {
+	if err := RejectUnsafeSocket(socketPath); err != nil {
+		return nil, err
+	}
 	// Find Firecracker binary
 	firecrackerPath := os.Getenv("FIRECRACKER_BINARY_PATH")
 	if firecrackerPath == "" {
@@ -125,10 +128,10 @@ type VMConfig struct {
 
 // NetworkConfig holds network configuration
 type NetworkConfig struct {
-	IfaceID      string
-	GuestMAC     string
-	HostDevName  string
-	AllowMMDS    bool
+	IfaceID       string
+	GuestMAC      string
+	HostDevName   string
+	AllowMMDS     bool
 	RxRateLimiter *RateLimiter
 	TxRateLimiter *RateLimiter
 }
@@ -141,16 +144,16 @@ type RateLimiter struct {
 
 // Bandwidth configuration
 type Bandwidth struct {
-	Size  int64 `json:"size"`  // bytes per second
+	Size         int64 `json:"size"` // bytes per second
 	OneTimeBurst int64 `json:"one_time_burst,omitempty"`
-	RefillTime int64 `json:"refill_time"` // milliseconds
+	RefillTime   int64 `json:"refill_time"` // milliseconds
 }
 
 // Ops configuration
 type Ops struct {
-	Size  int64 `json:"size"`  // operations per second
+	Size         int64 `json:"size"` // operations per second
 	OneTimeBurst int64 `json:"one_time_burst,omitempty"`
-	RefillTime int64 `json:"refill_time"` // milliseconds
+	RefillTime   int64 `json:"refill_time"` // milliseconds
 }
 
 // ConfigureVM configures the VM via Firecracker API
@@ -172,8 +175,8 @@ func (c *FirecrackerClient) ConfigureVM(ctx context.Context, kernelPath, rootfsP
 
 	// 2. Set drives (rootfs) - Firecracker uses PATCH for drive updates
 	driveConfig := map[string]interface{}{
-		"drive_id":      "rootfs",
-		"path_on_host":  rootfsPath,
+		"drive_id":       "rootfs",
+		"path_on_host":   rootfsPath,
 		"is_root_device": true,
 		"is_read_only":   false,
 	}
@@ -184,9 +187,9 @@ func (c *FirecrackerClient) ConfigureVM(ctx context.Context, kernelPath, rootfsP
 
 	// 3. Set machine configuration (vCPUs and memory) - Firecracker uses PATCH
 	machineConfig := map[string]interface{}{
-		"vcpu_count":  config.VCPUs,
+		"vcpu_count":   config.VCPUs,
 		"mem_size_mib": config.MemoryMB,
-		"smt":         false, // Disable SMT for security
+		"smt":          false, // Disable SMT for security
 	}
 
 	if err := c.patch(ctx, "/machine-config", machineConfig); err != nil {

@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
@@ -15,7 +14,7 @@ import (
 )
 
 const (
-	ProviderName = "firecracker"
+	ProviderName      = "firecracker"
 	DefaultKernelPath = "/opt/firecracker/vmlinux.bin"
 	DefaultRootfsPath = "/var/lib/rexec/firecracker/rootfs"
 	DefaultSocketPath = "/tmp/firecracker-%s.socket"
@@ -152,8 +151,20 @@ func (m *Manager) IsAvailable(ctx context.Context) bool {
 
 // Create creates a new microVM
 func (m *Manager) Create(ctx context.Context, cfg providers.CreateConfig) (*providers.TerminalInfo, error) {
+	if !ValidVMName(cfg.Name) || !ValidVMName(cfg.UserID) {
+		return nil, fmt.Errorf("invalid VM name")
+	}
+	if _, ok := MapImageTypeToFileName(cfg.Image); !ok {
+		return nil, fmt.Errorf("unsupported image type %q", cfg.Image)
+	}
 	vmID := fmt.Sprintf("vm-%s-%s", cfg.UserID, cfg.Name)
-	socketPath := filepath.Join(m.socketBaseDir, fmt.Sprintf("%s.socket", vmID))
+	socketPath, err := containedJoin(m.socketBaseDir, vmID+".socket")
+	if err != nil {
+		return nil, fmt.Errorf("invalid socket path: %w", err)
+	}
+	if err := RejectUnsafeSocket(socketPath); err != nil {
+		return nil, err
+	}
 
 	// Check if VM already exists
 	m.mu.RLock()
@@ -204,9 +215,9 @@ func (m *Manager) Create(ctx context.Context, cfg providers.CreateConfig) (*prov
 		KernelPath: m.kernelPath,
 		Network: NetworkConfig{
 			IfaceID:     "eth0",
-			GuestMAC:   macAddress,
+			GuestMAC:    macAddress,
 			HostDevName: tapDevice,
-			AllowMMDS:  false,
+			AllowMMDS:   false,
 		},
 	}
 
@@ -279,16 +290,16 @@ func (m *Manager) Start(ctx context.Context, id string) error {
 		macAddress := generateMACAddress(id)
 		vmConfig := &VMConfig{
 			VMName:     id,
-			VCPUs:      1, // Will be updated from labels if available
+			VCPUs:      1,   // Will be updated from labels if available
 			MemoryMB:   512, // Will be updated from labels if available
 			KernelArgs: "console=ttyS0 reboot=k panic=1 pci=off",
 			RootfsPath: rootfsImage,
 			KernelPath: m.kernelPath,
 			Network: NetworkConfig{
 				IfaceID:     "eth0",
-				GuestMAC:   macAddress,
+				GuestMAC:    macAddress,
 				HostDevName: vm.TapDevice,
-				AllowMMDS:  false,
+				AllowMMDS:   false,
 			},
 		}
 
@@ -306,8 +317,8 @@ func (m *Manager) Start(ctx context.Context, id string) error {
 						vmConfig.VCPUs = 1
 					}
 				}
+			}
 		}
-	}
 
 		client, err = StartFirecrackerProcess(ctx, vm.SocketPath, m.kernelPath, rootfsImage, vmConfig)
 		if err != nil {

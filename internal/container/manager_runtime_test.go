@@ -57,6 +57,7 @@ func TestManagerCreateContainerRuntimeSelection(t *testing.T) {
 		requestedRuntime string
 		imageType        string
 		diskQuota        int64
+		allowMacOS       bool
 		wantRuntime      string
 		wantStorageSize  string
 	}{
@@ -79,6 +80,7 @@ func TestManagerCreateContainerRuntimeSelection(t *testing.T) {
 			name:             "macos legacy always uses runc",
 			requestedRuntime: "runsc",
 			imageType:        "macos-legacy",
+			allowMacOS:       true,
 			wantRuntime:      "runc",
 			wantStorageSize:  "20G",
 		},
@@ -87,6 +89,11 @@ func TestManagerCreateContainerRuntimeSelection(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("OCI_RUNTIME", tt.requestedRuntime)
+			if tt.allowMacOS {
+				t.Setenv("ALLOW_MACOS_VM", "true")
+			} else {
+				t.Setenv("ALLOW_MACOS_VM", "")
+			}
 			// Isolate DNS from other subtests / host env
 			t.Setenv("CONTAINER_DNS", "8.8.8.8,1.1.1.1")
 
@@ -123,10 +130,11 @@ func TestManagerCreateContainerRuntimeSelection(t *testing.T) {
 			}
 
 			_, err := manager.CreateContainer(context.Background(), ContainerConfig{
-				UserID:        "user-1",
-				ContainerName: "term-1",
-				ImageType:     tt.imageType,
-				DiskQuota:     tt.diskQuota,
+				UserID:               "user-1",
+				ContainerName:        "term-1",
+				ImageType:            tt.imageType,
+				DiskQuota:            tt.diskQuota,
+				AllowPrivilegedMacOS: tt.allowMacOS,
 			})
 			if err != nil {
 				t.Fatalf("CreateContainer returned error: %v", err)

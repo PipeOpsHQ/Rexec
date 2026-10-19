@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/stripe/stripe-go/v76"
@@ -275,6 +276,10 @@ func (s *Service) HandleWebhook(r *http.Request) (*WebhookEvent, error) {
 		return nil, fmt.Errorf("failed to read request body: %w", err)
 	}
 
+	if strings.TrimSpace(s.config.WebhookSecret) == "" {
+		return nil, fmt.Errorf("stripe webhook secret is not configured")
+	}
+
 	signature := r.Header.Get("Stripe-Signature")
 	event, err := webhook.ConstructEvent(body, signature, s.config.WebhookSecret)
 	if err != nil {
@@ -388,18 +393,18 @@ func TierLimits(tier Tier) int {
 
 // Invoice represents a billing invoice
 type Invoice struct {
-	ID              string    `json:"id"`
-	Number          string    `json:"number"`
-	Status          string    `json:"status"`
-	AmountDue       int64     `json:"amount_due"`
-	AmountPaid      int64     `json:"amount_paid"`
-	Currency        string    `json:"currency"`
-	Created         time.Time `json:"created"`
-	PeriodStart     time.Time `json:"period_start"`
-	PeriodEnd       time.Time `json:"period_end"`
-	InvoicePDF      string    `json:"invoice_pdf,omitempty"`
-	HostedInvoiceURL string   `json:"hosted_invoice_url,omitempty"`
-	Description     string    `json:"description,omitempty"`
+	ID               string    `json:"id"`
+	Number           string    `json:"number"`
+	Status           string    `json:"status"`
+	AmountDue        int64     `json:"amount_due"`
+	AmountPaid       int64     `json:"amount_paid"`
+	Currency         string    `json:"currency"`
+	Created          time.Time `json:"created"`
+	PeriodStart      time.Time `json:"period_start"`
+	PeriodEnd        time.Time `json:"period_end"`
+	InvoicePDF       string    `json:"invoice_pdf,omitempty"`
+	HostedInvoiceURL string    `json:"hosted_invoice_url,omitempty"`
+	Description      string    `json:"description,omitempty"`
 }
 
 // ListInvoices retrieves invoices for a customer
@@ -418,18 +423,18 @@ func (s *Service) ListInvoices(ctx context.Context, customerID string, limit int
 	for iter.Next() {
 		inv := iter.Invoice()
 		invoices = append(invoices, Invoice{
-			ID:              inv.ID,
-			Number:          inv.Number,
-			Status:          string(inv.Status),
-			AmountDue:       inv.AmountDue,
-			AmountPaid:      inv.AmountPaid,
-			Currency:        string(inv.Currency),
-			Created:         time.Unix(inv.Created, 0),
-			PeriodStart:     time.Unix(inv.PeriodStart, 0),
-			PeriodEnd:       time.Unix(inv.PeriodEnd, 0),
-			InvoicePDF:      inv.InvoicePDF,
+			ID:               inv.ID,
+			Number:           inv.Number,
+			Status:           string(inv.Status),
+			AmountDue:        inv.AmountDue,
+			AmountPaid:       inv.AmountPaid,
+			Currency:         string(inv.Currency),
+			Created:          time.Unix(inv.Created, 0),
+			PeriodStart:      time.Unix(inv.PeriodStart, 0),
+			PeriodEnd:        time.Unix(inv.PeriodEnd, 0),
+			InvoicePDF:       inv.InvoicePDF,
 			HostedInvoiceURL: inv.HostedInvoiceURL,
-			Description:     inv.Description,
+			Description:      inv.Description,
 		})
 	}
 

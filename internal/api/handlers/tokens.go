@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/rexec/rexec/internal/api/middleware"
 	"github.com/rexec/rexec/internal/storage"
 )
 
@@ -47,10 +48,16 @@ func (h *TokenHandler) CreateToken(c *gin.Context) {
 		expiresAt = &exp
 	}
 
-	// Default scopes
-	scopes := req.Scopes
-	if len(scopes) == 0 {
-		scopes = []string{"read", "write"}
+	scopes, err := middleware.NormalizeAPITokenScopes(req.Scopes)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	for _, scope := range scopes {
+		if scope == "admin" && !callerIsAdmin(c) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "admin scope requires an administrator"})
+			return
+		}
 	}
 
 	token, plainToken, err := h.store.GenerateAPIToken(c.Request.Context(), userID, req.Name, scopes, expiresAt)

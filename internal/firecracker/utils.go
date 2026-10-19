@@ -11,9 +11,9 @@ import (
 func generateMACAddress(vmID string) string {
 	// Hash VM ID to get deterministic MAC
 	hash := md5.Sum([]byte(vmID))
-	
+
 	// Use first 5 bytes of hash for MAC address
 	// Ensure locally administered bit is set (02:)
-	return fmt.Sprintf("02:%02x:%02x:%02x:%02x:%02x", 
+	return fmt.Sprintf("02:%02x:%02x:%02x:%02x:%02x",
 		hash[0], hash[1], hash[2], hash[3], hash[4])
 }

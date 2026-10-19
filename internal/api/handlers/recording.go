@@ -25,6 +25,7 @@ type RecordingHandler struct {
 	s3Store          *storage.S3Store            // Optional S3 storage for recording data
 	r2Store          *storage.R2Store            // Optional Cloudflare R2 storage for global CDN
 	containerManager *container.Manager          // For resolving container IDs
+	collabHandler    *CollabHandler              // Optional shared-session access
 	recordings       map[string]*ActiveRecording // containerID (Docker ID) -> recording
 	mu               sync.RWMutex
 }
@@ -107,7 +108,43 @@ func NewRecordingHandler(store *storage.PostgresStore, storagePath string, conta
 	return handler
 }
 
-// resolveContainerID resolves a container ID or name to the actual Docker ID
+// SetCollabHandler allows collaborators with access to a sandbox to record it.
+func (h *RecordingHandler) SetCollabHandler(ch *CollabHandler) {
+	h.collabHandler = ch
+}
+
+// recordingContainerAccess resolves idOrName and requires the caller to own it
+// or have collaboration access. Unknown identifiers are 404, not echoed.
+// The returned status is 200, 403, or 404. Nothing is written to the response.
+func (h *RecordingHandler) recordingContainerAccess(c *gin.Context, idOrName string) (*container.ContainerInfo, int) {
+	userID := c.GetString("userID")
+	if userID == "" || h.containerManager == nil || strings.TrimSpace(idOrName) == "" {
+		return nil, http.StatusNotFound
+	}
+	info, ok := h.containerManager.GetContainer(idOrName)
+	if !ok || info == nil {
+		return nil, http.StatusNotFound
+	}
+	if info.UserID == userID {
+		return info, http.StatusOK
+	}
+	if h.collabHandler != nil && h.collabHandler.UserHasAccess(c.Request.Context(), userID, info.ID) {
+		return info, http.StatusOK
+	}
+	return info, http.StatusForbidden
+}
+
+func writeRecordingAccessError(c *gin.Context, status int) {
+	if status == http.StatusForbidden {
+		c.JSON(status, gin.H{"error": "access denied"})
+		return
+	}
+	c.JSON(http.StatusNotFound, gin.H{"error": "container not found"})
+}
+
+// resolveContainerID resolves a container ID or name to the actual Docker ID.
+// Unknown identifiers are returned unchanged for recordings that were already
+// authorized; StartRecording does not use this for untrusted input.
 func (h *RecordingHandler) resolveContainerID(idOrName string) string {
 	if h.containerManager == nil {
 		return idOrName
@@ -133,8 +170,12 @@ func (h *RecordingHandler) StartRecording(c *gin.Context) {
 		return
 	}
 
-	// Resolve container ID to actual Docker ID
-	dockerID := h.resolveContainerID(req.ContainerID)
+	info, access := h.recordingContainerAccess(c, req.ContainerID)
+	if access != http.StatusOK {
+		writeRecordingAccessError(c, access)
+		return
+	}
+	dockerID := info.ID
 	log.Printf("[Recording] Start request: input_id=%s resolved_id=%s user=%s",
 		req.ContainerID[:min(12, len(req.ContainerID))],
 		dockerID[:min(12, len(dockerID))],
@@ -158,7 +199,7 @@ func (h *RecordingHandler) StartRecording(c *gin.Context) {
 	recording := &ActiveRecording{
 		ID:          uuid.New().String(),
 		ContainerID: dockerID,
-		UserID:      userID.(string),
+		UserID:      info.UserID,
 		Title:       req.Title,
 		StartedAt:   time.Now(),
 		Events:      make([]RecordingEvent, 0),
@@ -231,8 +272,17 @@ func (h *RecordingHandler) StopRecording(c *gin.Context) {
 	userID, _ := c.Get("userID")
 	containerID := c.Param("containerId")
 
-	// Resolve container ID to actual Docker ID
-	dockerID := h.resolveContainerID(containerID)
+	info, access := h.recordingContainerAccess(c, containerID)
+	dockerID := containerID
+	if info != nil {
+		dockerID = info.ID
+	} else {
+		dockerID = h.resolveContainerID(containerID)
+	}
+	if access == http.StatusForbidden {
+		writeRecordingAccessError(c, access)
+		return
+	}
 	log.Printf("[Recording] Stop request for container: %s (resolved: %s) by user: %s", containerID, dockerID, userID)
 
 	h.mu.Lock()
@@ -255,9 +305,12 @@ func (h *RecordingHandler) StopRecording(c *gin.Context) {
 
 	log.Printf("[Recording] Found recording %s for container: %s, events: %d", recording.ID, dockerID, len(recording.Events))
 
-	// Verify ownership
-	if recording.UserID != userID.(string) {
-		log.Printf("[Recording] Unauthorized: recording user %s != request user %s", recording.UserID, userID)
+	// Stamped with the container owner. The caller must be that owner, the
+	// user who was authorized to start it, or someone who still has access.
+	caller, _ := userID.(string)
+	ownerOK := info != nil && (caller == info.UserID || recording.UserID == info.UserID)
+	if caller != recording.UserID && !ownerOK && access != http.StatusOK {
+		log.Printf("[Recording] Unauthorized stop by %s", caller)
 		c.JSON(http.StatusForbidden, gin.H{"error": "not authorized"})
 		return
 	}
@@ -663,8 +716,12 @@ func (h *RecordingHandler) IsRecording(containerID string) bool {
 func (h *RecordingHandler) GetRecordingStatus(c *gin.Context) {
 	containerID := c.Param("containerId")
 
-	// Resolve container ID to actual Docker ID
-	dockerID := h.resolveContainerID(containerID)
+	info, access := h.recordingContainerAccess(c, containerID)
+	if access != http.StatusOK {
+		writeRecordingAccessError(c, access)
+		return
+	}
+	dockerID := info.ID
 
 	h.mu.RLock()
 	recording, exists := h.recordings[dockerID]

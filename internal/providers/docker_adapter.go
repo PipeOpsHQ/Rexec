@@ -43,15 +43,16 @@ func (p *DockerProvider) IsAvailable(ctx context.Context) bool {
 // Create creates a new container
 func (p *DockerProvider) Create(ctx context.Context, cfg CreateConfig) (*TerminalInfo, error) {
 	containerCfg := container.ContainerConfig{
-		UserID:        cfg.UserID,
-		ContainerName: cfg.Name,
-		ImageType:     cfg.Image,
-		CustomImage:   cfg.CustomImage,
-		Role:          cfg.Role,
-		MemoryLimit:   cfg.MemoryMB * 1024 * 1024, // Convert MB to bytes
-		CPULimit:      cfg.CPUShares,              // Already in millicores
-		DiskQuota:     cfg.DiskMB * 1024 * 1024,  // Convert MB to bytes
-		Labels:        cfg.Labels,
+		UserID:               cfg.UserID,
+		ContainerName:        cfg.Name,
+		ImageType:            cfg.Image,
+		CustomImage:          cfg.CustomImage,
+		Role:                 cfg.Role,
+		MemoryLimit:          cfg.MemoryMB * 1024 * 1024, // Convert MB to bytes
+		CPULimit:             cfg.CPUShares,              // Already in millicores
+		DiskQuota:            cfg.DiskMB * 1024 * 1024,   // Convert MB to bytes
+		Labels:               cfg.Labels,
+		AllowPrivilegedMacOS: cfg.AllowPrivilegedMacOS,
 	}
 
 	info, err := p.manager.CreateContainer(ctx, containerCfg)

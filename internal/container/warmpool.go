@@ -158,68 +158,77 @@ func isWarmUnclaimed(info *ContainerInfo, image string) bool {
 	return true
 }
 
-// Claim takes one warm sandbox for image and reassigns it to userID.
-// Returns the ContainerInfo if successful.
+// Claim retires one warm sandbox and creates a fresh container for userID.
+// Ownership is written into the new container's Docker labels, and the warm
+// volume is deleted, so a process restart cannot hand the same filesystem to
+// another tenant.
 func (s *WarmPoolService) Claim(image, userID, name string) (*ContainerInfo, error) {
 	if s == nil || !s.cfg.Enabled {
 		return nil, fmt.Errorf("warm pool disabled")
 	}
+	if IsMacOSImage(image) {
+		return nil, fmt.Errorf("macos images cannot be claimed from the warm pool")
+	}
+	if strings.TrimSpace(name) == "" {
+		name = "warm-" + image + "-" + uuid.New().String()[:8]
+	}
+
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	s.manager.mu.Lock()
-	defer s.manager.mu.Unlock()
-
-	var target *ContainerInfo
+	var targetID string
 	for _, info := range s.manager.containers {
 		if isWarmUnclaimed(info, image) {
-			target = info
+			targetID = info.ID
+			if info.Labels == nil {
+				info.Labels = map[string]string{}
+			}
+			// Reserve so a concurrent claim in this process skips it.
+			info.Labels["rexec.warm_claimed"] = "true"
 			break
 		}
 	}
-	if target == nil {
+	s.manager.mu.Unlock()
+	s.mu.Unlock()
+
+	if targetID == "" {
 		return nil, fmt.Errorf("no warm sandbox available for %s", image)
 	}
 
-	// Re-index user
-	oldUser := target.UserID
-	if ids, ok := s.manager.userIndex[oldUser]; ok {
-		newIDs := make([]string, 0, len(ids))
-		for _, id := range ids {
-			if id != target.ID {
-				newIDs = append(newIDs, id)
-			}
+	ctx := context.Background()
+	if err := s.manager.RemoveWarmSandbox(ctx, targetID); err != nil {
+		s.manager.mu.Lock()
+		if info, ok := s.manager.containers[targetID]; ok && info.Labels != nil {
+			info.Labels["rexec.warm_claimed"] = "false"
 		}
-		if len(newIDs) > 0 {
-			s.manager.userIndex[oldUser] = newIDs
-		} else {
-			delete(s.manager.userIndex, oldUser)
-		}
+		s.manager.mu.Unlock()
+		return nil, err
 	}
 
-	target.UserID = userID
-	if name != "" {
-		target.ContainerName = name
+	cfg := ContainerConfig{
+		UserID:        userID,
+		ContainerName: name,
+		ImageType:     image,
+		MemoryLimit:   512 * 1024 * 1024,
+		CPULimit:      500,
+		DiskQuota:     2 * 1024 * 1024 * 1024,
+		Labels: map[string]string{
+			"rexec.warm_pool":    "false",
+			"rexec.warm_claimed": "true",
+			"rexec.warm_image":   image,
+			"rexec.user_id":      userID,
+			"rexec.claimed_at":   time.Now().UTC().Format(time.RFC3339),
+			"rexec.tier":         "claimed",
+			"rexec.managed":      "true",
+		},
 	}
-	if target.Labels == nil {
-		target.Labels = map[string]string{}
+	info, err := s.manager.CreateContainer(ctx, cfg)
+	if err != nil {
+		go s.refill(context.Background())
+		return nil, err
 	}
-	target.Labels["rexec.warm_claimed"] = "true"
-	target.Labels["rexec.warm_pool"] = "false"
-	target.Labels["rexec.user_id"] = userID
-	target.Labels["rexec.claimed_at"] = time.Now().UTC().Format(time.RFC3339)
-	target.LastUsedAt = time.Now()
-
-	s.manager.userIndex[userID] = append(s.manager.userIndex[userID], target.ID)
-
-	// Copy for caller
-	out := *target
-	log.Printf("[WarmPool] claimed %s for user %s (image=%s)", target.ID[:12], userID, image)
-
-	// Refill async
+	log.Printf("[WarmPool] claimed fresh sandbox %s for user %s (image=%s)", info.ID[:min(12, len(info.ID))], userID, image)
 	go s.refill(context.Background())
-
-	return &out, nil
+	return info, nil
 }
 
 func (s *WarmPoolService) refill(ctx context.Context) {
@@ -253,6 +262,9 @@ func (s *WarmPoolService) refill(ctx context.Context) {
 func (s *WarmPoolService) createWarm(ctx context.Context, image string) error {
 	if _, ok := SupportedImages[image]; !ok {
 		return fmt.Errorf("unsupported warm image %q", image)
+	}
+	if IsMacOSImage(image) {
+		return fmt.Errorf("macos images cannot be placed in the warm pool")
 	}
 	name := "warm-" + image + "-" + uuid.New().String()[:8]
 	cfg := ContainerConfig{

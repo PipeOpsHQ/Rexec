@@ -172,6 +172,10 @@ type ForkRequest struct {
 	// SaveSnapshot also stores the intermediate commit as a named snapshot.
 	SaveSnapshot bool   `json:"save_snapshot"`
 	SnapshotName string `json:"snapshot_name"`
+	// Optional resources. Zero uses the tier default. Values above the cap are clamped.
+	MemoryMB  int64 `json:"memory_mb,omitempty"`
+	CPUShares int64 `json:"cpu_shares,omitempty"`
+	DiskMB    int64 `json:"disk_mb,omitempty"`
 }
 
 // ForkSandbox commits the source sandbox and creates a new sandbox from that image.
@@ -220,6 +224,24 @@ func (h *SnapshotHandler) ForkSandbox(c *gin.Context) {
 	}
 
 	forkID := uuid.New().String()
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		name = "fork-" + shortID(forkID)
+	}
+	for _, rec := range existing {
+		if rec.Name == name {
+			name = name + "-" + shortID(forkID)[:6]
+			break
+		}
+	}
+	if !isValidContainerName(name) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid container name: must be 1-64 characters, alphanumeric and hyphens only",
+		})
+		return
+	}
+	memoryMB, cpuShares, diskMB := clampSandboxResources(req.MemoryMB, req.CPUShares, req.DiskMB, tier, c.GetBool("subscription_active"))
+
 	ref := fmt.Sprintf("rexec-fork/%s/%s:latest", shortID(userID), shortID(forkID))
 	imageRef, err := h.containerManager.CommitSandboxImage(ctx, dockerID, ref,
 		fmt.Sprintf("rexec fork from %s", id))
@@ -252,18 +274,6 @@ func (h *SnapshotHandler) ForkSandbox(c *gin.Context) {
 		}
 	}
 
-	name := strings.TrimSpace(req.Name)
-	if name == "" {
-		name = "fork-" + shortID(forkID)
-	}
-	// uniqueness
-	for _, rec := range existing {
-		if rec.Name == name {
-			name = name + "-" + shortID(forkID)[:6]
-			break
-		}
-	}
-
 	labels := map[string]string{
 		"rexec.tier":           tier,
 		"rexec.user_id":        userID,
@@ -291,9 +301,9 @@ func (h *SnapshotHandler) ForkSandbox(c *gin.Context) {
 		NetworkMode:   req.NetworkMode,
 		EgressAllow:   req.EgressAllow,
 		Labels:        labels,
-		MemoryLimit:   512 * 1024 * 1024,
-		CPULimit:      500,
-		DiskQuota:     2 * 1024 * 1024 * 1024,
+		MemoryLimit:   memoryMB * 1024 * 1024,
+		CPULimit:      cpuShares,
+		DiskQuota:     diskMB * 1024 * 1024,
 	}
 
 	// Persist DB row then create docker container
@@ -305,9 +315,9 @@ func (h *SnapshotHandler) ForkSandbox(c *gin.Context) {
 		Status:     "creating",
 		DockerID:   "",
 		VolumeName: "rexec-" + userID + "-" + name,
-		MemoryMB:   512,
-		CPUShares:  500,
-		DiskMB:     2048,
+		MemoryMB:   memoryMB,
+		CPUShares:  cpuShares,
+		DiskMB:     diskMB,
 		CreatedAt:  time.Now(),
 		LastUsedAt: time.Now(),
 	}

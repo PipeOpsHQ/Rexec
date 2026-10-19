@@ -367,6 +367,21 @@ func installSandboxMetadataGuard() {
 	log.Printf("Sandbox metadata guard installed (IMDS and Azure wireserver dropped from DOCKER-USER)")
 }
 
+// insecureJWTSecret is true for placeholders shipped in examples and compose.
+// They are rejected only when GIN_MODE=release so local development can keep
+// using the example file.
+func insecureJWTSecret(secret string) bool {
+	switch secret {
+	case "rexec-dev-secret-change-in-production",
+		"rexec-dev-secret-change-me",
+		"your-super-secret-jwt-key-change-this-in-production",
+		"your-secure-jwt-secret-here":
+		return true
+	default:
+		return false
+	}
+}
+
 func runServer() {
 	// Load .env file if it exists
 	loadEnvFile("server")
@@ -389,7 +404,7 @@ func runServer() {
 		log.Println("⚠️  JWT_SECRET not set, using default dev secret")
 		jwtSecretStr = "rexec-dev-secret-change-in-production"
 	}
-	if os.Getenv("GIN_MODE") == "release" && jwtSecretStr == "rexec-dev-secret-change-in-production" {
+	if os.Getenv("GIN_MODE") == "release" && insecureJWTSecret(jwtSecretStr) {
 		log.Fatal("JWT_SECRET must be a secure production secret in release mode")
 	}
 	if os.Getenv("GIN_MODE") == "release" && len(jwtSecretStr) < 32 {
@@ -544,6 +559,7 @@ func runServer() {
 	terminalHandler.SetRecordingHandler(recordingHandler)
 	// Connect collab handler to terminal handler for shared session access
 	terminalHandler.SetCollabHandler(collabHandler)
+	recordingHandler.SetCollabHandler(collabHandler)
 
 	billingHandler := handlers.NewBillingHandler(billingService, store)
 
@@ -572,7 +588,7 @@ func runServer() {
 	containerHandler.SetAgentHandler(agentHandler)
 
 	// Initialize VM handler with provider registry
-	vmHandler := handlers.NewVMHandler(providerRegistry)
+	vmHandler := handlers.NewVMHandler(providerRegistry, store)
 
 	// Connect events hub to agent handler for real-time updates
 	agentHandler.SetEventsHub(containerEventsHub)
@@ -726,14 +742,12 @@ func runServer() {
 	// These should only be accessible from localhost or with an internal API key
 	internalSSH := router.Group("/api/internal/ssh")
 	internalSSH.Use(func(c *gin.Context) {
-		// Only allow requests from localhost or with valid internal key
-		internalKey := os.Getenv("SSH_GATEWAY_INTERNAL_KEY")
-		if internalKey != "" {
-			providedKey := c.GetHeader("X-Internal-Key")
-			if providedKey != internalKey {
-				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid internal key"})
-				return
-			}
+		// Fail closed: the shared key must be configured, must match, and the
+		// TCP peer must be loopback or private. RemoteAddr is used because
+		// ClientIP trusts X-Forwarded-For from any proxy.
+		if !middleware.InternalSSHAuthorized(c.Request.RemoteAddr, c.GetHeader("X-Internal-Key"), os.Getenv("SSH_GATEWAY_INTERNAL_KEY")) {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			return
 		}
 		c.Next()
 	})
@@ -1608,6 +1622,9 @@ func runServer() {
 		sshPort = "22" // Default SSH port
 	}
 	if sshPort != "" {
+		if strings.TrimSpace(os.Getenv("SSH_GATEWAY_INTERNAL_KEY")) == "" {
+			log.Printf("⚠️  SSH_GATEWAY_INTERNAL_KEY is not set; gateway API calls will be rejected")
+		}
 		go startSSHGateway(sshPort, port)
 	}
 

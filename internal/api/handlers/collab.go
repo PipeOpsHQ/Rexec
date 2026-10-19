@@ -248,12 +248,9 @@ func (h *CollabHandler) JoinSession(c *gin.Context) {
 		return
 	}
 
-	// Check max users
-	session.mu.RLock()
-	participantCount := len(session.Participants)
-	session.mu.RUnlock()
-
-	if participantCount >= session.MaxUsers {
+	// An existing participant may reconnect. MaxUsers 0 blocks every new join.
+	uid, _ := userID.(string)
+	if !sessionHasRoom(session, uid) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "session is full"})
 		return
 	}
@@ -374,6 +371,15 @@ func (h *CollabHandler) HandleCollabWebSocket(c *gin.Context) {
 
 		go session.broadcastLoop()
 		log.Printf("[Collab] Restored session %s from database", shareCode)
+	}
+
+	// Cap the session before the upgrade so a full room cannot be joined by
+	// opening the socket directly. A participant who is already registered
+	// (JoinSession, or a reconnect) is allowed back in.
+	wsUserID, _ := userID.(string)
+	if !sessionHasRoom(session, wsUserID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "session is full"})
+		return
 	}
 
 	// Upgrade to WebSocket with subprotocol support
@@ -1006,4 +1012,102 @@ func (h *CollabHandler) DeleteInvitation(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "invitation deleted"})
+}
+
+// UserHasAccess reports whether userID is a participant on containerID.
+// containerID is a Docker id or "agent:<id>". Lookup errors fail closed.
+func (h *CollabHandler) UserHasAccess(ctx context.Context, userID, containerID string) bool {
+	_, ok := h.ParticipantRole(ctx, userID, containerID)
+	return ok
+}
+
+// ParticipantRole returns the collaborator's role. ok is false when the user
+// is not a participant or the lookup fails. An empty role fails closed.
+func (h *CollabHandler) ParticipantRole(ctx context.Context, userID, containerID string) (string, bool) {
+	if h == nil || userID == "" || containerID == "" {
+		return "", false
+	}
+
+	h.mu.RLock()
+	for _, session := range h.sessions {
+		if session == nil || !collabContainerMatch(session.ContainerID, containerID) {
+			continue
+		}
+		session.mu.RLock()
+		p, ok := session.Participants[userID]
+		role := ""
+		if ok && p != nil {
+			role = p.Role
+		}
+		session.mu.RUnlock()
+		if ok {
+			h.mu.RUnlock()
+			if role == "" {
+				return "", false
+			}
+			return role, true
+		}
+	}
+	h.mu.RUnlock()
+
+	if h.store == nil {
+		return "", false
+	}
+
+	ids := []string{containerID}
+	if len(containerID) >= 64 {
+		ids = append(ids, containerID[:12])
+	}
+	sawErr := false
+	for _, cid := range ids {
+		session, err := h.store.GetCollabSessionByContainerID(ctx, cid)
+		if err != nil {
+			sawErr = true
+			continue
+		}
+		if session == nil {
+			continue
+		}
+		participants, err := h.store.GetCollabParticipants(ctx, session.ID)
+		if err != nil {
+			return "", false
+		}
+		for _, p := range participants {
+			if p != nil && p.UserID == userID {
+				if p.Role == "" {
+					return "", false
+				}
+				return p.Role, true
+			}
+		}
+	}
+	if sawErr {
+		return "", false
+	}
+	return "", false
+}
+
+// sessionHasRoom is true for an existing participant and for a new one when
+// the room is below MaxUsers. MaxUsers 0 admits nobody new.
+func sessionHasRoom(session *CollabSession, userID string) bool {
+	if session == nil || userID == "" {
+		return false
+	}
+	session.mu.RLock()
+	defer session.mu.RUnlock()
+	if _, ok := session.Participants[userID]; ok {
+		return true
+	}
+	return len(session.Participants) < session.MaxUsers
+}
+
+func collabContainerMatch(sessionID, containerID string) bool {
+	if sessionID == containerID {
+		return true
+	}
+	if len(containerID) >= 12 && len(sessionID) >= 12 {
+		return strings.HasPrefix(sessionID, containerID[:12]) ||
+			strings.HasPrefix(containerID, sessionID[:12])
+	}
+	return false
 }
