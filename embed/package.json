@@ -35,14 +35,14 @@
     "@types/node": "^20.10.0",
     "terser": "^5.27.0",
     "typescript": "^5.3.0",
-    "vite": "^8.0.16",
+    "vite": "^8.1.6",
     "vite-plugin-dts": "^5.1.2"
   },
   "overrides": {
     "lodash": "^4.18.1",
-    "minimatch": "^3.1.5",
+    "minimatch": "11.0.4",
     "ajv": "^6.14.0",
-    "brace-expansion": "1.1.21",
+    "brace-expansion": "5.0.12",
     "postcss": "8.5.23"
   },
   "dependencies": {

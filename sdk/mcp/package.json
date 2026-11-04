@@ -36,14 +36,20 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.31.0",
     "pipeops-rexec": "file:../js",
-    "zod": "^3.24.0"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "typescript": "^5.0.0"
   },
   "overrides": {
-    "proxy-addr": "2.0.8"
+    "proxy-addr": "2.0.8",
+    "@hono/node-server": "2.1.6",
+    "hono": "4.13.16",
+    "body-parser": "2.4.0",
+    "qs": "6.17.1",
+    "ip-address": "10.7.6",
+    "fast-uri": "3.1.9"
   },
   "engines": {
     "node": ">=18"
