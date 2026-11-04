@@ -1372,26 +1372,23 @@ func runServer() {
 		if _, err := os.Stat(downloadsDir); err == nil {
 			router.GET("/downloads/:filename", func(c *gin.Context) {
 				filename := c.Param("filename")
-				// Security: only allow specific filenames
-				allowedPrefixes := []string{"rexec-agent-", "rexec-cli-", "rexec-"}
-				allowed := false
-				for _, prefix := range allowedPrefixes {
-					if len(filename) > len(prefix) && filename[:len(prefix)] == prefix {
-						allowed = true
-						break
-					}
-				}
-				if !allowed {
+				// Reject separators and ".." before joining. A prefix check alone
+				// accepts names such as rexec-../../../etc/passwd.
+				if strings.Contains(filename, "..") || !downloadNamePattern.MatchString(filename) || !filepath.IsLocal(filename) {
 					c.JSON(404, gin.H{"error": "File not found"})
 					return
 				}
-				filePath := filepath.Join(downloadsDir, filename)
+				filePath, err := resolveDownloadPath(downloadsDir, filename)
+				if err != nil {
+					c.JSON(404, gin.H{"error": "File not found"})
+					return
+				}
 				if _, err := os.Stat(filePath); os.IsNotExist(err) {
 					c.JSON(404, gin.H{"error": "Binary not found. Please build from source or wait for release."})
 					return
 				}
 				c.Header("Content-Type", "application/octet-stream")
-				c.Header("Content-Disposition", "attachment; filename="+filename)
+				c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
 				c.File(filePath)
 			})
 		}

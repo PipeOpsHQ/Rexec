@@ -474,6 +474,16 @@ export class TerminalWebSocket {
 /**
  * Generate a unique session ID
  */
+function randomIdSuffix(): string {
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  let hex = "";
+  for (const b of bytes) {
+    hex += b.toString(16).padStart(2, "0");
+  }
+  return hex;
+}
+
 export function generateSessionId(): string {
-  return `embed-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+  return `embed-${Date.now()}-${randomIdSuffix()}`;
 }

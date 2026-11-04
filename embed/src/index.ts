@@ -58,7 +58,13 @@ const instances: Map<string, RexecTerminal> = new Map();
  * Generate a unique instance ID
  */
 function generateInstanceId(): string {
-  return `rexec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const bytes = new Uint8Array(4);
+  crypto.getRandomValues(bytes);
+  let hex = "";
+  for (const b of bytes) {
+    hex += b.toString(16).padStart(2, "0");
+  }
+  return `rexec-${Date.now()}-${hex}`;
 }
 
 /**
