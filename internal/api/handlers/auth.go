@@ -241,6 +241,25 @@ func (h *AuthHandler) guestRestoreUserID(c *gin.Context) (string, bool) {
 	return userID, true
 }
 
+// oauthStateCookieSecure reports whether the OAuth state cookie must set Secure.
+// HTTPS responses, including those behind a proxy, set it. Plain HTTP does not,
+// so local development can still complete the OAuth redirect.
+func oauthStateCookieSecure(c *gin.Context) bool {
+	if c.Request != nil && c.Request.TLS != nil {
+		return true
+	}
+	proto := ""
+	if c.Request != nil {
+		proto = c.Request.Header.Get("X-Forwarded-Proto")
+	}
+	return strings.EqualFold(strings.TrimSpace(proto), "https")
+}
+
+func setOAuthStateCookie(c *gin.Context, value string, maxAge int) {
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie("oauth_state", value, maxAge, "/api/auth", "", oauthStateCookieSecure(c), true)
+}
+
 func (h *AuthHandler) setGuestRestoreCookie(c *gin.Context, userID string) {
 	if userID == "" || len(h.jwtSecret) == 0 {
 		return
@@ -402,17 +421,10 @@ func (h *AuthHandler) GetOAuthURL(c *gin.Context) {
 		return
 	}
 
-	// Set secure, HTTP-only cookie with the state token
-	// Path must match the callback URL path
-	isSecure := c.Request.TLS != nil || c.Request.Header.Get("X-Forwarded-Proto") == "https"
-	// Allow insecure cookies in dev mode if needed, but prefer secure
-	if os.Getenv("GIN_MODE") != "release" {
-		isSecure = false
-	}
-
-	// Note: SameSite=Lax is needed for the cookie to be sent on the return redirect
-	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie("oauth_state", stateString, 900, "/api/auth", "", isSecure, true)
+	// SameSite=Lax is required so the cookie is sent on the OAuth return redirect.
+	// Secure follows the request scheme. Forcing it off outside release mode sent
+	// the PKCE verifier over HTTPS whenever GIN_MODE was not "release".
+	setOAuthStateCookie(c, stateString, 900)
 
 	// Get authorization URL with dynamic redirect URI
 	authURL := h.oauthService.GetAuthorizationURLWithRedirect(state, pkceChallenge.CodeChallenge, redirectURI)
@@ -485,8 +497,9 @@ func (h *AuthHandler) OAuthCallback(c *gin.Context) {
 		redirectURI = h.getRedirectURI(c)
 	}
 
-	// Clear the state cookie
-	c.SetCookie("oauth_state", "", -1, "/api/auth", "", false, true)
+	// Clear the state cookie. Secure must match the cookie that was set, or the
+	// browser will keep a Secure cookie when this attribute is false.
+	setOAuthStateCookie(c, "", -1)
 
 	// Exchange code for token using the same redirect URI that was used in authorization
 	tokenResp, err := h.oauthService.ExchangeCodeForTokenWithRedirect(code, codeVerifier, redirectURI)

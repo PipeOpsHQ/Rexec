@@ -35,6 +35,24 @@ const initialState: AuthState = {
   error: null,
 };
 
+// mfaEnabled is refreshed from /api/profile. It is omitted here so the
+// MFA flag is not written into localStorage with the rest of the profile.
+function userForStorage(user: User): Omit<User, "mfaEnabled"> {
+  const { mfaEnabled, ...stored } = user;
+  void mfaEnabled;
+  return stored;
+}
+
+function persistUser(user: User) {
+  localStorage.setItem("rexec_user", JSON.stringify(userForStorage(user)));
+}
+
+function randomGuestUsername(): string {
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  return `Guest_${buf[0].toString(36)}`;
+}
+
 // Load persisted auth from localStorage
 function loadPersistedAuth(): AuthState {
   if (typeof window === "undefined") return initialState;
@@ -44,7 +62,11 @@ function loadPersistedAuth(): AuthState {
     const userJson = localStorage.getItem("rexec_user");
 
     if (token && userJson) {
-      const user = JSON.parse(userJson) as User;
+      const parsed = JSON.parse(userJson) as User;
+      const user = userForStorage(parsed);
+      if (Object.prototype.hasOwnProperty.call(parsed, "mfaEnabled")) {
+        persistUser(parsed);
+      }
       return { ...initialState, token, user };
     }
   } catch (e) {
@@ -76,7 +98,7 @@ function createAuthStore() {
     // Login with token and user
     login(token: string, user: User) {
       localStorage.setItem("rexec_token", token);
-      localStorage.setItem("rexec_user", JSON.stringify(user));
+      persistUser(user);
       set({ token, user, isLoading: false, error: null });
 
       // Identify user in PostHog
@@ -107,7 +129,7 @@ function createAuthStore() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             email: email,
-            username: `Guest_${Math.floor(Math.random() * 10000)}`,
+            username: randomGuestUsername(),
           }),
         });
 
@@ -301,7 +323,7 @@ function createAuthStore() {
           isLoading: false,
           error: null,
         }));
-        localStorage.setItem("rexec_user", JSON.stringify(user));
+        persistUser(user);
 
         return { success: true, user };
       } catch (e) {
@@ -393,7 +415,7 @@ function createAuthStore() {
       update((state) => {
         if (state.user) {
           const updatedUser = { ...state.user, isAdmin: true };
-          localStorage.setItem("rexec_user", JSON.stringify(updatedUser));
+          persistUser(updatedUser);
           return { ...state, user: updatedUser };
         }
         return state;

@@ -1,6 +1,29 @@
 import { defineConfig } from "vite";
 import { resolve } from "path";
 
+// JSON.stringify leaves <, >, / and line separators raw. Those characters can
+// break out of a script when the string is concatenated into JavaScript.
+const jsStringEscapes: Record<string, string> = {
+  "<": "\\u003C",
+  ">": "\\u003E",
+  "/": "\\u002F",
+  "\b": "\\b",
+  "\f": "\\f",
+  "\n": "\\n",
+  "\r": "\\r",
+  "\t": "\\t",
+  "\0": "\\0",
+  "\u2028": "\\u2028",
+  "\u2029": "\\u2029",
+};
+
+function escapeUnsafeChars(value: string): string {
+  return value.replace(
+    /[<>/\b\f\n\r\t\0\u2028\u2029]/g,
+    (ch) => jsStringEscapes[ch] ?? ch,
+  );
+}
+
 export default defineConfig({
   build: {
     lib: {
@@ -65,7 +88,7 @@ export default defineConfig({
           }
 
           // Inject CSS into JS files
-          const cssInjector = `(function(){if(typeof document!=="undefined"){var s=document.createElement("style");s.textContent=${JSON.stringify(cssContent)};document.head.appendChild(s);}})();`;
+          const cssInjector = `(function(){if(typeof document!=="undefined"){var s=document.createElement("style");s.textContent=${escapeUnsafeChars(JSON.stringify(cssContent))};document.head.appendChild(s);}})();`;
 
           for (const [fileName, chunk] of Object.entries(bundle)) {
             if (chunk.type === "chunk" && fileName.endsWith(".js")) {

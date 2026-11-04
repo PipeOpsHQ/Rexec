@@ -10,6 +10,24 @@ export interface SecurityState {
   singleSessionMode: boolean;
 }
 
+// The dismiss flag is not a passcode. It is stored under its own key so the
+// passcode prompt stays dismissed without writing that field into rexec_security.
+const lockPromptDismissedKey = "rexec_lock_prompt_dismissed";
+
+function lockPromptWasDismissed(): boolean {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem(lockPromptDismissedKey) === "1";
+}
+
+function setLockPromptDismissed(dismissed: boolean) {
+  if (typeof window === "undefined") return;
+  if (dismissed) {
+    localStorage.setItem(lockPromptDismissedKey, "1");
+    return;
+  }
+  localStorage.removeItem(lockPromptDismissedKey);
+}
+
 const initialState: SecurityState = {
   enabled: false,
   isLocked: false,
@@ -25,13 +43,33 @@ function loadPersistedSecurity(): SecurityState {
     const stored = localStorage.getItem("rexec_security");
     if (stored) {
       const parsed = JSON.parse(stored);
+      if (
+        Object.prototype.hasOwnProperty.call(
+          parsed,
+          "passcodeSetupPromptDismissed",
+        )
+      ) {
+        if (parsed.passcodeSetupPromptDismissed === true) {
+          setLockPromptDismissed(true);
+        }
+        localStorage.setItem(
+          "rexec_security",
+          JSON.stringify({
+            isLocked: parsed.isLocked === true,
+            lockAfterMinutes: parsed.lockAfterMinutes || 5,
+            lastActivity: parsed.lastActivity || Date.now(),
+            singleSessionMode: !!parsed.singleSessionMode,
+          }),
+        );
+      }
       return {
         ...initialState,
         isLocked: parsed.isLocked === true,
         lockAfterMinutes: parsed.lockAfterMinutes || 5,
         lastActivity: parsed.lastActivity || Date.now(),
         passcodeSetupPromptDismissed:
-          parsed.passcodeSetupPromptDismissed || false,
+          lockPromptWasDismissed() ||
+          parsed.passcodeSetupPromptDismissed === true,
         singleSessionMode: parsed.singleSessionMode || false,
       };
     }
@@ -53,7 +91,6 @@ function createSecurityStore() {
         isLocked: state.isLocked,
         lockAfterMinutes: state.lockAfterMinutes,
         lastActivity: state.lastActivity,
-        passcodeSetupPromptDismissed: state.passcodeSetupPromptDismissed,
         singleSessionMode: state.singleSessionMode,
       }),
     );
@@ -269,6 +306,7 @@ function createSecurityStore() {
       update((state) => {
         const newState = { ...state, passcodeSetupPromptDismissed: true };
         persistLocal(newState);
+        setLockPromptDismissed(true);
         return newState;
       });
     },
@@ -277,6 +315,7 @@ function createSecurityStore() {
       update((state) => {
         const newState = { ...state, passcodeSetupPromptDismissed: false };
         persistLocal(newState);
+        setLockPromptDismissed(false);
         return newState;
       });
     },

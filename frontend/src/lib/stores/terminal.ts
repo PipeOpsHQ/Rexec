@@ -449,9 +449,19 @@ function savePreferences(state: TerminalState) {
   }
 }
 
+function randomIdSuffix(): string {
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  let hex = "";
+  for (const b of bytes) {
+    hex += b.toString(16).padStart(2, "0");
+  }
+  return hex;
+}
+
 // Generate session ID
 function generateSessionId(): string {
-  return `session-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  return `session-${Date.now()}-${randomIdSuffix()}`;
 }
 
 // Get WebSocket URL
@@ -2310,7 +2320,7 @@ function createTerminalStore() {
 
     // Generate a unique pane ID
     _generatePaneId(): string {
-      return `pane-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      return `pane-${Date.now()}-${randomIdSuffix()}`;
     },
 
     // Split the current terminal view (creates a new INDEPENDENT terminal session to the same container)
